@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import ProspectForm from '@/components/workspace/ProspectForm';
+import { convertProspectFormAction } from './actions';
 import { requireUserContext } from '@/lib/auth/context';
 import { listProspects } from '@/lib/repositories/prospects';
 
@@ -10,13 +12,12 @@ const stages = [
   { key: 'converted', label: 'Converted' },
 ] as const;
 
-export default async function AcquisitionPage() {
+export default async function AcquisitionPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = searchParams ? await searchParams : {};
   const { supabase, organisationId } = await requireUserContext();
   const prospects = await listProspects(supabase, organisationId);
 
-  const counts = Object.fromEntries(
-    stages.map((stage) => [stage.key, prospects.filter((prospect) => prospect.status === stage.key).length]),
-  );
+  const counts = Object.fromEntries(stages.map((stage) => [stage.key, prospects.filter((prospect) => prospect.status === stage.key).length]));
   const linkedInProspects = prospects.filter((prospect) => prospect.source === 'linkedin');
 
   return (
@@ -30,34 +31,43 @@ export default async function AcquisitionPage() {
         <Link className="button" href="/workspace/leads">View leads</Link>
       </div>
 
+      {params.created ? <p className="card" style={{ marginTop: 20, width: '100%' }}>Prospect added successfully.</p> : null}
+      {params.error ? <p className="card" style={{ marginTop: 20, width: '100%' }}>{String(params.error)}</p> : null}
+
       <div className="metric-grid">
         <article className="metric"><span>LinkedIn prospects</span><strong>{linkedInProspects.length}</strong></article>
         <article className="metric"><span>Active conversations</span><strong>{counts.conversation ?? 0}</strong></article>
         <article className="metric"><span>Ready to convert</span><strong>{counts.qualified ?? 0}</strong></article>
       </div>
 
-      <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12 }}>
-        {stages.map((stage) => (
-          <article className="metric" key={stage.key}><span>{stage.label}</span><strong>{counts[stage.key] ?? 0}</strong></article>
-        ))}
-      </div>
+      <ProspectForm />
 
       <div style={{ marginTop: 36 }}>
-        <p className="eyebrow">LinkedIn funnel</p>
-        <h2>Current conversations</h2>
-        {linkedInProspects.length === 0 ? (
-          <div className="card" style={{ marginTop: 18, width: '100%' }}>
-            <h3>No LinkedIn prospects yet</h3>
-            <p className="lede" style={{ fontSize: 16 }}>The repository, validation and server-action backbone is ready for the prospect creation form.</p>
-          </div>
+        <p className="eyebrow">Acquisition funnel</p>
+        <h2>Current prospects</h2>
+        {prospects.length === 0 ? (
+          <div className="card" style={{ marginTop: 18, width: '100%' }}><h3>No prospects yet</h3><p className="lede" style={{ fontSize: 16 }}>Add the first LinkedIn or other acquisition prospect above.</p></div>
         ) : (
           <div style={{ marginTop: 18, display: 'grid', gap: 12 }}>
-            {linkedInProspects.map((prospect) => (
+            {prospects.map((prospect) => (
               <article className="metric" key={prospect.id}>
-                <strong style={{ fontSize: 22, marginTop: 0 }}>{prospect.company_name}</strong>
-                <p>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'}</p>
-                <span>{prospect.status.replaceAll('_', ' ')}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                  <div><strong style={{ fontSize: 22, marginTop: 0 }}>{prospect.company_name}</strong><p>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'} · {prospect.source}</p></div>
+                  <span>{prospect.status.replaceAll('_', ' ')}</span>
+                </div>
                 {prospect.next_action ? <p>Next: {prospect.next_action}</p> : null}
+                {prospect.status === 'qualified' ? (
+                  <form action={convertProspectFormAction} className="stack" style={{ marginTop: 18 }}>
+                    <input type="hidden" name="prospect_id" value={prospect.id} />
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <input className="field_input border border-black/15 bg-white px-3 py-2" name="title" placeholder="Opportunity title" defaultValue={`${prospect.company_name} engineering requirement`} />
+                      <input className="field_input border border-black/15 bg-white px-3 py-2" name="project_type" placeholder="Project type" />
+                      <select className="field_input border border-black/15 bg-white px-3 py-2" name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+                    </div>
+                    <input type="hidden" name="service" value="Engineering overflow support" />
+                    <button className="button" type="submit">Convert to lead</button>
+                  </form>
+                ) : null}
               </article>
             ))}
           </div>
