@@ -2,7 +2,7 @@ const faqs = [
   { question: 'What file formats do you support?', answer: 'Typical inputs include SolidWorks, Fusion 360, AutoCAD, Inventor, STEP, IGES, DXF, PDF, sketches, scan data, photos, and reference parts.' },
   { question: 'Can you support urgent projects?', answer: 'Urgent projects can be reviewed when the requirement, files, scope, and expected delivery window are clear enough for technical assessment.' },
   { question: 'How are projects reviewed?', answer: 'Each request moves through requirement review, technical assessment, commercial assessment, execution, and controlled handover.' },
-  { question: 'Do you work with existing engineering teams?', answer: 'Yes. MIDTS is designed to add structured engineering capacity alongside existing internal teams when delivery requirements exceed available resource.' },
+  { question: 'Do you work with existing engineering teams?', answer: 'Yes. Overflow Partner is designed to add structured engineering capacity alongside existing internal teams when delivery requirements exceed available resource.' },
 ];
 
 export default function FAQ() {
