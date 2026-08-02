@@ -11,15 +11,13 @@ type AutomationMeta = {
 const fieldClass =
   'field_input border-0 border-b border-white/40 bg-transparent px-0 py-3 text-white outline-none transition placeholder:text-white focus:!border-white focus:!shadow-[0_1px_0_rgba(255,255,255,0.9)] disabled:text-white';
 const labelClass = 'field_group grid gap-2 text-xs font-medium uppercase text-white';
+
 export default function EnquiryForm() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [automationMeta, setAutomationMeta] = useState<AutomationMeta>({
-    leadId: '',
-    step1CompletedAt: '',
-  });
-  const [submissionInfo, setSubmissionInfo] = useState<{submissionId:string;timestamp:string}|null>(null);
+  const [automationMeta, setAutomationMeta] = useState<AutomationMeta>({ leadId: '', step1CompletedAt: '' });
+  const [submissionInfo, setSubmissionInfo] = useState<{ submissionId: string; timestamp: string } | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,10 +28,10 @@ export default function EnquiryForm() {
     try {
       const form = event.currentTarget;
       const completedAt = new Date().toISOString();
-      const leadId = `midts-${completedAt.replace(/[^0-9]/g, '')}`;
+      const leadId = `overflow-partner-${completedAt.replace(/[^0-9]/g, '')}`;
       const formData = new FormData(form);
-
       const payload: Record<string, string> = {};
+
       formData.forEach((value, key) => {
         if (typeof value === 'string') payload[key] = value;
       });
@@ -58,7 +56,7 @@ export default function EnquiryForm() {
         `Gateway configured: ${diagnostics.hasGatewayUrl ? 'yes' : 'no'}`,
         `Gateway is not Apps Script: ${diagnostics.gatewayLooksLikeAppsScript ? 'no' : 'yes'}`,
       ].join(' | ');
-      setErrorMessage(`${message} ${diagnosticSummary}. Please email intake@midts.com instead.`);
+      setErrorMessage(`${message} ${diagnosticSummary}. Please use the contact form again later.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -67,7 +65,6 @@ export default function EnquiryForm() {
   return (
     <form className="form_enquiry grid gap-8" onSubmit={handleSubmit}>
       <p className="text_body max-w-xl text-sm leading-6 text-white">Send the first request. The technical requirement form follows by email.</p>
-
       <input type="hidden" name="lead_id" value={automationMeta.leadId} readOnly />
       <input type="hidden" name="step_1_completed_at" value={automationMeta.step1CompletedAt} readOnly />
       <input type="hidden" name="step_2_completed" value="false" readOnly />
