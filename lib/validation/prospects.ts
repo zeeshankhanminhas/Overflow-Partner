@@ -4,6 +4,8 @@ const optionalText = z.string().trim().max(500).optional().or(z.literal(''));
 
 export const prospectInputSchema = z.object({
   source: z.enum(['linkedin', 'website', 'email', 'referral', 'phone', 'manual']).default('linkedin'),
+  company_id: z.string().uuid().optional().or(z.literal('')),
+  contact_id: z.string().uuid().optional().or(z.literal('')),
   company_name: z.string().trim().min(2, 'Company name is required').max(180),
   contact_name: optionalText,
   job_title: optionalText,
