@@ -13,6 +13,7 @@ export type AcquisitionSource = 'linkedin' | 'website' | 'email' | 'referral' | 
 export type ProspectStatus = 'identified' | 'contacted' | 'conversation' | 'qualified' | 'converted' | 'not_a_fit';
 export type LeadStatus = 'new' | 'qualified' | 'technical_intake' | 'partner_review' | 'pricing' | 'quoted' | 'won' | 'lost';
 export type Priority = 'low' | 'normal' | 'high' | 'urgent';
+export type IntakeStatus = 'draft' | 'submitted' | 'under_review' | 'clarification_required' | 'approved' | 'rejected';
 
 export interface Profile {
   id: string;
@@ -68,6 +69,25 @@ export interface Lead {
   service: string | null;
   priority: Priority;
   owner_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TechnicalIntake {
+  id: string;
+  organisation_id: string;
+  lead_id: string;
+  project_type: string | null;
+  discipline: string | null;
+  description: string;
+  deliverables: string | null;
+  deadline: string | null;
+  special_requirements: string | null;
+  status: IntakeStatus;
+  submitted_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_by: string;
   created_at: string;
   updated_at: string;
 }
