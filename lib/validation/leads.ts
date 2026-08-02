@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const leadInputSchema = z.object({
+  company_id: z.string().uuid().optional().or(z.literal('')),
+  contact_id: z.string().uuid().optional().or(z.literal('')),
   company_name: z.string().trim().min(2, 'Company name is required').max(180),
   contact_name: z.string().trim().max(180).optional().or(z.literal('')),
   contact_email: z.string().trim().email('Enter a valid email').optional().or(z.literal('')),
