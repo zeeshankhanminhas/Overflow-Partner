@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-const CONSENT_KEY = 'midts_cookie_consent';
+const CONSENT_KEY = 'overflow_partner_cookie_consent';
 type ConsentChoice = 'accepted' | 'rejected';
 
 export default function CookieConsent() {
@@ -34,7 +34,7 @@ export default function CookieConsent() {
         <div className="grid gap-2">
           <p className="text-sm font-semibold uppercase text-black">Cookie preferences</p>
           <p className="max-w-3xl text-sm leading-6 text-black">
-            MIDTS uses essential browser storage for the site to work. Optional analytics cookies are not loaded unless you consent. Read the{' '}
+            Overflow Partner uses essential browser storage for the site to work. Optional analytics cookies are not loaded unless you consent. Read the{' '}
             <Link className="font-medium text-black underline underline-offset-4" href="/privacy/">Privacy Policy</Link>{' '}and{' '}
             <Link className="font-medium text-black underline underline-offset-4" href="/cookie-policy/">Cookie Policy</Link>.
           </p>
