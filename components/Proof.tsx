@@ -8,11 +8,11 @@ const reasons = [
 
 export default function Proof() {
   return (
-    <section id="why-midts" className="section_proof border-t border-white/20 bg-black py-32 text-white md:py-44">
+    <section id="why-overflow-partner" className="section_proof border-t border-white/20 bg-black py-32 text-white md:py-44">
       <div className="container_large padding_global">
         <div className="proof_wrapper mx-auto max-w-4xl">
           <div className="proof_heading motion_fade_up mx-auto max-w-2xl text-center">
-            <p className="text_eyebrow mb-8 text-sm font-semibold uppercase text-white">Why MIDTS</p>
+            <p className="text_eyebrow mb-8 text-sm font-semibold uppercase text-white">Why Overflow Partner</p>
             <h2 className="heading_section mx-auto max-w-xl text-3xl font-semibold leading-tight text-white md:text-4xl">Built for teams that need reliable engineering output, not more coordination overhead.</h2>
           </div>
           <div className="grid_proof mt-16 border-y border-white/40">
