@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Overflow Partner symbol</title>
+  <desc id="desc">Two parallel engineering rails with a small orange overflow extension.</desc>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <rect x="18" y="34" width="18" height="18" stroke="#171717" stroke-width="6"/>
+    <rect x="18" y="74" width="18" height="18" stroke="#171717" stroke-width="6"/>
+    <path d="M36 43H101" stroke="#171717" stroke-width="7"/>
+    <path d="M36 83H81" stroke="#171717" stroke-width="7"/>
+    <path d="M92 83H110" stroke="#E9682E" stroke-width="7"/>
+  </g>
+</svg>
