@@ -1,13 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="180" viewBox="0 0 920 180" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg"
+  width="1080" height="190" viewBox="0 0 1080 190"
+  role="img" aria-labelledby="title desc">
   <title id="title">Overflow Partner logo</title>
-  <desc id="desc">Two precise parallel engineering rails with a small orange overflow extension, followed by the Overflow Partner wordmark.</desc>
+  <desc id="desc">An OP monogram formed from two engineered horizontal structures. The lower line extends in red to represent added engineering capacity.</desc>
+  
   <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
-    <rect x="34" y="48" width="24" height="24" stroke="#171717" stroke-width="7"/>
-    <rect x="34" y="94" width="24" height="24" stroke="#171717" stroke-width="7"/>
-    <path d="M58 60H205" stroke="#171717" stroke-width="8"/>
-    <path d="M58 106H170" stroke="#171717" stroke-width="8"/>
-    <path d="M183 106H215" stroke="#E9682E" stroke-width="8"/>
-    <path d="M258 38V138" stroke="#171717" stroke-width="2"/>
+    <!-- O monogram -->
+    <rect x="28" y="26" width="54" height="38" rx="8"
+          stroke="#171717" stroke-width="10"/>
+    <path d="M82 45H250" stroke="#171717" stroke-width="10"/>
+
+    <!-- P monogram -->
+    <path d="M58 82V144" stroke="#171717" stroke-width="10"/>
+    <path d="M58 84H101C118 84 126 94 126 106C126 118 118 128 101 128H58"
+          stroke="#171717" stroke-width="10"/>
+    <path d="M126 128H240" stroke="#171717" stroke-width="10"/>
+    <path d="M240 128H300" stroke="#E5483F" stroke-width="10"/>
   </g>
-  <text x="302" y="104" fill="#171717" font-family="Aspekta, Geist, Inter, 'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="500" letter-spacing="8">OVERFLOW PARTNER</text>
+
+  <path d="M350 26V154" stroke="#171717" stroke-width="2"/>
+  <text x="400" y="111"
+    fill="#171717"
+    font-family="Aspekta, Söhne, 'Neue Montreal', 'Suisse International', Inter, Arial, sans-serif"
+    font-size="54"
+    font-weight="500"
+    letter-spacing="7">OVERFLOW PARTNER</text>
 </svg>
