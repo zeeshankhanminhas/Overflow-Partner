@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import LeadForm from '@/components/workspace/LeadForm';
 import { requireUserContext } from '@/lib/auth/context';
 import { listLeads } from '@/lib/repositories/leads';
@@ -29,14 +30,15 @@ export default async function LeadsPage({ searchParams }: { searchParams?: Promi
         {leads.length === 0 ? (
           <div className="card" style={{ width: '100%' }}><h3>No leads yet</h3><p className="lede" style={{ fontSize: 16 }}>Create a direct lead above or convert a qualified prospect from Acquisition.</p></div>
         ) : leads.map((lead) => (
-          <article className="metric" key={lead.id}>
+          <Link href={`/workspace/leads/${lead.id}`} className="metric" key={lead.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
               <div><strong style={{ marginTop: 0, fontSize: 22 }}>{lead.title || lead.company_name}</strong><p>{lead.company_name}{lead.contact_name ? ` · ${lead.contact_name}` : ''}</p></div>
               <span>{lead.status.replaceAll('_', ' ')}</span>
             </div>
             <p>{lead.source ? `Source: ${lead.source}` : 'Source not recorded'} · Priority: {lead.priority}</p>
             {lead.service ? <p>Service: {lead.service}</p> : null}
-          </article>
+            <p style={{ marginTop: 12 }}>Open lead →</p>
+          </Link>
         ))}
       </div>
     </section>
