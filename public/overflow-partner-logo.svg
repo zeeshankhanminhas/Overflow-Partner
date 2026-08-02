@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="180" viewBox="0 0 920 180" role="img" aria-labelledby="title desc">
+  <title id="title">Overflow Partner logo</title>
+  <desc id="desc">Two precise parallel engineering rails with a small orange overflow extension, followed by the Overflow Partner wordmark.</desc>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <rect x="34" y="48" width="24" height="24" stroke="#171717" stroke-width="7"/>
+    <rect x="34" y="94" width="24" height="24" stroke="#171717" stroke-width="7"/>
+    <path d="M58 60H205" stroke="#171717" stroke-width="8"/>
+    <path d="M58 106H170" stroke="#171717" stroke-width="8"/>
+    <path d="M183 106H215" stroke="#E9682E" stroke-width="8"/>
+    <path d="M258 38V138" stroke="#171717" stroke-width="2"/>
+  </g>
+  <text x="302" y="104" fill="#171717" font-family="Aspekta, Geist, Inter, 'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="500" letter-spacing="8">OVERFLOW PARTNER</text>
+</svg>
