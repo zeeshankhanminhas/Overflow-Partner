@@ -1,12 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
-  <title id="title">Overflow Partner symbol</title>
-  <desc id="desc">Two parallel engineering rails with a small orange overflow extension.</desc>
-  <rect width="128" height="128" rx="18" fill="#F4F2ED"/>
+<svg xmlns="http://www.w3.org/2000/svg"
+  width="128" height="128" viewBox="0 0 128 128"
+  role="img" aria-labelledby="title desc">
+  <title id="title">Overflow Partner favicon</title>
+  <desc id="desc">Compact OP capacity-extension symbol.</desc>
   <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
-    <rect x="18" y="34" width="18" height="18" stroke="#171717" stroke-width="6"/>
-    <rect x="18" y="74" width="18" height="18" stroke="#171717" stroke-width="6"/>
-    <path d="M36 43H101" stroke="#171717" stroke-width="7"/>
-    <path d="M36 83H81" stroke="#171717" stroke-width="7"/>
-    <path d="M92 83H110" stroke="#E9682E" stroke-width="7"/>
+    <rect x="14" y="18" width="28" height="20" rx="4"
+          stroke="#171717" stroke-width="6"/>
+    <path d="M42 28H98" stroke="#171717" stroke-width="6"/>
+    <path d="M28 52V92" stroke="#171717" stroke-width="6"/>
+    <path d="M28 54H50C60 54 65 60 65 68C65 76 60 82 50 82H28"
+          stroke="#171717" stroke-width="6"/>
+    <path d="M65 82H91" stroke="#171717" stroke-width="6"/>
+    <path d="M91 82H114" stroke="#E5483F" stroke-width="6"/>
   </g>
 </svg>
