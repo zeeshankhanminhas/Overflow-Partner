@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const siteUrl = 'https://midts.co.uk';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://overflowpartner.co.uk';
 
 export const dynamic = 'force-static';
 
