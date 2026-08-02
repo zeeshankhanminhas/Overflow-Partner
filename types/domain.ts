@@ -14,6 +14,7 @@ export type ProspectStatus = 'identified' | 'contacted' | 'conversation' | 'qual
 export type LeadStatus = 'new' | 'qualified' | 'technical_intake' | 'partner_review' | 'pricing' | 'quoted' | 'won' | 'lost';
 export type Priority = 'low' | 'normal' | 'high' | 'urgent';
 export type IntakeStatus = 'draft' | 'submitted' | 'under_review' | 'clarification_required' | 'approved' | 'rejected';
+export type DocumentStatus = 'draft' | 'in_review' | 'approved' | 'issued' | 'superseded';
 
 export interface Profile {
   id: string;
@@ -24,6 +25,21 @@ export interface Profile {
   email: string | null;
   role: AppRole;
   is_active: boolean;
+}
+
+export interface Company {
+  id: string;
+  organisation_id: string;
+  name: string;
+  website: string | null;
+  industry: string | null;
+  country: string | null;
+  employee_count: number | null;
+  annual_revenue: number | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Prospect {
@@ -88,6 +104,27 @@ export interface TechnicalIntake {
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentRecord {
+  id: string;
+  organisation_id: string;
+  lead_id: string | null;
+  project_id: string | null;
+  technical_intake_id: string | null;
+  quote_id: string | null;
+  created_by: string;
+  document_type: string;
+  reference: string;
+  title: string;
+  status: DocumentStatus;
+  storage_path: string | null;
+  version: number;
+  approved_by: string | null;
+  approved_at: string | null;
+  issued_at: string | null;
   created_at: string;
   updated_at: string;
 }
