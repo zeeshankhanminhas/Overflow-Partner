@@ -8,11 +8,13 @@ export async function requireUserContext() {
 
   if (authError || !user) redirect('/login');
 
-  const { data: profile, error: profileError } = await supabase
+  const { data, error: profileError } = await supabase
     .from('profiles')
     .select('id, organisation_id, full_name, first_name, last_name, email, role, is_active')
     .eq('id', user.id)
-    .single<Profile>();
+    .single();
+
+  const profile = data as Profile | null;
 
   if (profileError || !profile || !profile.is_active || !profile.organisation_id) {
     throw new Error('Your account is not connected to an active Overflow Partner organisation profile.');
