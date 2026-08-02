@@ -48,9 +48,14 @@ export default function Header() {
               <Link key={link.href} className="text_link transition hover:text-white" href={link.href}>{link.label}</Link>
             ))}
           </nav>
-          <Link className="button_primary motion_button hidden min-h-10 items-center justify-center rounded-md bg-white px-5 py-2 text-xs font-medium uppercase text-black transition hover:bg-white md:inline-flex" href="/#contact">
-            Submit Requirement
-          </Link>
+          <div className="hidden items-center gap-3 md:flex">
+            <Link className="text_link inline-flex min-h-10 items-center justify-center px-2 text-xs font-medium uppercase text-white transition hover:text-white" href="/workspace">
+              Workspace
+            </Link>
+            <Link className="button_primary motion_button inline-flex min-h-10 items-center justify-center rounded-md bg-white px-5 py-2 text-xs font-medium uppercase text-black transition hover:bg-white" href="/#contact">
+              Submit Requirement
+            </Link>
+          </div>
           <button className="button_menu motion_button inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/40 text-white md:hidden" type="button" aria-label="Toggle navigation" aria-expanded={isOpen} onClick={() => setIsOpen((current) => !current)}>
             <span className="grid gap-1.5" aria-hidden="true">
               <span className="block h-px w-5 bg-current" />
@@ -62,8 +67,9 @@ export default function Header() {
         {isOpen ? (
           <nav className="nav_mobile mt-3 grid border-t border-white/40 pt-3 text-sm text-white md:hidden" aria-label="Mobile navigation">
             {links.map((link) => (
-              <Link key={link.href} className="text_link border-b border-white/30 py-2.5 transition last:border-b-0 hover:text-white" href={link.href} onClick={closeMenu}>{link.label}</Link>
+              <Link key={link.href} className="text_link border-b border-white/30 py-2.5 transition hover:text-white" href={link.href} onClick={closeMenu}>{link.label}</Link>
             ))}
+            <Link className="text_link border-b border-white/30 py-2.5 font-semibold uppercase" href="/workspace" onClick={closeMenu}>Workspace</Link>
             <Link className="text_link py-2.5 font-semibold uppercase" href="/#contact" onClick={closeMenu}>Submit Requirement</Link>
           </nav>
         ) : null}
