@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Lead } from '@/types/domain';
+import type { Lead, LeadStatus } from '@/types/domain';
 import type { LeadInput } from '@/lib/validation/leads';
 
 export async function listLeads(supabase: SupabaseClient, organisationId: string) {
@@ -11,6 +11,22 @@ export async function listLeads(supabase: SupabaseClient, organisationId: string
 
   if (error) throw new Error(error.message);
   return (data ?? []) as Lead[];
+}
+
+export async function getLeadById(
+  supabase: SupabaseClient,
+  organisationId: string,
+  leadId: string,
+) {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('organisation_id', organisationId)
+    .eq('id', leadId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Lead;
 }
 
 export async function createLead(
@@ -34,6 +50,24 @@ export async function createLead(
       notes: input.notes || null,
       prospect_id: input.prospect_id ?? null,
     })
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Lead;
+}
+
+export async function updateLeadStatus(
+  supabase: SupabaseClient,
+  organisationId: string,
+  leadId: string,
+  status: LeadStatus,
+) {
+  const { data, error } = await supabase
+    .from('leads')
+    .update({ status })
+    .eq('organisation_id', organisationId)
+    .eq('id', leadId)
     .select('*')
     .single();
 
