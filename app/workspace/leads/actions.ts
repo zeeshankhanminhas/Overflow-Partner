@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { leadInputSchema } from '@/lib/validation/leads';
 import { createLead } from '@/lib/repositories/leads';
@@ -37,4 +38,9 @@ export async function createLeadAction(formData: FormData): Promise<ActionResult
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Unable to create lead.' };
   }
+}
+
+export async function createLeadFormAction(formData: FormData) {
+  const result = await createLeadAction(formData);
+  redirect(result.ok ? '/workspace/leads?created=1' : `/workspace/leads?error=${encodeURIComponent(result.error)}`);
 }
