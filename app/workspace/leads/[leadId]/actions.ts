@@ -1,5 +1,6 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { technicalIntakeInputSchema } from '@/lib/validation/technical-intakes';
@@ -28,9 +29,8 @@ export async function createTechnicalIntakeAction(formData: FormData): Promise<A
     }
 
     const intake = await createTechnicalIntake(supabase, organisationId, user.id, parsed.data);
-    const newLeadStatus = parsed.data.status === 'submitted' ? 'technical_intake' : lead.status;
-    if (newLeadStatus !== lead.status) {
-      await updateLeadStatus(supabase, organisationId, lead.id, newLeadStatus);
+    if (parsed.data.status === 'submitted' && lead.status !== 'technical_intake') {
+      await updateLeadStatus(supabase, organisationId, lead.id, 'technical_intake');
     }
 
     await recordActivity(supabase, {
@@ -50,4 +50,11 @@ export async function createTechnicalIntakeAction(formData: FormData): Promise<A
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Unable to create technical intake.' };
   }
+}
+
+export async function createTechnicalIntakeFormAction(formData: FormData) {
+  const leadId = String(formData.get('lead_id') ?? '');
+  const result = await createTechnicalIntakeAction(formData);
+  if (!result.ok) throw new Error(result.error);
+  redirect(`/workspace/leads/${leadId}`);
 }
