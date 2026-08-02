@@ -13,6 +13,22 @@ export async function listProspects(supabase: SupabaseClient, organisationId: st
   return (data ?? []) as Prospect[];
 }
 
+export async function getProspectById(
+  supabase: SupabaseClient,
+  organisationId: string,
+  prospectId: string,
+) {
+  const { data, error } = await supabase
+    .from('prospects')
+    .select('*')
+    .eq('organisation_id', organisationId)
+    .eq('id', prospectId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Prospect;
+}
+
 export async function createProspect(
   supabase: SupabaseClient,
   organisationId: string,
