@@ -15,6 +15,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <div className="brand">Overflow<span>Partner</span></div>
         <nav aria-label="Workspace">
           <Link href="/workspace">Dashboard</Link>
+          <Link href="/workspace/acquisition">Acquisition</Link>
           <Link href="/workspace/leads">Leads</Link>
           <Link href="/workspace/documents">Documents</Link>
         </nav>
