@@ -5,119 +5,17 @@ export type SubmitResult = {
   timestamp: string;
 };
 
-export type WebhookDiagnostics = {
-  hasGatewayUrl: boolean;
-  gatewayLooksLikeAppsScript: boolean;
-};
-
 function withTimeout(ms: number): AbortSignal {
   const controller = new AbortController();
   setTimeout(() => controller.abort(), ms);
   return controller.signal;
 }
 
-function getGatewayConfig(): { gatewayUrl: string } {
-  return {
-    gatewayUrl: process.env.NEXT_PUBLIC_MIDTS_GATEWAY_URL || '',
-  };
-}
-
-export function getWebhookDiagnostics(): WebhookDiagnostics {
-  const { gatewayUrl } = getGatewayConfig();
-
-  return {
-    hasGatewayUrl: Boolean(gatewayUrl),
-    gatewayLooksLikeAppsScript: /^https:\/\/script\.google\.com\/macros\/s\/.+\/(exec|dev)$/.test(gatewayUrl),
-  };
-}
-
-function assertGatewayConfig(): { gatewayUrl: string } {
-  const { gatewayUrl } = getGatewayConfig();
-
-  if (!gatewayUrl) {
-    throw new Error('Workspace service is not configured.');
-  }
-
-  if (getWebhookDiagnostics().gatewayLooksLikeAppsScript) {
-    throw new Error('Workspace service configuration is invalid.');
-  }
-
-  return { gatewayUrl };
-}
-
-export type StructuredWebhookResponse<T = Record<string, unknown>> = {
-  success: boolean;
-  message: string;
-  data?: T;
-};
-
-type RawStructuredWebhookResponse<T = Record<string, unknown>> = Partial<StructuredWebhookResponse<T>> & {
-  ok?: boolean;
-  status?: string;
-  code?: string;
-  details?: Record<string, unknown>;
-};
-
-function safeWorkspaceError(message: string, payload?: Record<string, unknown>): string {
-  const normalized = message.toLowerCase();
-  const isWorkspaceRequest = payload?.formStage === 'workspaceRead' || String(payload?.source || '').startsWith('Workspace');
-
-  if (isWorkspaceRequest && (normalized.includes('unsupported workspace') || normalized.includes('unsupported action') || normalized.includes('not implemented'))) {
-    return 'This workflow is not yet connected to the live workspace.';
-  }
-
-  if (normalized.includes('gateway') || normalized.includes('apps script') || normalized.includes('cloud run')) {
-    return 'The workspace service is temporarily unavailable.';
-  }
-
-  if (/\b(list|create|update|submit|approve|reject)[a-z0-9]+\b/i.test(message) || message.includes('action:')) {
-    return 'The workspace request could not be completed. Please try again shortly.';
-  }
-
-  return message || 'The workspace request could not be completed. Please try again shortly.';
-}
-
-export async function submitStructuredPayload<T = Record<string, unknown>>(payload: Record<string, unknown>): Promise<StructuredWebhookResponse<T>> {
-  const { gatewayUrl } = assertGatewayConfig();
-
+export async function submitNativeIntake(payload: Record<string, string>): Promise<SubmitResult> {
   let response: Response;
+
   try {
-    response = await fetch(gatewayUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: withTimeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('The workspace request timed out. Please try again.');
-    }
-    throw new Error('The workspace service could not be reached. Please try again shortly.');
-  }
-
-  const json = (await response.json().catch(() => ({}))) as RawStructuredWebhookResponse<T>;
-  const success = json.success === true || json.ok === true || json.status === 'success';
-  const data = json.data as T | undefined;
-  const dataMessage = data && typeof (data as Record<string, unknown>).message === 'string' ? String((data as Record<string, unknown>).message) : '';
-  const message = typeof json.message === 'string' ? json.message : dataMessage || `Request failed with status ${response.status}.`;
-
-  if (!response.ok || !success) {
-    throw new Error(safeWorkspaceError(message, payload));
-  }
-
-  return {
-    success,
-    message,
-    data,
-  };
-}
-
-export async function submitJsonPayload(payload: Record<string, unknown>): Promise<SubmitResult> {
-  const { gatewayUrl } = assertGatewayConfig();
-
-  let response: Response;
-  try {
-    response = await fetch(gatewayUrl, {
+    response = await fetch('/api/intake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -127,41 +25,24 @@ export async function submitJsonPayload(payload: Record<string, unknown>): Promi
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('The request timed out. Please try again.');
     }
-    throw new Error('The service could not be reached. Please try again shortly.');
+    throw new Error('The requirement service could not be reached. Please try again shortly.');
   }
 
-  if (!response.ok) {
-    throw new Error('The request could not be completed. Please try again shortly.');
-  }
-
-  const json = await response.json().catch(() => ({}));
-  return {
-    submissionId: typeof json.submissionId === 'string' ? json.submissionId : `midts-${Date.now()}`,
-    timestamp: typeof json.timestamp === 'string' ? json.timestamp : new Date().toISOString(),
+  const json = await response.json().catch(() => ({})) as {
+    success?: boolean;
+    message?: string;
+    submissionId?: string;
+    timestamp?: string;
   };
-}
 
-export async function submitUrlEncodedPayload(payload: Record<string, string>): Promise<void> {
-  const { gatewayUrl } = assertGatewayConfig();
-
-  let response: Response;
-  try {
-    response = await fetch(gatewayUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(payload).toString(),
-      signal: withTimeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('The request timed out. Please try again.');
-    }
-    throw new Error('The service could not be reached. Please try again shortly.');
+  if (!response.ok || json.success !== true) {
+    throw new Error(json.message || 'The requirement could not be submitted. Please try again shortly.');
   }
 
-  if (!response.ok) {
-    throw new Error('The request could not be completed. Please try again shortly.');
-  }
+  return {
+    submissionId: json.submissionId || `overflow-partner-${Date.now()}`,
+    timestamp: json.timestamp || new Date().toISOString(),
+  };
 }
 
 export type EncodedUploadFile = {
