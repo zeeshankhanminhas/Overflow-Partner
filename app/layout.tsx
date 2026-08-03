@@ -1,4 +1,5 @@
 import './globals.css';
+import './opds.css';
 import type { Metadata } from 'next';
 import CookieConsent from '@/components/CookieConsent';
 
@@ -17,27 +18,15 @@ export const metadata: Metadata = {
     siteName: 'Overflow Partner',
     type: 'website',
   },
-  alternates: {
-    canonical: '/',
-  },
-  icons: {
-    icon: '/favicon.svg',
-  },
+  alternates: { canonical: '/' },
+  icons: { icon: '/favicon.svg' },
   twitter: {
     card: 'summary_large_image',
     title: 'Overflow Partner | CAD/CAM Overflow Engineering Support',
-    description:
-      'Overflow CAD/CAM support for teams that need precise engineering output without slowing down.',
+    description: 'Overflow CAD/CAM support for teams that need precise engineering output without slowing down.',
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <CookieConsent />
-      </body>
-    </html>
-  );
+  return <html lang="en"><body>{children}<CookieConsent /></body></html>;
 }
