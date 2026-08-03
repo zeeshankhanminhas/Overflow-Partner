@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { getWebhookDiagnostics, submitUrlEncodedPayload } from '@/components/formSubmission';
+import { submitNativeIntake } from '@/components/formSubmission';
 
 type AutomationMeta = {
   leadId: string;
@@ -28,7 +28,7 @@ export default function EnquiryForm() {
     try {
       const form = event.currentTarget;
       const completedAt = new Date().toISOString();
-      const leadId = `overflow-partner-${completedAt.replace(/[^0-9]/g, '')}`;
+      const websiteSubmissionId = `overflow-partner-${completedAt.replace(/[^0-9]/g, '')}`;
       const formData = new FormData(form);
       const payload: Record<string, string> = {};
 
@@ -36,27 +36,19 @@ export default function EnquiryForm() {
         if (typeof value === 'string') payload[key] = value;
       });
 
-      await submitUrlEncodedPayload({
+      const result = await submitNativeIntake({
         ...payload,
-        formStage: 'step1',
-        lead_id: leadId,
-        step_1_completed_at: completedAt,
+        lead_id: websiteSubmissionId,
         source: 'Website',
         pageUrl: window.location.href,
       });
 
-      setAutomationMeta({ leadId, step1CompletedAt: completedAt });
-      setSubmissionInfo({ submissionId: leadId, timestamp: completedAt });
+      setAutomationMeta({ leadId: result.submissionId, step1CompletedAt: result.timestamp });
+      setSubmissionInfo(result);
       setSubmitted(true);
       form.reset();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Submission failed.';
-      const diagnostics = getWebhookDiagnostics();
-      const diagnosticSummary = [
-        `Gateway configured: ${diagnostics.hasGatewayUrl ? 'yes' : 'no'}`,
-        `Gateway is not Apps Script: ${diagnostics.gatewayLooksLikeAppsScript ? 'no' : 'yes'}`,
-      ].join(' | ');
-      setErrorMessage(`${message} ${diagnosticSummary}. Please use the contact form again later.`);
+      setErrorMessage(error instanceof Error ? error.message : 'The requirement could not be submitted. Please try again shortly.');
     } finally {
       setIsSubmitting(false);
     }
@@ -87,7 +79,7 @@ export default function EnquiryForm() {
         <button className="button_primary min-h-12 rounded-md bg-white px-7 py-3 text-sm font-medium uppercase text-black transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white disabled:text-black" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Submitting' : 'Submit Requirement'}</button>
         <p className="text_body text-sm text-white">Step 2 follows by email.</p>
       </div>
-      {submitted ? <p className="text_success rounded-md border border-white bg-white p-4 text-sm text-black" role="status">We&apos;ve received your initial request. Check your email to complete the technical requirement form.{submissionInfo ? ` Submission ID: ${submissionInfo.submissionId} at ${new Date(submissionInfo.timestamp).toLocaleString()}.` : ''}</p> : null}
+      {submitted ? <p className="text_success rounded-md border border-white bg-white p-4 text-sm text-black" role="status">We&apos;ve received your initial request. Submission ID: {submissionInfo?.submissionId}.</p> : null}
       {errorMessage ? <p className="text_error rounded-md border border-white/15 p-4 text-sm text-white" role="alert">{errorMessage}</p> : null}
     </form>
   );
