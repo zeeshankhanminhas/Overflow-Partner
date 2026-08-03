@@ -26,6 +26,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         </Link>
         <nav aria-label="Workspace" style={{ display: 'grid', gap: 18, marginTop: 30 }}>
           <Link href="/workspace">Dashboard</Link>
+          <Link href="/workspace/orchestration">Workflow Orchestration</Link>
           <details open><summary>Acquisition</summary><div style={groupStyle}><Link href="/workspace/acquisition">Prospects</Link></div></details>
           <details open><summary>CRM</summary><div style={groupStyle}><Link href="/workspace/companies">Companies</Link><Link href="/workspace/contacts">Contacts</Link><Link href="/workspace/leads">Leads</Link></div></details>
           <details open><summary>Engineering</summary><div style={groupStyle}><Link href="/workspace/leads">Technical Intake</Link><Link href="/workspace/partners">Partners</Link><Link href="/workspace/partner-quotes">Partner RFQs &amp; Quotes</Link></div></details>
