@@ -18,15 +18,16 @@ function required(formData: FormData, key: string) {
 }
 
 async function execute(action: () => Promise<unknown>, success: string) {
+  let destination = `/workspace/orchestration?success=${encodeURIComponent(success)}`;
   try {
     await action();
     revalidatePath('/workspace');
     revalidatePath('/workspace/orchestration');
-    redirect(`/workspace/orchestration?success=${encodeURIComponent(success)}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Workflow action failed.';
-    redirect(`/workspace/orchestration?error=${encodeURIComponent(message)}`);
+    destination = `/workspace/orchestration?error=${encodeURIComponent(message)}`;
   }
+  redirect(destination);
 }
 
 export async function createIntakeShellAction(formData: FormData) {
