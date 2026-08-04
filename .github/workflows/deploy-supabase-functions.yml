@@ -32,11 +32,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
       - name: Validate deployment credentials
         shell: bash
         run: |
@@ -48,6 +43,15 @@ jobs:
             echo "Missing GitHub secret: SUPABASE_PROJECT_ID"
             exit 1
           fi
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+
+      - name: Show Supabase CLI version
+        run: supabase --version
 
       - name: Deploy all Edge Functions
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --use-api
