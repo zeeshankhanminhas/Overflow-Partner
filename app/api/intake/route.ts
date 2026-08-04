@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
@@ -29,75 +28,6 @@ function getPublicBaseUrl(request: Request) {
   return new URL(request.url).origin;
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
-  })[character] || character);
-}
-
-async function sendStep2Email(input: {
-  recipientName: string;
-  recipientEmail: string;
-  company: string;
-  intakeUrl: string;
-  expiresAt: string;
-}) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  const senderName = process.env.BREVO_SENDER_NAME || 'Overflow Partner';
-  const replyTo = process.env.BREVO_REPLY_TO_EMAIL || senderEmail;
-
-  if (!apiKey || !senderEmail) {
-    return { status: 'not_configured' as const, messageId: null, error: 'Brevo sender credentials are not configured.' };
-  }
-
-  const expiry = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Europe/London',
-  }).format(new Date(input.expiresAt));
-  const safeName = escapeHtml(input.recipientName);
-  const safeCompany = escapeHtml(input.company);
-
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': apiKey, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({
-      sender: { name: senderName, email: senderEmail },
-      replyTo: replyTo ? { email: replyTo, name: senderName } : undefined,
-      to: [{ email: input.recipientEmail, name: input.recipientName }],
-      subject: 'Complete your engineering requirement — Step 2',
-      htmlContent: `
-        <div style="margin:0;background:#f3f1eb;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#171717">
-          <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #d8d4ca">
-            <div style="padding:26px 30px;border-bottom:3px solid #d94b37">
-              <div style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Overflow Partner</div>
-              <div style="margin-top:5px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#6f6b63">Engineering capacity, controlled</div>
-            </div>
-            <div style="padding:34px 30px">
-              <p style="margin:0 0 18px">Hello ${safeName},</p>
-              <h1 style="margin:0 0 18px;font-size:28px;line-height:1.15;letter-spacing:-0.03em">Help us understand the engineering scope.</h1>
-              <p style="margin:0 0 16px;line-height:1.65">Thank you for submitting the initial requirement for <strong>${safeCompany}</strong>.</p>
-              <p style="margin:0 0 26px;line-height:1.65">The next step captures the technical details, expected deliverables, formats, standards and deadline so we can review the work accurately.</p>
-              <a href="${input.intakeUrl}" style="display:inline-block;background:#171717;color:#ffffff;text-decoration:none;padding:15px 22px;font-weight:700">Complete technical intake →</a>
-              <p style="margin:26px 0 0;font-size:13px;line-height:1.6;color:#6f6b63">This secure link expires on ${expiry}. It is intended only for the recipient of this email.</p>
-            </div>
-            <div style="padding:20px 30px;border-top:1px solid #e5e1d8;font-size:12px;line-height:1.6;color:#77736b">Overflow Partner · UK engineering overflow support</div>
-          </div>
-        </div>`,
-      textContent: `Hello ${input.recipientName},\n\nThank you for submitting the initial requirement for ${input.company}.\n\nPlease complete the secure technical intake here:\n${input.intakeUrl}\n\nThis link expires on ${expiry}.\n\nOverflow Partner`,
-    }),
-  });
-
-  const responseBody = await response.json().catch(() => ({})) as { messageId?: string; message?: string; code?: string };
-  if (!response.ok) {
-    return {
-      status: 'failed' as const,
-      messageId: null,
-      error: responseBody.message || responseBody.code || `Brevo request failed with status ${response.status}.`,
-    };
-  }
-  return { status: 'sent' as const, messageId: responseBody.messageId || null, error: null };
-}
-
 export async function POST(request: Request) {
   try {
     const payload = intakeSchema.parse(await request.json());
@@ -110,8 +40,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Workspace ownership is not configured.' }, { status: 503 });
     }
 
-    const notes = [payload.pageUrl ? `Submitted from: ${payload.pageUrl}` : '',
-      payload.source ? `Campaign source: ${payload.source}` : ''].filter(Boolean).join('\n');
+    const notes = [
+      payload.pageUrl ? `Submitted from: ${payload.pageUrl}` : '',
+      payload.source ? `Campaign source: ${payload.source}` : '',
+    ].filter(Boolean).join('\n');
 
     const { data: prospect, error: prospectError } = await supabase.from('prospects').insert({
       organisation_id: owner.organisation_id,
@@ -145,65 +77,51 @@ export async function POST(request: Request) {
       },
     }).throwOnError();
 
-    const rawToken = randomBytes(32).toString('base64url');
-    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: session, error: sessionError } = await supabase.from('intake_sessions').insert({
-      organisation_id: owner.organisation_id,
-      prospect_id: prospect.id,
-      token_hash: tokenHash,
-      status: 'invited',
-      expires_at: expiresAt,
-      created_by: owner.id,
-      recipient_email: payload.work_email,
-      email_status: 'pending',
-    }).select('id').single();
-    if (sessionError) throw sessionError;
+    let step2: { created: boolean; emailStatus: string; error?: string } = {
+      created: false,
+      emailStatus: 'pending',
+    };
 
-    const intakeUrl = `${getPublicBaseUrl(request)}/intake/${rawToken}`;
-    const delivery = await sendStep2Email({
-      recipientName: payload.full_name,
-      recipientEmail: payload.work_email,
-      company: payload.company,
-      intakeUrl,
-      expiresAt,
-    });
-
-    const sentAt = delivery.status === 'sent' ? new Date().toISOString() : null;
-    await supabase.from('intake_sessions').update({
-      email_status: delivery.status,
-      email_message_id: delivery.messageId,
-      email_error: delivery.error,
-      last_email_attempt_at: new Date().toISOString(),
-      sent_at: sentAt,
-    }).eq('id', session.id).throwOnError();
-
-    const nextAction = delivery.status === 'sent'
-      ? 'Await Step 2 technical intake submission'
-      : 'Review and resend Step 2 technical intake invitation';
-    await supabase.from('prospects').update({ next_action: nextAction }).eq('id', prospect.id).throwOnError();
-
-    await supabase.from('activity_events').insert({
-      organisation_id: owner.organisation_id,
-      user_id: owner.id,
-      entity_type: 'prospect',
-      entity_id: prospect.id,
-      event_type: delivery.status === 'sent' ? 'step_2_invitation_sent' : 'step_2_invitation_delivery_failed',
-      event_data: {
-        intakeSessionId: session.id,
-        recipient: payload.work_email,
-        emailStatus: delivery.status,
-        messageId: delivery.messageId,
-        error: delivery.error,
-        expiresAt,
-      },
-    }).throwOnError();
+    try {
+      const { data, error } = await supabase.functions.invoke('send-step-2-invitation', {
+        body: {
+          prospectId: prospect.id,
+          organisationId: owner.organisation_id,
+          actorUserId: owner.id,
+          recipientEmail: payload.work_email,
+          recipientName: payload.full_name,
+          companyName: payload.company,
+          projectType: payload.project_type,
+          publicBaseUrl: getPublicBaseUrl(request),
+        },
+      });
+      if (error) throw error;
+      step2 = {
+        created: Boolean(data?.sessionId),
+        emailStatus: String(data?.emailStatus || 'pending'),
+      };
+    } catch (orchestrationError) {
+      const message = orchestrationError instanceof Error ? orchestrationError.message : 'Step 2 orchestration failed.';
+      console.error('Step 2 orchestration failed after prospect creation', orchestrationError);
+      await supabase.from('prospects').update({
+        next_action: 'Create and send Step 2 technical intake invitation manually',
+      }).eq('id', prospect.id);
+      await supabase.from('activity_events').insert({
+        organisation_id: owner.organisation_id,
+        user_id: owner.id,
+        entity_type: 'prospect',
+        entity_id: prospect.id,
+        event_type: 'step_2_orchestration_failed',
+        event_data: { error: message },
+      });
+      step2 = { created: false, emailStatus: 'failed', error: message };
+    }
 
     return NextResponse.json({
       success: true,
       submissionId: prospect.id,
       timestamp: prospect.created_at,
-      step2: { created: true, emailStatus: delivery.status },
+      step2,
     });
   } catch (error) {
     console.error('Website intake failed', error);
