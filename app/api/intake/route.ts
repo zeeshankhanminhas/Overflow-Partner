@@ -20,6 +20,14 @@ function getAdminClient() {
   return createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+function getPublicBaseUrl(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+  if (configured) return configured.replace(/\/$/, '');
+  const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (productionHost) return `https://${productionHost.replace(/\/$/, '')}`;
+  return new URL(request.url).origin;
+}
+
 export async function POST(request: Request) {
   try {
     const payload = intakeSchema.parse(await request.json());
@@ -32,8 +40,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Workspace ownership is not configured.' }, { status: 503 });
     }
 
-    const notes = [payload.pageUrl ? `Submitted from: ${payload.pageUrl}` : '',
-      payload.source ? `Campaign source: ${payload.source}` : ''].filter(Boolean).join('\n');
+    const notes = [
+      payload.pageUrl ? `Submitted from: ${payload.pageUrl}` : '',
+      payload.source ? `Campaign source: ${payload.source}` : '',
+    ].filter(Boolean).join('\n');
 
     const { data: prospect, error: prospectError } = await supabase.from('prospects').insert({
       organisation_id: owner.organisation_id,
@@ -47,12 +57,12 @@ export async function POST(request: Request) {
       requirement_summary: payload.brief_requirement,
       website_submission_id: payload.lead_id || null,
       status: 'identified',
-      next_action: 'Qualify structured website requirement',
+      next_action: 'Step 2 technical intake invitation pending',
       notes: notes || null,
     }).select('id, created_at').single();
     if (prospectError) throw prospectError;
 
-    const { error: activityError } = await supabase.from('activity_events').insert({
+    await supabase.from('activity_events').insert({
       organisation_id: owner.organisation_id,
       user_id: owner.id,
       entity_type: 'prospect',
@@ -65,10 +75,54 @@ export async function POST(request: Request) {
         source: payload.source,
         structured: true,
       },
-    });
-    if (activityError) throw activityError;
+    }).throwOnError();
 
-    return NextResponse.json({ success: true, submissionId: prospect.id, timestamp: prospect.created_at });
+    let step2: { created: boolean; emailStatus: string; error?: string } = {
+      created: false,
+      emailStatus: 'pending',
+    };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-step-2-invitation', {
+        body: {
+          prospectId: prospect.id,
+          organisationId: owner.organisation_id,
+          actorUserId: owner.id,
+          recipientEmail: payload.work_email,
+          recipientName: payload.full_name,
+          companyName: payload.company,
+          projectType: payload.project_type,
+          publicBaseUrl: getPublicBaseUrl(request),
+        },
+      });
+      if (error) throw error;
+      step2 = {
+        created: Boolean(data?.sessionId),
+        emailStatus: String(data?.emailStatus || 'pending'),
+      };
+    } catch (orchestrationError) {
+      const message = orchestrationError instanceof Error ? orchestrationError.message : 'Step 2 orchestration failed.';
+      console.error('Step 2 orchestration failed after prospect creation', orchestrationError);
+      await supabase.from('prospects').update({
+        next_action: 'Create and send Step 2 technical intake invitation manually',
+      }).eq('id', prospect.id);
+      await supabase.from('activity_events').insert({
+        organisation_id: owner.organisation_id,
+        user_id: owner.id,
+        entity_type: 'prospect',
+        entity_id: prospect.id,
+        event_type: 'step_2_orchestration_failed',
+        event_data: { error: message },
+      });
+      step2 = { created: false, emailStatus: 'failed', error: message };
+    }
+
+    return NextResponse.json({
+      success: true,
+      submissionId: prospect.id,
+      timestamp: prospect.created_at,
+      step2,
+    });
   } catch (error) {
     console.error('Website intake failed', error);
     if (error instanceof z.ZodError) {
