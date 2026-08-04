@@ -135,10 +135,13 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   const linkedInProspects = prospects.filter((prospect) => prospect.source === 'linkedin');
 
   return <section>
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
       <div><p className="eyebrow">Acquisition</p><h1>Prospects before lead intake</h1>
         <p className="lede">Qualify once, capture the customer&apos;s technical requirement, then convert it into governed lead and technical-intake records without re-entry.</p></div>
-      <Link className="button" href="/workspace/leads">View leads</Link>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Link className="button secondary" href="/workspace/companies">Add company</Link>
+        <Link className="button" href="/workspace/leads">View leads</Link>
+      </div>
     </div>
     {params.created ? <p className="card" style={{ marginTop: 20, width: '100%' }}>Prospect added successfully.</p> : null}
     {params.error ? <p className="card" style={{ marginTop: 20, width: '100%' }}>{String(params.error)}</p> : null}
@@ -146,7 +149,29 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     <div className="metric-grid"><article className="metric"><span>LinkedIn prospects</span><strong>{linkedInProspects.length}</strong></article>
       <article className="metric"><span>Step 2 awaiting customer</span><strong>{sessions.filter((session) => ['invited','opened','in_progress'].includes(session.status)).length}</strong></article>
       <article className="metric"><span>Technical intakes submitted</span><strong>{sessions.filter((session) => session.status === 'submitted').length}</strong></article></div>
-    {companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <p className="card" style={{ marginTop: 20, width: '100%' }}>Website prospects can arrive without a company record. Manual prospects require a company first.</p>}
+
+    <section className="card" style={{ marginTop: 24, width: '100%' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
+        <div>
+          <p className="eyebrow">Website prospects</p>
+          <h3>Company creation is automatic</h3>
+          <p className="lede" style={{ fontSize: 16 }}>Qualify and convert the prospect directly. The conversion transaction will reuse a matching company or create the company master from the prospect name, then create the governed lead.</p>
+        </div>
+        <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 18 }}>
+          <p className="eyebrow">Manual prospect entry</p>
+          <h3>Select an existing company first</h3>
+          <p className="lede" style={{ fontSize: 16 }}>Manual prospects start from a controlled company record. Add the company once, then select it in the prospect form.</p>
+          <Link className="button secondary" href="/workspace/companies" style={{ marginTop: 10 }}>Create company record</Link>
+        </div>
+      </div>
+    </section>
+
+    {companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="card" style={{ marginTop: 20, width: '100%' }}>
+      <p className="eyebrow">Manual prospect entry unavailable</p>
+      <h3>Add the first company to enable manual entry</h3>
+      <p className="lede" style={{ fontSize: 16 }}>This does not block website prospects from progressing or being converted.</p>
+      <Link className="button" href="/workspace/companies">Add first company</Link>
+    </div>}
 
     <div style={{ marginTop: 36 }}><p className="eyebrow">Acquisition funnel</p><h2>Current prospects</h2>
       {prospects.length === 0 ? <div className="card" style={{ marginTop: 18, width: '100%' }}><h3>No prospects yet</h3></div> :
@@ -160,7 +185,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
               <p>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'} · {prospect.source}</p>
             </div><span>{prospect.status.replaceAll('_', ' ')}</span></div>
             {requirementSummary ? <p><strong>Initial requirement:</strong> {requirementSummary}</p> : null}
-            {prospect.company_id ? <Link href={`/workspace/companies/${prospect.company_id}`}>Open company 360°</Link> : null}
+            {prospect.company_id ? <Link href={`/workspace/companies/${prospect.company_id}`}>Open company 360°</Link> : <p style={{ color: 'var(--muted)' }}><strong>Company master:</strong> Will be created or matched automatically when this prospect is converted.</p>}
             {prospect.next_action ? <p><strong>Next:</strong> {prospect.next_action}</p> : null}
             {session ? <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
               <p className="eyebrow">Step 2 · {session.status.replaceAll('_', ' ')}</p>
@@ -174,7 +199,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
             </form> : null}
             {prospect.status === 'qualified' ? <form action={convertProspectFormAction} style={{ marginTop: 10 }}>
               <input type="hidden" name="prospect_id" value={prospect.id} />
-              <button className="button" type="submit">Convert structured requirement to lead</button>
+              <button className="button" type="submit">Convert to lead and create or match company</button>
             </form> : null}
           </article>;
         })}</div>}
