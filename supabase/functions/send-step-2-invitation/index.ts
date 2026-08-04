@@ -22,8 +22,17 @@ Deno.serve(async (request) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const authHeader = request.headers.get('Authorization');
-    if (!serviceRoleKey || !supabaseUrl) throw new Error('Supabase function credentials are not configured.');
-    if (authHeader !== `Bearer ${serviceRoleKey}`) return json({ success: false, error: 'Unauthorized.' }, 401);
+    const apiKeyHeader = request.headers.get('apikey');
+    const bearerToken = authHeader?.replace(/^Bearer\s+/i, '') || null;
+
+    if (!serviceRoleKey || !supabaseUrl) {
+      throw new Error('Supabase function credentials are not configured.');
+    }
+
+    const isTrustedServerCall = bearerToken === serviceRoleKey || apiKeyHeader === serviceRoleKey;
+    if (!isTrustedServerCall) {
+      return json({ success: false, error: 'Unauthorized.' }, 401);
+    }
 
     const payload = await request.json() as {
       prospectId?: string;
