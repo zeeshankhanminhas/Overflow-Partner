@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import ProspectForm from '@/components/workspace/ProspectForm';
-import { convertProspectFormAction, createStep2InvitationFormAction } from './actions';
+import { convertProspectFormAction, createStep2InvitationFormAction, qualifyProspectFormAction } from './actions';
 import { requireUserContext } from '@/lib/auth/context';
 import { listProspects } from '@/lib/repositories/prospects';
 import { listCompanies } from '@/lib/repositories/companies';
@@ -131,7 +131,6 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   const submissions = (submissionsResult.data || []) as IntakeSubmission[];
   const sessionByProspect = new Map(sessions.map((session) => [session.prospect_id, session]));
   const submissionBySession = new Map(submissions.map((submission) => [submission.intake_session_id, submission]));
-  const counts = Object.fromEntries(stages.map((stage) => [stage.key, prospects.filter((prospect) => prospect.status === stage.key).length]));
   const linkedInProspects = prospects.filter((prospect) => prospect.source === 'linkedin');
 
   return <section>
@@ -144,6 +143,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       </div>
     </div>
     {params.created ? <p className="card" style={{ marginTop: 20, width: '100%' }}>Prospect added successfully.</p> : null}
+    {params.qualified ? <p className="card" style={{ marginTop: 20, width: '100%', borderLeft: '3px solid var(--accent)' }}>Prospect qualified successfully. The governed lead-conversion action is now available.</p> : null}
     {params.error ? <p className="card" style={{ marginTop: 20, width: '100%' }}>{String(params.error)}</p> : null}
     {params.invitation ? <div className="card" style={{ marginTop: 20, width: '100%' }}><p className="eyebrow">Step 2 invitation ready</p><h3>Secure customer link</h3><p style={{ overflowWrap: 'anywhere' }}>{String(params.invitation)}</p><p>Copy this link into the customer acknowledgement email. Automated delivery will be connected in the Communications Engine.</p></div> : null}
     <div className="metric-grid"><article className="metric"><span>LinkedIn prospects</span><strong>{linkedInProspects.length}</strong></article>
@@ -155,13 +155,12 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
         <div>
           <p className="eyebrow">Website prospects</p>
           <h3>Company creation is automatic</h3>
-          <p className="lede" style={{ fontSize: 16 }}>Qualify and convert the prospect directly. The conversion transaction will reuse a matching company or create the company master from the prospect name, then create the governed lead.</p>
+          <p className="lede" style={{ fontSize: 16 }}>Review the submitted Step 2 brief, approve qualification, then convert. The conversion transaction will reuse a matching company or create the company master from the prospect name.</p>
         </div>
         <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 18 }}>
-          <p className="eyebrow">Manual prospect entry</p>
-          <h3>Select an existing company first</h3>
-          <p className="lede" style={{ fontSize: 16 }}>Manual prospects start from a controlled company record. Add the company once, then select it in the prospect form.</p>
-          <Link className="button secondary" href="/workspace/companies" style={{ marginTop: 10 }}>Create company record</Link>
+          <p className="eyebrow">Governed transition</p>
+          <h3>Qualification is a decision gate</h3>
+          <p className="lede" style={{ fontSize: 16 }}>A submitted technical intake unlocks qualification. Qualification then unlocks lead conversion. These remain separate audited decisions.</p>
         </div>
       </div>
     </section>
@@ -179,6 +178,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
           const session = sessionByProspect.get(prospect.id);
           const submission = session ? submissionBySession.get(session.id) : undefined;
           const requirementSummary = (prospect as typeof prospect & { requirement_summary?: string | null }).requirement_summary;
+          const canQualify = Boolean(submission && prospect.status !== 'qualified' && prospect.status !== 'converted');
           return <article className="metric" key={prospect.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}><div>
               <strong style={{ fontSize: 22, marginTop: 0 }}>{prospect.company_name}</strong>
@@ -197,10 +197,22 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
               <input type="hidden" name="prospect_id" value={prospect.id} />
               <button className="button secondary" type="submit">Create secure Step 2 intake</button>
             </form> : null}
-            {prospect.status === 'qualified' ? <form action={convertProspectFormAction} style={{ marginTop: 10 }}>
-              <input type="hidden" name="prospect_id" value={prospect.id} />
-              <button className="button" type="submit">Convert to lead and create or match company</button>
-            </form> : null}
+            {canQualify ? <div style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+              <p className="eyebrow">Qualification gate</p>
+              <p style={{ color: 'var(--muted)' }}>Confirm that the submitted requirement is commercially relevant and sufficiently defined to become a lead.</p>
+              <form action={qualifyProspectFormAction}>
+                <input type="hidden" name="prospect_id" value={prospect.id} />
+                <button className="button secondary" type="submit">Approve qualification</button>
+              </form>
+            </div> : null}
+            {prospect.status === 'qualified' ? <div style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+              <p className="eyebrow">Lead conversion ready</p>
+              <p style={{ color: 'var(--muted)' }}>This transaction creates or matches the company, creates the lead, inherits the Step 2 technical intake and preserves the audit trail.</p>
+              <form action={convertProspectFormAction}>
+                <input type="hidden" name="prospect_id" value={prospect.id} />
+                <button className="button" type="submit">Convert to lead and create or match company</button>
+              </form>
+            </div> : null}
           </article>;
         })}</div>}
     </div>
