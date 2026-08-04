@@ -32,6 +32,11 @@ export async function POST(request: Request) {
   try {
     const payload = intakeSchema.parse(await request.json());
     const supabase = getAdminClient();
+    const orchestrationSecret = process.env.STEP2_ORCHESTRATION_SECRET;
+    if (!orchestrationSecret) {
+      throw new Error('STEP2_ORCHESTRATION_SECRET is not configured in Vercel.');
+    }
+
     const { data: owners, error: ownerError } = await supabase.from('profiles')
       .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true).limit(2);
     if (ownerError) throw ownerError;
@@ -84,6 +89,9 @@ export async function POST(request: Request) {
 
     try {
       const { data, error } = await supabase.functions.invoke('send-step-2-invitation', {
+        headers: {
+          'x-internal-secret': orchestrationSecret,
+        },
         body: {
           prospectId: prospect.id,
           organisationId: owner.organisation_id,
