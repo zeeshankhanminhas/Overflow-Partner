@@ -4,7 +4,7 @@ import { sendWithResend } from '../_shared/email/send-resend.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
 };
 
 function json(body: unknown, status = 200) {
@@ -14,6 +14,15 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function constantTimeEqual(left: string, right: string) {
+  if (left.length !== right.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return mismatch === 0;
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ success: false, error: 'Method not allowed.' }, 405);
@@ -21,16 +30,16 @@ Deno.serve(async (request) => {
   try {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const authHeader = request.headers.get('Authorization');
-    const apiKeyHeader = request.headers.get('apikey');
-    const bearerToken = authHeader?.replace(/^Bearer\s+/i, '') || null;
+    const orchestrationSecret = Deno.env.get('STEP2_ORCHESTRATION_SECRET');
+    const suppliedSecret = request.headers.get('x-internal-secret') || '';
 
     if (!serviceRoleKey || !supabaseUrl) {
       throw new Error('Supabase function credentials are not configured.');
     }
-
-    const isTrustedServerCall = bearerToken === serviceRoleKey || apiKeyHeader === serviceRoleKey;
-    if (!isTrustedServerCall) {
+    if (!orchestrationSecret) {
+      throw new Error('STEP2_ORCHESTRATION_SECRET is not configured.');
+    }
+    if (!suppliedSecret || !constantTimeEqual(suppliedSecret, orchestrationSecret)) {
       return json({ success: false, error: 'Unauthorized.' }, 401);
     }
 
