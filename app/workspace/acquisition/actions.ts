@@ -67,6 +67,66 @@ export async function createStep2InvitationFormAction(formData: FormData) {
   }
 }
 
+export async function qualifyProspectFormAction(formData: FormData) {
+  try {
+    const { supabase, user, profile, organisationId } = await requireUserContext();
+    assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
+    const prospectId = String(formData.get('prospect_id') || '');
+    if (!prospectId) throw new Error('Prospect ID is required.');
+
+    const { data: prospect, error: prospectError } = await supabase
+      .from('prospects')
+      .select('id,status,company_name,project_type,requirement_summary')
+      .eq('organisation_id', organisationId)
+      .eq('id', prospectId)
+      .single();
+    if (prospectError || !prospect) throw new Error('Prospect not found.');
+    if (prospect.status === 'converted') throw new Error('This prospect has already been converted.');
+    if (prospect.status === 'qualified') {
+      redirect('/workspace/acquisition?qualified=1');
+    }
+    if (!prospect.company_name?.trim() || !prospect.project_type?.trim() || !prospect.requirement_summary?.trim()) {
+      throw new Error('Company, project type and requirement summary are required before qualification.');
+    }
+
+    const { data: session, error: sessionError } = await supabase
+      .from('intake_sessions')
+      .select('id,status,submitted_at')
+      .eq('organisation_id', organisationId)
+      .eq('prospect_id', prospectId)
+      .eq('status', 'submitted')
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sessionError) throw sessionError;
+    if (!session) throw new Error('A submitted Step 2 technical intake is required before qualification.');
+
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from('prospects')
+      .update({ status: 'qualified', next_action: 'Convert qualified prospect to governed lead', assigned_to: user.id, updated_at: now })
+      .eq('organisation_id', organisationId)
+      .eq('id', prospectId);
+    if (updateError) throw updateError;
+
+    const { error: activityError } = await supabase.from('activity_events').insert({
+      organisation_id: organisationId,
+      user_id: user.id,
+      entity_type: 'prospect',
+      entity_id: prospectId,
+      event_type: 'prospect_qualified',
+      event_data: { intakeSessionId: session.id, qualifiedAt: now, previousStatus: prospect.status },
+    });
+    if (activityError) throw activityError;
+
+    revalidatePath('/workspace/acquisition');
+    revalidatePath('/workspace');
+    redirect('/workspace/acquisition?qualified=1');
+  } catch (error) {
+    redirect(`/workspace/acquisition?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to qualify prospect.')}`);
+  }
+}
+
 export async function convertProspectAction(formData: FormData): Promise<ActionResult<Lead>> {
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
