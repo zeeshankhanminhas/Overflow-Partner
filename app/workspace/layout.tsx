@@ -1,4 +1,5 @@
 import './workspace-responsive.css';
+import './mission-control.css';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -15,14 +16,16 @@ const groupStyle = { display: 'grid', gap: 8, padding: '10px 0 0 12px' } as cons
 
 function WorkspaceNavigation() {
   return <nav aria-label="Workspace" className="workspace-nav">
-    <Link href="/workspace">Dashboard</Link>
-    <Link href="/workspace/orchestration">Workflow Orchestration</Link>
-    <details open><summary>Acquisition</summary><div style={groupStyle}><Link href="/workspace/acquisition">Prospects</Link></div></details>
-    <details open><summary>CRM</summary><div style={groupStyle}><Link href="/workspace/companies">Companies</Link><Link href="/workspace/contacts">Contacts</Link><Link href="/workspace/leads">Leads</Link></div></details>
-    <details open><summary>Engineering</summary><div style={groupStyle}><Link href="/workspace/leads">Technical Intake</Link><Link href="/workspace/partners">Partners</Link><Link href="/workspace/partner-quotes">Partner RFQs &amp; Quotes</Link></div></details>
-    <details open><summary>Commercial</summary><div style={groupStyle}><Link href="/workspace/commercial-reviews">Commercial Review</Link><Link href="/workspace/quotes">Client Quotes</Link></div></details>
-    <details open><summary>Delivery</summary><div style={groupStyle}><Link href="/workspace/projects">Projects</Link><Link href="/workspace/documents">Documents</Link></div></details>
-    <details><summary>Administration</summary><div style={groupStyle}><Link href="/workspace/tasks">Tasks</Link><Link href="/workspace/activity">Activity</Link><Link href="/workspace/users">Users</Link><Link href="/workspace/opds">OPDS</Link></div></details>
+    <Link href="/workspace">Mission Control</Link>
+    <details open><summary>My Work</summary><div style={groupStyle}><Link href="/workspace/tasks">My Actions</Link><Link href="/workspace/activity">Activity Timeline</Link></div></details>
+    <details open><summary>Case Pipeline</summary><div style={groupStyle}>
+      <Link href="/workspace/acquisition">Prospects</Link><Link href="/workspace/leads">Leads &amp; Cases</Link>
+      <Link href="/workspace/orchestration">Pipeline Orchestration</Link><Link href="/workspace/partner-quotes">Partner Pricing</Link>
+      <Link href="/workspace/commercial-reviews">Commercial Review</Link><Link href="/workspace/quotes">Client Quotes</Link><Link href="/workspace/projects">Projects</Link>
+    </div></details>
+    <details><summary>Customer Records</summary><div style={groupStyle}><Link href="/workspace/companies">Companies</Link><Link href="/workspace/contacts">Contacts</Link></div></details>
+    <details open><summary>Resources</summary><div style={groupStyle}><Link href="/workspace/partners">Execution Partners</Link><Link href="/workspace/documents">Documents</Link></div></details>
+    <details><summary>Administration</summary><div style={groupStyle}><Link href="/workspace/users">Users</Link><Link href="/workspace/opds">OPDS</Link></div></details>
   </nav>;
 }
 
