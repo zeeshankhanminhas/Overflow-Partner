@@ -12,17 +12,125 @@ const stages = [
   { key: 'converted', label: 'Converted' },
 ] as const;
 
-function dateTime(value: string | null) { return value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not yet'; }
+type IntakeSubmission = {
+  intake_session_id: string;
+  description: string;
+  deliverables: string;
+  project_type: string;
+  discipline: string | null;
+  software: string | null;
+  drawing_count: number | null;
+  source_file_format: string | null;
+  required_output_format: string | null;
+  deadline: string | null;
+  timeline: string | null;
+  complexity: string | null;
+  files_availability: string | null;
+  standards: string | null;
+  tolerances: string | null;
+  revision_status: string | null;
+  special_instructions: string | null;
+  submitted_at: string;
+};
+
+function dateTime(value: string | null) {
+  return value
+    ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    : 'Not yet';
+}
+
+function displayValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === '') return 'Not specified';
+  return String(value);
+}
+
+function deliverableItems(value: string | null | undefined) {
+  if (!value) return [];
+  return value.split(/\r?\n|,\s*/).map((item) => item.trim()).filter(Boolean);
+}
+
+function BriefField({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return <div style={{ minWidth: 0 }}>
+    <p className="eyebrow" style={{ marginBottom: 5 }}>{label}</p>
+    <p style={{ margin: 0, overflowWrap: 'anywhere', color: value ? 'var(--ink)' : 'var(--muted)' }}>{displayValue(value)}</p>
+  </div>;
+}
+
+function TechnicalBrief({ submission }: { submission: IntakeSubmission }) {
+  const deliverables = deliverableItems(submission.deliverables);
+  const hasControls = Boolean(submission.standards || submission.tolerances);
+
+  return <section style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 20 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div>
+        <p className="eyebrow">Structured technical brief</p>
+        <h3 style={{ marginTop: 6 }}>{submission.discipline || submission.project_type}</h3>
+      </div>
+      <span style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 10, color: 'var(--muted)', fontSize: 13 }}>
+        Submitted {dateTime(submission.submitted_at)}
+      </span>
+    </div>
+
+    <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 18, padding: 18, background: 'var(--paper)', border: '1px solid var(--line)' }}>
+      <BriefField label="Discipline" value={submission.discipline} />
+      <BriefField label="Software" value={submission.software} />
+      <BriefField label="Complexity" value={submission.complexity} />
+      <BriefField label="Timeline" value={submission.timeline} />
+      <BriefField label="Deadline" value={submission.deadline ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(`${submission.deadline}T00:00:00`)) : null} />
+      <BriefField label="Files available" value={submission.files_availability} />
+      <BriefField label="Source format" value={submission.source_file_format} />
+      <BriefField label="Primary output" value={submission.required_output_format} />
+      <BriefField label="Revision status" value={submission.revision_status} />
+      <BriefField label="Drawing count" value={submission.drawing_count} />
+    </div>
+
+    <div style={{ marginTop: 20, display: 'grid', gap: 18 }}>
+      <div>
+        <p className="eyebrow">Deliverables</p>
+        {deliverables.length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
+          {deliverables.map((item) => <span key={item} style={{ border: '1px solid var(--line)', background: 'white', padding: '7px 10px', fontSize: 13 }}>{item}</span>)}
+        </div> : <p>Not specified</p>}
+      </div>
+
+      <div>
+        <p className="eyebrow">Description</p>
+        <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{submission.description}</p>
+      </div>
+
+      {hasControls ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+        <div><p className="eyebrow">Standards and specifications</p><p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>{displayValue(submission.standards)}</p></div>
+        <div><p className="eyebrow">Critical tolerances</p><p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>{displayValue(submission.tolerances)}</p></div>
+      </div> : null}
+
+      {submission.special_instructions ? <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 16 }}>
+        <p className="eyebrow">Engineering notes</p>
+        <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>{submission.special_instructions}</p>
+      </div> : null}
+    </div>
+  </section>;
+}
 
 export default async function AcquisitionPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>>; }) {
   const params = searchParams ? await searchParams : {};
   const { supabase, organisationId } = await requireUserContext();
-  const [prospects, companies, contacts, sessionsResult] = await Promise.all([
-    listProspects(supabase, organisationId), listCompanies(supabase, organisationId), listContacts(supabase, organisationId),
-    supabase.from('intake_sessions').select('id,prospect_id,status,expires_at,sent_at,opened_at,submitted_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }),
+  const [prospects, companies, contacts, sessionsResult, submissionsResult] = await Promise.all([
+    listProspects(supabase, organisationId),
+    listCompanies(supabase, organisationId),
+    listContacts(supabase, organisationId),
+    supabase.from('intake_sessions')
+      .select('id,prospect_id,status,expires_at,sent_at,opened_at,submitted_at')
+      .eq('organisation_id', organisationId)
+      .order('created_at', { ascending: false }),
+    supabase.from('intake_submissions')
+      .select('intake_session_id,description,deliverables,project_type,discipline,software,drawing_count,source_file_format,required_output_format,deadline,timeline,complexity,files_availability,standards,tolerances,revision_status,special_instructions,submitted_at')
+      .eq('organisation_id', organisationId)
+      .order('submitted_at', { ascending: false }),
   ]);
+
   const sessions = sessionsResult.data || [];
+  const submissions = (submissionsResult.data || []) as IntakeSubmission[];
   const sessionByProspect = new Map(sessions.map((session) => [session.prospect_id, session]));
+  const submissionBySession = new Map(submissions.map((submission) => [submission.intake_session_id, submission]));
   const counts = Object.fromEntries(stages.map((stage) => [stage.key, prospects.filter((prospect) => prospect.status === stage.key).length]));
   const linkedInProspects = prospects.filter((prospect) => prospect.source === 'linkedin');
 
@@ -44,6 +152,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       {prospects.length === 0 ? <div className="card" style={{ marginTop: 18, width: '100%' }}><h3>No prospects yet</h3></div> :
         <div style={{ marginTop: 18, display: 'grid', gap: 12 }}>{prospects.map((prospect) => {
           const session = sessionByProspect.get(prospect.id);
+          const submission = session ? submissionBySession.get(session.id) : undefined;
           const requirementSummary = (prospect as typeof prospect & { requirement_summary?: string | null }).requirement_summary;
           return <article className="metric" key={prospect.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}><div>
@@ -57,6 +166,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
               <p className="eyebrow">Step 2 · {session.status.replaceAll('_', ' ')}</p>
               <p>Sent {dateTime(session.sent_at)} · Opened {dateTime(session.opened_at)} · Submitted {dateTime(session.submitted_at)}</p>
               <small>Expires {dateTime(session.expires_at)}</small>
+              {submission ? <TechnicalBrief submission={submission} /> : null}
             </div> : null}
             {!session && prospect.status !== 'converted' ? <form action={createStep2InvitationFormAction} style={{ marginTop: 18 }}>
               <input type="hidden" name="prospect_id" value={prospect.id} />
