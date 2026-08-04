@@ -67,14 +67,14 @@ export default function EnquiryForm() {
       <input type="hidden" name="high_value_flag" value="false" readOnly />
 
       <div className="grid gap-8 md:grid-cols-2">
-        <label className={labelClass} htmlFor="full-name">Full Name<input className={fieldClass} id="full-name" name="full_name" type="text" required disabled={isSubmitting} /></label>
+        <label className={labelClass} htmlFor="full-name">Full Name<input className={fieldClass} id="full-name" name="full_name" type="text" minLength={2} required disabled={isSubmitting} /></label>
         <label className={labelClass} htmlFor="work-email">Work Email<input className={fieldClass} id="work-email" name="work_email" type="email" required disabled={isSubmitting} /></label>
       </div>
       <div className="grid gap-8 md:grid-cols-2">
-        <label className={labelClass} htmlFor="company">Company<input className={fieldClass} id="company" name="company" type="text" required disabled={isSubmitting} /></label>
+        <label className={labelClass} htmlFor="company">Company<input className={fieldClass} id="company" name="company" type="text" minLength={2} required disabled={isSubmitting} /></label>
         <label className={labelClass} htmlFor="project-type">Project Type<select className={fieldClass} id="project-type" name="project_type" required defaultValue="" disabled={isSubmitting}><option value="" disabled>Select project type</option><option>Overflow CAD drafting support</option><option>Manufacturing-ready CAM assistance</option><option>Engineering documentation handoff</option><option>Other CAD/CAM requirement</option></select></label>
       </div>
-      <label className={labelClass} htmlFor="brief-requirement">Brief Requirement<textarea className={`${fieldClass} field_textarea min-h-24 resize-y`} id="brief-requirement" name="brief_requirement" placeholder="A short summary is enough. Technical detail comes in Step 2." required disabled={isSubmitting} /></label>
+      <label className={labelClass} htmlFor="brief-requirement">Brief Requirement<textarea className={`${fieldClass} field_textarea min-h-24 resize-y`} id="brief-requirement" name="brief_requirement" placeholder="At least 10 characters. Technical detail comes in Step 2." minLength={10} maxLength={4000} required disabled={isSubmitting} /></label>
       <div className="form_actions grid gap-4 border-t border-white/40 pt-8 md:grid-cols-[auto_1fr] md:items-center">
         <button className="button_primary min-h-12 rounded-md bg-white px-7 py-3 text-sm font-medium uppercase text-black transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white disabled:text-black" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Submitting' : 'Submit Requirement'}</button>
         <p className="text_body text-sm text-white">Step 2 follows by email.</p>
