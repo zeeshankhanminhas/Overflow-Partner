@@ -1,0 +1,2 @@
+[functions.send-step-2-invitation]
+verify_jwt = false
