@@ -12,6 +12,9 @@ const submissionSchema = z.object({
   drawing_count: z.coerce.number().int().min(0).max(100000).optional(),
   source_file_format: z.string().trim().max(180).optional().default(''),
   required_output_format: z.string().trim().max(180).optional().default(''),
+  timeline: z.string().trim().max(120).optional().default(''),
+  complexity: z.string().trim().max(120).optional().default(''),
+  files_availability: z.string().trim().max(120).optional().default(''),
   deadline: z.string().trim().optional().default(''),
   standards: z.string().trim().max(2000).optional().default(''),
   tolerances: z.string().trim().max(2000).optional().default(''),
@@ -63,6 +66,8 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       description: payload.description, deliverables: payload.deliverables, project_type: payload.project_type,
       discipline: payload.discipline || null, software: payload.software || null, drawing_count: payload.drawing_count ?? null,
       source_file_format: payload.source_file_format || null, required_output_format: payload.required_output_format || null,
+      timeline: payload.timeline || null, complexity: payload.complexity || null,
+      files_availability: payload.files_availability || null,
       deadline: payload.deadline || null, standards: payload.standards || null, tolerances: payload.tolerances || null,
       revision_status: payload.revision_status || null, special_instructions: payload.special_instructions || null,
       completion_percent: 100, submitted_at: now, updated_at: now,
@@ -73,7 +78,14 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     await supabase.from('prospects').update({ next_action: 'Review submitted technical intake and qualify prospect' }).eq('id', session.prospect_id);
     await supabase.from('activity_events').insert({ organisation_id: session.organisation_id, user_id: session.created_by,
       entity_type: 'prospect', entity_id: session.prospect_id, event_type: 'technical_intake_submitted',
-      event_data: { intakeSessionId: session.id, drawingCount: payload.drawing_count ?? null, deadline: payload.deadline || null } });
+      event_data: {
+        intakeSessionId: session.id,
+        drawingCount: payload.drawing_count ?? null,
+        deadline: payload.deadline || null,
+        timeline: payload.timeline || null,
+        complexity: payload.complexity || null,
+        filesAvailability: payload.files_availability || null,
+      } });
     return NextResponse.json({ success: true, submitted_at: now });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ message: error.issues[0]?.message || 'Please check the technical intake.' }, { status: 400 });
