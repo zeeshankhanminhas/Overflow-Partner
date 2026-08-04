@@ -44,12 +44,13 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       {prospects.length === 0 ? <div className="card" style={{ marginTop: 18, width: '100%' }}><h3>No prospects yet</h3></div> :
         <div style={{ marginTop: 18, display: 'grid', gap: 12 }}>{prospects.map((prospect) => {
           const session = sessionByProspect.get(prospect.id);
+          const requirementSummary = (prospect as typeof prospect & { requirement_summary?: string | null }).requirement_summary;
           return <article className="metric" key={prospect.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}><div>
               <strong style={{ fontSize: 22, marginTop: 0 }}>{prospect.company_name}</strong>
               <p>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'} · {prospect.source}</p>
             </div><span>{prospect.status.replaceAll('_', ' ')}</span></div>
-            {prospect.requirement_summary ? <p><strong>Initial requirement:</strong> {prospect.requirement_summary}</p> : null}
+            {requirementSummary ? <p><strong>Initial requirement:</strong> {requirementSummary}</p> : null}
             {prospect.company_id ? <Link href={`/workspace/companies/${prospect.company_id}`}>Open company 360°</Link> : null}
             {prospect.next_action ? <p><strong>Next:</strong> {prospect.next_action}</p> : null}
             {session ? <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
