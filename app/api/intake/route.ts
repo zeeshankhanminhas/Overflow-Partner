@@ -72,7 +72,21 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Website intake failed', error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ success: false, message: 'Please check the submitted details and try again.' }, { status: 400 });
+      const firstIssue = error.issues[0];
+      const field = String(firstIssue?.path?.[0] || '');
+      const messageByField: Record<string, string> = {
+        full_name: 'Please enter your full name.',
+        work_email: 'Please enter a valid work email address.',
+        company: 'Please enter your company name.',
+        project_type: 'Please select a project type.',
+        brief_requirement: 'Brief requirement must contain at least 10 characters.',
+        pageUrl: 'The submission page address is invalid. Please refresh and try again.',
+      };
+      return NextResponse.json({
+        success: false,
+        message: messageByField[field] || 'Please check the submitted details and try again.',
+        field,
+      }, { status: 400 });
     }
     return NextResponse.json({ success: false, message: 'The requirement could not be submitted. Please try again shortly.' }, { status: 500 });
   }
