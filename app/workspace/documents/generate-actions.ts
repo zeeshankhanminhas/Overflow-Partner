@@ -31,6 +31,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
     redirect(`${returnTo}?error=${encodeURIComponent('A valid document type and governed record are required.')}`);
   }
 
+  let destination: string;
+
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, [...roles]);
@@ -106,9 +108,11 @@ export async function generateControlledDocumentAction(formData: FormData) {
     revalidatePath(returnTo);
     revalidatePath('/workspace/documents');
     const context = projectId ? `project=${projectId}` : resolvedQuoteId && ['client-quote','quote','invoice'].includes(slug) ? `quote=${resolvedQuoteId}` : `case=${resolvedLeadId}`;
-    redirect(`/workspace/documents/templates/${slug}?${context}&document_record=${record.id}&generated=${encodeURIComponent(reference)}`);
+    destination = `/workspace/documents/templates/${slug}?${context}&document_record=${record.id}&generated=${encodeURIComponent(reference)}`;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Document could not be generated.';
     redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
   }
+
+  redirect(destination);
 }
