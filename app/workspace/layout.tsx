@@ -5,6 +5,7 @@ import './visual-constitution.css';
 import './ui-polish.css';
 import './workspace-unified-polish.css';
 import './stage-documents.css';
+import './document-print.css';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
