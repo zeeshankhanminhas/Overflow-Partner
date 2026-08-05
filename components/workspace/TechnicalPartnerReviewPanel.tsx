@@ -22,7 +22,7 @@ export default async function TechnicalPartnerReviewPanel({ prospectId, intakeSe
 
   const approved = review?.status === 'approved' && ['feasible', 'feasible_with_clarification'].includes(review.decision);
 
-  return <section style={{ marginTop: 20, borderTop: '1px solid var(--line)', paddingTop: 20 }}>
+  return <section className="acquisition-technical-review" style={{ marginTop: 20, borderTop: '1px solid var(--line)', paddingTop: 20 }}>
     <p className="eyebrow">Engineering gate</p>
     <h3>Technical partner review</h3>
 
