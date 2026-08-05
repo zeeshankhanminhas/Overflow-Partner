@@ -11,8 +11,15 @@ function text(formData: FormData, name: string) {
   return String(formData.get(name) || '').trim();
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') return error.message;
+  return fallback;
+}
+
 export async function createPartnerReviewRequestAction(formData: FormData) {
   const leadId = text(formData, 'lead_id');
+  let destination = `/workspace/leads/${leadId}`;
+
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, [...internalRoles]);
@@ -24,7 +31,10 @@ export async function createPartnerReviewRequestAction(formData: FormData) {
 
     const rawToken = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Math.max(new Date(responseDueAt).getTime(), Date.now()) + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const dueTime = new Date(responseDueAt).getTime();
+    if (Number.isNaN(dueTime)) throw new Error('A valid response due date is required.');
+    const expiresAt = new Date(Math.max(dueTime, Date.now()) + 7 * 24 * 60 * 60 * 1000).toISOString();
+
     const { data, error } = await supabase.rpc('op_create_partner_review_request', {
       p_organisation_id: organisationId,
       p_user_id: user.id,
@@ -44,16 +54,22 @@ export async function createPartnerReviewRequestAction(formData: FormData) {
     const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
     const origin = base.startsWith('http') ? base : `https://${base}`;
     const reviewUrl = `${origin}/partner-review/${rawToken}`;
+    const requestId = typeof data === 'string' ? data : String(data?.id || '');
     revalidatePath(`/workspace/leads/${leadId}`);
     revalidatePath('/workspace/partner-quotes');
-    redirect(`/workspace/leads/${leadId}?partnerReviewCreated=1&reviewUrl=${encodeURIComponent(reviewUrl)}&requestId=${encodeURIComponent(String(data?.id || ''))}`);
+    destination = `/workspace/leads/${leadId}?partnerReviewCreated=1&reviewUrl=${encodeURIComponent(reviewUrl)}&requestId=${encodeURIComponent(requestId)}`;
   } catch (error) {
-    redirect(`/workspace/leads/${leadId}?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create partner review request.')}`);
+    console.error('Partner review request creation failed', error);
+    destination = `/workspace/leads/${leadId}?error=${encodeURIComponent(errorMessage(error, 'Unable to create partner review request.'))}`;
   }
+
+  redirect(destination);
 }
 
 export async function decidePartnerReviewAction(formData: FormData) {
   const leadId = text(formData, 'lead_id');
+  let destination = `/workspace/leads/${leadId}`;
+
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, [...internalRoles]);
@@ -71,14 +87,19 @@ export async function decidePartnerReviewAction(formData: FormData) {
     if (error) throw error;
     revalidatePath(`/workspace/leads/${leadId}`);
     revalidatePath('/workspace/partner-quotes');
-    redirect(`/workspace/leads/${leadId}?partnerReviewDecision=1`);
+    destination = `/workspace/leads/${leadId}?partnerReviewDecision=1`;
   } catch (error) {
-    redirect(`/workspace/leads/${leadId}?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to record partner review decision.')}`);
+    console.error('Partner review decision failed', error);
+    destination = `/workspace/leads/${leadId}?error=${encodeURIComponent(errorMessage(error, 'Unable to record partner review decision.'))}`;
   }
+
+  redirect(destination);
 }
 
 export async function revokePartnerReviewAction(formData: FormData) {
   const leadId = text(formData, 'lead_id');
+  let destination = `/workspace/leads/${leadId}`;
+
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, [...internalRoles]);
@@ -90,8 +111,11 @@ export async function revokePartnerReviewAction(formData: FormData) {
     if (error) throw error;
     await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'lead', entity_id: leadId, event_type: 'partner_review_access_revoked', event_data: { partnerReviewRequestId: requestId } });
     revalidatePath(`/workspace/leads/${leadId}`);
-    redirect(`/workspace/leads/${leadId}?partnerReviewRevoked=1`);
+    destination = `/workspace/leads/${leadId}?partnerReviewRevoked=1`;
   } catch (error) {
-    redirect(`/workspace/leads/${leadId}?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to revoke partner review access.')}`);
+    console.error('Partner review revocation failed', error);
+    destination = `/workspace/leads/${leadId}?error=${encodeURIComponent(errorMessage(error, 'Unable to revoke partner review access.'))}`;
   }
+
+  redirect(destination);
 }
