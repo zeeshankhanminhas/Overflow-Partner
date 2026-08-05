@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ClientQuote, CommercialReview, Lead, PartnerQuote, Project, TechnicalIntake } from '@/types/domain';
 import type { WorkflowCase, WorkflowStage } from '@/types/orchestration';
+import { buildLead360Context, inheritedSnapshot } from '@/lib/context/inheritance';
 
 function deriveStage(
   intake: TechnicalIntake | null,
@@ -18,9 +19,9 @@ function deriveStage(
     return { stage: 'client_quote', nextAction: 'Review quote outcome' };
   }
   if (commercialReview) return { stage: 'commercial_review', nextAction: 'Approve commercial position' };
-  if (partnerQuote) return { stage: 'partner_pricing', nextAction: 'Create commercial review from compliant partner quote' };
-  if (intake) return { stage: 'technical_intake', nextAction: intake.status === 'approved' ? 'Select compliant partner pricing' : 'Complete and submit technical intake' };
-  return { stage: 'lead', nextAction: 'Create inherited technical intake' };
+  if (partnerQuote) return { stage: 'partner_pricing', nextAction: 'Create commercial review from compliant partner response' };
+  if (intake) return { stage: 'technical_intake', nextAction: intake.status === 'approved' ? 'Select an NDA-compliant execution partner' : 'Review and approve inherited technical scope' };
+  return { stage: 'lead', nextAction: 'Create inherited technical scope' };
 }
 
 export async function listWorkflowCases(supabase: SupabaseClient, organisationId: string): Promise<WorkflowCase[]> {
@@ -64,21 +65,34 @@ export async function ensureTechnicalIntakeShell(
 
   const { data: lead, error: leadError } = await supabase.from('leads').select('*')
     .eq('organisation_id', organisationId).eq('id', leadId).single();
-  if (leadError) throw new Error(leadError.message);
+  if (leadError || !lead) throw new Error(leadError?.message || 'Lead 360 context could not be loaded.');
+
+  const context = buildLead360Context(lead as Lead, null);
   const { data, error } = await supabase.from('technical_intakes').insert({
     organisation_id: organisationId,
     lead_id: lead.id,
-    project_type: lead.project_type,
-    description: lead.notes || lead.title || `${lead.company_name} engineering requirement`,
-    deliverables: lead.service,
+    project_type: context.requirement.projectType,
+    description: context.requirement.description,
+    deliverables: context.requirement.deliverables,
+    deadline: context.requirement.deadline,
+    special_requirements: context.requirement.specialRequirements,
     status: 'draft',
     created_by: userId,
   }).select('*').single();
   if (error) throw new Error(error.message);
+
   await supabase.from('leads').update({ status: 'technical_intake' }).eq('organisation_id', organisationId).eq('id', leadId);
   await supabase.rpc('op_record_activity', {
-    p_organisation_id: organisationId, p_user_id: userId, p_entity_type: 'lead', p_entity_id: leadId,
-    p_event_type: 'technical_intake_shell_created', p_event_data: { inherited: true },
+    p_organisation_id: organisationId,
+    p_user_id: userId,
+    p_entity_type: 'lead',
+    p_entity_id: leadId,
+    p_event_type: 'technical_scope_inherited_from_lead_360',
+    p_event_data: {
+      technicalIntakeId: data.id,
+      inherited: inheritedSnapshot(context),
+      decisionInputs: {},
+    },
   });
   return data as TechnicalIntake;
 }
