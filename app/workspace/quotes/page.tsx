@@ -1,6 +1,63 @@
+import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
-import { listClientQuotes, listCommercialReviews } from '@/lib/repositories/workflow';
-import { listLeads } from '@/lib/repositories/leads';
-import { createClientQuoteFormAction } from '../workflow-actions';
-const input='border border-black/15 bg-white px-3 py-2 text-black';
-export default async function Page({searchParams}:{searchParams?:Promise<Record<string,string|undefined>>}){const params=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();const [quotes,reviews,leads]=await Promise.all([listClientQuotes(supabase,organisationId),listCommercialReviews(supabase,organisationId),listLeads(supabase,organisationId)]);return <section><p className="eyebrow">Commercial</p><h1>Client quotes</h1><p className="lede">Issue controlled quotations from approved commercial decisions.</p>{params.created?<p className="card">Client quote created.</p>:null}{params.error?<p className="card">{params.error}</p>:null}<div className="metric-grid"><article className="metric"><span>Draft</span><strong>{quotes.filter(q=>q.status==='draft').length}</strong></article><article className="metric"><span>Issued</span><strong>{quotes.filter(q=>q.status==='issued').length}</strong></article><article className="metric"><span>Accepted</span><strong>{quotes.filter(q=>q.status==='accepted').length}</strong></article></div><form action={createClientQuoteFormAction} className="card stack" style={{marginTop:24}}><h3>Create client quote</h3><div className="grid gap-4 md:grid-cols-2"><select className={input} name="lead_id" required><option value="">Select lead</option>{leads.map(l=><option key={l.id} value={l.id}>{l.title||l.company_name}</option>)}</select><select className={input} name="commercial_review_id"><option value="">No linked review</option>{reviews.map(r=><option key={r.id} value={r.id}>£{r.client_price} · {r.status}</option>)}</select><input className={input} name="quote_number" placeholder="OP-Q-0001" required/><input className={input} name="revision" type="number" min="1" defaultValue="1"/><input className={input} name="subtotal" type="number" min="0" step="0.01" placeholder="Subtotal" required/><input className={input} name="vat" type="number" min="0" step="0.01" defaultValue="0"/><input className={input} name="currency" defaultValue="GBP"/><input className={input} name="valid_until" type="date"/><select className={input} name="status" defaultValue="draft"><option value="draft">Draft</option><option value="internal_review">Internal review</option><option value="issued">Issued</option><option value="accepted">Accepted</option><option value="declined">Declined</option><option value="expired">Expired</option></select></div><button className="button">Create quote</button></form><div style={{display:'grid',gap:12,marginTop:28}}>{quotes.map(q=><article className="metric" key={q.id}><div style={{display:'flex',justifyContent:'space-between'}}><strong>{q.quote_number} · Rev {q.revision}</strong><span>{q.status.replaceAll('_',' ')}</span></div><p>{q.currency} {Number(q.total).toFixed(2)} · valid until {q.valid_until||'not set'}</p></article>)}</div></section>}
+import { listClientQuotes } from '@/lib/repositories/workflow';
+import { quoteStatus } from '@/lib/workspace/vocabulary';
+
+function money(currency: string, amount: number) {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(Number(amount || 0));
+}
+
+export default async function Page({ searchParams }: { searchParams?: Promise<Record<string,string|undefined>> }) {
+  const params = searchParams ? await searchParams : {};
+  const { supabase, organisationId } = await requireUserContext();
+  const quotes = await listClientQuotes(supabase, organisationId) as any[];
+  const selected = params.quote ? quotes.find((quote) => quote.id === params.quote) : undefined;
+
+  return <section>
+    <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
+      <div><p className="eyebrow">Commercial</p><h1>Client quotes</h1><p className="lede">Controlled quotations generated from approved commercial decisions. No re-keying of lead, price or tax values.</p></div>
+      {params.lead ? <Link className="button secondary" href={`/workspace/leads/${params.lead}`}>Back to Lead 360</Link> : null}
+    </div>
+
+    {params.created && selected ? <section className="card" style={{marginTop:22,borderLeft:'3px solid var(--accent)'}}>
+      <p className="eyebrow">Draft quote generated</p>
+      <h2>{selected.quote_number} · Revision {selected.revision}</h2>
+      <p>{selected.lead?.company_name || selected.lead?.title || 'Lead'} · {money(selected.currency, selected.total)}</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:16,marginTop:18}}>
+        <div><p className="eyebrow">Status</p><strong>{quoteStatus(selected.status)}</strong></div>
+        <div><p className="eyebrow">Subtotal</p><strong>{money(selected.currency, selected.subtotal)}</strong></div>
+        <div><p className="eyebrow">VAT</p><strong>{money(selected.currency, selected.vat)}</strong></div>
+        <div><p className="eyebrow">Total</p><strong>{money(selected.currency, selected.total)}</strong></div>
+        <div><p className="eyebrow">Valid until</p><strong>{selected.valid_until || 'Not set'}</strong></div>
+      </div>
+      <p style={{marginTop:18}}>The quote inherited its lead, approved client price, currency and VAT calculation from the commercial decision.</p>
+    </section> : null}
+
+    {params.issued && selected ? <p className="card" style={{marginTop:20,borderLeft:'3px solid var(--accent)'}}>Quote {selected.quote_number} has been issued.</p> : null}
+    {params.error ? <p className="card" style={{marginTop:20}}>{params.error}</p> : null}
+
+    <div className="metric-grid">
+      <article className="metric"><span>Draft</span><strong>{quotes.filter((quote) => quote.status === 'draft').length}</strong></article>
+      <article className="metric"><span>Issued</span><strong>{quotes.filter((quote) => quote.status === 'issued').length}</strong></article>
+      <article className="metric"><span>Accepted</span><strong>{quotes.filter((quote) => quote.status === 'accepted').length}</strong></article>
+    </div>
+
+    <section className="card" style={{marginTop:24}}>
+      <p className="eyebrow">Operating rule</p>
+      <h3>Quotes are generated, not transcribed</h3>
+      <p>Approve the commercial position in Lead 360. The system creates the controlled draft and brings you here to review the result.</p>
+    </section>
+
+    <div style={{display:'grid',gap:12,marginTop:28}}>
+      {quotes.length === 0 ? <div className="card"><h3>No client quotes yet</h3><p>Complete a partner review and approve the commercial position from Lead 360.</p></div> : quotes.map((quote) =>
+        <article className="metric" key={quote.id} style={selected?.id === quote.id ? {borderLeft:'3px solid var(--accent)'} : undefined}>
+          <div style={{display:'flex',justifyContent:'space-between',gap:16,flexWrap:'wrap'}}>
+            <div><strong>{quote.quote_number} · Revision {quote.revision}</strong><p>{quote.lead?.company_name || quote.lead?.title || 'Lead'}</p></div>
+            <span>{quoteStatus(quote.status)}</span>
+          </div>
+          <p>{money(quote.currency, quote.total)} · valid until {quote.valid_until || 'not set'}</p>
+          <Link href={`/workspace/leads/${quote.lead_id}`}>Open Lead 360 →</Link>
+        </article>)}
+    </div>
+  </section>;
+}
