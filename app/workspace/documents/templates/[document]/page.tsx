@@ -63,6 +63,7 @@ export default async function WorkspaceDocumentPreviewPage({
     documentStatus = record?.status;
 
     if (record) {
+      adapted.issueState = String(record.status || adapted.issueState).replaceAll('_', ' ');
       const entityType = record.project_id ? 'project' : 'lead';
       const entityId = record.project_id || record.lead_id;
       if (entityId) {
@@ -72,12 +73,15 @@ export default async function WorkspaceDocumentPreviewPage({
           .eq('organisation_id', organisationId)
           .eq('entity_type', entityType)
           .eq('entity_id', entityId)
-          .contains('event_data', { document_id: record.id })
           .in('event_type', ['document.signed', 'document.approved'])
           .order('created_at', { ascending: true });
 
-        const signed = events?.find((event) => event.event_type === 'document.signed');
-        const approved = events?.find((event) => event.event_type === 'document.approved');
+        const documentEvents = (events || []).filter((event) => {
+          const data = (event.event_data || {}) as Record<string, unknown>;
+          return String(data.document_id || '') === record.id;
+        });
+        const signed = documentEvents.find((event) => event.event_type === 'document.signed');
+        const approved = documentEvents.find((event) => event.event_type === 'document.approved');
         const signedData = (signed?.event_data || {}) as Record<string, unknown>;
         const approvedData = (approved?.event_data || {}) as Record<string, unknown>;
 
@@ -86,8 +90,12 @@ export default async function WorkspaceDocumentPreviewPage({
             { label: 'Electronically signed by', value: String(signedData.signer_name || 'Authenticated workspace user') },
             { label: 'Signer role', value: String(signedData.signer_role || 'Authorised reviewer') },
             { label: 'Signed at', value: new Date(String(signedData.signed_at || signed.created_at)).toLocaleString('en-GB') },
+            { label: 'Signature declaration', value: String(signedData.declaration || 'Electronic signature applied through the authenticated Overflow Partner workspace.') },
           );
+        } else if (['signed', 'approved', 'issued', 'published'].includes(String(record.status))) {
+          adapted.facts.push({ label: 'Electronic signature', value: 'Signed status recorded. Signature audit evidence was not found for this legacy transition.' });
         }
+
         if (approved) {
           adapted.facts.push(
             { label: 'Approved by', value: String(approvedData.approver_email || 'Authorised approver') },
