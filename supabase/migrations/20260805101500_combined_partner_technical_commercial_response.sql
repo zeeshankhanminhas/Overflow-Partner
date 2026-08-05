@@ -37,7 +37,12 @@ begin
   return new;
 end $$;
 
-create or replace function public.op_submit_partner_review_response(
+-- PostgreSQL cannot change an existing function return type with CREATE OR REPLACE.
+-- Drop the earlier technical-only signature before recreating it with a JSONB
+-- result containing both the technical and commercial records.
+drop function if exists public.op_submit_partner_review_response(text, jsonb);
+
+create function public.op_submit_partner_review_response(
   p_token_hash text,
   p_payload jsonb
 ) returns jsonb
