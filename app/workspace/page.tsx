@@ -1,132 +1,76 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
-import { getDashboardSnapshot, type DashboardActivity, type MissionCase } from '@/lib/repositories/dashboard';
-import { eventLabel, workspaceLabel, type VocabularyDomain } from '@/lib/presentation/vocabulary';
+import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 
-const stageOrder: MissionCase['stage'][] = ['prospect', 'lead', 'technical', 'partner', 'commercial', 'quote', 'project'];
-const stageLabels: Record<MissionCase['stage'], string> = {
-  prospect: 'Prospect review', lead: 'Lead created', technical: 'Technical scope', partner: 'Partner response',
-  commercial: 'Commercial review', quote: 'Client quote', project: 'Project delivery',
-};
-
-function dateTime(value: string) {
-  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
-}
 function waiting(value: string) {
-  const milliseconds = Math.max(0, Date.now() - Date.parse(value));
-  const minutes = Math.floor(milliseconds / 60000);
+  const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000));
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ${minutes % 60}m`;
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
-function activityHref(activity: DashboardActivity) {
-  if (activity.entity_type === 'lead') return `/workspace/leads/${activity.entity_id}`;
-  if (activity.entity_type === 'prospect') return '/workspace/acquisition';
-  if (activity.entity_type === 'document') return '/workspace/documents';
-  return '/workspace/activity';
-}
-function caseDomain(stage: MissionCase['stage']): VocabularyDomain | undefined {
-  if (stage === 'lead') return 'lead';
-  if (stage === 'technical') return 'technical';
-  if (stage === 'partner') return 'partnerReview';
-  if (stage === 'commercial') return 'commercialReview';
-  if (stage === 'quote') return 'clientQuote';
-  if (stage === 'project') return 'project';
-  return undefined;
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 }
 
 export default async function WorkspacePage() {
   const { supabase, organisationId, profile } = await requireUserContext();
   const dashboard = await getDashboardSnapshot(supabase, organisationId);
   const name = profile.first_name || profile.full_name?.split(' ')[0] || 'Zeeshan';
-  const selected = dashboard.selectedCase;
-  const highestPressure = dashboard.attention[0];
+  const actions = dashboard.attention.slice(0, 8);
+  const overdue = actions.filter((item) => Date.now() - Date.parse(item.waitingSince) > 48 * 60 * 60 * 1000).length;
+  const waitingOnPartner = actions.filter((item) => item.stage === 'partner').length;
+  const waitingOnInternal = actions.length - waitingOnPartner;
 
-  return <section className="mission-control mission-v3">
-    <header className="command-header">
-      <div className="command-kicker"><span className="live-dot" /> Live operations</div>
-      <div className="command-title-row">
-        <div><p className="eyebrow">Overflow Partner / Mission Control</p><h1>Good morning, {name}.</h1><p>Control engineering work from first enquiry to issued delivery.</p></div>
-        <div className="command-meta"><span>{dashboard.todaysActivity} movements today</span><strong>{dashboard.attention.length} require attention</strong></div>
+  return <section style={{ display: 'grid', gap: 20 }}>
+    <section className="card" style={{ width: '100%', padding: 28, background: 'linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.025))' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 28, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 760 }}>
+          <p className="eyebrow">Owner command centre</p>
+          <h1 style={{ margin: '16px 0 12px' }}>Good morning, {name}.</h1>
+          <p className="lede" style={{ margin: 0 }}>The workspace stays intentionally narrow: priority work, aging risk, and the next live decision. Detailed context belongs inside each case.</p>
+        </div>
+        <Link className="button secondary" href="/workspace/leads">Open all cases</Link>
       </div>
-    </header>
-
-    <section className="attention-hero">
-      <div className="attention-hero-copy"><p className="eyebrow">Priority signal</p>
-        {highestPressure ? <><h2>{highestPressure.title}</h2><p>{highestPressure.company} · {highestPressure.reason}</p><div className="attention-meta"><span>Waiting {waiting(highestPressure.waitingSince)}</span><span>{stageLabels[highestPressure.stage]}</span></div></> : <><h2>No immediate action required.</h2><p>The operating queue is clear.</p></>}
-      </div>
-      {highestPressure ? <Link className="attention-primary" href={highestPressure.href}>Open priority case <span>↗</span></Link> : <Link className="attention-primary" href="/workspace/acquisition">Open acquisition <span>↗</span></Link>}
     </section>
 
-    <div className="signal-strip">
-      <Link href="/workspace/acquisition"><span>New enquiries</span><strong>{dashboard.prospects}</strong><small>All sources</small></Link>
-      <Link href="/workspace/leads"><span>Open cases</span><strong>{dashboard.cases.length}</strong><small>Across workflow</small></Link>
-      <Link href="/workspace/leads"><span>Technical decisions</span><strong>{dashboard.technicalIntakesAwaitingReview}</strong><small>Awaiting review</small></Link>
-      <Link href="/workspace/commercial-reviews"><span>Commercial decisions</span><strong>{dashboard.quotesAwaitingApproval}</strong><small>Awaiting approval</small></Link>
-      <Link href="/workspace/projects"><span>Active delivery</span><strong>{dashboard.activeProjects}</strong><small>Live projects</small></Link>
-    </div>
+    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
+      <article className="metric"><span>Open actions</span><strong>{actions.length}</strong><small>Cases requiring attention</small></article>
+      <article className="metric"><span>Overdue</span><strong>{overdue}</strong><small>Waiting more than two days</small></article>
+      <article className="metric"><span>Active delivery</span><strong>{dashboard.activeProjects}</strong><small>Projects currently live</small></article>
+    </section>
 
-    <div className="mission-layout-v3">
-      <main className="mission-flow">
-        <section className="flow-section pipeline-section-v3">
-          <div className="flow-heading"><div><p className="eyebrow">Case movement</p><h2>Every case, one controlled route.</h2></div><Link href="/workspace/leads">Open Lead 360 cases</Link></div>
-          <div className="pipeline-rail">
-            {stageOrder.map((stage, index) => {
-              const items = dashboard.pipeline[stage];
-              return <div className="rail-stage" key={stage}>
-                <div className="rail-stage-head"><span className="rail-index">0{index + 1}</span><div><strong>{stageLabels[stage]}</strong><small>{items.length} active</small></div></div>
-                <div className="rail-line"><span className={items.length ? 'active' : ''} /></div>
-                <div className="rail-cases">
-                  {items.slice(0, 2).map((item) => <Link href={item.href} key={`${item.kind}-${item.id}`}><strong>{item.company}</strong><p>{item.requirement}</p><footer><span>{item.service}</span><time>{waiting(item.waitingSince)}</time></footer></Link>)}
-                  {!items.length ? <p className="rail-empty">Clear</p> : null}
-                </div>
-              </div>;
-            })}
+    <section style={{ display: 'grid', gridTemplateColumns: 'minmax(260px,.72fr) minmax(0,1.28fr)', gap: 20, alignItems: 'start' }}>
+      <aside style={{ display: 'grid', gap: 20 }}>
+        <section className="card" style={{ width: '100%' }}>
+          <p className="eyebrow">Workload</p><h2 style={{ marginTop: 8 }}>Where work is waiting</h2>
+          <div style={{ display: 'grid', gap: 12, marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid', paddingTop: 12 }}><span>Internal decision</span><strong>{waitingOnInternal}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid', paddingTop: 12 }}><span>Execution partner</span><strong>{waitingOnPartner}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid', paddingTop: 12 }}><span>Client decision</span><strong>{dashboard.quotesAwaitingApproval}</strong></div>
           </div>
         </section>
-
-        <section className="flow-section work-section-v3">
-          <div className="flow-heading"><div><p className="eyebrow">Decision queue</p><h2>Work that needs a human decision.</h2></div><Link href="/workspace/tasks">View all actions</Link></div>
-          <div className="decision-list">
-            {dashboard.attention.length === 0 ? <div className="editorial-empty">No cases currently require action.</div> : dashboard.attention.slice(0, 6).map((item, index) =>
-              <Link href={item.href} key={`${item.id}-${item.title}`}><span className="decision-number">{String(index + 1).padStart(2, '0')}</span><div className="decision-copy"><small>{stageLabels[item.stage]}</small><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div><div className="decision-wait"><small>Waiting</small><strong>{waiting(item.waitingSince)}</strong></div><span className="decision-arrow">↗</span></Link>)}
+        <section className="card" style={{ width: '100%' }}>
+          <p className="eyebrow">Watchlist</p>
+          <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Technical reviews</span><strong>{dashboard.technicalIntakesAwaitingReview}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Partner responses</span><strong>{dashboard.partnerRfqsOutstanding}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Controlled documents</span><strong>{dashboard.documents}</strong></div>
           </div>
         </section>
-
-        <section className="flow-grid-bottom">
-          <div className="flow-section activity-v3">
-            <div className="flow-heading"><div><p className="eyebrow">Evidence trail</p><h2>Latest movement</h2></div><Link href="/workspace/activity">Full timeline</Link></div>
-            <div className="activity-editorial">
-              {dashboard.recentActivity.slice(0, 6).map((activity) => <Link href={activityHref(activity)} key={activity.id}><time dateTime={activity.created_at}>{dateTime(activity.created_at)}</time><span className="activity-rule" /><div><strong>{eventLabel(activity.event_type)}</strong><small>{workspaceLabel(activity.entity_type)}</small></div></Link>)}
-              {!dashboard.recentActivity.length ? <div className="editorial-empty">No activity recorded yet.</div> : null}
-            </div>
-          </div>
-
-          <div className="flow-section pressure-v3">
-            <div className="flow-heading"><div><p className="eyebrow">System pressure</p><h2>Workload</h2></div></div>
-            <div className="pressure-bars">
-              {[
-                ['Qualified prospects', dashboard.qualifiedProspects, '/workspace/acquisition'],
-                ['Open leads', dashboard.openLeads, '/workspace/leads'],
-                ['Partner responses', dashboard.partnerRfqsOutstanding, '/workspace/partner-quotes'],
-                ['Documents', dashboard.documents, '/workspace/documents'],
-              ].map(([itemLabel, value, href]) => <Link href={String(href)} key={String(itemLabel)}><div><span>{itemLabel}</span><strong>{value}</strong></div><i style={{ width: `${Math.min(100, Number(value) * 14)}%` }} /></Link>)}
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <aside className="case-file-v3">
-        {selected ? <>
-          <div className="case-file-topline"><span>Current case status</span><span className="case-status">{workspaceLabel(selected.status, caseDomain(selected.stage))}</span></div>
-          <header><code>{selected.reference}</code><h2>{selected.company}</h2><p>{selected.requirement}</p></header>
-          <div className="case-control-v3"><div><small>Current stage</small><strong>{stageLabels[selected.stage]}</strong></div><div><small>Waiting</small><strong>{waiting(selected.waitingSince)}</strong></div><div><small>Priority</small><strong>{workspaceLabel(selected.priority)}</strong></div></div>
-          <section className="case-next-v3"><small>Next action</small><h3>{selected.nextAction}</h3><Link href={selected.href}>Open case workspace ↗</Link></section>
-          <section className="case-data-v3"><div><small>Contact</small><strong>{selected.contact || 'Not recorded'}</strong></div><div><small>Service</small><strong>{selected.service}</strong></div><div><small>Deadline</small><strong>{selected.deadline || 'Not recorded'}</strong></div><div><small>Commercial</small><strong>{selected.amount || 'Not reached'}</strong></div></section>
-          <section className="case-history-v3"><div className="case-history-title"><small>Evidence history</small><span>{selected.timeline.length} events</span></div><ol>{(selected.timeline.length ? selected.timeline : [{ id: selected.id, event_type: 'case_created', created_at: selected.createdAt }]).slice(0, 6).map((event) => <li key={event.id}><span /><div><strong>{eventLabel(event.event_type)}</strong><time>{dateTime(event.created_at)}</time></div></li>)}</ol></section>
-        </> : <div className="editorial-empty">Create a prospect or lead to begin Mission Control.</div>}
       </aside>
-    </div>
+
+      <section className="card" style={{ width: '100%', padding: 22 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'end' }}>
+          <div><p className="eyebrow">Needs action now</p><h2 style={{ margin: '8px 0 0' }}>Live action queue</h2></div>
+          <span>{actions.length} open</span>
+        </div>
+        <div style={{ display: 'grid', marginTop: 20 }}>
+          {actions.length ? actions.map((item, index) => <Link href={item.href} key={`${item.id}-${item.title}`} style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) 100px 32px', gap: 14, alignItems: 'center', padding: '18px 4px', borderTop: '1px solid' }}>
+            <span style={{ color: '#b4975a', fontSize: 12 }}>{String(index + 1).padStart(2, '0')}</span>
+            <div style={{ minWidth: 0 }}><strong style={{ display: 'block' }}>{item.title}</strong><p style={{ margin: '5px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company} · {item.reason}</p></div>
+            <div><small>Waiting</small><strong style={{ display: 'block', marginTop: 4 }}>{waiting(item.waitingSince)}</strong></div>
+            <span>↗</span>
+          </Link>) : <p style={{ padding: '24px 0 8px' }}>No cases currently require a decision.</p>}
+        </div>
+      </section>
+    </section>
   </section>;
 }
