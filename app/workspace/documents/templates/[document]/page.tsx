@@ -20,7 +20,7 @@ export default async function WorkspaceDocumentPreviewPage({
   searchParams,
 }: {
   params: Promise<{ document: WorkspaceDocumentSlug }>;
-  searchParams?: Promise<{ case?: string; project?: string; quote?: string }>;
+  searchParams?: Promise<{ case?: string; project?: string; quote?: string; document_record?: string }>;
 }) {
   const { document } = await params;
   if (!getWorkspaceDocument(document)) notFound();
@@ -32,5 +32,26 @@ export default async function WorkspaceDocumentPreviewPage({
     projectId: query.project,
     quoteId: query.quote,
   });
-  return <ProtectedDocumentEngine mode="viewer" document={document} adapted={adapted} />;
+
+  let documentRecordId: string | undefined;
+  let documentStatus: string | undefined;
+  if (query.document_record) {
+    const { data: record } = await supabase
+      .from('documents')
+      .select('id,status,document_type')
+      .eq('organisation_id', organisationId)
+      .eq('id', query.document_record)
+      .eq('document_type', document)
+      .maybeSingle();
+    documentRecordId = record?.id;
+    documentStatus = record?.status;
+  }
+
+  return <ProtectedDocumentEngine
+    mode="viewer"
+    document={document}
+    adapted={adapted}
+    documentRecordId={documentRecordId}
+    documentStatus={documentStatus}
+  />;
 }
