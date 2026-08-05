@@ -18,10 +18,10 @@ function WorkspaceNavigation() {
   return <nav aria-label="Workspace" className="workspace-nav">
     <Link href="/workspace">Mission Control</Link>
     <details open><summary>My Work</summary><div style={groupStyle}><Link href="/workspace/tasks">My Actions</Link><Link href="/workspace/activity">Activity Timeline</Link></div></details>
-    <details open><summary>Case Pipeline</summary><div style={groupStyle}>
-      <Link href="/workspace/acquisition">Prospects</Link><Link href="/workspace/leads">Leads &amp; Cases</Link>
-      <Link href="/workspace/orchestration">Pipeline Orchestration</Link><Link href="/workspace/partner-quotes">Partner Pricing</Link>
-      <Link href="/workspace/commercial-reviews">Commercial Review</Link><Link href="/workspace/quotes">Client Quotes</Link><Link href="/workspace/projects">Projects</Link>
+    <details open><summary>Case Journey</summary><div style={groupStyle}>
+      <Link href="/workspace/acquisition">Prospects &amp; Reviews</Link><Link href="/workspace/leads">Lead 360</Link>
+      <Link href="/workspace/partner-quotes">Partner Pricing</Link><Link href="/workspace/commercial-reviews">Commercial Review</Link>
+      <Link href="/workspace/quotes">Client Quotes</Link><Link href="/workspace/projects">Projects</Link>
     </div></details>
     <details><summary>Customer Records</summary><div style={groupStyle}><Link href="/workspace/companies">Companies</Link><Link href="/workspace/contacts">Contacts</Link></div></details>
     <details open><summary>Resources</summary><div style={groupStyle}><Link href="/workspace/partners">Execution Partners</Link><Link href="/workspace/documents">Documents</Link></div></details>
