@@ -1,0 +1,115 @@
+.mobile-document-mode { display: none; }
+
+@media (max-width: 767px) {
+  .desktop-document-mode,
+  .desktop-review-control { display: none !important; }
+  .mobile-document-mode { display: block; }
+
+  .document-review-shell { padding-bottom: 84px; }
+  .document-review-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px 12px;
+    align-items: center;
+  }
+  .document-review-header > div { min-width: 0; }
+  .document-review-header h1 { font-size: 20px !important; line-height: 1.15; }
+  .document-review-status { grid-column: 2; justify-self: start; }
+
+  .mobile-document-review { display: grid; gap: 14px; }
+  .mobile-document-review section { min-width: 0; }
+  .mobile-document-hero,
+  .mobile-document-summary,
+  .mobile-document-section,
+  .mobile-document-blockers,
+  .mobile-document-control {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+  }
+  .mobile-document-hero { padding: 22px; }
+  .mobile-document-eyebrow {
+    margin: 0;
+    color: #c84a31;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+  .mobile-document-hero h2 { margin: 9px 0 0; font-size: 30px !important; line-height: 1.02; }
+  .mobile-document-hero > p:not(.mobile-document-eyebrow) { margin: 15px 0 0; color: var(--muted); line-height: 1.6; }
+  .mobile-document-status-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .mobile-document-status-row span { font-weight: 800; text-transform: capitalize; }
+  .mobile-document-status-row small { color: var(--muted); }
+
+  .mobile-document-summary { display: grid; grid-template-columns: 1fr; }
+  .mobile-document-summary > div,
+  .mobile-document-facts > div {
+    display: grid;
+    gap: 6px;
+    padding: 15px 18px;
+    border-top: 1px solid var(--line);
+  }
+  .mobile-document-summary > div:first-child,
+  .mobile-document-facts > div:first-child { border-top: 0; }
+  .mobile-document-summary span,
+  .mobile-document-facts span,
+  .mobile-document-control div span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .mobile-document-summary strong,
+  .mobile-document-facts strong { overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; }
+
+  .mobile-document-blockers { padding: 18px; border-left: 4px solid #c84a31; }
+  .mobile-document-blockers ul { display: grid; gap: 8px; margin: 12px 0 0; padding-left: 18px; }
+
+  .mobile-document-section-heading { padding: 18px; border-bottom: 1px solid var(--line); }
+  .mobile-document-section-heading h3,
+  .mobile-document-control h3 { margin: 7px 0 0; font-size: 22px !important; }
+  .mobile-document-facts { display: grid; }
+
+  .mobile-document-accordions details + details { border-top: 1px solid var(--line); }
+  .mobile-document-accordions summary {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    min-height: 58px;
+    padding: 12px 18px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .mobile-document-accordions summary::-webkit-details-marker { display: none; }
+  .mobile-document-accordions summary span { color: #c84a31; font-size: 12px; font-weight: 800; }
+  .mobile-document-accordions details > div { padding: 0 18px 8px 62px; }
+  .mobile-document-accordions section { padding: 16px 0; border-top: 1px solid var(--line); }
+  .mobile-document-accordions h4 { margin: 0; font-size: 16px; }
+  .mobile-document-accordions p { margin: 8px 0 0; color: var(--muted); line-height: 1.65; }
+
+  .mobile-document-control { padding: 20px; }
+  .mobile-document-control > p:not(.mobile-document-eyebrow) { color: var(--muted); line-height: 1.6; }
+  .mobile-document-control div { display: grid; gap: 7px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .mobile-document-control div strong { line-height: 1.5; }
+
+  .document-review-actions > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .document-review-actions button { min-width: 0; }
+}
+
+@media print {
+  .mobile-document-mode { display: none !important; }
+  .desktop-document-mode { display: block !important; }
+}
