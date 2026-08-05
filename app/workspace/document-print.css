@@ -24,6 +24,7 @@
   .document-review-header,
   .document-review-notice,
   .document-review-actions,
+  .document-mobile-review,
   .document-review-shell > section[aria-label="Electronic signature"],
   .document-review-shell > section[aria-label="Request document changes"],
   .print\:hidden {
@@ -35,7 +36,8 @@
   .midts-main,
   .midts-content,
   .document-review-shell,
-  .document-review-flow {
+  .document-review-flow,
+  .document-a4-preview {
     display: block !important;
     width: 210mm !important;
     min-width: 210mm !important;
@@ -78,11 +80,19 @@
     page-break-after: auto;
   }
 
-  .midts-document-page > div {
+  /* Only size the document content column. The other direct children are
+     decorative absolute layers, including the 6px orange accent strip. */
+  .midts-document-page > .flex {
     width: 100% !important;
     min-height: 297mm !important;
     padding: 15mm 17mm 14mm 20mm !important;
     box-sizing: border-box !important;
+  }
+
+  .midts-document-page > .absolute.left-0 {
+    width: 1.6mm !important;
+    min-height: 0 !important;
+    padding: 0 !important;
   }
 
   .midts-document-page * {
