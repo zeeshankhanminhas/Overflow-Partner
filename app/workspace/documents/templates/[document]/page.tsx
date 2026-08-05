@@ -33,18 +33,69 @@ export default async function WorkspaceDocumentPreviewPage({
     quoteId: query.quote,
   });
 
+  const ownerFact = adapted.facts.find((item) => item.label === 'Owner');
+  if (ownerFact && /^[0-9a-f-]{36}$/i.test(ownerFact.value)) {
+    const { data: owner } = await supabase
+      .from('profiles')
+      .select('full_name,first_name,last_name,email')
+      .eq('organisation_id', organisationId)
+      .eq('id', ownerFact.value)
+      .maybeSingle();
+    if (owner) ownerFact.value = owner.full_name || [owner.first_name, owner.last_name].filter(Boolean).join(' ') || owner.email || 'Overflow Partner';
+  }
+
+  if (['client-quote', 'quote', 'proposal'].includes(document)) {
+    const quoteNumber = adapted.facts.find((item) => item.label === 'Quote number')?.value;
+    if (quoteNumber && quoteNumber !== 'Not recorded') adapted.reference = quoteNumber;
+  }
+
   let documentRecordId: string | undefined;
   let documentStatus: string | undefined;
   if (query.document_record) {
     const { data: record } = await supabase
       .from('documents')
-      .select('id,status,document_type')
+      .select('id,status,document_type,lead_id,project_id')
       .eq('organisation_id', organisationId)
       .eq('id', query.document_record)
       .eq('document_type', document)
       .maybeSingle();
     documentRecordId = record?.id;
     documentStatus = record?.status;
+
+    if (record) {
+      const entityType = record.project_id ? 'project' : 'lead';
+      const entityId = record.project_id || record.lead_id;
+      if (entityId) {
+        const { data: events } = await supabase
+          .from('activity_events')
+          .select('event_type,event_data,created_at')
+          .eq('organisation_id', organisationId)
+          .eq('entity_type', entityType)
+          .eq('entity_id', entityId)
+          .contains('event_data', { document_id: record.id })
+          .in('event_type', ['document.signed', 'document.approved'])
+          .order('created_at', { ascending: true });
+
+        const signed = events?.find((event) => event.event_type === 'document.signed');
+        const approved = events?.find((event) => event.event_type === 'document.approved');
+        const signedData = (signed?.event_data || {}) as Record<string, unknown>;
+        const approvedData = (approved?.event_data || {}) as Record<string, unknown>;
+
+        if (signed) {
+          adapted.facts.push(
+            { label: 'Electronically signed by', value: String(signedData.signer_name || 'Authenticated workspace user') },
+            { label: 'Signer role', value: String(signedData.signer_role || 'Authorised reviewer') },
+            { label: 'Signed at', value: new Date(String(signedData.signed_at || signed.created_at)).toLocaleString('en-GB') },
+          );
+        }
+        if (approved) {
+          adapted.facts.push(
+            { label: 'Approved by', value: String(approvedData.approver_email || 'Authorised approver') },
+            { label: 'Approved at', value: new Date(String(approvedData.approved_at || approved.created_at)).toLocaleString('en-GB') },
+          );
+        }
+      }
+    }
   }
 
   return <ProtectedDocumentEngine
