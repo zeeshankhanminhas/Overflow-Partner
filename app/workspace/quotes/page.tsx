@@ -1,7 +1,19 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { listClientQuotes } from '@/lib/repositories/workflow';
-import { quoteStatus } from '@/lib/workspace/vocabulary';
+
+function quoteStatus(value: string) {
+  const labels: Record<string,string> = {
+    draft: 'Draft ready for review',
+    internal_review: 'Awaiting internal approval',
+    issued: 'Issued to client',
+    accepted: 'Accepted by client',
+    declined: 'Declined by client',
+    expired: 'Expired',
+    superseded: 'Superseded',
+  };
+  return labels[value] || value.replaceAll('_',' ').replace(/\b\w/g,(character)=>character.toUpperCase());
+}
 
 function money(currency: string, amount: number) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(Number(amount || 0));
