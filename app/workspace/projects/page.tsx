@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { listProjects, listClientQuotes } from '@/lib/repositories/workflow';
 import { listLeads } from '@/lib/repositories/leads';
@@ -8,6 +9,8 @@ import { workspaceLabel } from '@/lib/presentation/vocabulary';
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 export default async function Page({searchParams}:{searchParams?:Promise<Record<string,string|undefined>>}){
   const params=searchParams?await searchParams:{};
+  if(params.project) redirect(`/workspace/projects/${params.project}`);
+
   const {supabase,organisationId}=await requireUserContext();
   const [projects,quotes,leads]=await Promise.all([listProjects(supabase,organisationId),listClientQuotes(supabase,organisationId),listLeads(supabase,organisationId)]);
   const active=projects.filter(p=>p.status==='active').length;
