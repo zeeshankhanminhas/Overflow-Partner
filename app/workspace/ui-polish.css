@@ -1,0 +1,179 @@
+.workspace.midts-shell{font-family:var(--font-ui)}
+
+/* Display typography */
+.midts-brand,.midts-topbar strong,.midts-mobile-header strong,
+.midts-content h1,.midts-content h2,.midts-content h3,
+.project-os-reference,.project-os-node,.project-os-tag{
+  font-family:var(--font-display);
+}
+.midts-content h1,.midts-content h2,.midts-content h3{
+  text-wrap:balance;
+  overflow-wrap:anywhere;
+}
+.midts-content p,.midts-content small,.midts-content strong,.midts-content span,
+.midts-content a,.midts-content label,.midts-content dd,.midts-content dt{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+/* Button contract */
+.midts-content .button,.midts-content button{
+  width:auto;
+  max-width:100%;
+  min-height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 13px!important;
+  line-height:1.2;
+  white-space:normal;
+  text-align:center;
+  vertical-align:middle;
+}
+.midts-content .button:not(.secondary),.midts-content button[type="submit"]{
+  color:#080b0d!important;
+}
+.midts-content .button:not(.secondary) *,.midts-content button[type="submit"] *{
+  color:inherit!important;
+}
+.midts-content .button.secondary,.midts-content .button.secondary *{
+  color:#d4d9dc!important;
+}
+.midts-content button:disabled,.midts-content .button[aria-disabled="true"]{
+  color:#7a8389!important;
+  background:rgba(255,255,255,.045)!important;
+  border-color:var(--op-line)!important;
+  opacity:1!important;
+}
+.vp-action .button,.vp-action button,.project-os-action-panel .button,.project-os-action-panel button{
+  width:100%;
+}
+.project-os-progress-footer .button,.project-os-panel-heading .button,
+.project-os-document-row .button,.project-os-empty-state .button,
+.vp-toolbar .button,.vp-header .button{
+  width:auto!important;
+  flex:0 0 auto;
+}
+
+/* Prevent grid and flex collisions */
+.vp-header>*,.vp-primary-grid>*,.project-os-header>*,.project-os-decision-grid>*,
+.project-os-lower-grid>*,.project-os-panel-heading>*,.project-os-progress-footer>*{
+  min-width:0;
+}
+.vp-header,.project-os-panel-heading,.project-os-progress-footer{
+  flex-wrap:wrap;
+}
+.project-os-stage-card,.project-os-panel,.project-os-progress-card,.vp-object,.vp-action{
+  overflow:hidden;
+}
+
+/* Progress rail refinements */
+.project-os-progress-scroll{
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:var(--op-line-strong) transparent;
+  padding:8px 4px 6px;
+}
+.project-os-progress{
+  min-width:860px;
+  grid-template-columns:repeat(10,minmax(82px,1fr));
+}
+.project-os-progress li{
+  min-width:0;
+}
+.project-os-progress li strong{
+  width:100%;
+  max-width:86px;
+  min-height:24px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  line-height:1.3;
+  text-wrap:balance;
+}
+.project-os-progress li small{
+  min-height:11px;
+}
+.project-os-progress-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+/* Checklist and decision panel */
+.project-os-check-row{
+  grid-template-columns:26px minmax(0,1fr) minmax(44px,auto) 14px;
+}
+.project-os-check-row>div{
+  min-width:0;
+}
+.project-os-check-row div strong,.project-os-check-row div small{
+  display:block;
+}
+.project-os-ready,.project-os-missing{
+  white-space:nowrap;
+}
+.project-os-action-panel form{
+  width:100%;
+}
+.project-os-action-panel textarea{
+  resize:vertical;
+}
+
+/* Document rows */
+.project-os-document-row,.project-os-empty-row{
+  grid-template-columns:30px minmax(0,1fr) minmax(48px,auto) minmax(64px,auto) auto;
+}
+.project-os-document-row>div{
+  min-width:0;
+}
+.project-os-document-row strong,.project-os-document-row small{
+  overflow-wrap:anywhere;
+}
+.project-os-tag{
+  white-space:nowrap;
+}
+.project-os-document-row .button{
+  min-height:30px;
+  padding:6px 10px!important;
+  white-space:nowrap;
+}
+
+/* Lists and forms */
+.vp-row>*{min-width:0}.vp-row h3,.vp-row p{overflow-wrap:anywhere}
+.midts-content input,.midts-content select,.midts-content textarea{min-width:0}
+.midts-content details[open]>.vp-toolbar-panel{max-height:min(70vh,620px);overflow:auto}
+
+@media(max-width:1100px){
+  .project-os-decision-grid{grid-template-columns:minmax(0,1.15fr) minmax(210px,.85fr)}
+  .project-os-action-panel{grid-column:1/-1;text-align:left}
+  .project-os-action-icon{margin-left:0}
+  .project-os-action-panel form{max-width:420px}
+}
+
+@media(max-width:900px){
+  .project-os-decision-grid{grid-template-columns:1fr}
+  .project-os-action-panel{grid-column:auto}
+  .project-os-document-row{grid-template-columns:30px minmax(0,1fr) auto}
+  .project-os-document-row>small{display:none}
+  .project-os-document-row .project-os-tag{justify-self:end}
+  .project-os-document-row .button{grid-column:2/4;justify-self:start}
+  .project-os-progress-footer{align-items:flex-start}
+}
+
+@media(max-width:560px){
+  .midts-content .button,.midts-content button{font-size:11px}
+  .project-os-header h1{font-size:30px}
+  .project-os-meta{display:grid;gap:6px}
+  .project-os-meta span+span:before{display:none}
+  .project-os-progress{min-width:780px;grid-template-columns:repeat(10,minmax(74px,1fr))}
+  .project-os-progress-footer .button{width:100%!important}
+  .project-os-check-row{grid-template-columns:24px minmax(0,1fr) auto}
+  .project-os-check-row>a,.project-os-check-row>span:last-child{display:none}
+  .project-os-document-row{grid-template-columns:28px minmax(0,1fr) auto}
+  .project-os-document-row .project-os-tag{display:none}
+  .project-os-document-row .button{grid-column:2/4;width:auto!important}
+  .vp-toolbar,.vp-header .vp-toolbar{justify-content:flex-start}
+}
