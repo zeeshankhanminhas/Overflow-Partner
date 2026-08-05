@@ -8,29 +8,11 @@ import { getWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/w
 const roles = ['owner','admin','operator','engineering','commercial','business_development'] as const;
 
 const caseDocuments: WorkspaceDocumentSlug[] = [
-  'client-requirements',
-  'scope-of-work',
-  'partner-technical-assessment-report',
-  'vendor-safe-package',
-  'vendor-instructions',
-  'rfq-response',
-  'commercial-approval',
-  'client-quote',
-  'commercial-qualification-record',
-  'proposal',
-  'quote',
-  'statement-of-work',
-  'technical-review',
-  'requirement-sheet',
+  'client-requirements','scope-of-work','partner-technical-assessment-report','vendor-safe-package','vendor-instructions','rfq-response','commercial-approval','client-quote','commercial-qualification-record','proposal','quote','statement-of-work','technical-review','requirement-sheet',
 ];
 
 const projectDocuments: WorkspaceDocumentSlug[] = [
-  'scope-of-work',
-  'statement-of-work',
-  'handover-pack',
-  'completion-report',
-  'invoice',
-  'document-register',
+  'scope-of-work','statement-of-work','handover-pack','completion-report','invoice','document-register',
 ];
 
 function safePrefix(slug: string) {
@@ -55,8 +37,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
 
     let resolvedLeadId = leadId;
     let resolvedQuoteId = quoteId;
-    let entityType = 'lead';
-    let entityId = leadId;
+    let auditEntityType = 'lead';
+    let auditEntityId = leadId;
 
     if (projectId) {
       if (!projectDocuments.includes(slug)) throw new Error('This document is not permitted from the project workspace.');
@@ -64,8 +46,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (error || !project) throw new Error('Project could not be found.');
       resolvedLeadId = project.lead_id;
       resolvedQuoteId = project.quote_id;
-      entityType = 'project';
-      entityId = project.id;
+      auditEntityType = 'project';
+      auditEntityId = project.id;
 
       const stage = project.project_stage || 'mobilisation';
       if (slug === 'handover-pack' && !['mobilisation','ready_for_execution','ready_for_client_issue','issued_to_client','client_review','completion','closed'].includes(stage)) throw new Error('The Handover Pack is not available at the current delivery stage.');
@@ -75,8 +57,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (!caseDocuments.includes(slug)) throw new Error('This document is not permitted from Case 360.');
       const { data: lead, error } = await supabase.from('leads').select('id,status').eq('organisation_id', organisationId).eq('id', leadId).single();
       if (error || !lead) throw new Error('Case could not be found.');
-      entityType = 'lead';
-      entityId = lead.id;
+      auditEntityType = 'lead';
+      auditEntityId = lead.id;
 
       const [{ data: intake }, { data: review }, { data: commercial }, { data: quote }] = await Promise.all([
         supabase.from('technical_intakes').select('id,status').eq('organisation_id', organisationId).eq('lead_id', lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
@@ -91,15 +73,15 @@ export async function generateControlledDocumentAction(formData: FormData) {
       resolvedQuoteId = resolvedQuoteId || quote?.id || null;
     }
 
-    const { count } = await supabase.from('documents').select('id',{count:'exact',head:true}).eq('organisation_id', organisationId).eq('entity_type', entityType).eq('entity_id', entityId).eq('document_type', slug);
+    let versionQuery = supabase.from('documents').select('id',{count:'exact',head:true}).eq('organisation_id', organisationId).eq('document_type', slug);
+    versionQuery = projectId ? versionQuery.eq('project_id', projectId) : versionQuery.eq('lead_id', resolvedLeadId);
+    const { count } = await versionQuery;
     const version = Number(count || 0) + 1;
     const reference = `OP-${safePrefix(slug)}-${new Date().getUTCFullYear()}-${String(version).padStart(3,'0')}`;
 
     const { data: record, error: insertError } = await supabase.from('documents').insert({
       organisation_id: organisationId,
       created_by: user.id,
-      entity_type: entityType,
-      entity_id: entityId,
       lead_id: resolvedLeadId,
       project_id: projectId,
       quote_id: resolvedQuoteId,
@@ -113,8 +95,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
 
     await supabase.from('activity_events').insert({
       organisation_id: organisationId,
-      entity_type: entityType,
-      entity_id: entityId,
+      entity_type: auditEntityType,
+      entity_id: auditEntityId,
       user_id: user.id,
       event_type: 'document.generated',
       event_data: { document_id: record.id, document_type: slug, reference },
