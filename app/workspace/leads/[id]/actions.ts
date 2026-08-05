@@ -4,6 +4,8 @@ import { createHash, randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
+import { buildLead360Context, buildPartnerReviewScope, inheritedSnapshot } from '@/lib/context/inheritance';
+import type { Lead, TechnicalIntake } from '@/types/domain';
 
 const internalRoles = ['owner', 'admin', 'operator', 'engineering', 'commercial', 'business_development'] as const;
 
@@ -26,9 +28,19 @@ export async function createPartnerReviewRequestAction(formData: FormData) {
     const technicalIntakeId = text(formData, 'technical_intake_id');
     const partnerId = text(formData, 'partner_id');
     const responseDueAt = text(formData, 'response_due_at');
-    const scopeSummary = text(formData, 'scope_summary');
-    if (!leadId || !technicalIntakeId || !partnerId || !responseDueAt || !scopeSummary) throw new Error('Lead, approved scope, partner, response due date and scope summary are required.');
+    if (!leadId || !technicalIntakeId || !partnerId || !responseDueAt) {
+      throw new Error('Lead, approved technical scope, partner and response due date are required.');
+    }
 
+    const [{ data: lead, error: leadError }, { data: intake, error: intakeError }] = await Promise.all([
+      supabase.from('leads').select('*').eq('organisation_id', organisationId).eq('id', leadId).single(),
+      supabase.from('technical_intakes').select('*').eq('organisation_id', organisationId).eq('id', technicalIntakeId).eq('lead_id', leadId).single(),
+    ]);
+    if (leadError || !lead) throw new Error('Lead 360 context could not be loaded.');
+    if (intakeError || !intake || intake.status !== 'approved') throw new Error('An approved technical scope is required.');
+
+    const context = buildLead360Context(lead as Lead, intake as TechnicalIntake);
+    const scopeSummary = buildPartnerReviewScope(context);
     const rawToken = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     const dueTime = new Date(responseDueAt).getTime();
@@ -51,10 +63,29 @@ export async function createPartnerReviewRequestAction(formData: FormData) {
     });
     if (error) throw error;
 
+    const requestId = typeof data === 'string' ? data : String(data?.id || '');
+    await supabase.from('activity_events').insert({
+      organisation_id: organisationId,
+      user_id: user.id,
+      entity_type: 'lead',
+      entity_id: leadId,
+      event_type: 'lead_context_inherited_for_partner_review',
+      event_data: {
+        partnerReviewRequestId: requestId,
+        inherited: inheritedSnapshot(context),
+        decisionInputs: {
+          partnerId,
+          responseDueAt: new Date(responseDueAt).toISOString(),
+          reviewInstructionsProvided: Boolean(text(formData, 'review_instructions')),
+          showClientIdentity: formData.get('show_client_identity') === 'true',
+          showCommercialIdentity: formData.get('show_commercial_identity') === 'true',
+        },
+      },
+    });
+
     const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
     const origin = base.startsWith('http') ? base : `https://${base}`;
     const reviewUrl = `${origin}/partner-review/${rawToken}`;
-    const requestId = typeof data === 'string' ? data : String(data?.id || '');
     revalidatePath(`/workspace/leads/${leadId}`);
     revalidatePath('/workspace/partner-quotes');
     destination = `/workspace/leads/${leadId}?partnerReviewCreated=1&reviewUrl=${encodeURIComponent(reviewUrl)}&requestId=${encodeURIComponent(requestId)}`;
