@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import {
   approveControlledDocumentAction,
   requestDocumentChangesAction,
@@ -22,6 +23,7 @@ export default function MobileDocumentReviewShell({
   status: string;
   documentRecordId?: string;
 }) {
+  const router = useRouter();
   const [fullScreen, setFullScreen] = useState(false);
   const [decision, setDecision] = useState('');
   const [currentStatus, setCurrentStatus] = useState(status);
@@ -30,7 +32,7 @@ export default function MobileDocumentReviewShell({
   const [signerRole, setSignerRole] = useState('');
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
   const [changeReason, setChangeReason] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
   const normalizedStatus = currentStatus.toLowerCase();
   const hasRecord = Boolean(documentRecordId);
@@ -45,38 +47,83 @@ export default function MobileDocumentReviewShell({
     return false;
   }
 
-  function submitSignature() {
+  async function submitSignature() {
+    setDecision('');
     if (!requireRecord() || !documentRecordId) return;
-    startTransition(async () => {
+    if (!signerName.trim()) {
+      setDecision('Enter the signer name before applying the electronic signature.');
+      return;
+    }
+    if (!signerRole.trim()) {
+      setDecision('Enter the signer role before applying the electronic signature.');
+      return;
+    }
+    if (!declarationAccepted) {
+      setDecision('Accept the electronic-signature declaration before continuing.');
+      return;
+    }
+
+    setIsPending(true);
+    setDecision('Applying electronic signature…');
+    try {
       const result = await signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted);
       setDecision(result.message);
       if (result.ok && result.status) {
         setCurrentStatus(result.status);
         setActionMode(null);
+        router.refresh();
       }
-    });
+    } catch (error) {
+      setDecision(error instanceof Error ? error.message : 'Electronic signature failed. Please try again.');
+    } finally {
+      setIsPending(false);
+    }
   }
 
-  function submitChangeRequest() {
+  async function submitChangeRequest() {
+    setDecision('');
     if (!requireRecord() || !documentRecordId) return;
-    startTransition(async () => {
+    if (!changeReason.trim()) {
+      setDecision('Describe the required changes before submitting the request.');
+      return;
+    }
+
+    setIsPending(true);
+    setDecision('Recording change request…');
+    try {
       const result = await requestDocumentChangesAction(documentRecordId, changeReason);
       setDecision(result.message);
       if (result.ok && result.status) {
         setCurrentStatus(result.status);
         setActionMode(null);
         setChangeReason('');
+        router.refresh();
       }
-    });
+    } catch (error) {
+      setDecision(error instanceof Error ? error.message : 'Change request failed. Please try again.');
+    } finally {
+      setIsPending(false);
+    }
   }
 
-  function approveDocument() {
+  async function approveDocument() {
+    setDecision('');
     if (!requireRecord() || !documentRecordId) return;
-    startTransition(async () => {
+
+    setIsPending(true);
+    setDecision('Approving controlled document…');
+    try {
       const result = await approveControlledDocumentAction(documentRecordId);
       setDecision(result.message);
-      if (result.ok && result.status) setCurrentStatus(result.status);
-    });
+      if (result.ok && result.status) {
+        setCurrentStatus(result.status);
+        router.refresh();
+      }
+    } catch (error) {
+      setDecision(error instanceof Error ? error.message : 'Document approval failed. Please try again.');
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
@@ -104,7 +151,7 @@ export default function MobileDocumentReviewShell({
         <span>I have reviewed this controlled document and intend this action to constitute my electronic signature.</span>
       </label>
       <div className="flex flex-wrap gap-2">
-        <button className="button" disabled={isPending || !signerName.trim() || !signerRole.trim() || !declarationAccepted} onClick={submitSignature} type="button">{isPending ? 'Signing…' : 'Apply e-signature'}</button>
+        <button className="button" disabled={isPending} onClick={submitSignature} type="button">{isPending ? 'Signing…' : 'Apply e-signature'}</button>
         <button className="button secondary" disabled={isPending} onClick={() => setActionMode(null)} type="button">Cancel</button>
       </div>
     </section>}
@@ -113,7 +160,7 @@ export default function MobileDocumentReviewShell({
       <div><p className="eyebrow">Governed review</p><h2>Request changes</h2></div>
       <label className="field">Required changes<textarea rows={4} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Describe the amendment and evidence required before resubmission." /></label>
       <div className="flex flex-wrap gap-2">
-        <button className="button" disabled={isPending || !changeReason.trim()} onClick={submitChangeRequest} type="button">{isPending ? 'Recording…' : 'Submit change request'}</button>
+        <button className="button" disabled={isPending} onClick={submitChangeRequest} type="button">{isPending ? 'Recording…' : 'Submit change request'}</button>
         <button className="button secondary" disabled={isPending} onClick={() => setActionMode(null)} type="button">Cancel</button>
       </div>
     </section>}
