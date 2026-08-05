@@ -1,42 +1,83 @@
 import Link from 'next/link';
-import { workspaceDocuments, type WorkspaceDocumentItem } from './documentRegistry';
+import { requireUserContext } from '@/lib/auth/context';
 
-function statusLabel(status: WorkspaceDocumentItem['dataStatus']) {
-  if (status === 'live-backed') return 'Live-backed';
-  if (status === 'legacy-preview') return 'Legacy preview';
-  return 'Preview only';
-}
-function issueState(status: WorkspaceDocumentItem['dataStatus']) { return status === 'live-backed' ? 'Controlled record' : 'Issue blocked'; }
-function documentType(document: WorkspaceDocumentItem) {
-  if (document.slug.includes('invoice')) return 'Invoice';
-  if (document.slug.includes('quote')) return 'Quote';
-  if (document.slug.includes('report') || document.slug.includes('review')) return 'Report';
-  if (document.slug.includes('register')) return 'Register';
-  if (document.slug.includes('email')) return 'Template set';
-  if (document.slug.includes('package') || document.slug.includes('pack')) return 'Package';
-  return 'Controlled document';
+type RegistryDocument = {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  document_type: string;
+  reference: string;
+  title: string;
+  status: string;
+  version: number;
+  created_at: string;
+  updated_at: string | null;
+  lead_id: string | null;
+  project_id: string | null;
+};
+
+function openUrl(document: RegistryDocument) {
+  const context = document.project_id
+    ? `project=${document.project_id}`
+    : `case=${document.lead_id || document.entity_id}`;
+  return `/workspace/documents/templates/${document.document_type}?${context}&document_record=${document.id}`;
 }
 
-export default function DocumentEngineIndex() {
-  return <div className="document-suite-index">
+export default async function DocumentEngineIndex() {
+  const { supabase, organisationId } = await requireUserContext();
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id,entity_type,entity_id,document_type,reference,title,status,version,created_at,updated_at,lead_id,project_id')
+    .eq('organisation_id', organisationId)
+    .order('created_at', { ascending: false });
+
+  const documents = (data || []) as RegistryDocument[];
+  const drafts = documents.filter((document) => document.status === 'draft').length;
+  const approved = documents.filter((document) => ['approved','issued','published'].includes(document.status)).length;
+
+  return <div className="document-registry">
     <section className="document-suite-hero">
-      <p>Protected document engine</p>
-      <h1>Controlled publications for the complete engineering journey.</h1>
-      <p>Live-backed documents inherit governed workspace records. Preview-only templates remain blocked from final issue until their adapters and approval evidence are complete.</p>
+      <p>Controlled document registry</p>
+      <h1>Every publication, version and approval in one auditable register.</h1>
+      <p>Documents are generated from Case 360 or Project 360 when the workflow requires them. This registry provides visibility, review and control without initiating work outside its operational context.</p>
     </section>
-    <section className="document-suite-grid" aria-label="Workspace documents">
-      {workspaceDocuments.map((document) => <Link key={document.slug} href={`/workspace/documents/templates/${document.slug}`} className="document-suite-card">
-        <span className="document-suite-card-icon" aria-hidden="true">▤</span>
-        <div className="document-suite-card-copy">
-          <small>{documentType(document)}</small>
-          <h2>{document.title}</h2>
-          <p>{document.description}</p>
-        </div>
-        <div className="document-suite-card-state">
-          <span>{statusLabel(document.dataStatus)}</span>
-          <strong>{issueState(document.dataStatus)} →</strong>
-        </div>
-      </Link>)}
+
+    <section className="document-registry__metrics" aria-label="Document registry summary">
+      <article><span>Total records</span><strong>{documents.length}</strong></article>
+      <article><span>Drafts</span><strong>{drafts}</strong></article>
+      <article><span>Approved or issued</span><strong>{approved}</strong></article>
     </section>
+
+    {error ? <section className="card"><h2>Registry unavailable</h2><p>{error.message}</p></section> : null}
+
+    {!error && documents.length === 0 ? <section className="document-registry__empty">
+      <p className="vp-label">No controlled publications yet</p>
+      <h2>Generate the first document from its case or project stage.</h2>
+      <p>The registry will populate automatically as governed documents are created in the workflow.</p>
+      <div><Link className="button" href="/workspace/leads">Open cases</Link><Link className="button secondary" href="/workspace/projects">Open projects</Link></div>
+    </section> : null}
+
+    {documents.length ? <section className="document-registry__table-wrap">
+      <div className="document-registry__heading">
+        <div><p className="vp-label">Publication register</p><h2>Controlled records</h2></div>
+        <span>{documents.length} documents</span>
+      </div>
+      <div className="document-registry__table-scroll">
+        <table>
+          <thead><tr><th>Reference</th><th>Document</th><th>Context</th><th>Version</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
+          <tbody>
+            {documents.map((document) => <tr key={document.id}>
+              <td><strong>{document.reference}</strong></td>
+              <td><span>{document.title}</span><small>{document.document_type.replaceAll('-',' ')}</small></td>
+              <td>{document.entity_type === 'project' ? 'Project 360' : 'Case 360'}</td>
+              <td>v{document.version}</td>
+              <td><span className={`document-status document-status--${document.status}`}>{document.status.replaceAll('_',' ')}</span></td>
+              <td>{new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(document.created_at))}</td>
+              <td><Link className="button secondary" href={openUrl(document)}>Open</Link></td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </section> : null}
   </div>;
 }
