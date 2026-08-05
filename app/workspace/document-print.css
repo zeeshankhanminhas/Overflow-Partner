@@ -61,9 +61,9 @@
     width: 210mm !important;
     min-width: 210mm !important;
     max-width: 210mm !important;
-    height: 297mm !important;
-    min-height: 297mm !important;
-    max-height: 297mm !important;
+    height: 296.5mm !important;
+    min-height: 296.5mm !important;
+    max-height: 296.5mm !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -75,21 +75,21 @@
     box-sizing: border-box !important;
   }
 
-  .midts-document-page:last-child {
-    break-after: auto;
-    page-break-after: auto;
+  .document-a4-preview > .midts-document-page:last-child,
+  .document-review-flow .midts-document-page:last-child {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
-  /* Only size the document content column. The other direct children are
-     decorative absolute layers, including the 6px orange accent strip. */
-  .midts-document-page > .flex {
+  .midts-document-page > .document-page-content {
     width: 100% !important;
-    min-height: 297mm !important;
+    min-height: 296.5mm !important;
+    height: 296.5mm !important;
     padding: 15mm 17mm 14mm 20mm !important;
     box-sizing: border-box !important;
   }
 
-  .midts-document-page > .absolute.left-0 {
+  .midts-document-page > .document-accent-strip {
     width: 1.6mm !important;
     min-height: 0 !important;
     padding: 0 !important;
@@ -115,13 +115,13 @@
   .midts-document-page ol,
   .midts-document-page li,
   .midts-document-page section,
-  .midts-document-page article {
+  .midts-document-page article,
+  .signature-evidence-block {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  .document-side-brand,
-  .midts-document-page [class*="right-[-56px]"] {
+  .document-side-brand {
     display: none !important;
   }
 
