@@ -39,13 +39,12 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
   if (!items.length) return null;
 
   const { supabase, organisationId } = await requireUserContext();
-  const entityType = context === 'case' ? 'lead' : 'project';
+  const ownershipColumn = context === 'case' ? 'lead_id' : 'project_id';
   const { data } = await supabase
     .from('documents')
     .select('id,document_type,reference,title,status,version,created_at')
     .eq('organisation_id', organisationId)
-    .eq('entity_type', entityType)
-    .eq('entity_id', recordId)
+    .eq(ownershipColumn, recordId)
     .order('created_at', { ascending: false });
 
   const generated = (data || []) as GeneratedDocument[];
