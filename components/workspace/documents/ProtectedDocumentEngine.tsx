@@ -1,6 +1,7 @@
 import DocumentEngineIndex from './DocumentEngineIndex';
 import DocumentEngineViewer from './DocumentEngineViewer';
 import MobileDocumentReviewShell from './MobileDocumentReviewShell';
+import MobileDocumentReviewView from './MobileDocumentReviewView';
 import { getWorkspaceDocument, type WorkspaceDocumentSlug } from './documentRegistry';
 import type { AdaptedDocumentData } from './documentAdapter';
 
@@ -18,7 +19,13 @@ export default function ProtectedDocumentEngine(props: Props) {
       : document?.dataStatus === 'legacy-preview'
         ? 'Legacy preview'
         : 'Preview only');
-  return <MobileDocumentReviewShell title={document?.title || 'Overflow Partner document'} status={status} documentRecordId={props.documentRecordId}>
+
+  return <MobileDocumentReviewShell
+    title={document?.title || 'Overflow Partner document'}
+    status={status}
+    documentRecordId={props.documentRecordId}
+    mobileReview={<MobileDocumentReviewView slug={props.document} adapted={props.adapted} status={status} />}
+  >
     <DocumentEngineViewer slug={props.document} adapted={props.adapted} />
   </MobileDocumentReviewShell>;
 }
