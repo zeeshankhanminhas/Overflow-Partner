@@ -9,7 +9,8 @@ const roles = ['owner','admin','operator','engineering','commercial'] as const;
 
 export async function advanceProjectStageAction(formData: FormData) {
   const projectId = String(formData.get('project_id') || '');
-  const targetStage = String(formData.get('target_stage') || '') as ProjectStage;
+  const submittedStages = formData.getAll('target_stage').map(String);
+  const targetStage = String(submittedStages.at(-1) || '') as ProjectStage;
   const note = String(formData.get('note') || '').trim();
 
   if (!projectId || !projectStages.includes(targetStage)) {
