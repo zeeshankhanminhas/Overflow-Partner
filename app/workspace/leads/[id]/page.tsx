@@ -2,113 +2,70 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { listWorkflowCases } from '@/lib/orchestration/service';
-import {
-  acceptQuoteAction,
-  approveCommercialAction,
-  approveIntakeAction,
-  createCommercialReviewAction,
-  createIntakeShellAction,
-  issueQuoteAction,
-} from '../../orchestration/actions';
+import { acceptQuoteAction, approveCommercialAction, approveIntakeAction, createCommercialReviewAction, createIntakeShellAction, issueQuoteAction } from '../../orchestration/actions';
+import { createPartnerReviewRequestAction, decidePartnerReviewAction, revokePartnerReviewAction } from './actions';
 
-const stages = ['lead', 'technical_intake', 'partner_pricing', 'commercial_review', 'client_quote', 'project'] as const;
+const stages = ['lead','technical_scope','partner_review','partner_commercial_response','commercial_review','client_quote','project'] as const;
 const label = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-const dateTime = (value: string | null | undefined) => value
-  ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-  : 'Not recorded';
+const dateTime = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not recorded';
+function Field({ name, value }: { name: string; value: string | number | null | undefined }) { return <div><p className="eyebrow" style={{marginBottom:5}}>{name}</p><p style={{margin:0,whiteSpace:'pre-wrap'}}>{value ?? 'Not recorded'}</p></div>; }
 
-function RecordField({ label: fieldLabel, value }: { label: string; value: string | number | null | undefined }) {
-  return <div><p className="eyebrow" style={{ marginBottom: 5 }}>{fieldLabel}</p><p style={{ margin: 0 }}>{value ?? 'Not recorded'}</p></div>;
-}
-
-export default async function Lead360Page({ params, searchParams }: {
-  params: Promise<{ id: string }>;
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const { id } = await params;
-  const query = searchParams ? await searchParams : {};
+export default async function Lead360Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string,string|string[]|undefined>> }) {
+  const { id } = await params; const query = searchParams ? await searchParams : {};
   const { supabase, organisationId } = await requireUserContext();
-  const cases = await listWorkflowCases(supabase, organisationId);
-  const workflow = cases.find((item) => item.lead.id === id);
+  const workflow = (await listWorkflowCases(supabase, organisationId)).find((item) => item.lead.id === id);
   if (!workflow) notFound();
 
-  const [activityResult, documentsResult, tasksResult] = await Promise.all([
-    supabase.from('activity_events').select('*').eq('organisation_id', organisationId).eq('entity_type', 'lead').eq('entity_id', id).order('created_at', { ascending: false }).limit(30),
-    supabase.from('documents').select('*').eq('organisation_id', organisationId).eq('entity_type', 'lead').eq('entity_id', id).order('created_at', { ascending: false }),
-    supabase.from('tasks').select('*').eq('organisation_id', organisationId).eq('entity_type', 'lead').eq('entity_id', id).order('created_at', { ascending: false }),
+  const [activityResult, documentsResult, tasksResult, partnersResult, reviewsResult] = await Promise.all([
+    supabase.from('activity_events').select('*').eq('organisation_id', organisationId).eq('entity_type','lead').eq('entity_id',id).order('created_at',{ascending:false}).limit(40),
+    supabase.from('documents').select('*').eq('organisation_id', organisationId).eq('entity_type','lead').eq('entity_id',id).order('created_at',{ascending:false}),
+    supabase.from('tasks').select('*').eq('organisation_id', organisationId).eq('entity_type','lead').eq('entity_id',id).order('created_at',{ascending:false}),
+    supabase.from('partners').select('id,company_name,status,nda_signed,nda_signed_at,services').eq('organisation_id',organisationId).eq('status','approved').eq('nda_signed',true).order('company_name'),
+    supabase.from('partner_review_requests').select('*, partner:partners(id,company_name,nda_signed), responses:partner_review_responses(*), decisions:partner_review_internal_decisions(*), files:partner_review_files(id)').eq('organisation_id',organisationId).eq('lead_id',id).order('created_at',{ascending:false}),
   ]);
-  const activity = activityResult.data ?? [];
-  const documents = documentsResult.data ?? [];
-  const tasks = tasksResult.data ?? [];
-  const currentIndex = stages.indexOf(workflow.stage);
+
+  const activity=activityResult.data??[]; const documents=documentsResult.data??[]; const tasks=tasksResult.data??[]; const partners=partnersResult.data??[];
+  const reviewSchemaReady=!reviewsResult.error; const reviews=(reviewsResult.data??[]) as any[]; const review=reviews[0] as any|undefined;
+  const responses=[...(review?.responses??[])].sort((a:any,b:any)=>Number(b.revision)-Number(a.revision)); const response=responses[0];
+  const decisions=[...(review?.decisions??[])].sort((a:any,b:any)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime()); const decision=decisions[0];
+  const technicalApproved=workflow.technicalIntake?.status==='approved';
+  let stageIndex=0;
+  if(technicalApproved) stageIndex=1;
+  if(review) stageIndex=2;
+  if(review && ['approved','approved_with_conditions'].includes(review.status)) stageIndex=3;
+  if(workflow.commercialReview) stageIndex=4;
+  if(workflow.clientQuote) stageIndex=5;
+  if(workflow.project) stageIndex=6;
+  const nextAction=!technicalApproved?'Complete and approve technical scope':!review?'Create controlled partner review request':review.status==='submitted'?'Record internal technical decision':review.status==='clarification_required'?'Await revised partner response':['approved','approved_with_conditions'].includes(review.status)&&!workflow.partnerQuote?'Request partner commercial response':workflow.partnerQuote&&!workflow.commercialReview?'Create commercial review':workflow.commercialReview&&!workflow.clientQuote?'Approve commercial position and draft client quote':workflow.clientQuote?.status==='issued'&&!workflow.project?'Record acceptance and create project':workflow.project?'Manage controlled project delivery':'Await partner technical response';
 
   return <section>
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-      <div><p className="eyebrow">Lead 360 · {label(workflow.stage)}</p><h1>{workflow.lead.title || workflow.lead.company_name}</h1>
-        <p className="lede">One governed engineering case record from qualified requirement through quotation, project creation and delivery.</p></div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}><Link className="button secondary" href="/workspace/leads">All leads</Link>
-        {workflow.lead.company_id ? <Link className="button secondary" href={`/workspace/companies/${workflow.lead.company_id}`}>Company 360°</Link> : null}</div>
+    <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}><div><p className="eyebrow">Lead 360 · {label(stages[stageIndex])}</p><h1>{workflow.lead.title||workflow.lead.company_name}</h1><p className="lede">One governed engineering case from approved requirement through partner review, commercial response, quotation and delivery.</p></div><div style={{display:'flex',gap:10,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/leads">All leads</Link>{workflow.lead.company_id?<Link className="button secondary" href={`/workspace/companies/${workflow.lead.company_id}`}>Company 360°</Link>:null}</div></div>
+    {query.error?<p className="card" style={{marginTop:20}}>{String(query.error)}</p>:null}
+    {query.partnerReviewCreated?<div className="card" style={{marginTop:20,borderLeft:'3px solid var(--accent)'}}><p className="eyebrow">Partner review created</p><h3>Secure review link</h3><p style={{overflowWrap:'anywhere'}}>{String(query.reviewUrl||'')}</p><p>This raw token is shown once. The database stores only its hash.</p></div>:null}
+    {query.partnerReviewDecision?<p className="card" style={{marginTop:20}}>Partner review decision recorded.</p>:null}
+    {!reviewSchemaReady?<p className="card" style={{marginTop:20,borderLeft:'3px solid #b45309'}}><strong>Partner review migration pending.</strong> Apply <code>20260805090000_partner_review_architecture.sql</code> before using this stage.</p>:null}
+
+    <section className="card" style={{width:'100%',marginTop:24,borderLeft:'3px solid var(--accent)'}}><p className="eyebrow">Next controlled decision</p><h2 style={{marginTop:6}}>{nextAction}</h2><p>The orchestration engine derives this from approved evidence and database-enforced gates.</p></section>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))',gap:10,marginTop:20}}>{stages.map((stage,index)=><article className="metric" key={stage} style={{opacity:index<=stageIndex?1:.4}}><span>{label(stage)}</span><strong style={{fontSize:16}}>{index<stageIndex?'Complete':index===stageIndex?'Current':'Waiting'}</strong></article>)}</div>
+
+    <div style={{display:'grid',gridTemplateColumns:'minmax(0,2fr) minmax(280px,1fr)',gap:20,marginTop:24}}><div style={{display:'grid',gap:20}}>
+      <section className="card" style={{width:'100%'}}><p className="eyebrow">Case identity</p><h2>Commercial and engineering context</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:18,marginTop:18}}><Field name="Company" value={workflow.lead.company_name}/><Field name="Contact" value={workflow.lead.contact_name}/><Field name="Project type" value={workflow.lead.project_type}/><Field name="Service" value={workflow.lead.service}/><Field name="Priority" value={workflow.lead.priority}/><Field name="Source" value={workflow.lead.source}/></div>{workflow.lead.notes?<div style={{marginTop:20}}><p className="eyebrow">Requirement</p><p style={{whiteSpace:'pre-wrap',lineHeight:1.7}}>{workflow.lead.notes}</p></div>:null}</section>
+
+      <section className="card" style={{width:'100%'}}><p className="eyebrow">Technical scope</p><h2>{workflow.technicalIntake?label(workflow.technicalIntake.status):'Not created'}</h2><div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:18}}>{!workflow.technicalIntake?<form action={createIntakeShellAction}><input type="hidden" name="lead_id" value={id}/><button className="button">Create inherited technical scope</button></form>:null}{workflow.technicalIntake&&workflow.technicalIntake.status!=='approved'?<form action={approveIntakeAction}><input type="hidden" name="intake_id" value={workflow.technicalIntake.id}/><button className="button">Approve technical scope</button></form>:null}</div></section>
+
+      <section className="card" style={{width:'100%'}}><p className="eyebrow">Partner review</p><h2>Technical feasibility and delivery readiness</h2><p>Objective: obtain a controlled, attributable partner assessment before commercial pricing is allowed.</p>
+        {!review&&technicalApproved&&reviewSchemaReady?<form action={createPartnerReviewRequestAction} className="stack" style={{marginTop:22}}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="technical_intake_id" value={workflow.technicalIntake?.id}/><label>Approved NDA partner<select name="partner_id" required defaultValue=""><option value="">Select partner</option>{partners.map((partner:any)=><option key={partner.id} value={partner.id}>{partner.company_name}</option>)}</select></label><label>Response due<input name="response_due_at" type="datetime-local" required/></label><label>Scope summary<textarea name="scope_summary" rows={4} required defaultValue={workflow.technicalIntake?.description||workflow.lead.notes||''}/></label><label>Review instructions<textarea name="review_instructions" rows={4}/></label><label>Client identity visibility<select name="show_client_identity" defaultValue="false"><option value="false">Hide client identity</option><option value="true">Show client identity</option></select></label><label>Commercial identity visibility<select name="show_commercial_identity" defaultValue="false"><option value="false">Hide commercial identity</option><option value="true">Show commercial identity</option></select></label><button className="button">Create secure partner review</button></form>:null}
+        {technicalApproved&&partners.length===0?<p style={{marginTop:18}}>No approved NDA-compliant partner is available. Update the Execution Partners directory first.</p>:null}
+        {review?<div style={{marginTop:22,display:'grid',gap:18}}><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:16}}><Field name="Status" value={label(review.status)}/><Field name="Partner" value={review.partner?.company_name}/><Field name="NDA" value={review.partner?.nda_signed?'Confirmed':'Outstanding'}/><Field name="Case reference" value={review.case_reference}/><Field name="Created" value={dateTime(review.created_at)}/><Field name="Opened" value={dateTime(review.first_opened_at)}/><Field name="Response due" value={dateTime(review.response_due_at)}/><Field name="Submitted" value={dateTime(review.submitted_at)}/><Field name="Files shared" value={review.files?.length??0}/></div>
+          {response?<div style={{borderTop:'1px solid var(--line)',paddingTop:18}}><p className="eyebrow">Latest technical response · Revision {response.revision}</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:16,marginTop:14}}><Field name="Feasibility" value={label(response.feasibility)}/><Field name="Confidence" value={`${response.confidence_percent}%`}/><Field name="Capacity" value={label(response.capacity_status)}/><Field name="Engineering hours" value={response.estimated_engineering_hours}/><Field name="Lead time" value={response.estimated_lead_time_days?`${response.estimated_lead_time_days} days`:null}/><Field name="Pricing readiness" value={label(response.pricing_readiness)}/></div>{response.missing_information?<div style={{marginTop:16}}><Field name="Missing information" value={response.missing_information}/></div>:null}{response.technical_risks?<div style={{marginTop:16}}><Field name="Technical risks" value={response.technical_risks}/></div>:null}{response.assumptions?<div style={{marginTop:16}}><Field name="Assumptions" value={response.assumptions}/></div>:null}</div>:null}
+          {response&&review.status==='submitted'?<form action={decidePartnerReviewAction} className="stack" style={{borderTop:'1px solid var(--line)',paddingTop:18}}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="request_id" value={review.id}/><input type="hidden" name="response_id" value={response.id}/><label>Internal decision<select name="decision" required defaultValue=""><option value="">Select decision</option><option value="approved">Approved</option><option value="approved_with_conditions">Approved with conditions</option><option value="clarification_required">Clarification required</option><option value="rejected">Rejected</option></select></label><label>Review notes<textarea name="review_notes" rows={3}/></label><label>Accepted assumptions<textarea name="accepted_assumptions" rows={3}/></label><label>Accepted risks<textarea name="accepted_risks" rows={3}/></label><label>Clarification request<textarea name="clarification_request" rows={3}/></label><button className="button">Record internal technical decision</button></form>:null}
+          {decision?<div style={{borderTop:'1px solid var(--line)',paddingTop:18}}><p className="eyebrow">Internal decision</p><h3>{label(decision.decision)}</h3><p>{decision.review_notes||'No review notes recorded.'}</p></div>:null}
+          {!['revoked','expired','approved','approved_with_conditions','rejected'].includes(review.status)?<form action={revokePartnerReviewAction}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="request_id" value={review.id}/><button className="button secondary">Revoke partner access</button></form>:null}</div>:null}
+      </section>
+
+      <section className="card" style={{width:'100%'}}><p className="eyebrow">Governed commercial progression</p><h2>{label(stages[stageIndex])}</h2><div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:18}}>{review&&['approved','approved_with_conditions'].includes(review.status)&&!workflow.partnerQuote?<Link className="button" href={`/workspace/partner-quotes?lead=${id}&review=${review.id}`}>Request partner commercial response</Link>:null}{workflow.partnerQuote&&!workflow.commercialReview?<form action={createCommercialReviewAction}><input type="hidden" name="partner_quote_id" value={workflow.partnerQuote.id}/><input name="markup_percent" type="number" min="0" max="500" step=".1" defaultValue="30"/><button className="button">Create commercial review</button></form>:null}{workflow.commercialReview&&!workflow.clientQuote?<form action={approveCommercialAction}><input type="hidden" name="commercial_review_id" value={workflow.commercialReview.id}/><input name="currency" defaultValue="GBP"/><input name="vat_rate" type="number" defaultValue="20"/><button className="button">Approve and draft quote</button></form>:null}{workflow.clientQuote&&['draft','internal_review'].includes(workflow.clientQuote.status)?<form action={issueQuoteAction}><input type="hidden" name="quote_id" value={workflow.clientQuote.id}/><button className="button">Issue client quote</button></form>:null}{workflow.clientQuote?.status==='issued'&&!workflow.project?<form action={acceptQuoteAction}><input type="hidden" name="quote_id" value={workflow.clientQuote.id}/><button className="button">Record acceptance and create project</button></form>:null}{workflow.project?<Link className="button" href="/workspace/projects">Open project</Link>:null}</div></section>
     </div>
 
-    {query.success ? <p className="card" style={{ marginTop: 20 }}>{String(query.success)}</p> : null}
-    {query.error ? <p className="card" style={{ marginTop: 20 }}>{String(query.error)}</p> : null}
-
-    <section className="card" style={{ width: '100%', marginTop: 24, borderLeft: '3px solid var(--accent)' }}>
-      <p className="eyebrow">Next controlled decision</p><h2 style={{ marginTop: 6 }}>{workflow.nextAction}</h2>
-      <p>This action is determined by the orchestration engine from the evidence already attached to this lead.</p>
-    </section>
-
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10, marginTop: 20 }}>
-      {stages.map((stage, stageIndex) => <article className="metric" key={stage} style={{ opacity: stageIndex <= currentIndex ? 1 : 0.42 }}>
-        <span>{label(stage)}</span><strong style={{ fontSize: 16 }}>{stageIndex < currentIndex ? 'Complete' : stageIndex === currentIndex ? 'Current' : 'Waiting'}</strong>
-      </article>)}
-    </div>
-
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 1fr)', gap: 20, marginTop: 24 }}>
-      <div style={{ display: 'grid', gap: 20 }}>
-        <section className="card" style={{ width: '100%' }}><p className="eyebrow">Case identity</p><h2>Commercial and engineering context</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 18, marginTop: 18 }}>
-            <RecordField label="Company" value={workflow.lead.company_name} /><RecordField label="Contact" value={workflow.lead.contact_name} />
-            <RecordField label="Project type" value={workflow.lead.project_type} /><RecordField label="Service" value={workflow.lead.service} />
-            <RecordField label="Priority" value={workflow.lead.priority} /><RecordField label="Source" value={workflow.lead.source} />
-          </div>{workflow.lead.notes ? <div style={{ marginTop: 20 }}><p className="eyebrow">Requirement</p><p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{workflow.lead.notes}</p></div> : null}
-        </section>
-
-        <section className="card" style={{ width: '100%' }}><p className="eyebrow">Governed stage workspace</p><h2>{label(workflow.stage)}</h2>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18 }}>
-            {!workflow.technicalIntake ? <form action={createIntakeShellAction}><input type="hidden" name="lead_id" value={id} /><button className="button" type="submit">Create inherited technical scope</button></form> : null}
-            {workflow.technicalIntake && workflow.technicalIntake.status !== 'approved' ? <form action={approveIntakeAction}><input type="hidden" name="intake_id" value={workflow.technicalIntake.id} /><button className="button" type="submit">Approve technical scope</button></form> : null}
-            {workflow.technicalIntake?.status === 'approved' && !workflow.partnerQuote ? <Link className="button" href="/workspace/partner-quotes">Capture compliant partner quote</Link> : null}
-            {workflow.partnerQuote && !workflow.commercialReview ? <form action={createCommercialReviewAction} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}><input type="hidden" name="partner_quote_id" value={workflow.partnerQuote.id} /><label><span style={{ display: 'block', marginBottom: 6 }}>Markup %</span><input name="markup_percent" type="number" min="0" max="500" step="0.1" defaultValue="30" style={{ maxWidth: 140 }} /></label><button className="button" type="submit">Create commercial review</button></form> : null}
-            {workflow.commercialReview && workflow.commercialReview.status !== 'approved' && !workflow.clientQuote ? <form action={approveCommercialAction} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}><input type="hidden" name="commercial_review_id" value={workflow.commercialReview.id} /><label><span style={{ display: 'block', marginBottom: 6 }}>Currency</span><input name="currency" defaultValue="GBP" maxLength={3} style={{ maxWidth: 90 }} /></label><label><span style={{ display: 'block', marginBottom: 6 }}>VAT %</span><input name="vat_rate" type="number" min="0" max="100" step="0.1" defaultValue="20" style={{ maxWidth: 100 }} /></label><button className="button" type="submit">Approve and draft quote</button></form> : null}
-            {workflow.clientQuote && ['draft', 'internal_review'].includes(workflow.clientQuote.status) && !workflow.project ? <form action={issueQuoteAction}><input type="hidden" name="quote_id" value={workflow.clientQuote.id} /><button className="button" type="submit">Issue client quote</button></form> : null}
-            {workflow.clientQuote?.status === 'issued' && !workflow.project ? <form action={acceptQuoteAction}><input type="hidden" name="quote_id" value={workflow.clientQuote.id} /><button className="button" type="submit">Record acceptance and create project</button></form> : null}
-            {workflow.project ? <Link className="button" href="/workspace/projects">Open project</Link> : null}
-          </div>
-        </section>
-
-        <section className="card" style={{ width: '100%' }}><p className="eyebrow">Evidence chain</p><h2>Inherited and generated records</h2>
-          <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
-            <article className="metric"><span>Technical intake</span><strong style={{ fontSize: 18 }}>{workflow.technicalIntake ? label(workflow.technicalIntake.status) : 'Not created'}</strong></article>
-            <article className="metric"><span>Partner pricing</span><strong style={{ fontSize: 18 }}>{workflow.partnerQuote ? `${workflow.partnerQuote.currency} ${Number(workflow.partnerQuote.price).toFixed(2)}` : 'Not received'}</strong></article>
-            <article className="metric"><span>Commercial review</span><strong style={{ fontSize: 18 }}>{workflow.commercialReview ? label(workflow.commercialReview.status) : 'Not created'}</strong></article>
-            <article className="metric"><span>Client quote</span><strong style={{ fontSize: 18 }}>{workflow.clientQuote ? `${workflow.clientQuote.quote_number} · ${label(workflow.clientQuote.status)}` : 'Not generated'}</strong></article>
-            <article className="metric"><span>Project</span><strong style={{ fontSize: 18 }}>{workflow.project ? workflow.project.project_number : 'Not created'}</strong></article>
-          </div>
-        </section>
-      </div>
-
-      <aside style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
-        <section className="card" style={{ width: '100%' }}><p className="eyebrow">Open actions</p><h3>{tasks.filter((task) => task.status !== 'completed').length} outstanding</h3>
-          {tasks.length ? tasks.slice(0, 6).map((task) => <div key={task.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12 }}><strong>{task.title}</strong><p>{label(task.status)} · {task.priority}</p></div>) : <p>No lead tasks recorded.</p>}
-        </section>
-        <section className="card" style={{ width: '100%' }}><p className="eyebrow">Documents</p><h3>{documents.length} attached</h3>
-          {documents.length ? documents.slice(0, 6).map((document) => <div key={document.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12 }}><strong>{document.title || document.name || 'Controlled document'}</strong><p>{label(document.status || 'recorded')}</p></div>) : <p>No generated lead documents yet.</p>}
-        </section>
-        <section className="card" style={{ width: '100%' }}><p className="eyebrow">Unified audit trail</p><h3>Recent case activity</h3>
-          {activity.length ? activity.slice(0, 10).map((event) => <div key={event.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12 }}><strong>{label(event.event_type)}</strong><p>{dateTime(event.created_at)}</p></div>) : <p>No lead activity recorded.</p>}
-        </section>
-      </aside>
-    </div>
+    <aside style={{display:'grid',gap:20,alignContent:'start'}}><section className="card"><p className="eyebrow">Open actions</p><h3>{tasks.filter((task:any)=>task.status!=='completed').length} outstanding</h3>{tasks.slice(0,6).map((task:any)=><div key={task.id} style={{borderTop:'1px solid var(--line)',paddingTop:12,marginTop:12}}><strong>{task.title}</strong><p>{label(task.status)} · {task.priority}</p></div>)}</section><section className="card"><p className="eyebrow">Documents</p><h3>{documents.length} attached</h3>{documents.slice(0,6).map((document:any)=><div key={document.id} style={{borderTop:'1px solid var(--line)',paddingTop:12,marginTop:12}}><strong>{document.title||document.name||'Controlled document'}</strong></div>)}</section><section className="card"><p className="eyebrow">Unified audit trail</p><h3>Recent case activity</h3>{activity.slice(0,14).map((event:any)=><div key={event.id} style={{borderTop:'1px solid var(--line)',paddingTop:12,marginTop:12}}><strong>{label(event.event_type)}</strong><p>{dateTime(event.created_at)}</p></div>)}</section></aside></div>
   </section>;
 }
