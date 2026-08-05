@@ -20,11 +20,22 @@ const responseSchema = z.object({
   exclusions: z.string().trim().max(5000).optional().default(''),
   partner_notes: z.string().trim().max(5000).optional().default(''),
   not_feasible_reason: z.string().trim().max(5000).optional().default(''),
+  commercial_price: z.union([z.coerce.number().positive(), z.literal('')]).optional(),
+  commercial_currency: z.string().trim().length(3).optional().or(z.literal('')),
+  commercial_valid_until: z.string().trim().optional().default(''),
+  quote_reference: z.string().trim().max(200).optional().default(''),
+  payment_terms: z.string().trim().max(2000).optional().default(''),
+  delivery_commitment: z.string().trim().max(2000).optional().default(''),
+  commercial_assumptions: z.string().trim().max(5000).optional().default(''),
+  commercial_exclusions: z.string().trim().max(5000).optional().default(''),
   declaration_checked: z.literal(true),
   reviewer_name: z.string().trim().min(2).max(200),
   reviewer_role: z.string().trim().max(200).optional().default(''),
 }).superRefine((value, context) => {
-  if (['feasible','feasible_with_conditions'].includes(value.feasibility) && (value.estimated_engineering_hours === '' || value.estimated_engineering_hours === undefined || value.estimated_lead_time_days === '' || value.estimated_lead_time_days === undefined)) context.addIssue({ code: 'custom', message: 'Feasible responses require estimated hours and lead time.' });
+  const feasible = ['feasible','feasible_with_conditions'].includes(value.feasibility);
+  if (feasible && (value.estimated_engineering_hours === '' || value.estimated_engineering_hours === undefined || value.estimated_lead_time_days === '' || value.estimated_lead_time_days === undefined)) context.addIssue({ code: 'custom', message: 'Feasible responses require estimated hours and lead time.' });
+  if (feasible && (value.commercial_price === '' || value.commercial_price === undefined)) context.addIssue({ code: 'custom', message: 'Feasible responses require a commercial price.' });
+  if (feasible && !value.commercial_currency) context.addIssue({ code: 'custom', message: 'Select the commercial currency.' });
   if (value.feasibility === 'feasible_with_conditions' && !value.assumptions) context.addIssue({ code: 'custom', message: 'State the conditions or assumptions.' });
   if (value.feasibility === 'more_information_required' && !value.missing_information) context.addIssue({ code: 'custom', message: 'State the missing information.' });
   if (value.feasibility === 'not_feasible' && !value.not_feasible_reason) context.addIssue({ code: 'custom', message: 'State why the scope is not feasible.' });
@@ -60,13 +71,14 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
     await supabase.from('partner_review_requests').update({ status: review.status === 'invited' ? 'opened' : review.status, first_opened_at: review.first_opened_at || now, last_opened_at: now, updated_at: now }).eq('id', review.id);
     if (!review.first_opened_at) await supabase.from('activity_events').insert({ organisation_id: review.organisation_id, user_id: review.created_by, entity_type: 'lead', entity_id: review.lead_id, event_type: 'partner_review_invitation_opened', event_data: { partnerReviewRequestId: review.id } });
 
-    const [leadResult, intakeResult, partnerResult, filesResult, responseResult, revisionResult] = await Promise.all([
+    const [leadResult, intakeResult, partnerResult, filesResult, responseResult, revisionResult, quoteResult] = await Promise.all([
       supabase.from('leads').select('id,title,company_name,project_type,service,notes').eq('id', review.lead_id).single(),
       supabase.from('technical_intakes').select('*').eq('id', review.technical_intake_id).single(),
       supabase.from('partners').select('id,company_name,nda_signed').eq('id', review.partner_id).single(),
       supabase.from('partner_review_files').select('id,display_name,document_id,intake_file_id,storage_path,access_count').eq('partner_review_request_id', review.id).order('created_at'),
       supabase.from('partner_review_responses').select('*').eq('partner_review_request_id', review.id).order('revision', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('partner_review_revisions').select('revision_number,clarification_request,requested_at,resolved_at').eq('partner_review_request_id', review.id).order('revision_number', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('partner_quotes').select('id,price,currency,valid_until,quote_reference,payment_terms,delivery_commitment,commercial_assumptions,exclusions,status').eq('partner_review_request_id', review.id).maybeSingle(),
     ]);
     const lead = leadResult.data;
     return NextResponse.json({
@@ -76,6 +88,7 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
       partner: partnerResult.data,
       files: filesResult.data || [],
       latest_response: responseResult.data,
+      commercial_response: quoteResult.data,
       clarification: revisionResult.data,
     });
   } catch (error) {
@@ -93,9 +106,9 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     if (['submitted','approved','approved_with_conditions','rejected'].includes(review.status)) return NextResponse.json({ message: 'This review response is locked. A formal clarification cycle is required for revision.' }, { status: 409 });
     const { data, error } = await supabase.rpc('op_submit_partner_review_response', { p_token_hash: hashToken(token), p_payload: payload });
     if (error) throw error;
-    return NextResponse.json({ success: true, response: data });
+    return NextResponse.json({ success: true, response: data?.technical_response || data, commercial_response: data?.commercial_response || null });
   } catch (error) {
-    if (error instanceof z.ZodError) return NextResponse.json({ message: error.issues[0]?.message || 'Please check the technical response.' }, { status: 400 });
+    if (error instanceof z.ZodError) return NextResponse.json({ message: error.issues[0]?.message || 'Please check the partner response.' }, { status: 400 });
     console.error('Partner review submission failed', error);
     return NextResponse.json({ message: error instanceof Error ? error.message : 'Unable to submit the partner response.' }, { status: 500 });
   }
