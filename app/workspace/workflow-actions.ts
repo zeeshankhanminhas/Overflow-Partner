@@ -40,7 +40,7 @@ export async function createClientQuoteFormAction(formData: FormData) {
 }
 export async function createProjectFormAction(formData: FormData) {
   const result = await run(formData, { schema: projectSchema, create: ({ supabase, user, organisationId }, input) => createProject(supabase, organisationId, user.id, input), entityType: 'project', eventType: 'project.created', path: '/workspace/projects' });
-  redirect(result.ok ? '/workspace/projects?created=1' : `/workspace/projects?error=${encodeURIComponent(result.error)}`);
+  redirect(result.ok ? `/workspace/projects/${(result.data as { id: string }).id}?created=1` : `/workspace/projects?error=${encodeURIComponent(result.error)}`);
 }
 export async function createTaskFormAction(formData: FormData) {
   const result = await run(formData, { schema: taskSchema, create: ({ supabase, user, organisationId }, input) => createTask(supabase, organisationId, user.id, input), entityType: 'task', eventType: 'task.created', path: '/workspace/tasks' });
