@@ -3,8 +3,6 @@ import { requireUserContext } from '@/lib/auth/context';
 
 type RegistryDocument = {
   id: string;
-  entity_type: string;
-  entity_id: string;
   document_type: string;
   reference: string;
   title: string;
@@ -19,7 +17,7 @@ type RegistryDocument = {
 function openUrl(document: RegistryDocument) {
   const context = document.project_id
     ? `project=${document.project_id}`
-    : `case=${document.lead_id || document.entity_id}`;
+    : `case=${document.lead_id}`;
   return `/workspace/documents/templates/${document.document_type}?${context}&document_record=${document.id}`;
 }
 
@@ -27,7 +25,7 @@ export default async function DocumentEngineIndex() {
   const { supabase, organisationId } = await requireUserContext();
   const { data, error } = await supabase
     .from('documents')
-    .select('id,entity_type,entity_id,document_type,reference,title,status,version,created_at,updated_at,lead_id,project_id')
+    .select('id,document_type,reference,title,status,version,created_at,updated_at,lead_id,project_id')
     .eq('organisation_id', organisationId)
     .order('created_at', { ascending: false });
 
@@ -69,7 +67,7 @@ export default async function DocumentEngineIndex() {
             {documents.map((document) => <tr key={document.id}>
               <td><strong>{document.reference}</strong></td>
               <td><span>{document.title}</span><small>{document.document_type.replaceAll('-',' ')}</small></td>
-              <td>{document.entity_type === 'project' ? 'Project 360' : 'Case 360'}</td>
+              <td>{document.project_id ? 'Project 360' : 'Case 360'}</td>
               <td>v{document.version}</td>
               <td><span className={`document-status document-status--${document.status}`}>{document.status.replaceAll('_',' ')}</span></td>
               <td>{new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(document.created_at))}</td>
