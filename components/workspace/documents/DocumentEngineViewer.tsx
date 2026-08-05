@@ -1,5 +1,6 @@
 import { getWorkspaceDocument, type WorkspaceDocumentSlug } from './documentRegistry';
 import { documentLanguage } from './documentLanguage';
+import type { AdaptedDocumentData } from './documentAdapter';
 
 const ink = '#171918';
 const muted = '#3f4542';
@@ -18,8 +19,8 @@ function Meta({ label, value }: { label: string; value: string }) {
   return <div className="border-t-2 pt-3" style={{ borderColor: line }}><dt className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: muted }}>{label}</dt><dd className="mt-2 text-sm font-bold" style={{ color: ink }}>{value}</dd></div>;
 }
 
-function ControlStrip({ reference }: { reference: string }) {
-  return <div className="grid grid-cols-3 border-y text-[9px] font-bold uppercase tracking-[.14em]" style={{ borderColor: line, color: muted }}><span className="py-3">Controlled publication</span><span className="border-x px-4 py-3 text-center" style={{ borderColor: line }}>{reference}</span><span className="py-3 text-right">Revision A</span></div>;
+function ControlStrip({ reference, revision }: { reference: string; revision: string }) {
+  return <div className="grid grid-cols-3 border-y text-[9px] font-bold uppercase tracking-[.14em]" style={{ borderColor: line, color: muted }}><span className="py-3">Controlled publication</span><span className="border-x px-4 py-3 text-center" style={{ borderColor: line }}>{reference}</span><span className="py-3 text-right">Revision {revision}</span></div>;
 }
 
 function Page({ children, reference, page }: { children: React.ReactNode; reference: string; page: string }) {
@@ -34,39 +35,48 @@ function Page({ children, reference, page }: { children: React.ReactNode; refere
   </main>;
 }
 
-export default function DocumentEngineViewer({ slug }: { slug: WorkspaceDocumentSlug }) {
+export default function DocumentEngineViewer({ slug, adapted }: { slug: WorkspaceDocumentSlug; adapted?: AdaptedDocumentData }) {
   const document = getWorkspaceDocument(slug);
   const language = documentLanguage[slug];
   if (!document || !language) return null;
-  const reference = `OP-${slug.replaceAll('-', '/').toUpperCase()}-001`;
+  const reference = adapted?.reference || `OP-${slug.replaceAll('-', '/').toUpperCase()}-001`;
+  const revision = adapted?.revision || 'A';
+  const livePageOffset = adapted?.connected ? 1 : 0;
 
   return <>
     <Page reference={reference} page="01">
       <div className="grid min-h-[760px] content-between">
         <div>
-          <div className="flex items-center gap-3"><span className="h-[2px] w-14" style={{ background: accent }} /><p className="text-[10px] font-bold uppercase tracking-[.24em]" style={{ color: accent }}>{document.dataStatus === 'live-backed' ? 'Live-backed publication' : 'Protected preview'}</p></div>
+          <div className="flex items-center gap-3"><span className="h-[2px] w-14" style={{ background: accent }} /><p className="text-[10px] font-bold uppercase tracking-[.24em]" style={{ color: accent }}>{adapted?.connected ? adapted.sourceLabel : document.dataStatus === 'live-backed' ? 'Live-backed publication' : 'Protected preview'}</p></div>
           <h1 className="mt-10 max-w-2xl text-5xl font-bold leading-[.94] tracking-[-.06em] md:text-7xl" style={{ color: ink }}>{document.title}</h1>
           <p className="mt-9 max-w-xl border-l-4 pl-6 text-base font-medium leading-8" style={{ borderColor: accent, color: muted }}>{language.purpose}</p>
+          {adapted?.connected ? <div className="mt-10 border-y-2 py-5" style={{ borderColor: ink }}><p className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: accent }}>Document subject</p><strong className="mt-2 block text-2xl" style={{ color: ink }}>{adapted.subject}</strong></div> : null}
         </div>
         <div>
-          <ControlStrip reference={reference} />
+          <ControlStrip reference={reference} revision={revision} />
           <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-3">
-            <Meta label="Audience" value={language.audience} /><Meta label="Reference" value={reference} /><Meta label="Revision" value="A" />
-            <Meta label="Prepared by" value="Overflow Partner" /><Meta label="Issue state" value={document.dataStatus === 'live-backed' ? 'Controlled record' : 'Final issue blocked'} /><Meta label="Visibility" value={language.visibility} />
+            <Meta label="Audience" value={language.audience} /><Meta label="Reference" value={reference} /><Meta label="Revision" value={revision} />
+            <Meta label="Prepared by" value="Overflow Partner" /><Meta label="Issue state" value={adapted?.issueState || (document.dataStatus === 'live-backed' ? 'Controlled record' : 'Final issue blocked')} /><Meta label="Visibility" value={language.visibility} />
           </dl>
         </div>
       </div>
     </Page>
 
-    {language.sections.map((section, sectionIndex) => <Page key={section.title} reference={reference} page={String(sectionIndex + 2).padStart(2, '0')}>
+    {adapted?.connected ? <Page reference={reference} page="02">
+      <div className="grid grid-cols-[5rem_1fr] gap-8 border-b-2 pb-8" style={{ borderColor: ink }}><span className="text-5xl font-bold tracking-[-.06em]" style={{ color: accent }}>00</span><div><p className="text-[10px] font-bold uppercase tracking-[.22em]" style={{ color: accent }}>Inherited controlled record</p><h2 className="mt-3 max-w-2xl text-4xl font-bold tracking-[-.05em] md:text-5xl" style={{ color: ink }}>Live document data</h2></div></div>
+      <div className="mt-12 grid grid-cols-1 gap-x-8 md:grid-cols-2">{adapted.facts.map((item) => <div key={item.label} className="border-t-2 py-6" style={{ borderColor: line }}><p className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: accent }}>{item.label}</p><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-7" style={{ color: ink }}>{item.value}</p></div>)}</div>
+      {adapted.warnings.length ? <div className="mt-10 border-l-4 p-6" style={{ borderColor: accent, background: '#f2eee9' }}><p className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: accent }}>Issue blockers</p><ul className="mt-4 grid gap-2">{adapted.warnings.map((warning) => <li key={warning} className="text-sm font-semibold" style={{ color: ink }}>{warning}</li>)}</ul></div> : null}
+    </Page> : null}
+
+    {language.sections.map((section, sectionIndex) => <Page key={section.title} reference={reference} page={String(sectionIndex + 2 + livePageOffset).padStart(2, '0')}>
       <div className="grid grid-cols-[5rem_1fr] gap-8 border-b-2 pb-8" style={{ borderColor: ink }}><span className="text-5xl font-bold tracking-[-.06em]" style={{ color: accent }}>{String(sectionIndex + 1).padStart(2, '0')}</span><div><p className="text-[10px] font-bold uppercase tracking-[.22em]" style={{ color: accent }}>Document section</p><h2 className="mt-3 max-w-2xl text-4xl font-bold tracking-[-.05em] md:text-5xl" style={{ color: ink }}>{section.title}</h2></div></div>
       <ol className="mt-12 grid gap-0">{section.entries.map((entry, index) => <li className="grid grid-cols-[3.5rem_1fr] gap-5 border-t-2 py-7" style={{ borderColor: line }} key={entry.heading}><span className="text-xs font-bold" style={{ color: accent }}>{String(index + 1).padStart(2, '0')}</span><div><strong className="text-lg font-bold" style={{ color: ink }}>{entry.heading}</strong><p className="mt-3 max-w-xl text-sm font-medium leading-7" style={{ color: muted }}>{entry.body}</p></div></li>)}</ol>
     </Page>)}
 
-    <Page reference={reference} page={String(language.sections.length + 2).padStart(2, '0')}>
+    <Page reference={reference} page={String(language.sections.length + 2 + livePageOffset).padStart(2, '0')}>
       <div className="grid min-h-[760px] content-between">
         <div><div className="flex items-center gap-3"><span className="h-[2px] w-14" style={{ background: accent }} /><p className="text-[10px] font-bold uppercase tracking-[.24em]" style={{ color: accent }}>Document control</p></div><h2 className="mt-10 whitespace-pre-line text-6xl font-bold leading-[.88] tracking-[-.065em]" style={{ color: ink }}>Controlled{`\n`}Publication.</h2><p className="mt-9 max-w-xl text-base font-medium leading-8" style={{ color: muted }}>{language.closingStatement}</p></div>
-        <div className="grid gap-0 border-y-2" style={{ borderColor: ink }}><div className="grid grid-cols-[10rem_1fr] border-b py-5" style={{ borderColor: line }}><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Issue condition</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{language.issueCondition}</p></div><div className="grid grid-cols-[10rem_1fr] py-5"><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Release control</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{document.dataStatus === 'live-backed' ? 'Release through the approved controlled issue route for the current revision.' : 'Preview only. Connect the live adapter and complete the required approval before external issue.'}</p></div></div>
+        <div className="grid gap-0 border-y-2" style={{ borderColor: ink }}><div className="grid grid-cols-[10rem_1fr] border-b py-5" style={{ borderColor: line }}><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Issue condition</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{language.issueCondition}</p></div><div className="grid grid-cols-[10rem_1fr] py-5"><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Release control</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{adapted?.connected && !adapted.warnings.length ? 'Live source data is connected. Complete approval and controlled PDF issue before external distribution.' : 'Preview or incomplete record. Connect the required live evidence and complete approval before external issue.'}</p></div></div>
       </div>
     </Page>
   </>;
