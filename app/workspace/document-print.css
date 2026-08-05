@@ -1,0 +1,124 @@
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* The application shell must never appear in a controlled publication. */
+  .midts-sidebar,
+  .midts-topbar,
+  .midts-mobile-header,
+  .midts-mobile-nav,
+  .document-review-header,
+  .document-review-notice,
+  .document-review-actions,
+  .document-review-shell > section[aria-label="Electronic signature"],
+  .document-review-shell > section[aria-label="Request document changes"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .workspace,
+  .midts-shell,
+  .midts-main,
+  .midts-content,
+  .document-review-shell,
+  .document-review-flow {
+    display: block !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    transform: none !important;
+  }
+
+  /* Cancel mobile and responsive overrides inside the actual publication. */
+  .document-review-flow [style*="grid-template-columns"] {
+    grid-template-columns: revert !important;
+  }
+
+  .midts-document-page {
+    position: relative !important;
+    display: block !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    transform: none !important;
+    break-before: auto;
+    break-after: page;
+    page-break-after: always;
+    box-sizing: border-box !important;
+  }
+
+  .midts-document-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .midts-document-page > div {
+    width: 100% !important;
+    min-height: 297mm !important;
+    padding: 15mm 17mm 14mm 20mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .midts-document-page * {
+    box-sizing: border-box !important;
+  }
+
+  .midts-document-page h1,
+  .midts-document-page h2,
+  .midts-document-page h3,
+  .midts-document-page p,
+  .midts-document-page dt,
+  .midts-document-page dd,
+  .midts-document-page strong,
+  .midts-document-page span {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .midts-document-page dl,
+  .midts-document-page ol,
+  .midts-document-page li,
+  .midts-document-page section,
+  .midts-document-page article {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* The vertical screen flourish crossed body copy in PDF output. */
+  .document-side-brand {
+    display: none !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
