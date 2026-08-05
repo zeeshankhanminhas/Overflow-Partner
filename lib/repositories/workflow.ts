@@ -43,14 +43,42 @@ export async function listClientQuotes(supabase: SupabaseClient, organisationId:
 export async function createClientQuote(supabase: SupabaseClient, organisationId: string, userId: string, input: ClientQuoteInput) { const total=input.subtotal+input.vat; const now=new Date().toISOString(); const {data,error}=await supabase.from('quotes').insert({organisation_id:organisationId,created_by:userId,lead_id:input.lead_id,commercial_review_id:nullable(input.commercial_review_id),quote_number:input.quote_number,revision:input.revision,subtotal:input.subtotal,vat:input.vat,total,currency:input.currency.toUpperCase(),valid_until:nullable(input.valid_until),status:input.status,issued_at:input.status==='issued'?now:null,accepted_at:input.status==='accepted'?now:null}).select('*').single(); if(error)throw new Error(error.message); return data as ClientQuote; }
 export async function listProjects(supabase: SupabaseClient, organisationId: string) { const {data,error}=await supabase.from('projects').select('*').eq('organisation_id',organisationId).order('created_at',{ascending:false}); if(error)throw new Error(error.message); return (data??[]) as Project[]; }
 export async function getProjectById(supabase: SupabaseClient, organisationId: string, projectId: string) {
-  const { data, error } = await supabase
+  const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('*, lead:leads(id,title,company_name,contact_name,contact_email,project_type,status,priority), quote:quotes(id,quote_number,revision,status,subtotal,vat,total,currency,valid_until,issued_at,accepted_at), project_manager:profiles(id,full_name,email)')
+    .select('*')
     .eq('organisation_id', organisationId)
     .eq('id', projectId)
-    .single();
-  if (error) throw new Error(error.message);
-  return data as Project & { lead?: Record<string, unknown> | null; quote?: Record<string, unknown> | null; project_manager?: Record<string, unknown> | null };
+    .maybeSingle();
+
+  if (projectError) throw new Error(projectError.message);
+  if (!project) throw new Error('Project not found in the current organisation.');
+
+  const [leadResult, quoteResult, managerResult] = await Promise.all([
+    project.lead_id
+      ? supabase.from('leads').select('id,title,company_name,contact_name,contact_email,project_type,status,priority').eq('organisation_id', organisationId).eq('id', project.lead_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    project.quote_id
+      ? supabase.from('quotes').select('id,quote_number,revision,status,subtotal,vat,total,currency,valid_until,issued_at,accepted_at').eq('organisation_id', organisationId).eq('id', project.quote_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    project.project_manager_id
+      ? supabase.from('profiles').select('id,full_name,email').eq('organisation_id', organisationId).eq('id', project.project_manager_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  if (leadResult.error) throw new Error(`Project lead could not be loaded: ${leadResult.error.message}`);
+  if (quoteResult.error) throw new Error(`Project quote could not be loaded: ${quoteResult.error.message}`);
+  if (managerResult.error) throw new Error(`Project manager could not be loaded: ${managerResult.error.message}`);
+
+  return {
+    ...project,
+    lead: leadResult.data,
+    quote: quoteResult.data,
+    project_manager: managerResult.data,
+  } as Project & {
+    lead?: Record<string, unknown> | null;
+    quote?: Record<string, unknown> | null;
+    project_manager?: Record<string, unknown> | null;
+  };
 }
 export async function createProject(supabase: SupabaseClient, organisationId: string, userId: string, input: ProjectInput) { const {data,error}=await supabase.from('projects').insert({organisation_id:organisationId,created_by:userId,project_manager_id:userId,lead_id:input.lead_id,quote_id:nullable(input.quote_id),project_number:input.project_number,title:input.title,status:input.status,start_date:nullable(input.start_date),due_date:nullable(input.due_date),notes:nullable(input.notes)}).select('*').single(); if(error)throw new Error(error.message); return data as Project; }
 export async function listTasks(supabase: SupabaseClient, organisationId: string) { const {data,error}=await supabase.from('tasks').select('*').eq('organisation_id',organisationId).order('created_at',{ascending:false}); if(error)throw new Error(error.message); return (data??[]) as Task[]; }
