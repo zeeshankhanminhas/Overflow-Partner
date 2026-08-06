@@ -78,14 +78,23 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     await supabase.from('prospects').update({ next_action: 'Review submitted technical intake and qualify prospect' }).eq('id', session.prospect_id);
     await supabase.from('activity_events').insert({ organisation_id: session.organisation_id, user_id: session.created_by,
       entity_type: 'prospect', entity_id: session.prospect_id, event_type: 'technical_intake_submitted',
-      event_data: {
-        intakeSessionId: session.id,
-        drawingCount: payload.drawing_count ?? null,
-        deadline: payload.deadline || null,
-        timeline: payload.timeline || null,
-        complexity: payload.complexity || null,
-        filesAvailability: payload.files_availability || null,
-      } });
+      event_data: { intakeSessionId: session.id, drawingCount: payload.drawing_count ?? null, deadline: payload.deadline || null, timeline: payload.timeline || null, complexity: payload.complexity || null, filesAvailability: payload.files_availability || null } });
+
+    await supabase.rpc('op_cancel_notifications_for_entity', { p_organisation_id: session.organisation_id, p_entity_type: 'prospect', p_entity_id: session.prospect_id, p_categories: ['reminder','nurture'] });
+    const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
+    if (ownerEmail) {
+      await supabase.rpc('op_enqueue_notification', {
+        p_organisation_id: session.organisation_id,
+        p_event_key: 'client.intake_submitted',
+        p_recipient_email: ownerEmail,
+        p_recipient_name: 'Overflow Partner',
+        p_subject: `Technical intake received — ${session.prospects?.company_name || 'prospect'}`,
+        p_template_key: 'system_failure',
+        p_payload: { heading: 'A new technical intake has been submitted', message: `${session.prospects?.contact_name || 'The prospect'} at ${session.prospects?.company_name || 'the client'} completed Step 2.`, actionLabel: 'Review intake', actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'}/workspace/acquisition` },
+        p_entity_type: 'prospect', p_entity_id: session.prospect_id, p_category: 'transactional',
+        p_scheduled_for: now, p_idempotency_key: `intake:submitted:owner:${session.id}`,
+      });
+    }
     return NextResponse.json({ success: true, submitted_at: now });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ message: error.issues[0]?.message || 'Please check the technical intake.' }, { status: 400 });
