@@ -12,9 +12,10 @@ export async function advanceProjectStageAction(formData: FormData) {
   const submittedStages = formData.getAll('target_stage').map(String);
   const targetStage = String(submittedStages.at(-1) || '') as ProjectStage;
   const note = String(formData.get('note') || '').trim();
+  let destination = `/workspace/projects/${projectId}`;
 
   if (!projectId || !projectStages.includes(targetStage)) {
-    redirect(`/workspace/projects/${projectId}?error=${encodeURIComponent('Invalid project stage request.')}`);
+    redirect(`${destination}?error=${encodeURIComponent('Invalid project stage request.')}`);
   }
 
   try {
@@ -29,9 +30,11 @@ export async function advanceProjectStageAction(formData: FormData) {
     if (error) throw new Error(error.message);
     revalidatePath(`/workspace/projects/${projectId}`);
     revalidatePath('/workspace/projects');
-    redirect(`/workspace/projects/${projectId}?advanced=${targetStage}`);
+    destination = `/workspace/projects/${projectId}?advanced=${targetStage}`;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Project stage could not be advanced.';
-    redirect(`/workspace/projects/${projectId}?error=${encodeURIComponent(message)}`);
+    destination = `/workspace/projects/${projectId}?error=${encodeURIComponent(message)}`;
   }
+
+  redirect(destination);
 }
