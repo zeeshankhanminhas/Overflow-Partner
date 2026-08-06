@@ -48,17 +48,6 @@ create table if not exists public.notification_preferences (
 alter table public.notification_outbox enable row level security;
 alter table public.notification_preferences enable row level security;
 
-drop policy if exists notification_preferences_members_read
-on public.notification_preferences;
-
-create policy notification_preferences_members_read
-on public.notification_preferences for select
-using (exists (
-  select 1 from public.profiles p
-  where p.organisation_id = notification_preferences.organisation_id
-    and p.id = auth.uid()
-));
-
 create or replace function public.op_enqueue_notification(
   p_organisation_id uuid,
   p_event_key text,
