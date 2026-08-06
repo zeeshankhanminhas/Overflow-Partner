@@ -171,8 +171,6 @@ begin
   update public.quotes
   set status = 'draft',
       revision = coalesce(revision, 0) + 1,
-      issued_at = null,
-      accepted_at = null,
       updated_at = now()
   where id = p_quote_id
   returning * into v_quote;
