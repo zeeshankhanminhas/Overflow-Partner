@@ -6,19 +6,14 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import {
   approveControlledDocumentAction,
+  issueControlledDocumentAction,
   requestDocumentChangesAction,
   signControlledDocumentAction,
 } from '@/app/workspace/documents/review-actions';
 
 type ActionMode = 'sign' | 'changes' | null;
 
-export default function MobileDocumentReviewShell({
-  children,
-  mobileReview,
-  title,
-  status,
-  documentRecordId,
-}: {
+export default function MobileDocumentReviewShell({ children, mobileReview, title, status, documentRecordId }: {
   children: ReactNode;
   mobileReview: ReactNode;
   title: string;
@@ -41,12 +36,32 @@ export default function MobileDocumentReviewShell({
   const canSign = ['draft', 'in_review', 'changes_requested'].includes(normalizedStatus);
   const canRequestChanges = ['draft', 'in_review', 'signed'].includes(normalizedStatus);
   const canApprove = normalizedStatus === 'signed';
+  const canIssue = normalizedStatus === 'approved';
   const isApproved = ['approved', 'issued', 'published'].includes(normalizedStatus);
+  const isIssued = ['issued', 'published'].includes(normalizedStatus);
 
   function requireRecord() {
     if (documentRecordId) return true;
     setDecision('This preview is not connected to a controlled document record. Open it from Case 360 or Project 360.');
     return false;
+  }
+
+  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>) {
+    setDecision(label);
+    setIsPending(true);
+    try {
+      const result = await action();
+      setDecision(result.message);
+      if (result.ok && result.status) {
+        setCurrentStatus(result.status);
+        setActionMode(null);
+        router.refresh();
+      }
+    } catch (error) {
+      setDecision(error instanceof Error ? error.message : 'The governed document action failed.');
+    } finally {
+      setIsPending(false);
+    }
   }
 
   async function submitSignature() {
@@ -55,64 +70,25 @@ export default function MobileDocumentReviewShell({
     if (!signerName.trim()) return setDecision('Enter the signer name before applying the electronic signature.');
     if (!signerRole.trim()) return setDecision('Enter the signer role before applying the electronic signature.');
     if (!declarationAccepted) return setDecision('Accept the electronic-signature declaration before continuing.');
-
-    setIsPending(true);
-    setDecision('Applying electronic signature…');
-    try {
-      const result = await signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted);
-      setDecision(result.message);
-      if (result.ok && result.status) {
-        setCurrentStatus(result.status);
-        setActionMode(null);
-        router.refresh();
-      }
-    } catch (error) {
-      setDecision(error instanceof Error ? error.message : 'Electronic signature failed. Please try again.');
-    } finally {
-      setIsPending(false);
-    }
+    await runAction('Applying electronic signature…', () => signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted));
   }
 
   async function submitChangeRequest() {
     setDecision('');
     if (!requireRecord() || !documentRecordId) return;
     if (!changeReason.trim()) return setDecision('Describe the required changes before submitting the request.');
-
-    setIsPending(true);
-    setDecision('Recording change request…');
-    try {
-      const result = await requestDocumentChangesAction(documentRecordId, changeReason);
-      setDecision(result.message);
-      if (result.ok && result.status) {
-        setCurrentStatus(result.status);
-        setActionMode(null);
-        setChangeReason('');
-        router.refresh();
-      }
-    } catch (error) {
-      setDecision(error instanceof Error ? error.message : 'Change request failed. Please try again.');
-    } finally {
-      setIsPending(false);
-    }
+    await runAction('Recording change request…', () => requestDocumentChangesAction(documentRecordId, changeReason));
+    setChangeReason('');
   }
 
   async function approveDocument() {
-    setDecision('');
     if (!requireRecord() || !documentRecordId) return;
-    setIsPending(true);
-    setDecision('Approving controlled document…');
-    try {
-      const result = await approveControlledDocumentAction(documentRecordId);
-      setDecision(result.message);
-      if (result.ok && result.status) {
-        setCurrentStatus(result.status);
-        router.refresh();
-      }
-    } catch (error) {
-      setDecision(error instanceof Error ? error.message : 'Document approval failed. Please try again.');
-    } finally {
-      setIsPending(false);
-    }
+    await runAction('Approving controlled document…', () => approveControlledDocumentAction(documentRecordId));
+  }
+
+  async function issueDocument() {
+    if (!requireRecord() || !documentRecordId) return;
+    await runAction('Issuing controlled document…', () => issueControlledDocumentAction(documentRecordId));
   }
 
   return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
@@ -125,7 +101,7 @@ export default function MobileDocumentReviewShell({
 
     <section className="document-review-notice print:hidden" aria-live="polite">
       {decision || (hasRecord
-        ? 'Review the live evidence below. PDF, e-signature, change requests and approval are connected to the audit trail.'
+        ? isIssued ? 'This is the issued controlled publication. Commercial progression may continue.' : 'Review the live evidence and complete the next permitted controlled action.'
         : 'Open this document from Case 360 or Project 360 to activate governed actions.')}
     </section>
 
@@ -151,8 +127,9 @@ export default function MobileDocumentReviewShell({
     <div className="document-review-actions print:hidden"><div>
       <button onClick={() => window.print()} type="button">Download PDF</button>
       <button disabled={isPending || !hasRecord || !canRequestChanges} onClick={() => setActionMode('changes')} type="button">Request Changes</button>
-      <button disabled={isPending || !hasRecord || !canSign} onClick={() => setActionMode('sign')} type="button">{normalizedStatus === 'signed' ? 'Signed' : 'E-Sign'}</button>
-      <button disabled={isPending || !hasRecord || !canApprove || isApproved} onClick={approveDocument} type="button">{isPending ? 'Working…' : isApproved ? 'Approved' : 'Approve'}</button>
+      <button disabled={isPending || !hasRecord || !canSign} onClick={() => setActionMode('sign')} type="button">E-Sign</button>
+      <button disabled={isPending || !hasRecord || !canApprove || isApproved} onClick={approveDocument} type="button">{isApproved ? 'Approved' : 'Approve'}</button>
+      <button disabled={isPending || !hasRecord || !canIssue || isIssued} onClick={issueDocument} type="button">{isIssued ? 'Issued' : 'Issue'}</button>
     </div></div>
   </div>;
 }
