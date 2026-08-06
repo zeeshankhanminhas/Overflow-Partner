@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { buildLead360Context, buildPartnerReviewScope, inheritedSnapshot } from '@/lib/context/inheritance';
+import { cancelEntityReminders, queueNotification } from '@/lib/notifications/queue';
 import type { Lead, TechnicalIntake } from '@/types/domain';
 
 const internalRoles = ['owner', 'admin', 'operator', 'engineering', 'commercial', 'business_development'] as const;
@@ -32,12 +33,14 @@ export async function createPartnerReviewRequestAction(formData: FormData) {
       throw new Error('Lead, approved technical scope, partner and response due date are required.');
     }
 
-    const [{ data: lead, error: leadError }, { data: intake, error: intakeError }] = await Promise.all([
+    const [{ data: lead, error: leadError }, { data: intake, error: intakeError }, { data: partner, error: partnerError }] = await Promise.all([
       supabase.from('leads').select('*').eq('organisation_id', organisationId).eq('id', leadId).single(),
       supabase.from('technical_intakes').select('*').eq('organisation_id', organisationId).eq('id', technicalIntakeId).eq('lead_id', leadId).single(),
+      supabase.from('partners').select('id,company_name,contact_name,email,status,nda_signed').eq('organisation_id', organisationId).eq('id', partnerId).single(),
     ]);
     if (leadError || !lead) throw new Error('Lead 360 context could not be loaded.');
     if (intakeError || !intake || intake.status !== 'approved') throw new Error('An approved technical scope is required.');
+    if (partnerError || !partner || partner.status !== 'approved' || !partner.nda_signed) throw new Error('An approved NDA-ready execution partner is required.');
 
     const context = buildLead360Context(lead as Lead, intake as TechnicalIntake);
     const scopeSummary = buildPartnerReviewScope(context);
@@ -83,11 +86,67 @@ export async function createPartnerReviewRequestAction(formData: FormData) {
       },
     });
 
-    const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
+    const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
     const origin = base.startsWith('http') ? base : `https://${base}`;
     const reviewUrl = `${origin}/partner-review/${rawToken}`;
+
+    if (partner.email) {
+      const dueAt = new Date(responseDueAt);
+      const reminderAt = new Date(Math.max(Date.now(), dueAt.getTime() - 48 * 60 * 60 * 1000));
+      const overdueAt = new Date(dueAt.getTime() + 24 * 60 * 60 * 1000);
+      const payload = {
+        name: partner.contact_name || partner.company_name,
+        company: partner.company_name,
+        project: lead.title || lead.company_name,
+        reference: requestId,
+        dueDate: dueAt.toISOString(),
+        actionUrl: reviewUrl,
+      };
+      await queueNotification(supabase, {
+        organisationId,
+        eventKey: 'partner.review_requested',
+        recipientEmail: partner.email,
+        recipientName: partner.contact_name || partner.company_name,
+        subject: `Technical review requested — ${lead.title || lead.company_name}`,
+        templateKey: 'partner_review_requested',
+        payload,
+        entityType: 'lead',
+        entityId: leadId,
+        idempotencyKey: `partner-review:requested:${requestId}`,
+      });
+      await queueNotification(supabase, {
+        organisationId,
+        eventKey: 'partner.review_reminder',
+        recipientEmail: partner.email,
+        recipientName: partner.contact_name || partner.company_name,
+        subject: `Reminder: technical review due — ${lead.title || lead.company_name}`,
+        templateKey: 'partner_review_reminder',
+        payload,
+        entityType: 'lead',
+        entityId: leadId,
+        category: 'reminder',
+        scheduledFor: reminderAt.toISOString(),
+        idempotencyKey: `partner-review:reminder:${requestId}`,
+      });
+      await queueNotification(supabase, {
+        organisationId,
+        eventKey: 'partner.review_overdue',
+        recipientEmail: partner.email,
+        recipientName: partner.contact_name || partner.company_name,
+        subject: `Technical review follow-up — ${lead.title || lead.company_name}`,
+        templateKey: 'partner_review_reminder',
+        payload: { ...payload, overdue: true },
+        entityType: 'lead',
+        entityId: leadId,
+        category: 'reminder',
+        scheduledFor: overdueAt.toISOString(),
+        idempotencyKey: `partner-review:overdue:${requestId}`,
+      });
+    }
+
     revalidatePath(`/workspace/leads/${leadId}`);
     revalidatePath('/workspace/partner-quotes');
+    revalidatePath('/workspace/notifications');
     destination = `/workspace/leads/${leadId}?partnerReviewCreated=1&reviewUrl=${encodeURIComponent(reviewUrl)}&requestId=${encodeURIComponent(requestId)}`;
   } catch (error) {
     console.error('Partner review request creation failed', error);
@@ -116,8 +175,10 @@ export async function decidePartnerReviewAction(formData: FormData) {
       p_clarification_request: text(formData, 'clarification_request') || null,
     });
     if (error) throw error;
+    await cancelEntityReminders(supabase, { organisationId, entityType: 'lead', entityId: leadId, categories: ['reminder'] });
     revalidatePath(`/workspace/leads/${leadId}`);
     revalidatePath('/workspace/partner-quotes');
+    revalidatePath('/workspace/notifications');
     destination = `/workspace/leads/${leadId}?partnerReviewDecision=1`;
   } catch (error) {
     console.error('Partner review decision failed', error);
@@ -141,7 +202,9 @@ export async function revokePartnerReviewAction(formData: FormData) {
     const { error } = await supabase.from('partner_review_requests').update({ status: 'revoked', revoked_at: now, updated_at: now }).eq('id', requestId).eq('organisation_id', organisationId);
     if (error) throw error;
     await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'lead', entity_id: leadId, event_type: 'partner_review_access_revoked', event_data: { partnerReviewRequestId: requestId } });
+    await cancelEntityReminders(supabase, { organisationId, entityType: 'lead', entityId: leadId, categories: ['reminder'] });
     revalidatePath(`/workspace/leads/${leadId}`);
+    revalidatePath('/workspace/notifications');
     destination = `/workspace/leads/${leadId}?partnerReviewRevoked=1`;
   } catch (error) {
     console.error('Partner review revocation failed', error);
