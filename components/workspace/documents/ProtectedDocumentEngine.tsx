@@ -6,11 +6,11 @@ import { getWorkspaceDocument, type WorkspaceDocumentSlug } from './documentRegi
 import type { AdaptedDocumentData } from './documentAdapter';
 
 type Props =
-  | { mode: 'index' }
+  | { mode: 'index'; leadId?: string | null; projectId?: string | null }
   | { mode: 'viewer'; document: WorkspaceDocumentSlug; adapted?: AdaptedDocumentData; documentRecordId?: string; documentStatus?: string };
 
 export default function ProtectedDocumentEngine(props: Props) {
-  if (props.mode === 'index') return <DocumentEngineIndex />;
+  if (props.mode === 'index') return <DocumentEngineIndex leadId={props.leadId} projectId={props.projectId} />;
   const document = getWorkspaceDocument(props.document);
   const status = props.documentStatus || (props.adapted?.connected
     ? props.adapted.issueState
