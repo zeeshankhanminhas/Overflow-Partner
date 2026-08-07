@@ -12,13 +12,16 @@ import './lifecycle-sidebar.css';
 import './document-print.css';
 import './sprint-zero.css';
 import './record-workspace.css';
+import './continuity.css';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/app/login/actions';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
+import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
 
 export const metadata: Metadata = {
   title: 'Workspace | Overflow Partner',
@@ -32,6 +35,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   if (!user) redirect('/login');
 
   return <div className="workspace midts-shell">
+    <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
     <aside className="midts-sidebar">
       <Link href="/workspace" className="midts-brand" aria-label="Overflow Partner Workspace home"><span className="midts-brand-dot" />Overflow Partner</Link>
       <LifecycleSidebar />
