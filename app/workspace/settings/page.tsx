@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
+import { Badge } from '@/components/ui/badge';
 
 function SettingCard({title,description,href,meta}:{title:string;description:string;href:string;meta:string}){
   return <Link href={href} className="vp-object" style={{display:'grid',gap:8,textDecoration:'none'}}>
-    <p className="vp-label">{meta}</p>
+    <div><Badge variant="outline">{meta}</Badge></div>
     <h2 style={{margin:0,fontSize:'1.05rem'}}>{title}</h2>
     <p style={{margin:0,color:'var(--op-muted)',lineHeight:1.6}}>{description}</p>
     <span style={{marginTop:8}}>Open →</span>
@@ -32,7 +33,7 @@ export default async function WorkspaceSettingsPage(){
         <div className="vp-fact"><small>Organisation</small><strong>{organisation?.name||'Organisation'}</strong></div>
         <div className="vp-fact"><small>User</small><strong>{profile?.full_name||'Workspace user'}</strong></div>
         <div className="vp-fact"><small>Role</small><strong>{profile?.role||'Not recorded'}</strong></div>
-        <div className="vp-fact"><small>Account state</small><strong>{profile?.is_active===false?'Inactive':'Active'}</strong></div>
+        <div className="vp-fact"><small>Account state</small><strong><Badge variant={profile?.is_active===false?'destructive':'secondary'}>{profile?.is_active===false?'Inactive':'Active'}</Badge></strong></div>
       </div>
     </section>
 
