@@ -1,0 +1,11 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { assertRole, requireUserContext } from '@/lib/auth/context';
+
+const roles=['owner','admin','operator','engineering','commercial','reviewer','business_development'] as const;
+function required(fd:FormData,key:string){const value=String(fd.get(key)||'').trim();if(!value)throw new Error(`${key.replaceAll('_',' ')} is required.`);return value;}
+export async function createKnowledgeAction(fd:FormData){let next='/workspace/knowledge';try{const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);const tags=String(fd.get('tags')||'').split(',').map(v=>v.trim()).filter(Boolean);const {data,error}=await supabase.from('knowledge_entries').insert({organisation_id:organisationId,title:required(fd,'title'),summary:String(fd.get('summary')||'').trim()||null,body:required(fd,'body'),knowledge_type:String(fd.get('knowledge_type')||'note'),tags,source_entity_type:String(fd.get('source_entity_type')||'')||null,source_entity_id:String(fd.get('source_entity_id')||'')||null,is_pinned:fd.get('is_pinned')==='on',created_by:user.id}).select('id').single();if(error||!data)throw new Error(error?.message||'Knowledge entry could not be created.');revalidatePath('/workspace/knowledge');revalidatePath('/workspace/search');next=`/workspace/knowledge?entry=${data.id}&updated=${encodeURIComponent('Knowledge captured.')}`;}catch(error){next=`/workspace/knowledge?error=${encodeURIComponent(error instanceof Error?error.message:'Knowledge could not be captured.')}`;}redirect(next);}
+
+export async function toggleKnowledgePinAction(fd:FormData){let next='/workspace/knowledge';try{const {supabase,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);const id=required(fd,'entry_id');const pinned=String(fd.get('pinned')||'false')==='true';const {error}=await supabase.from('knowledge_entries').update({is_pinned:pinned,updated_at:new Date().toISOString()}).eq('organisation_id',organisationId).eq('id',id);if(error)throw new Error(error.message);revalidatePath('/workspace/knowledge');next='/workspace/knowledge';}catch(error){next=`/workspace/knowledge?error=${encodeURIComponent(error instanceof Error?error.message:'Pin could not be updated.')}`;}redirect(next);}
