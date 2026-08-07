@@ -108,6 +108,7 @@ export default function LifecycleSidebar() {
   const overviewHref=context?.type==='case'?`/workspace/leads/${context.id}`:context?.type==='project'?`/workspace/projects/${context.id}`:'';
   const communicationsHref=context?`/workspace/communications/${context.type==='case'?'lead':'project'}/${context.id}`:'';
   const evidenceHref=context?(context.type==='case'?`/workspace/documents?lead=${context.id}`:`/workspace/documents?project=${context.id}`):'';
+  const lifecycleActive = Boolean(context || viewingStage);
 
   return <nav aria-label="Business lifecycle" className="lifecycle-nav">
     <div className="lifecycle-nav__overview">
@@ -129,30 +130,32 @@ export default function LifecycleSidebar() {
       </div>
     </section> : null}
 
-    <section className="lifecycle-nav__stages" aria-labelledby="business-lifecycle-label">
-      <p className="midts-nav-label" id="business-lifecycle-label">Business lifecycle</p>
-      <div className="lifecycle-rail">
-        {stageOrder.map((stageKey, index) => {
-          const stage = lifecycleStages[stageKey];
-          const current = Boolean(context && recordStage === stageKey);
-          const completed = Boolean(context && recordStage && stageOrder.indexOf(recordStage) > index);
-          const viewing = Boolean(!context && viewingStage === stageKey);
-          const expanded = expandedStage === stageKey;
-          const items = navigation[stageKey];
+    <details className="lifecycle-utility lifecycle-business" open={lifecycleActive}>
+      <summary><span>Business lifecycle</span><small>Acquire → Assess → Commercial → Deliver → Close</small><b aria-hidden="true">›</b></summary>
+      <div className="lifecycle-utility__lifecycle">
+        <div className="lifecycle-rail">
+          {stageOrder.map((stageKey, index) => {
+            const stage = lifecycleStages[stageKey];
+            const current = Boolean(context && recordStage === stageKey);
+            const completed = Boolean(context && recordStage && stageOrder.indexOf(recordStage) > index);
+            const viewing = Boolean(!context && viewingStage === stageKey);
+            const expanded = expandedStage === stageKey;
+            const items = navigation[stageKey];
 
-          return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''} ${viewing ? 'is-viewing' : ''} ${expanded ? 'is-expanded' : ''}`}>
-            <div className="lifecycle-stage__marker"><span>{completed ? '✓' : stage.number}</span><i /></div>
-            <div className="lifecycle-stage__body">
-              <button type="button" className="lifecycle-stage__toggle" aria-expanded={expanded} aria-controls={`lifecycle-stage-${stageKey}`} onClick={() => setExpandedStage(stageKey)}>
-                <span className="lifecycle-stage__copy"><span className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current stage</em> : viewing ? <em>Viewing</em> : null}</span><small>{stagePurpose[stageKey]}</small></span>
-                <span className="lifecycle-stage__chevron" aria-hidden="true">{expanded ? '⌄' : '›'}</span>
-              </button>
-              {expanded ? <div className="lifecycle-stage__panel" id={`lifecycle-stage-${stageKey}`}><div className="lifecycle-stage__links">{items.map(item => <Link className={isLinkActive(pathname,search,item.href) ? 'active' : ''} key={item.key} href={item.href}><span>{item.label}</span></Link>)}</div></div> : null}
-            </div>
-          </section>;
-        })}
+            return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''} ${viewing ? 'is-viewing' : ''} ${expanded ? 'is-expanded' : ''}`}>
+              <div className="lifecycle-stage__marker"><span>{completed ? '✓' : stage.number}</span><i /></div>
+              <div className="lifecycle-stage__body">
+                <button type="button" className="lifecycle-stage__toggle" aria-expanded={expanded} aria-controls={`lifecycle-stage-${stageKey}`} onClick={() => setExpandedStage(stageKey)}>
+                  <span className="lifecycle-stage__copy"><span className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current stage</em> : viewing ? <em>Viewing</em> : null}</span><small>{stagePurpose[stageKey]}</small></span>
+                  <span className="lifecycle-stage__chevron" aria-hidden="true">{expanded ? '⌄' : '›'}</span>
+                </button>
+                {expanded ? <div className="lifecycle-stage__panel" id={`lifecycle-stage-${stageKey}`}><div className="lifecycle-stage__links">{items.map(item => <Link className={isLinkActive(pathname,search,item.href) ? 'active' : ''} key={item.key} href={item.href}><span>{item.label}</span></Link>)}</div></div> : null}
+              </div>
+            </section>;
+          })}
+        </div>
       </div>
-    </section>
+    </details>
 
     <details className="lifecycle-utility" open={pathname.startsWith('/workspace/commercial-control')||pathname.startsWith('/workspace/intelligence')||pathname.startsWith('/workspace/risk')}>
       <summary><span>Business control</span><small>Cash, intelligence & risk</small><b aria-hidden="true">›</b></summary>
