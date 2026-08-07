@@ -1,28 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ClientQuote, CommercialReview, Lead, PartnerQuote, Project, TechnicalIntake } from '@/types/domain';
-import type { WorkflowCase, WorkflowStage } from '@/types/orchestration';
+import type { WorkflowCase } from '@/types/orchestration';
 import { buildLead360Context, inheritedSnapshot } from '@/lib/context/inheritance';
-
-function deriveStage(
-  intake: TechnicalIntake | null,
-  partnerQuote: PartnerQuote | null,
-  commercialReview: CommercialReview | null,
-  clientQuote: ClientQuote | null,
-  project: Project | null,
-): { stage: WorkflowStage; nextAction: string } {
-  if (project) return { stage: 'project', nextAction: 'Manage delivery and controlled documents' };
-  if (clientQuote) {
-    if (clientQuote.status === 'draft' || clientQuote.status === 'internal_review') {
-      return { stage: 'client_quote', nextAction: 'Review and issue client quote' };
-    }
-    if (clientQuote.status === 'issued') return { stage: 'client_quote', nextAction: 'Record client acceptance or decline' };
-    return { stage: 'client_quote', nextAction: 'Review quote outcome' };
-  }
-  if (commercialReview) return { stage: 'commercial_review', nextAction: 'Approve commercial position' };
-  if (partnerQuote) return { stage: 'partner_pricing', nextAction: 'Create commercial review from compliant partner response' };
-  if (intake) return { stage: 'technical_intake', nextAction: intake.status === 'approved' ? 'Select an NDA-compliant execution partner' : 'Review and approve inherited technical scope' };
-  return { stage: 'lead', nextAction: 'Create inherited technical scope' };
-}
+import { deriveWorkflowStage } from '@/lib/lifecycle/resolver';
 
 export async function listWorkflowCases(supabase: SupabaseClient, organisationId: string): Promise<WorkflowCase[]> {
   const [leadsResult, intakesResult, partnerQuotesResult, reviewsResult, quotesResult, projectsResult] = await Promise.all([
@@ -51,8 +31,43 @@ export async function listWorkflowCases(supabase: SupabaseClient, organisationId
     const clientQuote = quotes.find((item) => item.lead_id === lead.id) ?? null;
     const project = projects.find((item) => item.lead_id === lead.id) ?? null;
     return { lead, technicalIntake, partnerQuote, commercialReview, clientQuote, project,
-      ...deriveStage(technicalIntake, partnerQuote, commercialReview, clientQuote, project) };
+      ...deriveWorkflowStage(technicalIntake, partnerQuote, commercialReview, clientQuote, project) };
   });
+}
+
+export async function getWorkflowCase(supabase: SupabaseClient, organisationId: string, leadId: string): Promise<WorkflowCase | null> {
+  const leadResult = await supabase.from('leads').select('*')
+    .eq('organisation_id', organisationId).eq('id', leadId).maybeSingle();
+  if (leadResult.error) throw new Error(leadResult.error.message);
+  if (!leadResult.data) return null;
+
+  const [intakeResult, partnerResult, reviewResult, quoteResult, projectResult] = await Promise.all([
+    supabase.from('technical_intakes').select('*').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('partner_quotes').select('*').eq('organisation_id', organisationId).eq('lead_id', leadId).in('status', ['selected','received']).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('commercial_reviews').select('*').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('quotes').select('*').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('projects').select('*').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  for (const result of [intakeResult, partnerResult, reviewResult, quoteResult, projectResult]) {
+    if (result.error) throw new Error(result.error.message);
+  }
+
+  const lead = leadResult.data as Lead;
+  const technicalIntake = (intakeResult.data as TechnicalIntake | null) ?? null;
+  const partnerQuote = (partnerResult.data as PartnerQuote | null) ?? null;
+  const commercialReview = (reviewResult.data as CommercialReview | null) ?? null;
+  const clientQuote = (quoteResult.data as ClientQuote | null) ?? null;
+  const project = (projectResult.data as Project | null) ?? null;
+
+  return {
+    lead,
+    technicalIntake,
+    partnerQuote,
+    commercialReview,
+    clientQuote,
+    project,
+    ...deriveWorkflowStage(technicalIntake, partnerQuote, commercialReview, clientQuote, project),
+  };
 }
 
 export async function ensureTechnicalIntakeShell(
