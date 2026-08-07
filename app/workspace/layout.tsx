@@ -10,6 +10,7 @@ import './acquisition-layout.css';
 import './notification-centre.css';
 import './lifecycle-sidebar.css';
 import './document-print.css';
+import './sprint-zero.css';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
