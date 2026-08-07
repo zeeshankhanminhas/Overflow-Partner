@@ -17,8 +17,8 @@ const stagePurpose: Record<LifecycleStageKey,string> = {
 
 const navigation: Record<LifecycleStageKey, Array<{key:string;label:string;href:string}>> = {
   acquire: [
-    { key: 'prospects', label: 'Prospects', href: '/workspace/acquisition?view=prospects' },
-    { key: 'intake', label: 'Technical Intake', href: '/workspace/acquisition?view=intake' },
+    { key: 'prospects', label: 'Prospects', href: '/workspace/acquisition/prospects' },
+    { key: 'intake', label: 'Technical Intake', href: '/workspace/acquisition/intake' },
   ],
   assess: [
     { key: 'cases', label: 'Cases', href: '/workspace/leads?view=assessment' },
