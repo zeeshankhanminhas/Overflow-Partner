@@ -19,66 +19,75 @@ export default async function CaseLayout({ children, params }: { children: React
   const quoteExists = Boolean(quote);
 
   const stageLabel = quoteExists
-    ? 'Client quote'
+    ? 'Commercial · Client quotation'
     : commercialApproved
-      ? 'Commercial approval'
+      ? 'Commercial · Approval'
       : partnerResponseReady
-        ? 'Partner response'
+        ? 'Assess · Partner response'
         : scopeApproved
-          ? 'Partner engagement'
+          ? 'Assess · Partner engagement'
           : intake
-            ? 'Technical definition'
-            : 'Lead intake';
+            ? 'Acquire · Technical definition'
+            : 'Acquire · Lead intake';
 
   const items = [
     {
       slug: 'client-requirements' as const,
       enabled: Boolean(intake),
       requiredNow: Boolean(intake) && !scopeApproved,
-      reason: 'Publish the inherited customer requirement and clarification basis.',
+      minimumStatus: 'approved' as const,
+      reason: 'Publish the inherited customer requirement and clarification basis as the approved technical-input record.',
       blockedReason: 'Create the technical intake first.',
     },
     {
       slug: 'scope-of-work' as const,
       enabled: scopeApproved,
       requiredNow: scopeApproved && !review,
-      reason: 'Publish the approved technical and delivery scope.',
+      minimumStatus: 'approved' as const,
+      reason: 'Publish the approved technical and delivery scope before controlled partner engagement.',
       blockedReason: 'Approve the technical intake first.',
     },
     {
       slug: 'vendor-safe-package' as const,
       enabled: scopeApproved,
       requiredNow: scopeApproved && !partnerResponseReady,
-      reason: 'Create the controlled partner-facing scope and document package.',
+      minimumStatus: 'issued' as const,
+      reason: 'Issue the controlled partner-facing scope and authorised document package.',
       blockedReason: 'Approve the technical intake first.',
     },
     {
       slug: 'partner-technical-assessment-report' as const,
       enabled: partnerResponseReady,
       requiredNow: partnerResponseReady && !commercialApproved,
-      reason: 'Publish the partner feasibility, capacity, risks and declared response.',
+      minimumStatus: 'approved' as const,
+      reason: 'Approve the partner feasibility, capacity, assumptions, risks and pricing-readiness evidence.',
       blockedReason: 'A partner review response is required.',
     },
     {
       slug: 'commercial-approval' as const,
       enabled: commercialApproved,
       requiredNow: commercialApproved && !quoteExists,
-      reason: 'Publish the internal approved cost, price and margin decision.',
+      minimumStatus: 'approved' as const,
+      reason: 'Retain the approved internal cost, price, margin and commercial decision before client quotation.',
       blockedReason: 'Approve the commercial position first.',
     },
     {
       slug: 'client-quote' as const,
       enabled: quoteExists,
       requiredNow: quoteExists,
-      reason: 'Create the client-facing controlled quote from the approved commercial record.',
+      minimumStatus: quote?.status === 'issued' ? 'issued' as const : 'approved' as const,
+      reason: quote?.status === 'issued'
+        ? 'The controlled client quotation must remain at Issued state while the commercial decision is live.'
+        : 'Sign and approve the controlled quotation before commercial issue to the client.',
       blockedReason: 'Generate the client quote first.',
     },
     {
       slug: 'statement-of-work' as const,
       enabled: scopeApproved && quoteExists,
-      requiredNow: scopeApproved && quoteExists,
-      reason: 'Publish the agreed scope, responsibilities, programme and change-control basis.',
-      blockedReason: 'Approved scope and client quote are required.',
+      requiredNow: Boolean(quote && ['accepted'].includes(quote.status)),
+      minimumStatus: 'approved' as const,
+      reason: 'Publish the agreed scope, responsibilities, programme and change-control basis for project mobilisation.',
+      blockedReason: 'Approved scope and client quotation are required.',
     },
   ];
 
