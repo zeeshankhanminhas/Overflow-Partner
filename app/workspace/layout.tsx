@@ -16,6 +16,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/app/login/actions';
 import LifecycleSidebar from './LifecycleSidebar';
+import CommandPalette from '@/components/workspace/CommandPalette';
 
 export const metadata: Metadata = {
   title: 'Workspace | Overflow Partner',
@@ -41,18 +42,18 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <section className="midts-main">
       <header className="midts-topbar">
         <div><p>Private workspace</p><strong>Engineering operations</strong></div>
-        <div className="midts-topbar-tools"><span>Search workspace</span><Link href="/workspace/notifications">Notifications</Link></div>
+        <div className="midts-topbar-tools"><CommandPalette/><Link href="/workspace/notifications">Notifications</Link></div>
       </header>
-      <header className="midts-mobile-header"><div><span>Private workspace</span><strong>Overflow Partner</strong></div><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></header>
+      <header className="midts-mobile-header"><div><span>Private workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
       <main className="midts-content">{children}</main>
     </section>
 
     <nav className="midts-mobile-nav" aria-label="Mobile workspace navigation">
       <Link href="/workspace">Home</Link>
-      <Link href="/workspace/acquisition">Acquire</Link>
-      <Link href="/workspace/leads">Assess</Link>
-      <Link href="/workspace/projects">Deliver</Link>
-      <Link href="/workspace/documents">Docs</Link>
+      <Link href="/workspace/acquisition/prospects">Acquire</Link>
+      <Link href="/workspace/leads?view=assessment">Cases</Link>
+      <Link href="/workspace/search">Search</Link>
+      <Link href="/workspace/commercial-control">Finance</Link>
     </nav>
   </div>;
 }
