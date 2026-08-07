@@ -12,11 +12,8 @@ function SettingCard({title,description,href,meta}:{title:string;description:str
 }
 
 export default async function WorkspaceSettingsPage(){
-  const { supabase, organisationId, userId } = await requireUserContext();
-  const [{data:profile},{data:organisation}]=await Promise.all([
-    supabase.from('profiles').select('full_name,role,email,is_active').eq('id',userId).maybeSingle(),
-    supabase.from('organisations').select('name').eq('id',organisationId).maybeSingle(),
-  ]);
+  const { supabase, organisationId, profile } = await requireUserContext();
+  const {data:organisation}=await supabase.from('organisations').select('name').eq('id',organisationId).maybeSingle();
 
   return <section className="vp-page">
     <header className="vp-header">
@@ -31,9 +28,9 @@ export default async function WorkspaceSettingsPage(){
       <p className="vp-label">Workspace identity</p>
       <div className="vp-facts" style={{marginTop:0}}>
         <div className="vp-fact"><small>Organisation</small><strong>{organisation?.name||'Organisation'}</strong></div>
-        <div className="vp-fact"><small>User</small><strong>{profile?.full_name||'Workspace user'}</strong></div>
-        <div className="vp-fact"><small>Role</small><strong>{profile?.role||'Not recorded'}</strong></div>
-        <div className="vp-fact"><small>Account state</small><strong><Badge variant={profile?.is_active===false?'destructive':'secondary'}>{profile?.is_active===false?'Inactive':'Active'}</Badge></strong></div>
+        <div className="vp-fact"><small>User</small><strong>{profile.full_name||'Workspace user'}</strong></div>
+        <div className="vp-fact"><small>Role</small><strong>{profile.role||'Not recorded'}</strong></div>
+        <div className="vp-fact"><small>Account state</small><strong><Badge variant={profile.is_active===false?'destructive':'secondary'}>{profile.is_active===false?'Inactive':'Active'}</Badge></strong></div>
       </div>
     </section>
 
