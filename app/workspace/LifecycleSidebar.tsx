@@ -72,10 +72,13 @@ export default function LifecycleSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const context = useMemo(() => recordContext(pathname), [pathname]);
-  const registerStage = stageForRegister(pathname, searchParams.get('view'));
+
+  // Register stage is navigation context only. It must never imply business progression.
+  const viewingStage = context ? null : stageForRegister(pathname, searchParams.get('view'));
+
+  // Record stage is governed business truth, resolved only for Case 360 / Project 360.
   const [recordStage, setRecordStage] = useState<LifecycleStageKey | null>(null);
-  const activeStage = recordStage || registerStage;
-  const [expandedStage, setExpandedStage] = useState<LifecycleStageKey>(activeStage || 'acquire');
+  const [expandedStage, setExpandedStage] = useState<LifecycleStageKey>(viewingStage || 'acquire');
 
   useEffect(() => {
     setRecordStage(null);
@@ -92,8 +95,9 @@ export default function LifecycleSidebar() {
   }, [context]);
 
   useEffect(() => {
-    if (activeStage) setExpandedStage(activeStage);
-  }, [activeStage]);
+    if (context && recordStage) setExpandedStage(recordStage);
+    else if (!context && viewingStage) setExpandedStage(viewingStage);
+  }, [context, recordStage, viewingStage]);
 
   const search = searchParams.toString();
 
@@ -107,7 +111,7 @@ export default function LifecycleSidebar() {
     {context ? <section className="lifecycle-context">
       <div className="lifecycle-context__heading">
         <div><p className="midts-nav-label">{context.type === 'case' ? 'Case 360' : 'Project 360'}</p><strong>{context.id.slice(0,8).toUpperCase()}</strong></div>
-        <span>{recordStage ? `${lifecycleStages[recordStage].label} stage` : 'Resolving stage'}</span>
+        <span>{recordStage ? `${lifecycleStages[recordStage].label} · Current stage` : 'Resolving governed stage'}</span>
       </div>
       <div className="lifecycle-context__links">
         <Link className={pathname === (context.type === 'case' ? `/workspace/leads/${context.id}` : `/workspace/projects/${context.id}`) ? 'active' : ''} href={context.type === 'case' ? `/workspace/leads/${context.id}` : `/workspace/projects/${context.id}`}>Overview</Link>
@@ -121,16 +125,21 @@ export default function LifecycleSidebar() {
       <div className="lifecycle-rail">
         {stageOrder.map((stageKey, index) => {
           const stage = lifecycleStages[stageKey];
-          const current = activeStage === stageKey;
-          const completed = activeStage ? stageOrder.indexOf(activeStage) > index : false;
+          const current = Boolean(context && recordStage === stageKey);
+          const completed = Boolean(context && recordStage && stageOrder.indexOf(recordStage) > index);
+          const viewing = Boolean(!context && viewingStage === stageKey);
           const expanded = expandedStage === stageKey;
           const items = navigation[stageKey];
-          return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''} ${expanded ? 'is-expanded' : ''}`}>
+
+          return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''} ${viewing ? 'is-viewing' : ''} ${expanded ? 'is-expanded' : ''}`}>
             <div className="lifecycle-stage__marker"><span>{completed ? '✓' : stage.number}</span><i /></div>
             <div className="lifecycle-stage__body">
               <button type="button" className="lifecycle-stage__toggle" aria-expanded={expanded} aria-controls={`lifecycle-stage-${stageKey}`} onClick={() => setExpandedStage(stageKey)}>
                 <span className="lifecycle-stage__copy">
-                  <span className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current</em> : null}</span>
+                  <span className="lifecycle-stage__heading">
+                    <strong>{stage.label}</strong>
+                    {current ? <em>Current stage</em> : viewing ? <em>Viewing</em> : null}
+                  </span>
                   <small>{stagePurpose[stageKey]}</small>
                 </span>
                 <span className="lifecycle-stage__chevron" aria-hidden="true">{expanded ? '⌄' : '›'}</span>
