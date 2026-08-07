@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function WorkspaceDocumentsPage() {
-  return <ProtectedDocumentEngine mode="index" />;
+export default async function WorkspaceDocumentsPage({ searchParams }: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const leadId = typeof params.lead === 'string' ? params.lead : null;
+  const projectId = typeof params.project === 'string' ? params.project : null;
+
+  return <ProtectedDocumentEngine mode="index" leadId={leadId} projectId={projectId} />;
 }
