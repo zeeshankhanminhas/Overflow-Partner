@@ -435,7 +435,14 @@ stable
 security invoker
 set search_path = public
 as $$
-with q as (select trim(coalesce(p_query,'')) term), results as (
+with q as (select trim(coalesce(p_query,'')) term), results (
+  entity_type,
+  entity_id,
+  title,
+  subtitle,
+  href,
+  rank
+) as (
   select 'case'::text,l.id,coalesce(l.title,l.company_name),concat_ws(' · ',l.company_name,l.contact_name,l.status::text),'/workspace/leads/'||l.id::text,
     case when lower(coalesce(l.title,'')) like lower((select term from q))||'%' then 3 else 1 end::numeric rank
   from public.leads l,q where l.organisation_id=p_organisation_id and q.term<>'' and (coalesce(l.title,'') ilike '%'||q.term||'%' or coalesce(l.company_name,'') ilike '%'||q.term||'%' or coalesce(l.contact_name,'') ilike '%'||q.term||'%')
