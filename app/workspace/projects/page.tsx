@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
-import { listProjects, listClientQuotes } from '@/lib/repositories/workflow';
+import { listClientQuotes } from '@/lib/repositories/workflow';
 import { listLeads } from '@/lib/repositories/leads';
 import { createProjectFormAction } from '../workflow-actions';
 import { workspaceLabel } from '@/lib/presentation/vocabulary';
@@ -9,6 +9,8 @@ import { normaliseProjectStage } from '@/lib/projects/stages';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 type View='all'|'delivery'|'closeout'|'closed';
+type QueueRow={id:string;project_number:string;title:string;project_status:string;project_stage:string;start_date:string|null;due_date:string|null;created_at:string;total_count:number|string};
+const PAGE_SIZE=25;
 
 const viewMeta:Record<View,{kicker:string;title:string;subtitle:string}>={
   all:{kicker:'Projects',title:'Accepted work in delivery.',subtitle:'Projects are created from accepted client quotes. Open a project to continue controlled delivery.'},
@@ -17,27 +19,27 @@ const viewMeta:Record<View,{kicker:string;title:string;subtitle:string}>={
   closed:{kicker:'Close · Closed',title:'Closed project records.',subtitle:'Completed delivery retained as the governed historical record.'},
 };
 
+function pageHref(view:View,page:number){const params=new URLSearchParams();if(view!=='all')params.set('view',view);if(page>1)params.set('page',String(page));const query=params.toString();return `/workspace/projects${query?`?${query}`:''}`}
+
 export default async function Page({searchParams}:{searchParams?:Promise<Record<string,string|undefined>>}){
   const params=searchParams?await searchParams:{};
-  if(params.project) redirect(`/workspace/projects/${params.project}`);
+  if(params.project)redirect(`/workspace/projects/${params.project}`);
   const requested=String(params.view||'all');
   const view:View=['delivery','closeout','closed'].includes(requested)?requested as View:'all';
+  const requestedPage=Number.parseInt(String(params.page||'1'),10);
+  const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;
   const meta=viewMeta[view];
 
   const {supabase,organisationId}=await requireUserContext();
-  const [projects,quotes,leads]=await Promise.all([listProjects(supabase,organisationId),listClientQuotes(supabase,organisationId),listLeads(supabase,organisationId)]);
-  const filtered=projects.filter(project=>{
-    const record=project as typeof project&{project_stage?:string};
-    const stage=normaliseProjectStage(record.project_stage);
-    if(view==='all')return true;
-    if(view==='delivery')return !['completion','closed'].includes(stage)&&!['completed','closed','cancelled'].includes(project.status);
-    if(view==='closeout')return stage==='completion'||project.status==='completed';
-    if(view==='closed')return stage==='closed'||project.status==='closed';
-    return true;
-  });
-  const deliveryCount=projects.filter(project=>{const stage=normaliseProjectStage((project as typeof project&{project_stage?:string}).project_stage);return !['completion','closed'].includes(stage)&&!['completed','closed','cancelled'].includes(project.status)}).length;
-  const closeoutCount=projects.filter(project=>{const stage=normaliseProjectStage((project as typeof project&{project_stage?:string}).project_stage);return stage==='completion'||project.status==='completed'}).length;
-  const closedCount=projects.filter(project=>{const stage=normaliseProjectStage((project as typeof project&{project_stage?:string}).project_stage);return stage==='closed'||project.status==='closed'}).length;
+  const [{data,error},quotes,leads]=await Promise.all([
+    supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view,p_limit:PAGE_SIZE,p_offset:(page-1)*PAGE_SIZE}),
+    listClientQuotes(supabase,organisationId),
+    listLeads(supabase,organisationId),
+  ]);
+  if(error)throw new Error(`Project queue could not be loaded: ${error.message}`);
+  const rows=(data||[]) as QueueRow[];
+  const total=rows.length?Number(rows[0].total_count||0):0;
+  const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));
 
   return <section className="vp-page">
     <header className="vp-header">
@@ -47,8 +49,10 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
 
     {params.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{params.error}</p></div>:null}
 
-    <section className="vp-object vp-object--hero"><p className="vp-label">Lifecycle position</p><div className="vp-compact-metrics"><div className="vp-metric"><span>In delivery</span><strong>{deliveryCount}</strong></div><div className="vp-metric"><span>Closeout</span><strong>{closeoutCount}</strong></div><div className="vp-metric"><span>Closed</span><strong>{closedCount}</strong></div></div></section>
+    <section className="vp-object vp-object--hero"><p className="vp-label">Queue position</p><div className="vp-compact-metrics"><div className="vp-metric"><span>Queue records</span><strong>{total}</strong></div><div className="vp-metric"><span>Page</span><strong>{Math.min(page,totalPages)} / {totalPages}</strong></div><div className="vp-metric"><span>Rows per page</span><strong>{PAGE_SIZE}</strong></div></div></section>
 
-    <section><div className="vp-section-title"><div><p className="vp-label">Filtered operating register</p><h2>{view==='all'?'Delivery records':meta.kicker}</h2></div>{view!=='all'?<Link href="/workspace/projects">View all projects</Link>:null}</div><div className="vp-list">{filtered.length===0?<div className="vp-empty">No projects currently match this lifecycle view.</div>:filtered.map(project=><Link href={`/workspace/projects/${project.id}`} className="vp-row" key={project.id}><div><h3>{project.project_number} · {project.title}</h3><p>{project.start_date||'Start not set'} → {project.due_date||'Due date not set'}</p></div><div className="vp-row-status">{workspaceLabel(normaliseProjectStage((project as typeof project&{project_stage?:string}).project_stage),'project')}</div><div><strong>Open Project 360 →</strong></div></Link>)}</div></section>
+    <section><div className="vp-section-title"><div><p className="vp-label">Paginated operating queue</p><h2>{view==='all'?'Delivery records':meta.kicker}</h2></div>{view!=='all'?<Link href="/workspace/projects">View all projects</Link>:null}</div><div className="vp-list">{rows.length===0?<div className="vp-empty">No projects currently match this lifecycle view.</div>:rows.map(project=><Link href={`/workspace/projects/${project.id}`} className="vp-row" key={project.id}><div><h3>{project.project_number} · {project.title}</h3><p>{project.start_date||'Start not set'} → {project.due_date||'Due date not set'}</p></div><div className="vp-row-status">{workspaceLabel(normaliseProjectStage(project.project_stage),'project')}</div><div><strong>Open Project 360 →</strong></div></Link>)}</div>
+      {totalPages>1?<nav className="vp-pagination" aria-label="Project queue pages" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginTop:20}}><div>{page>1?<Link className="button secondary" href={pageHref(view,page-1)}>← Previous</Link>:<span/>}</div><span>Page {Math.min(page,totalPages)} of {totalPages}</span><div>{page<totalPages?<Link className="button secondary" href={pageHref(view,page+1)}>Next →</Link>:<span/>}</div></nav>:null}
+    </section>
   </section>;
 }
