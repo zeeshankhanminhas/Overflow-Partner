@@ -21,6 +21,8 @@ function refreshProject(projectId: string) {
   revalidatePath(`/workspace/projects/${projectId}`);
   revalidatePath('/workspace/projects');
   revalidatePath('/workspace');
+  revalidatePath('/workspace/commercial-control');
+  revalidatePath('/workspace/intelligence');
 }
 
 export async function updateProjectMobilisationAction(formData: FormData) {
@@ -96,6 +98,13 @@ export async function advanceProjectStageAction(formData: FormData) {
   try {
     const { supabase, user, profile } = await requireUserContext();
     assertRole(profile.role, [...roles]);
+
+    if (targetStage === 'ready_for_execution') {
+      const { data: gate, error: gateError } = await supabase.rpc('op_project_financial_gate', { p_project_id: projectId });
+      if (gateError) throw new Error(gateError.message);
+      if (!gate?.authorised) throw new Error(`Financial mobilisation gate blocked: ${gate?.reason || 'Commercial authorisation is incomplete.'}`);
+    }
+
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id: projectId,p_target_stage: targetStage,p_actor_id: user.id,p_note: note || null });
     if (error) throw new Error(error.message);
     refreshProject(projectId);
