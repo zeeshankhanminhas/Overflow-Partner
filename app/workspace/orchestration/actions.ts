@@ -83,7 +83,14 @@ export async function issueQuoteAction(formData: FormData) {
 
 export async function acceptQuoteAction(formData: FormData) {
   const quoteId = required(formData, 'quote_id'); const leadId = required(formData, 'lead_id'); let destination = `/workspace/leads/${leadId}`;
-  try { const { supabase, organisationId, user } = await requireUserContext(); const project = await acceptQuoteAndCreateProject(supabase, organisationId, user.id, quoteId); await cancelEntityReminders(supabase,{organisationId,entityType:'quote',entityId:quoteId}).catch(()=>0); refreshCase(leadId); destination = caseUrl(leadId, { success: `Project ${project.project_number} created from the accepted and controlled-issued quote.`, resultStatus: 'Project ready', project: project.id }); }
+  try {
+    const { supabase, organisationId, user } = await requireUserContext();
+    const project = await acceptQuoteAndCreateProject(supabase, organisationId, user.id, quoteId);
+    await cancelEntityReminders(supabase,{organisationId,entityType:'quote',entityId:quoteId}).catch(()=>0);
+    refreshCase(leadId);
+    revalidatePath(`/workspace/projects/${project.id}`);
+    destination = `/workspace/projects/${project.id}?created=${encodeURIComponent(`Project ${project.project_number} created from the accepted and controlled-issued quote.`)}`;
+  }
   catch (error) { destination = caseUrl(leadId, { error: message(error) }); }
   redirect(destination);
 }
