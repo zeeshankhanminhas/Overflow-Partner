@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { assertRole, requireUserContext } from '@/lib/auth/context';
+import { cancelEntityReminders, queueNotification } from '@/lib/notifications/queue';
 
 const financeRoles = ['owner','admin','commercial'] as const;
 const paymentRoles = ['owner','admin','commercial','operator'] as const;
@@ -15,18 +16,17 @@ function required(formData: FormData, key: string) {
 function numeric(formData: FormData,key:string, fallback=0){const value=Number(formData.get(key)??fallback);if(!Number.isFinite(value))throw new Error(`${key.replaceAll('_',' ')} must be a valid number.`);return value;}
 function url(params:Record<string,string>){return `/workspace/commercial-control?${new URLSearchParams(params).toString()}`;}
 function refresh(projectId?:string){revalidatePath('/workspace/commercial-control');revalidatePath('/workspace/intelligence');revalidatePath('/workspace');if(projectId)revalidatePath(`/workspace/projects/${projectId}`);}
-async function audit(supabase:any, organisationId:string,userId:string,entityType:string,entityId:string,eventType:string,eventData:Record<string,unknown>){
-  await supabase.rpc('op_record_activity',{p_organisation_id:organisationId,p_user_id:userId,p_entity_type:entityType,p_entity_id:entityId,p_event_type:eventType,p_event_data:eventData});
-}
+function appUrl(){return (process.env.NEXT_PUBLIC_APP_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');}
+function money(amount:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(Number(amount||0));}catch{return `${currency} ${Number(amount||0).toFixed(2)}`;}}
+function scheduleAt(dateValue:string,days=0){const date=new Date(`${dateValue}T09:00:00Z`);date.setUTCDate(date.getUTCDate()+days);return date.toISOString();}
+async function audit(supabase:any, organisationId:string,userId:string,entityType:string,entityId:string,eventType:string,eventData:Record<string,unknown>){await supabase.rpc('op_record_activity',{p_organisation_id:organisationId,p_user_id:userId,p_entity_type:entityType,p_entity_id:entityId,p_event_type:eventType,p_event_data:eventData});}
+async function clientForLead(supabase:any,organisationId:string,leadId:string|null){if(!leadId)return null;const {data}=await supabase.from('leads').select('id,company_name,contact_name,contact_email').eq('organisation_id',organisationId).eq('id',leadId).maybeSingle();return data||null;}
 
 export async function setCommercialTermsAction(formData:FormData){
   const projectId=required(formData,'project_id');let destination='/workspace/commercial-control';
   try{
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...financeRoles]);
-    const basis=required(formData,'authorisation_basis');
-    const depositPercent=numeric(formData,'deposit_percent');
-    const requiredAmount=numeric(formData,'deposit_required_amount');
-    const overrideReason=String(formData.get('override_reason')||'').trim()||null;
+    const basis=required(formData,'authorisation_basis');const depositPercent=numeric(formData,'deposit_percent');const requiredAmount=numeric(formData,'deposit_required_amount');const overrideReason=String(formData.get('override_reason')||'').trim()||null;
     if(basis==='manual'&&!overrideReason)throw new Error('Manual financial authorisation requires a reason.');
     const payload={organisation_id:organisationId,project_id:projectId,quote_id:String(formData.get('quote_id')||'')||null,authorisation_basis:basis,payment_terms_days:numeric(formData,'payment_terms_days',30),deposit_percent:depositPercent,deposit_required_amount:requiredAmount,po_number:String(formData.get('po_number')||'').trim()||null,credit_approved:formData.get('credit_approved')==='on',override_reason:overrideReason,authorised_by:['manual','none'].includes(basis)?user.id:null,authorised_at:['manual','none'].includes(basis)?new Date().toISOString():null,created_by:user.id,updated_at:new Date().toISOString()};
     const {error}=await supabase.from('commercial_terms').upsert(payload,{onConflict:'organisation_id,project_id'});if(error)throw new Error(error.message);
@@ -50,9 +50,16 @@ export async function issueInvoiceAction(formData:FormData){
   const invoiceId=required(formData,'invoice_id');let destination='/workspace/commercial-control';
   try{
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...financeRoles]);
-    const {data:invoice,error:readError}=await supabase.from('invoices').select('id,project_id,invoice_number,status,due_date').eq('organisation_id',organisationId).eq('id',invoiceId).single();if(readError||!invoice)throw new Error(readError?.message||'Invoice not found.');if(invoice.status!=='draft')throw new Error('Only a draft invoice can be issued.');
-    const {error}=await supabase.from('invoices').update({status:'issued',issued_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('organisation_id',organisationId).eq('id',invoiceId);if(error)throw new Error(error.message);
-    await audit(supabase,organisationId,user.id,'project',invoice.project_id,'invoice_issued',{invoiceId,invoiceNumber:invoice.invoice_number,dueDate:invoice.due_date});refresh(invoice.project_id);destination=url({updated:`Invoice ${invoice.invoice_number} issued.`});
+    const {data:invoice,error:readError}=await supabase.from('invoices').select('id,project_id,lead_id,invoice_number,status,due_date,total,currency,public_token').eq('organisation_id',organisationId).eq('id',invoiceId).single();if(readError||!invoice)throw new Error(readError?.message||'Invoice not found.');if(invoice.status!=='draft')throw new Error('Only a draft invoice can be issued.');
+    const client=await clientForLead(supabase,organisationId,invoice.lead_id);if(!client?.contact_email)throw new Error('Client email is required before an invoice can be issued.');
+    const issuedAt=new Date().toISOString();const {error}=await supabase.from('invoices').update({status:'issued',issued_at:issuedAt,updated_at:issuedAt}).eq('organisation_id',organisationId).eq('id',invoiceId);if(error)throw new Error(error.message);
+    const actionUrl=`${appUrl()}/invoice/${invoice.public_token}`;const amount=money(invoice.total,invoice.currency);const dueDate=invoice.due_date?new Date(`${invoice.due_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'';
+    await queueNotification(supabase,{organisationId,eventKey:'invoice.issued',recipientEmail:client.contact_email,recipientName:client.contact_name,subject:`Invoice ${invoice.invoice_number} from Overflow Partner`,templateKey:'invoice_issued',payload:{company:client.company_name,reference:invoice.invoice_number,amount,dueDate,actionUrl},entityType:'invoice',entityId:invoice.id,category:'transactional',idempotencyKey:`invoice-issued:${invoice.id}`});
+    if(invoice.due_date){
+      await queueNotification(supabase,{organisationId,eventKey:'invoice.due_reminder',recipientEmail:client.contact_email,recipientName:client.contact_name,subject:`Reminder · Invoice ${invoice.invoice_number}`,templateKey:'invoice_due_reminder',payload:{company:client.company_name,reference:invoice.invoice_number,amount,dueDate,actionUrl},entityType:'invoice',entityId:invoice.id,category:'reminder',scheduledFor:scheduleAt(invoice.due_date,0),idempotencyKey:`invoice-due:${invoice.id}:${invoice.due_date}`});
+      await queueNotification(supabase,{organisationId,eventKey:'invoice.overdue_reminder',recipientEmail:client.contact_email,recipientName:client.contact_name,subject:`Invoice ${invoice.invoice_number} · payment overdue`,templateKey:'invoice_overdue_reminder',payload:{company:client.company_name,reference:invoice.invoice_number,amount,dueDate,actionUrl},entityType:'invoice',entityId:invoice.id,category:'reminder',scheduledFor:scheduleAt(invoice.due_date,3),idempotencyKey:`invoice-overdue:${invoice.id}:${invoice.due_date}:3`});
+    }
+    await audit(supabase,organisationId,user.id,'project',invoice.project_id,'invoice_issued',{invoiceId,invoiceNumber:invoice.invoice_number,dueDate:invoice.due_date,notificationQueued:true});refresh(invoice.project_id);destination=url({updated:`Invoice ${invoice.invoice_number} issued and client delivery queued.`});
   }catch(error){destination=url({error:error instanceof Error?error.message:'Invoice could not be issued.'});}redirect(destination);
 }
 
@@ -60,10 +67,13 @@ export async function recordClientPaymentAction(formData:FormData){
   const invoiceId=required(formData,'invoice_id');let destination='/workspace/commercial-control';
   try{
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...paymentRoles]);
-    const {data:invoice,error:invoiceError}=await supabase.from('invoices').select('id,project_id,invoice_number,currency,status,total,amount_paid').eq('organisation_id',organisationId).eq('id',invoiceId).single();if(invoiceError||!invoice)throw new Error(invoiceError?.message||'Invoice not found.');if(['draft','cancelled','refunded'].includes(invoice.status))throw new Error('Payment cannot be recorded against this invoice state.');
+    const {data:invoice,error:invoiceError}=await supabase.from('invoices').select('id,project_id,lead_id,invoice_number,currency,status,total,amount_paid,public_token').eq('organisation_id',organisationId).eq('id',invoiceId).single();if(invoiceError||!invoice)throw new Error(invoiceError?.message||'Invoice not found.');if(['draft','cancelled','refunded'].includes(invoice.status))throw new Error('Payment cannot be recorded against this invoice state.');
     const amount=numeric(formData,'amount');if(amount<=0)throw new Error('Payment amount must be greater than zero.');
     const {error}=await supabase.from('payments').insert({organisation_id:organisationId,invoice_id:invoiceId,project_id:invoice.project_id,amount,currency:invoice.currency,payment_method:String(formData.get('payment_method')||'bank_transfer'),status:'cleared',reference:String(formData.get('reference')||'').trim()||null,paid_at:String(formData.get('paid_at')||'')||new Date().toISOString(),recorded_by:user.id});if(error)throw new Error(error.message);
-    await audit(supabase,organisationId,user.id,'project',invoice.project_id,'client_payment_recorded',{invoiceId,invoiceNumber:invoice.invoice_number,amount});refresh(invoice.project_id);destination=url({updated:`Payment recorded against ${invoice.invoice_number}.`});
+    const {data:updated}=await supabase.from('invoices').select('amount_paid,total,status').eq('organisation_id',organisationId).eq('id',invoiceId).single();const remaining=Math.max(0,Number(updated?.total||invoice.total)-Number(updated?.amount_paid||0));
+    const client=await clientForLead(supabase,organisationId,invoice.lead_id);if(client?.contact_email){const actionUrl=`${appUrl()}/invoice/${invoice.public_token}`;await queueNotification(supabase,{organisationId,eventKey:'invoice.payment_received',recipientEmail:client.contact_email,recipientName:client.contact_name,subject:`Payment received · ${invoice.invoice_number}`,templateKey:'payment_received',payload:{company:client.company_name,reference:invoice.invoice_number,amount:money(amount,invoice.currency),balance:money(remaining,invoice.currency),actionUrl},entityType:'invoice',entityId:invoice.id,category:'transactional',idempotencyKey:`payment-received:${invoice.id}:${updated?.amount_paid||amount}`});}
+    if(remaining<=0)await cancelEntityReminders(supabase,{organisationId,entityType:'invoice',entityId:invoice.id,categories:['reminder']});
+    await audit(supabase,organisationId,user.id,'project',invoice.project_id,'client_payment_recorded',{invoiceId,invoiceNumber:invoice.invoice_number,amount,remainingBalance:remaining});refresh(invoice.project_id);destination=url({updated:`Payment recorded against ${invoice.invoice_number}.`});
   }catch(error){destination=url({error:error instanceof Error?error.message:'Payment could not be recorded.'});}redirect(destination);
 }
 
