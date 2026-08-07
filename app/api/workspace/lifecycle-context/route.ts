@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUserContext } from '@/lib/auth/context';
-import { listWorkflowCases } from '@/lib/orchestration/service';
-import { normaliseProjectStage } from '@/lib/projects/stages';
+import { getWorkflowCase } from '@/lib/orchestration/service';
+import { lifecycleFromProject, lifecycleFromWorkflowStage } from '@/lib/lifecycle/resolver';
 
 export const dynamic = 'force-dynamic';
-
-type LifecycleStage = 'acquire' | 'assess' | 'commercial' | 'deliver' | 'close';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,29 +14,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { supabase, organisationId } = await requireUserContext();
-    let stage: LifecycleStage;
 
     if (type === 'case') {
-      const workflow = (await listWorkflowCases(supabase, organisationId)).find((item) => item.lead.id === id);
+      const workflow = await getWorkflowCase(supabase, organisationId, id);
       if (!workflow) return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-      if (workflow.project) stage = 'deliver';
-      else if (['partner_pricing', 'commercial_review', 'client_quote'].includes(workflow.stage)) stage = 'commercial';
-      else stage = 'assess';
-    } else {
-      const { data: project, error } = await supabase
-        .from('projects')
-        .select('id,status,project_stage')
-        .eq('organisation_id', organisationId)
-        .eq('id', id)
-        .single();
-      if (error || !project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-      const projectStage = normaliseProjectStage(project.project_stage);
-      stage = projectStage === 'completion' || projectStage === 'closed' || ['completed', 'closed'].includes(project.status)
-        ? 'close'
-        : 'deliver';
+      return NextResponse.json({ stage: lifecycleFromWorkflowStage(workflow.stage, workflow.project) });
     }
 
-    return NextResponse.json({ stage });
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('id,status,project_stage')
+      .eq('organisation_id', organisationId)
+      .eq('id', id)
+      .single();
+    if (error || !project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    return NextResponse.json({ stage: lifecycleFromProject(project) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to resolve lifecycle state.' }, { status: 500 });
   }
