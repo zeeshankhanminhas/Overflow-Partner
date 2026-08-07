@@ -1,0 +1,102 @@
+/* Sprint Zero — cross-workspace production consistency layer.
+   This file intentionally loads last so legacy page generations inherit one readable OS baseline. */
+
+/* Readability: operational UI should not depend on 8px labels or 10px body copy. */
+.workspace .vp-kicker,
+.workspace .vp-label,
+.workspace .project-os-section-label,
+.workspace .project-os-stage-card > p,
+.workspace .project-os-reference {
+  font-size: 10px !important;
+  line-height: 1.35;
+}
+
+.workspace .vp-subtitle { font-size: 14px !important; line-height: 1.65 !important; }
+.workspace .vp-fact small { font-size: 10px !important; }
+.workspace .vp-fact strong { font-size: 14px !important; }
+.workspace .vp-row h3,
+.workspace .vp-row > div > strong { font-size: 14px; }
+.workspace .vp-row p { font-size: 12px !important; line-height: 1.5; }
+.workspace .vp-row-status { font-size: 11px !important; }
+.workspace .vp-disclosure summary { font-size: 13px !important; min-height: 42px; display:flex; align-items:center; }
+.workspace .vp-empty { font-size: 13px !important; }
+.workspace .project-os-stage-card small,
+.workspace .project-os-check-row div small,
+.workspace .project-os-summary dt,
+.workspace .project-os-panel-heading > a,
+.workspace .project-os-panel-heading > span,
+.workspace .project-os-document-row small,
+.workspace .project-os-activity-list small,
+.workspace .project-os-history-row small { font-size: 10px !important; }
+.workspace .project-os-stage-card strong,
+.workspace .project-os-check-row div strong,
+.workspace .project-os-summary dd,
+.workspace .project-os-document-row strong,
+.workspace .project-os-activity-list strong,
+.workspace .project-os-history-row strong { font-size: 12px !important; }
+.workspace .project-os-action-panel > p,
+.workspace .project-os-progress-footer p,
+.workspace .project-os-summary > a { font-size: 11px !important; }
+
+/* One dark form language throughout the private workspace. Public/print documents are outside .workspace. */
+.workspace .midts-content input,
+.workspace .midts-content select,
+.workspace .midts-content textarea {
+  background: #0d1215 !important;
+  color: #e8ecee !important;
+  border-color: rgba(255,255,255,.12) !important;
+  border-radius: 7px;
+  min-height: 40px;
+}
+.workspace .midts-content textarea { min-height: auto; }
+.workspace .midts-content input::placeholder,
+.workspace .midts-content textarea::placeholder { color: rgba(232,236,238,.38) !important; }
+.workspace .midts-content option { background:#0d1215; color:#e8ecee; }
+.workspace .midts-content button,
+.workspace .midts-content .button { min-height: 40px; }
+.workspace .midts-content button:focus-visible,
+.workspace .midts-content .button:focus-visible,
+.workspace .midts-content a:focus-visible,
+.workspace .midts-content input:focus-visible,
+.workspace .midts-content select:focus-visible,
+.workspace .midts-content textarea:focus-visible {
+  outline: 2px solid var(--op-green);
+  outline-offset: 2px;
+}
+
+/* Registers are summaries. Dense evidence belongs in focused record workspaces. */
+.workspace .vp-page { width: 100%; }
+.workspace .vp-callout { overflow-wrap:anywhere; }
+
+/* Prevent arbitrary inline desktop grids from remaining two-column on mobile. */
+@media (max-width: 900px) {
+  .workspace .vp-page [style*="grid-template-columns"],
+  .workspace .project-os-page [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+  .workspace .vp-row { min-width:0; }
+  .workspace .vp-row > * { min-width:0; }
+}
+
+/* Touch-size and compact-phone resilience. */
+@media (max-width: 600px) {
+  .workspace .vp-page,
+  .workspace .project-os-page { gap:14px; }
+  .workspace .vp-object,
+  .workspace .vp-action,
+  .workspace .project-os-panel,
+  .workspace .project-os-progress-card { padding:15px !important; }
+  .workspace .vp-header h1,
+  .workspace .project-os-header h1 { overflow-wrap:anywhere; }
+  .workspace .vp-toolbar-panel { width:min(92vw,500px); right:auto; left:0; }
+}
+
+/* Reduced-motion baseline for operational accessibility. */
+@media (prefers-reduced-motion: reduce) {
+  .workspace *, .workspace *::before, .workspace *::after {
+    scroll-behavior:auto !important;
+    transition-duration:.01ms !important;
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+  }
+}
