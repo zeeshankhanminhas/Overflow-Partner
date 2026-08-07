@@ -46,7 +46,42 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     return false;
   }
 
-  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>) {
+  function scrollToSignatureEvidence() {
+    let settled = false;
+
+    const findVisibleSignature = () => Array.from(document.querySelectorAll<HTMLElement>('.signature-evidence-block'))
+      .find((element) => element.offsetParent !== null);
+
+    const reveal = (target: HTMLElement) => {
+      if (settled) return;
+      settled = true;
+      target.setAttribute('tabindex', '-1');
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        window.setTimeout(() => target.focus({ preventScroll: true }), 350);
+      });
+    };
+
+    const observer = new MutationObserver(() => {
+      const target = findVisibleSignature();
+      if (target) {
+        observer.disconnect();
+        reveal(target);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    window.setTimeout(() => {
+      if (settled) return;
+      const target = findVisibleSignature();
+      if (target) reveal(target);
+    }, 250);
+
+    window.setTimeout(() => observer.disconnect(), 5000);
+  }
+
+  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>, onSuccess?: () => void) {
     setDecision(label);
     setIsPending(true);
     try {
@@ -56,6 +91,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
         setCurrentStatus(result.status);
         setActionMode(null);
         router.refresh();
+        onSuccess?.();
       }
     } catch (error) {
       setDecision(error instanceof Error ? error.message : 'The governed document action failed.');
@@ -70,7 +106,11 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     if (!signerName.trim()) return setDecision('Enter the signer name before applying the electronic signature.');
     if (!signerRole.trim()) return setDecision('Enter the signer role before applying the electronic signature.');
     if (!declarationAccepted) return setDecision('Accept the electronic-signature declaration before continuing.');
-    await runAction('Applying electronic signature…', () => signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted));
+    await runAction(
+      'Applying electronic signature…',
+      () => signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted),
+      scrollToSignatureEvidence,
+    );
   }
 
   async function submitChangeRequest() {
