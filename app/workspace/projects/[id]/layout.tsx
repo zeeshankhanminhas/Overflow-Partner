@@ -23,45 +23,60 @@ export default async function ProjectLayout({ children, params }: { children: Re
   const atCompletion = ['completion','closed'].includes(stage);
   const atRelease = ['ready_for_client_issue','issued_to_client','client_review','completion','closed'].includes(stage);
   const atMobilisation = ['mobilisation','ready_for_execution'].includes(stage);
+  const atInternalReview = ['internal_review','partner_correction','ready_for_client_issue','issued_to_client','client_review','completion','closed'].includes(stage);
 
   const items = [
     {
       slug: 'scope-of-work' as const,
       enabled: true,
-      requiredNow: stage === 'mobilisation',
-      reason: 'Publish the inherited approved scope within the active project record.',
+      requiredNow: ['mobilisation','ready_for_execution'].includes(stage),
+      minimumStatus: 'approved' as const,
+      reason: 'The approved scope is the controlled boundary for mobilisation and execution.',
     },
     {
       slug: 'statement-of-work' as const,
       enabled: true,
       requiredNow: atMobilisation,
-      reason: 'Create the controlled delivery responsibilities, programme and change-control document.',
+      minimumStatus: 'approved' as const,
+      reason: 'Confirm delivery responsibilities, programme, acceptance and change control before execution.',
     },
     {
       slug: 'handover-pack' as const,
       enabled: atMobilisation || atRelease,
       requiredNow: atRelease,
-      reason: atRelease ? 'Create the controlled client release and deliverable handover pack.' : 'Create the mobilisation and delivery handover package.',
-      blockedReason: 'The Handover Pack is not permitted at the current stage.',
+      minimumStatus: 'issued' as const,
+      reason: atRelease ? 'The client release package must reach Issued before delivery can be treated as formally transmitted.' : 'Prepare the mobilisation and delivery handover package.',
+      blockedReason: 'The Handover Pack becomes available at mobilisation and client-release stages.',
     },
     {
       slug: 'document-register' as const,
       enabled: true,
-      requiredNow: ['internal_review','ready_for_client_issue','completion','closed'].includes(stage),
-      reason: 'Publish the current controlled document and deliverable register.',
+      requiredNow: atInternalReview,
+      minimumStatus: 'approved' as const,
+      reason: 'Maintain an approved register of the controlled documents and deliverables forming the project record.',
+    },
+    {
+      slug: 'technical-review' as const,
+      enabled: atInternalReview,
+      requiredNow: stage === 'internal_review',
+      minimumStatus: 'approved' as const,
+      reason: 'Record the internal technical and QA review before client issue.',
+      blockedReason: 'Internal review evidence becomes available once execution reaches the review stage.',
     },
     {
       slug: 'completion-report' as const,
       enabled: atCompletion,
       requiredNow: atCompletion,
-      reason: 'Publish the completed scope, delivered files, deviations and completion declaration.',
+      minimumStatus: 'issued' as const,
+      reason: 'Publish completed scope, delivered files, deviations and completion declaration as an issued record.',
       blockedReason: 'Advance the project to Completion first.',
     },
     {
       slug: 'invoice' as const,
       enabled: atCompletion && Boolean(project?.quote_id),
       requiredNow: atCompletion && Boolean(project?.quote_id),
-      reason: 'Create the controlled billing document from the accepted quote and completed project.',
+      minimumStatus: 'issued' as const,
+      reason: 'Create and issue the controlled billing document from the accepted quote and completed project.',
       blockedReason: 'Completion and a linked accepted quote are required.',
     },
   ];
