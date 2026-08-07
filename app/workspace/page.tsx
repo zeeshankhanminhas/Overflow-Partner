@@ -13,11 +13,12 @@ function waiting(value: string) {
 export default async function WorkspacePage() {
   const { supabase, organisationId, profile } = await requireUserContext();
   const dashboard = await getDashboardSnapshot(supabase, organisationId);
-  const name = profile.first_name || profile.full_name?.split(' ')[0] || 'Zeeshan';
-  const actions = dashboard.attention.slice(0, 8);
-  const overdue = actions.filter((item) => Date.now() - Date.parse(item.waitingSince) > 48 * 60 * 60 * 1000).length;
-  const waitingOnPartner = actions.filter((item) => item.stage === 'partner').length;
-  const waitingOnInternal = actions.length - waitingOnPartner;
+  const name = profile.first_name || profile.full_name?.split(' ')[0] || 'Operator';
+  const allActions = dashboard.attention;
+  const actions = allActions.slice(0, 8);
+  const overdue = allActions.filter((item) => Date.now() - Date.parse(item.waitingSince) > 48 * 60 * 60 * 1000).length;
+  const waitingOnPartner = allActions.filter((item) => item.stage === 'partner').length;
+  const waitingOnInternal = allActions.length - waitingOnPartner;
 
   return <section style={{ display: 'grid', gap: 20 }}>
     <section className="card" style={{ width: '100%', padding: 28, background: 'linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.025))' }}>
@@ -25,14 +26,14 @@ export default async function WorkspacePage() {
         <div style={{ maxWidth: 760 }}>
           <p className="eyebrow">Owner command centre</p>
           <h1 style={{ margin: '16px 0 12px' }}>Good morning, {name}.</h1>
-          <p className="lede" style={{ margin: 0 }}>The workspace stays intentionally narrow: priority work, aging risk, and the next live decision. Detailed context belongs inside each case.</p>
+          <p className="lede" style={{ margin: 0 }}>Priority work, ageing risk and the next governed decision. Detailed evidence stays inside each Case 360 or Project 360 record.</p>
         </div>
         <Link className="button secondary" href="/workspace/leads">Open all cases</Link>
       </div>
     </section>
 
     <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
-      <article className="metric"><span>Open actions</span><strong>{actions.length}</strong><small>Cases requiring attention</small></article>
+      <article className="metric"><span>Open actions</span><strong>{allActions.length}</strong><small>Cases requiring attention</small></article>
       <article className="metric"><span>Overdue</span><strong>{overdue}</strong><small>Waiting more than two days</small></article>
       <article className="metric"><span>Active delivery</span><strong>{dashboard.activeProjects}</strong><small>Projects currently live</small></article>
     </section>
@@ -60,7 +61,7 @@ export default async function WorkspacePage() {
       <section className="card" style={{ width: '100%', padding: 22 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'end' }}>
           <div><p className="eyebrow">Needs action now</p><h2 style={{ margin: '8px 0 0' }}>Live action queue</h2></div>
-          <span>{actions.length} open</span>
+          <span>{allActions.length} open</span>
         </div>
         <div style={{ display: 'grid', marginTop: 20 }}>
           {actions.length ? actions.map((item, index) => <Link href={item.href} key={`${item.id}-${item.title}`} style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) 100px 32px', gap: 14, alignItems: 'center', padding: '18px 4px', borderTop: '1px solid' }}>
@@ -70,6 +71,7 @@ export default async function WorkspacePage() {
             <span>↗</span>
           </Link>) : <p style={{ padding: '24px 0 8px' }}>No cases currently require a decision.</p>}
         </div>
+        {allActions.length > actions.length ? <p style={{ margin: '14px 0 0', color: 'var(--op-muted)' }}>Showing the 8 oldest priority items. <Link href="/workspace/leads">Open the full Case queue →</Link></p> : null}
       </section>
     </section>
   </section>;
