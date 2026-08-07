@@ -7,6 +7,14 @@ import { lifecycleStages, type LifecycleStageKey } from '@/lib/lifecycle/config'
 
 const stageOrder: LifecycleStageKey[] = ['acquire','assess','commercial','deliver','close'];
 
+const stagePurpose: Record<LifecycleStageKey,string> = {
+  acquire: 'Capture and qualify engineering enquiries.',
+  assess: 'Establish technical feasibility and evidence.',
+  commercial: 'Convert approved scope into a controlled offer.',
+  deliver: 'Mobilise, execute, review and issue deliverables.',
+  close: 'Complete handover, evidence and formal closure.',
+};
+
 function activeStageForPath(pathname: string): LifecycleStageKey | null {
   if (pathname.startsWith('/workspace/acquisition')) return 'acquire';
   if (pathname.startsWith('/workspace/leads')) return 'assess';
@@ -74,11 +82,14 @@ export default function LifecycleSidebar() {
                 aria-controls={`lifecycle-stage-${stageKey}`}
                 onClick={() => setExpandedStage(stageKey)}
               >
-                <span className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current</em> : null}</span>
-                <span className="lifecycle-stage__chevron" aria-hidden="true">{expanded ? '−' : '+'}</span>
+                <span className="lifecycle-stage__copy">
+                  <span className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current</em> : null}</span>
+                  <small>{stagePurpose[stageKey]}</small>
+                </span>
+                <span className="lifecycle-stage__chevron" aria-hidden="true">{expanded ? '⌄' : '›'}</span>
               </button>
               {expanded ? <div className="lifecycle-stage__panel" id={`lifecycle-stage-${stageKey}`}>
-                <div className="lifecycle-stage__links">{stage.substages.map(item => <Link className={isLinkActive(pathname,item.href) ? 'active' : ''} key={item.key} href={item.href}>{item.label}</Link>)}</div>
+                <div className="lifecycle-stage__links">{stage.substages.map(item => <Link className={isLinkActive(pathname,item.href) ? 'active' : ''} key={item.key} href={item.href}><span>{item.label}</span></Link>)}</div>
               </div> : null}
             </div>
           </section>;
@@ -87,7 +98,7 @@ export default function LifecycleSidebar() {
     </section>
 
     <details className="lifecycle-utility">
-      <summary><span>Control</span><small>Evidence & operations</small></summary>
+      <summary><span>Control</span><small>Evidence & operations</small><b aria-hidden="true">›</b></summary>
       <div>
         <Link className={pathname.startsWith('/workspace/documents') ? 'active' : ''} href="/workspace/documents">Evidence registry</Link>
         <Link className={pathname.startsWith('/workspace/communications') ? 'active' : ''} href="/workspace/notifications">Communications</Link>
@@ -96,7 +107,7 @@ export default function LifecycleSidebar() {
     </details>
 
     <details className="lifecycle-utility">
-      <summary><span>System</span><small>Workspace configuration</small></summary>
+      <summary><span>System</span><small>Workspace configuration</small><b aria-hidden="true">›</b></summary>
       <div><Link className={pathname.startsWith('/workspace/settings') ? 'active' : ''} href="/workspace/settings">Settings</Link></div>
     </details>
   </nav>;
