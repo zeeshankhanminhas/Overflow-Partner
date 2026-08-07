@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { lifecycleStages, type LifecycleStageKey } from '@/lib/lifecycle/config';
 
 const stageOrder: LifecycleStageKey[] = ['acquire','assess','commercial','deliver','close'];
@@ -21,10 +22,20 @@ function recordContext(pathname: string) {
   return null;
 }
 
+function isLinkActive(pathname: string, href: string) {
+  if (href === '/workspace') return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function LifecycleSidebar() {
   const pathname = usePathname();
   const activeStage = activeStageForPath(pathname);
   const context = recordContext(pathname);
+  const [expandedStage, setExpandedStage] = useState<LifecycleStageKey>(activeStage || 'acquire');
+
+  useEffect(() => {
+    if (activeStage) setExpandedStage(activeStage);
+  }, [activeStage]);
 
   return <nav aria-label="Business lifecycle" className="lifecycle-nav">
     <div className="lifecycle-nav__overview">
@@ -34,38 +45,59 @@ export default function LifecycleSidebar() {
     </div>
 
     {context ? <section className="lifecycle-context">
-      <p className="midts-nav-label">{context.type === 'case' ? 'Case 360' : 'Project 360'}</p>
-      <strong>{context.id.slice(0,8).toUpperCase()}</strong>
-      <div>
-        <Link href={context.type === 'case' ? `/workspace/leads/${context.id}` : `/workspace/projects/${context.id}`}>Overview</Link>
-        <Link href={`/workspace/communications/${context.type === 'case' ? 'lead' : 'project'}/${context.id}`}>Communications</Link>
-        <Link href={context.type === 'case' ? `/workspace/documents?lead=${context.id}` : `/workspace/documents?project=${context.id}`}>Documents</Link>
+      <div className="lifecycle-context__heading">
+        <div><p className="midts-nav-label">{context.type === 'case' ? 'Case 360' : 'Project 360'}</p><strong>{context.id.slice(0,8).toUpperCase()}</strong></div>
+        <span>Active record</span>
+      </div>
+      <div className="lifecycle-context__links">
+        <Link className={pathname === (context.type === 'case' ? `/workspace/leads/${context.id}` : `/workspace/projects/${context.id}`) ? 'active' : ''} href={context.type === 'case' ? `/workspace/leads/${context.id}` : `/workspace/projects/${context.id}`}>Overview</Link>
+        <Link className={pathname.startsWith('/workspace/communications/') ? 'active' : ''} href={`/workspace/communications/${context.type === 'case' ? 'lead' : 'project'}/${context.id}`}>Communications</Link>
+        <Link href={context.type === 'case' ? `/workspace/documents?lead=${context.id}` : `/workspace/documents?project=${context.id}`}>Evidence</Link>
       </div>
     </section> : null}
 
-    <div className="lifecycle-nav__stages">
-      <p className="midts-nav-label">Business lifecycle</p>
-      {stageOrder.map((stageKey, index) => {
-        const stage = lifecycleStages[stageKey];
-        const current = activeStage === stageKey;
-        const completed = activeStage ? stageOrder.indexOf(activeStage) > index : false;
-        return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''}`}>
-          <div className="lifecycle-stage__marker"><span>{completed ? '✓' : stage.number}</span><i /></div>
-          <div className="lifecycle-stage__body">
-            <div className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current</em> : null}</div>
-            <small>{stage.description}</small>
-            {(current || !activeStage) ? <div className="lifecycle-stage__links">{stage.substages.map(item => <Link key={item.key} href={item.href}>{item.label}</Link>)}</div> : null}
-          </div>
-        </section>;
-      })}
-    </div>
+    <section className="lifecycle-nav__stages" aria-labelledby="business-lifecycle-label">
+      <p className="midts-nav-label" id="business-lifecycle-label">Business lifecycle</p>
+      <div className="lifecycle-rail">
+        {stageOrder.map((stageKey, index) => {
+          const stage = lifecycleStages[stageKey];
+          const current = activeStage === stageKey;
+          const completed = activeStage ? stageOrder.indexOf(activeStage) > index : false;
+          const expanded = expandedStage === stageKey;
+          return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''} ${expanded ? 'is-expanded' : ''}`}>
+            <div className="lifecycle-stage__marker"><span>{completed ? '✓' : stage.number}</span><i /></div>
+            <div className="lifecycle-stage__body">
+              <button
+                type="button"
+                className="lifecycle-stage__toggle"
+                aria-expanded={expanded}
+                aria-controls={`lifecycle-stage-${stageKey}`}
+                onClick={() => setExpandedStage(stageKey)}
+              >
+                <span className="lifecycle-stage__heading"><strong>{stage.label}</strong>{current ? <em>Current</em> : null}</span>
+                <span className="lifecycle-stage__chevron" aria-hidden="true">{expanded ? '−' : '+'}</span>
+              </button>
+              {expanded ? <div className="lifecycle-stage__panel" id={`lifecycle-stage-${stageKey}`}>
+                <div className="lifecycle-stage__links">{stage.substages.map(item => <Link className={isLinkActive(pathname,item.href) ? 'active' : ''} key={item.key} href={item.href}>{item.label}</Link>)}</div>
+              </div> : null}
+            </div>
+          </section>;
+        })}
+      </div>
+    </section>
 
-    <div className="lifecycle-nav__control">
-      <p className="midts-nav-label">Control</p>
-      <Link href="/workspace/documents">Documents registry</Link>
-      <Link href="/workspace/notifications">Communications</Link>
-      <Link href="/workspace/partners">Partners</Link>
-      <Link href="/workspace/settings">Settings</Link>
-    </div>
+    <details className="lifecycle-utility">
+      <summary><span>Control</span><small>Evidence & operations</small></summary>
+      <div>
+        <Link className={pathname.startsWith('/workspace/documents') ? 'active' : ''} href="/workspace/documents">Evidence registry</Link>
+        <Link className={pathname.startsWith('/workspace/communications') ? 'active' : ''} href="/workspace/notifications">Communications</Link>
+        <Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Partners</Link>
+      </div>
+    </details>
+
+    <details className="lifecycle-utility">
+      <summary><span>System</span><small>Workspace configuration</small></summary>
+      <div><Link className={pathname.startsWith('/workspace/settings') ? 'active' : ''} href="/workspace/settings">Settings</Link></div>
+    </details>
   </nav>;
 }
