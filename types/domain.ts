@@ -22,6 +22,17 @@ export type QuoteStatus = 'draft' | 'internal_review' | 'issued' | 'accepted' | 
 export type ProjectStatus = 'planning' | 'active' | 'waiting' | 'review' | 'completed' | 'closed' | 'cancelled';
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 
+export type CommercialAuthorisationBasis = 'deposit' | 'po' | 'credit' | 'manual' | 'none';
+export type InvoiceType = 'deposit' | 'milestone' | 'final' | 'credit_note';
+export type InvoiceStatus = 'draft' | 'issued' | 'part_paid' | 'paid' | 'overdue' | 'cancelled' | 'refunded';
+export type PaymentStatus = 'pending' | 'cleared' | 'failed' | 'refunded';
+export type BillingMilestoneStatus = 'pending' | 'ready' | 'invoiced' | 'paid' | 'waived';
+export type PartnerPayableStatus = 'draft' | 'received' | 'matched' | 'approved' | 'scheduled' | 'paid' | 'disputed' | 'cancelled';
+export type RiskCategory = 'commercial' | 'technical' | 'delivery' | 'financial' | 'client' | 'partner' | 'operational' | 'compliance' | 'security';
+export type RiskStatus = 'open' | 'mitigating' | 'accepted' | 'closed';
+export type ComplianceStatus = 'missing' | 'pending' | 'valid' | 'due' | 'expired' | 'waived';
+export type KnowledgeType = 'note' | 'lesson' | 'decision' | 'standard' | 'scope' | 'partner_insight' | 'client_preference';
+
 export interface Profile { id: string; organisation_id: string | null; full_name: string | null; first_name: string | null; last_name: string | null; email: string | null; role: AppRole; is_active: boolean; }
 export interface Company { id: string; organisation_id: string; name: string; website: string | null; industry: string | null; country: string | null; employee_count: number | null; annual_revenue: number | null; notes: string | null; created_by: string | null; created_at: string; updated_at: string; }
 export interface Contact { id: string; organisation_id: string; company_id: string | null; full_name: string; job_title: string | null; email: string | null; phone: string | null; linkedin_url: string | null; notes: string | null; created_by: string | null; created_at: string; updated_at: string; company?: Pick<Company, 'id' | 'name'> | null; }
@@ -36,4 +47,14 @@ export interface ClientQuote { id: string; organisation_id: string; lead_id: str
 export interface Project { id: string; organisation_id: string; lead_id: string; quote_id: string | null; project_number: string; title: string; status: ProjectStatus; start_date: string | null; due_date: string | null; project_manager_id: string | null; notes: string | null; created_by: string; created_at: string; updated_at: string; }
 export interface Task { id: string; organisation_id: string; entity_type: string; entity_id: string; title: string; description: string | null; assigned_to: string | null; priority: Priority; status: TaskStatus; due_at: string | null; completed_at: string | null; created_by: string; created_at: string; updated_at: string; }
 export interface ActivityEvent { id: string; organisation_id: string; entity_type: string; entity_id: string; user_id: string | null; event_type: string; event_data: Record<string, unknown>; old_value: unknown; new_value: unknown; created_at: string; }
+
+export interface CommercialTerms { id:string; organisation_id:string; project_id:string; quote_id:string|null; authorisation_basis:CommercialAuthorisationBasis; payment_terms_days:number; deposit_percent:number; deposit_required_amount:number; po_number:string|null; credit_approved:boolean; override_reason:string|null; authorised_by:string|null; authorised_at:string|null; created_by:string|null; created_at:string; updated_at:string; }
+export interface Invoice { id:string; organisation_id:string; project_id:string; lead_id:string|null; quote_id:string|null; invoice_number:string; invoice_type:InvoiceType; status:InvoiceStatus; description:string|null; subtotal:number; vat_rate:number; vat:number; total:number; amount_paid:number; currency:string; due_date:string|null; issued_at:string|null; paid_at:string|null; external_reference:string|null; created_by:string|null; created_at:string; updated_at:string; }
+export interface Payment { id:string; organisation_id:string; invoice_id:string; project_id:string; amount:number; currency:string; payment_method:string; status:PaymentStatus; reference:string|null; paid_at:string; recorded_by:string|null; created_at:string; }
+export interface BillingMilestone { id:string; organisation_id:string; project_id:string; label:string; sequence_no:number; percentage:number|null; amount:number; trigger_stage:string|null; status:BillingMilestoneStatus; invoice_id:string|null; due_date:string|null; created_by:string|null; created_at:string; updated_at:string; }
+export interface PartnerPayable { id:string; organisation_id:string; project_id:string; partner_id:string; partner_quote_id:string|null; payable_number:string; invoice_reference:string|null; status:PartnerPayableStatus; description:string|null; subtotal:number; vat:number; total:number; amount_paid:number; currency:string; due_date:string|null; evidence_confirmed:boolean; approved_by:string|null; approved_at:string|null; created_by:string|null; created_at:string; updated_at:string; }
+export interface RiskRecord { id:string; organisation_id:string; entity_type:'organisation'|'lead'|'project'|'partner'|'client'; entity_id:string|null; title:string; category:RiskCategory; likelihood:number; impact:number; status:RiskStatus; owner_id:string|null; due_date:string|null; mitigation:string|null; residual_score:number|null; created_by:string|null; created_at:string; updated_at:string; }
+export interface ComplianceRecord { id:string; organisation_id:string; entity_type:'organisation'|'project'|'partner'|'client'; entity_id:string|null; control_type:string; title:string; status:ComplianceStatus; effective_date:string|null; expiry_date:string|null; evidence_document_id:string|null; owner_id:string|null; notes:string|null; created_by:string|null; created_at:string; updated_at:string; }
+export interface KnowledgeEntry { id:string; organisation_id:string; title:string; summary:string|null; body:string; knowledge_type:KnowledgeType; tags:string[]; source_entity_type:string|null; source_entity_id:string|null; is_pinned:boolean; created_by:string|null; created_at:string; updated_at:string; }
+
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
