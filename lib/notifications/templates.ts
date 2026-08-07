@@ -20,6 +20,7 @@ function copy(template: string, payload: Record<string, unknown>) {
   const company = escapeHtml(payload.company || 'your team');
   const reference = escapeHtml(payload.reference || payload.caseReference || payload.projectReference || '');
   const due = escapeHtml(payload.dueDate || payload.validUntil || '');
+  const amount = escapeHtml(payload.amount || payload.total || payload.balance || '');
 
   const variants: Record<string, { heading: string; body: string; action: string }> = {
     enquiry_acknowledgement: {
@@ -56,6 +57,26 @@ function copy(template: string, payload: Record<string, unknown>) {
       heading: 'A polite follow-up on your quotation',
       body: `We wanted to check that you have everything needed to review the quotation${reference ? ` ${reference}` : ''}${due ? `. Its current validity date is ${due}` : ''}.`,
       action: 'Review quotation',
+    },
+    invoice_issued: {
+      heading: 'Your Overflow Partner invoice is available',
+      body: `Invoice${reference ? ` ${reference}` : ''}${amount ? ` for ${amount}` : ''} has been issued${due ? ` and is due ${due}` : ''}. The secure invoice link below shows the current balance and payment status.`,
+      action: 'View invoice',
+    },
+    invoice_due_reminder: {
+      heading: 'A polite reminder about your invoice',
+      body: `Invoice${reference ? ` ${reference}` : ''}${amount ? ` has an outstanding balance of ${amount}` : ' remains outstanding'}${due ? ` with a due date of ${due}` : ''}. If payment is already in progress, no action is needed.`,
+      action: 'View invoice',
+    },
+    invoice_overdue_reminder: {
+      heading: 'Invoice payment is now overdue',
+      body: `Our records show that invoice${reference ? ` ${reference}` : ''}${amount ? ` has an outstanding balance of ${amount}` : ' remains outstanding'}${due ? ` after its ${due} due date` : ''}. Please contact us if there is a query or payment has already been arranged.`,
+      action: 'View invoice',
+    },
+    payment_received: {
+      heading: 'Payment received — thank you',
+      body: `We have recorded your payment${amount ? ` of ${amount}` : ''}${reference ? ` against invoice ${reference}` : ''}. The secure invoice view has been updated to show the remaining balance, if any.`,
+      action: 'View updated invoice',
     },
     document_issued: {
       heading: 'A controlled document has been issued',
