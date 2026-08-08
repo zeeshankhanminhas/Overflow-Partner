@@ -4,6 +4,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import RecordWorkspace from '@/components/workspace/RecordWorkspace';
 import AcquisitionTechnicalBrief from '@/components/workspace/AcquisitionTechnicalBrief';
 import TechnicalPartnerReviewPanel from '@/components/workspace/TechnicalPartnerReviewPanel';
+import Step2TestLink from '@/components/workspace/Step2TestLink';
 import { acquisitionStages, resolveAcquisitionState } from '@/lib/acquisition/state';
 import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { convertProspectFormAction, createStep2InvitationFormAction } from '../actions';
@@ -17,7 +18,7 @@ function display(value: unknown, fallback='Not recorded') {
 function Fact({label,value}:{label:string;value:React.ReactNode}){return <div className="vp-fact"><small>{label}</small><strong>{value??'Not recorded'}</strong></div>}
 
 export default async function AcquisitionRecordPage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|string[]|undefined>>}){
-  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
+  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,profile}=await requireUserContext();
   const [prospectResult,sessionResult,activityResult]=await Promise.all([
     supabase.from('prospects').select('*').eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
     supabase.from('intake_sessions').select('*').eq('organisation_id',organisationId).eq('prospect_id',id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
@@ -36,8 +37,15 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     hasSubmission:Boolean(submission),
     convertedCaseId,
   });
+  const rawInvitation=Array.isArray(query.invitation)?query.invitation[0]:query.invitation;
+  const invitationUrl=typeof rawInvitation==='string'&&/^https?:\/\//.test(rawInvitation)?rawInvitation:'';
+  const canUseDeveloperLink=['owner','admin'].includes(String(profile.role));
 
-  const notices=<>{query.created||query.technical_review||query.qualified?<div className="vp-callout"><strong>Acquisition record updated</strong><p>{display(query.created||query.technical_review||query.qualified)}</p></div>:null}{query.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{operatorErrorMessage(String(query.error))}</p></div>:null}</>;
+  const notices=<>
+    {query.created||query.technical_review||query.qualified?<div className="vp-callout"><strong>Acquisition record updated</strong><p>{display(query.created||query.technical_review||query.qualified)}</p></div>:null}
+    {query.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{operatorErrorMessage(String(query.error))}</p></div>:null}
+    {canUseDeveloperLink&&invitationUrl?<Step2TestLink url={invitationUrl}/>:null}
+  </>;
 
   const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/acquisition">← Back to acquisition</Link><p className="vp-kicker">Acquisition record · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p><div className="project-os-meta"><span>Current state · {acquisition.currentState}</span><span>Owner · Internal acquisition</span></div></div><span className="vp-status">{acquisition.currentState}</span></div>;
 
