@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { generateControlledDocumentAction } from '@/app/workspace/documents/generate-actions';
 import { requireUserContext } from '@/lib/auth/context';
+import { documentSatisfiesRequirement } from '@/lib/workspace/state';
 import { getWorkspaceDocument, type WorkspaceDocumentSlug } from './documentRegistry';
 
 type MinimumStatus = 'draft' | 'signed' | 'approved' | 'issued';
@@ -33,19 +34,8 @@ type GeneratedDocument = {
   created_at: string;
 };
 
-const statusRank: Record<string, number> = {
-  draft: 1,
-  in_review: 2,
-  changes_requested: 2,
-  signed: 3,
-  approved: 4,
-  issued: 5,
-  published: 5,
-  archived: 6,
-};
-
 function meetsMinimumStatus(status: string, minimum: MinimumStatus = 'draft') {
-  return (statusRank[status] || 0) >= (statusRank[minimum] || 0);
+  return documentSatisfiesRequirement(status, minimum);
 }
 
 function documentUrl(document: GeneratedDocument, context: Props['context'], recordId: string) {
@@ -85,8 +75,8 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
     <header className="stage-documents__header">
       <div>
         <p className="vp-label">Stage documents · {stageLabel}</p>
-        <h2 id={`${context}-stage-documents`}>Documents required where the work happens</h2>
-        <p className="vp-subtitle">This panel reads the live controlled-document registry. A generated document only satisfies the stage when it reaches the minimum governed status required for progression.</p>
+        <h2 id={`${context}-stage-documents`}>Controlled evidence</h2>
+        <p className="vp-subtitle">One live evidence surface. Existing documents are never presented as “not generated”; their current governance state determines whether they satisfy progression.</p>
       </div>
       <Link href={`/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`} className="button secondary">Open document registry</Link>
     </header>
@@ -141,23 +131,20 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
         </div>
       </section> : null}
 
-      {blocked.length ? <section className="stage-documents__group">
-        <div className="stage-documents__group-title"><h3>Locked by prior evidence</h3><span>{blocked.length}</span></div>
+      {blocked.length ? <details className="vp-disclosure">
+        <summary>Future-stage evidence · {blocked.length}</summary>
         <div className="stage-documents__list">
           {blocked.map((item) => {
             const definition = getWorkspaceDocument(item.slug);
             if (!definition) return null;
             return <article className="stage-document-row is-blocked" key={item.slug}>
               <span className="stage-document-row__icon" aria-hidden="true">⌁</span>
-              <div className="stage-document-row__copy">
-                <div className="stage-document-row__title"><h4>{definition.title}</h4><span>Locked</span></div>
-                <p>{item.blockedReason || item.reason}</p>
-              </div>
+              <div className="stage-document-row__copy"><div className="stage-document-row__title"><h4>{definition.title}</h4><span>Locked</span></div><p>{item.blockedReason || item.reason}</p></div>
               <strong>Complete prior evidence</strong>
             </article>;
           })}
         </div>
-      </section> : null}
+      </details> : null}
     </div>
   </section>;
 }
