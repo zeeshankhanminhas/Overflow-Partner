@@ -3,6 +3,15 @@ import type { ClientQuote, CommercialReview, Lead, PartnerQuote, Project, Techni
 import type { WorkflowCase } from '@/types/orchestration';
 import { buildLead360Context, inheritedSnapshot } from '@/lib/context/inheritance';
 import { deriveWorkflowStage } from '@/lib/lifecycle/resolver';
+import {
+  assertCanAcceptQuote,
+  assertCanApproveTechnical,
+  assertCanConvertProspect,
+  assertCanCreateCommercialReview,
+  assertCanCreateTechnicalScope,
+  assertCanGenerateQuote,
+  assertCanIssueQuote,
+} from '@/lib/business/invariants';
 
 export async function listWorkflowCases(supabase: SupabaseClient, organisationId: string): Promise<WorkflowCase[]> {
   const [leadsResult, intakesResult, partnerQuotesResult, reviewsResult, quotesResult, projectsResult] = await Promise.all([
@@ -78,6 +87,7 @@ export async function ensureTechnicalIntakeShell(
   if (existingError) throw new Error(existingError.message);
   if (existing) return existing as TechnicalIntake;
 
+  await assertCanCreateTechnicalScope(supabase, organisationId, leadId);
   const { data: lead, error: leadError } = await supabase.from('leads').select('*')
     .eq('organisation_id', organisationId).eq('id', leadId).single();
   if (leadError || !lead) throw new Error(leadError?.message || 'Lead 360 context could not be loaded.');
@@ -118,44 +128,50 @@ async function rpc<T>(supabase: SupabaseClient, name: string, args: Record<strin
   return data as T;
 }
 
-export function approveTechnicalIntake(supabase: SupabaseClient, organisationId: string, userId: string, intakeId: string) {
+export async function approveTechnicalIntake(supabase: SupabaseClient, organisationId: string, userId: string, intakeId: string) {
+  await assertCanApproveTechnical(supabase, organisationId, intakeId);
   return rpc<TechnicalIntake>(supabase, 'op_approve_technical_intake', {
     p_organisation_id: organisationId, p_user_id: userId, p_intake_id: intakeId,
   });
 }
 
-export function createCommercialReviewFromPartnerQuote(
+export async function createCommercialReviewFromPartnerQuote(
   supabase: SupabaseClient, organisationId: string, userId: string, partnerQuoteId: string, markupPercent: number,
 ) {
+  await assertCanCreateCommercialReview(supabase, organisationId, partnerQuoteId);
   return rpc<CommercialReview>(supabase, 'op_create_commercial_review', {
     p_organisation_id: organisationId, p_user_id: userId, p_partner_quote_id: partnerQuoteId,
     p_markup_percent: markupPercent,
   });
 }
 
-export function approveCommercialAndGenerateQuote(
+export async function approveCommercialAndGenerateQuote(
   supabase: SupabaseClient, organisationId: string, userId: string, commercialReviewId: string,
   currency = 'GBP', vatRate = 20,
 ) {
+  await assertCanGenerateQuote(supabase, organisationId, commercialReviewId);
   return rpc<ClientQuote>(supabase, 'op_approve_commercial_generate_quote', {
     p_organisation_id: organisationId, p_user_id: userId, p_review_id: commercialReviewId,
     p_currency: currency, p_vat_rate: vatRate,
   });
 }
 
-export function issueClientQuote(supabase: SupabaseClient, organisationId: string, userId: string, quoteId: string) {
+export async function issueClientQuote(supabase: SupabaseClient, organisationId: string, userId: string, quoteId: string) {
+  await assertCanIssueQuote(supabase, organisationId, quoteId);
   return rpc<ClientQuote>(supabase, 'op_issue_quote', {
     p_organisation_id: organisationId, p_user_id: userId, p_quote_id: quoteId,
   });
 }
 
-export function acceptQuoteAndCreateProject(supabase: SupabaseClient, organisationId: string, userId: string, quoteId: string) {
+export async function acceptQuoteAndCreateProject(supabase: SupabaseClient, organisationId: string, userId: string, quoteId: string) {
+  await assertCanAcceptQuote(supabase, organisationId, quoteId);
   return rpc<Project>(supabase, 'op_accept_quote_create_project', {
     p_organisation_id: organisationId, p_user_id: userId, p_quote_id: quoteId,
   });
 }
 
-export function convertProspectToLead(supabase: SupabaseClient, organisationId: string, userId: string, prospectId: string) {
+export async function convertProspectToLead(supabase: SupabaseClient, organisationId: string, userId: string, prospectId: string) {
+  await assertCanConvertProspect(supabase, organisationId, prospectId);
   return rpc<Lead>(supabase, 'op_convert_prospect', {
     p_organisation_id: organisationId, p_user_id: userId, p_prospect_id: prospectId,
   });
