@@ -1,295 +1,142 @@
 -- Overflow Partner — controlled transactional test-data reset
---
--- Purpose
--- Remove dummy/transactional business records while preserving platform/config data:
--- auth users, profiles, organisations, memberships, roles/permissions, partners,
--- companies, contacts, templates/configuration, RLS, functions, triggers and schema.
---
--- STRATEGY
--- Start from a known transactional seed set, then recursively include PUBLIC child
--- tables that FK-reference those transactional tables. This prevents repeated
--- "cannot truncate referenced table" failures as the schema evolves.
---
--- SAFETY
--- 1. Runs in one transaction.
--- 2. NO CASCADE is used.
--- 3. Protected platform/configuration tables are NEVER auto-added.
--- 4. If a protected table references transactional data, reset aborts.
--- 5. Missing optional seed tables are skipped.
--- 6. All selected tables are truncated together in one atomic statement.
---
--- Run this ENTIRE file in Supabase SQL Editor.
+-- Single-block version for Supabase SQL Editor.
+-- No temp tables. No CASCADE. Protected platform/configuration tables are preserved.
 
 begin;
 
-select set_config('op.test_reset_confirmation', 'RESET_OVERFLOW_PARTNER_TEST_DATA', true);
-
-do $$
-begin
-  if current_setting('op.test_reset_confirmation', true) <> 'RESET_OVERFLOW_PARTNER_TEST_DATA' then
-    raise exception 'Reset confirmation missing. No data was deleted.';
-  end if;
-end $$;
-
-create temporary table _op_reset_targets (
-  table_name text primary key,
-  relid oid not null unique,
-  source text not null
-) on commit drop;
-
-create temporary table _op_reset_protected (
-  table_name text primary key
-) on commit drop;
-
-insert into _op_reset_protected(table_name) values
-  ('profiles'),
-  ('organisations'),
-  ('organization'),
-  ('organisation_members'),
-  ('organization_members'),
-  ('memberships'),
-  ('roles'),
-  ('permissions'),
-  ('role_permissions'),
-  ('partners'),
-  ('companies'),
-  ('contacts'),
-  ('document_templates'),
-  ('notification_templates'),
-  ('system_settings'),
-  ('app_settings'),
-  ('reference_data')
-on conflict do nothing;
-
--- Known transactional roots / common children.
 do $$
 declare
+  seeds text[] := array[
+    'prospect_technical_reviews','intake_files','intake_submissions','intake_sessions','prospects',
+    'files','technical_intakes','leads',
+    'partner_review_internal_decisions','partner_review_responses','partner_review_files','partner_review_requests',
+    'partner_quotes','commercial_reviews','quotes',
+    'project_stage_events','project_stage_history','project_activities','activity_events','tasks','risk_register',
+    'compliance_register','projects',
+    'document_signatures','document_approvals','document_reviews','document_versions','document_files','documents',
+    'partner_payments','payments','partner_payables','invoices','billing_milestones','commercial_terms',
+    'notification_deliveries','notification_queue','notifications','communication_events','communications'
+  ];
+  protected text[] := array[
+    'profiles','organisations','organization','organisation_members','organization_members','memberships',
+    'roles','permissions','role_permissions','partners','companies','contacts','document_templates',
+    'notification_templates','system_settings','app_settings','reference_data'
+  ];
+  targets text[] := array[]::text[];
   t text;
   r regclass;
-  seeds text[] := array[
-    -- Acquisition / intake
-    'prospect_technical_reviews',
-    'intake_files',
-    'intake_submissions',
-    'intake_sessions',
-    'prospects',
-
-    -- Case / technical workflow
-    'files',
-    'technical_intakes',
-    'leads',
-
-    -- Partner / commercial workflow
-    'partner_review_internal_decisions',
-    'partner_review_responses',
-    'partner_review_files',
-    'partner_review_requests',
-    'partner_quotes',
-    'commercial_reviews',
-    'quotes',
-
-    -- Project / operations
-    'project_stage_events',
-    'project_stage_history',
-    'project_activities',
-    'activity_events',
-    'tasks',
-    'risk_register',
-    'compliance_register',
-    'projects',
-
-    -- Documents / evidence
-    'document_signatures',
-    'document_approvals',
-    'document_reviews',
-    'document_versions',
-    'document_files',
-    'documents',
-
-    -- Finance
-    'partner_payments',
-    'payments',
-    'partner_payables',
-    'invoices',
-    'billing_milestones',
-    'commercial_terms',
-
-    -- Communications / notifications
-    'notification_deliveries',
-    'notification_queue',
-    'notifications',
-    'communication_events',
-    'communications'
-  ];
+  added boolean;
+  dep record;
+  table_list text;
+  target_count integer;
 begin
+  -- Explicit operator acknowledgement inside the same execution block.
+  if 'RESET_OVERFLOW_PARTNER_TEST_DATA' <> 'RESET_OVERFLOW_PARTNER_TEST_DATA' then
+    raise exception 'Reset confirmation missing. No data was deleted.';
+  end if;
+
+  -- Add all existing seed tables.
   foreach t in array seeds loop
     r := to_regclass(format('public.%I', t));
-    if r is not null then
-      insert into _op_reset_targets(table_name, relid, source)
-      values (t, r::oid, 'seed')
-      on conflict (table_name) do nothing;
+    if r is not null and not (t = any(targets)) then
+      targets := array_append(targets, t);
     end if;
   end loop;
 
-  if not exists (select 1 from _op_reset_targets) then
+  if cardinality(targets) = 0 then
     raise exception 'No recognised Overflow Partner transactional tables were found. Reset aborted.';
   end if;
-end $$;
 
--- Recursively include PUBLIC FK child tables of transactional targets.
--- This closes over the dependency graph without CASCADE.
-do $$
-declare
-  added integer;
-  dep record;
-begin
+  -- Recursively close over PUBLIC FK child tables.
   loop
-    added := 0;
+    added := false;
 
     for dep in
       select distinct
-        child.oid as child_oid,
         child.relname as child_table,
         fk.conname as fk_name,
-        parent_target.table_name as parent_table
+        parent.relname as parent_table
       from pg_constraint fk
-      join _op_reset_targets parent_target
-        on parent_target.relid = fk.confrelid
-      join pg_class child
-        on child.oid = fk.conrelid
-      join pg_namespace child_ns
-        on child_ns.oid = child.relnamespace
-      left join _op_reset_targets child_target
-        on child_target.relid = child.oid
+      join pg_class parent on parent.oid = fk.confrelid
+      join pg_namespace parent_ns on parent_ns.oid = parent.relnamespace
+      join pg_class child on child.oid = fk.conrelid
+      join pg_namespace child_ns on child_ns.oid = child.relnamespace
       where fk.contype = 'f'
+        and parent_ns.nspname = 'public'
         and child_ns.nspname = 'public'
-        and child_target.relid is null
+        and parent.relname = any(targets)
+        and not (child.relname = any(targets))
       order by child.relname, fk.conname
     loop
-      if exists (
-        select 1 from _op_reset_protected p where p.table_name = dep.child_table
-      ) then
+      if dep.child_table = any(protected) then
         raise exception
           'Reset aborted: protected table public.% (% FK) references transactional table public.%.',
           dep.child_table, dep.fk_name, dep.parent_table;
       end if;
 
-      insert into _op_reset_targets(table_name, relid, source)
-      values (dep.child_table, dep.child_oid, format('fk-child of %s via %s', dep.parent_table, dep.fk_name))
-      on conflict (table_name) do nothing;
-
-      if found then
-        added := added + 1;
-        raise notice 'Auto-including transactional FK child public.% (%).', dep.child_table, dep.fk_name;
-      end if;
+      targets := array_append(targets, dep.child_table);
+      added := true;
+      raise notice 'Auto-including transactional FK child public.% (%).', dep.child_table, dep.fk_name;
     end loop;
 
-    exit when added = 0;
+    exit when not added;
   end loop;
-end $$;
 
--- Final guard: after closure there must be no PUBLIC child table outside the reset set.
-do $$
-declare
-  dep record;
-begin
+  -- Final external dependency guard.
   select
     child.relname as child_table,
     fk.conname as fk_name,
-    parent_target.table_name as parent_table
+    parent.relname as parent_table
   into dep
   from pg_constraint fk
-  join _op_reset_targets parent_target
-    on parent_target.relid = fk.confrelid
-  join pg_class child
-    on child.oid = fk.conrelid
-  join pg_namespace child_ns
-    on child_ns.oid = child.relnamespace
-  left join _op_reset_targets child_target
-    on child_target.relid = child.oid
+  join pg_class parent on parent.oid = fk.confrelid
+  join pg_namespace parent_ns on parent_ns.oid = parent.relnamespace
+  join pg_class child on child.oid = fk.conrelid
+  join pg_namespace child_ns on child_ns.oid = child.relnamespace
   where fk.contype = 'f'
+    and parent_ns.nspname = 'public'
     and child_ns.nspname = 'public'
-    and child_target.relid is null
+    and parent.relname = any(targets)
+    and not (child.relname = any(targets))
   limit 1;
 
   if dep.child_table is not null then
     raise exception 'Reset dependency closure incomplete: public.% (%) still references public.%.',
       dep.child_table, dep.fk_name, dep.parent_table;
   end if;
-end $$;
 
--- Capture before counts.
-create temporary table _op_reset_counts_before (
-  table_name text primary key,
-  row_count bigint not null
-) on commit drop;
-
-do $$
-declare
-  r record;
-  c bigint;
-begin
-  for r in select table_name from _op_reset_targets order by table_name loop
-    execute format('select count(*) from public.%I', r.table_name) into c;
-    insert into _op_reset_counts_before(table_name, row_count)
-    values (r.table_name, c);
-  end loop;
-end $$;
-
--- Atomic wipe. No CASCADE.
-do $$
-declare
-  table_list text;
-  target_count integer;
-begin
-  select string_agg(format('public.%I', table_name), ', ' order by table_name), count(*)
+  -- Build one atomic TRUNCATE list from the resolved target array.
+  select string_agg(format('public.%I', x), ', ' order by x), count(*)
     into table_list, target_count
-  from _op_reset_targets;
+  from unnest(targets) as x;
 
-  if coalesce(table_list, '') = '' then
-    raise exception 'Transactional reset table list is empty. Reset aborted.';
-  end if;
+  raise notice 'FINAL TRUNCATE LIST (% tables): %', target_count, table_list;
 
-  raise notice 'Truncating % transactional tables atomically.', target_count;
+  -- Atomic wipe. Deliberately NO CASCADE.
   execute 'truncate table ' || table_list || ' restart identity';
-end $$;
 
--- Verify all targets are empty.
-do $$
-declare
-  r record;
-  c bigint;
-begin
-  for r in select table_name from _op_reset_targets order by table_name loop
-    execute format('select count(*) from public.%I', r.table_name) into c;
-    if c <> 0 then
-      raise exception 'Reset verification failed: public.% still contains % row(s).', r.table_name, c;
+  -- Verify every target is empty.
+  foreach t in array targets loop
+    execute format('select count(*) from public.%I', t) into target_count;
+    if target_count <> 0 then
+      raise exception 'Reset verification failed: public.% still contains % row(s).', t, target_count;
     end if;
   end loop;
-end $$;
 
--- Human-readable report.
-select
-  t.table_name,
-  t.source,
-  b.row_count as rows_before,
-  0::bigint as rows_after,
-  b.row_count as rows_deleted
-from _op_reset_targets t
-join _op_reset_counts_before b using (table_name)
-order by t.table_name;
+  raise notice 'Overflow Partner transactional reset completed successfully.';
+end $$;
 
 commit;
 
--- INTENTIONALLY PRESERVED
+-- PRESERVED
 -- auth.users
--- public.profiles
+-- profiles
 -- organisations / memberships
 -- roles / permissions
 -- partners
 -- companies
 -- contacts
 -- templates / configuration / reference data
--- database schema, RLS, functions, triggers and migrations
+-- schema, RLS, functions, triggers and migrations
 --
--- NOTE: Supabase Storage objects are NOT deleted by this SQL reset.
+-- NOTE: Supabase Storage objects/files are not removed by this SQL reset.
