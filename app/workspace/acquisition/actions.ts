@@ -11,6 +11,7 @@ import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { convertProspectToLead } from '@/lib/orchestration/service';
 import { cancelEntityReminders, queueNotification, scheduleLeadNurture } from '@/lib/notifications/queue';
+import { assertCanInviteTechnicalIntake, assertCanQualifyProspect } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
 function siteUrl(path: string) {
@@ -65,12 +66,9 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const prospectId = String(formData.get('prospect_id') || '');
     if (!prospectId) throw new Error('Prospect ID is required.');
+    await assertCanInviteTechnicalIntake(supabase, organisationId, prospectId);
     const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name').eq('organisation_id', organisationId).eq('id', prospectId).single();
     if (prospectError || !prospect) throw new Error('Prospect not found.');
-    if (prospect.status === 'converted') throw new Error('This prospect has already been converted.');
-
-    const { data: existing } = await supabase.from('intake_sessions').select('id,status,expires_at').eq('organisation_id', organisationId).eq('prospect_id', prospectId).not('status', 'in', '(converted,expired,cancelled)').maybeSingle();
-    if (existing) throw new Error('An active Step 2 invitation already exists. Cancel or complete it before creating another.');
 
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -78,8 +76,8 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     const now = new Date().toISOString();
     const { data: session, error } = await supabase.from('intake_sessions').insert({ organisation_id: organisationId, prospect_id: prospectId, token_hash: tokenHash, status: 'invited', expires_at: expiresAt, sent_at: now, created_by: user.id }).select('id').single();
     if (error) throw error;
-    await supabase.from('prospects').update({ next_action: 'Await customer technical intake' }).eq('id', prospectId);
-    await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'technical_intake_invited', event_data: { intakeSessionId: session.id, expiresAt, delivery: prospect.email ? 'queued_for_email' : 'link_ready' } });
+    await supabase.from('prospects').update({ next_action: 'Await customer technical intake' }).eq('organisation_id', organisationId).eq('id', prospectId);
+    await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'technical_intake_invited', event_data: { intakeSessionId: session.id, expiresAt, delivery: prospect.email ? 'queued_for_email' : 'link_ready', invariant:'ACTIVE_PROSPECT_INTAKE' } });
     const url = siteUrl(`/intake/${token}`);
 
     await cancelEntityReminders(supabase, { organisationId, entityType: 'prospect', entityId: prospectId, categories: ['nurture'] }).catch(() => 0);
@@ -91,10 +89,10 @@ export async function createStep2InvitationFormAction(formData: FormData) {
       await queueNotification(supabase,{organisationId,eventKey:'client.intake_reminder.expiry',recipientEmail:prospect.email,recipientName:prospect.contact_name,subject:'Technical intake link expiry reminder',templateKey:'technical_intake_reminder',payload,entityType:'prospect',entityId:prospectId,category:'reminder',scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`}).catch(()=>null);
     }
 
-    revalidatePath('/workspace/acquisition'); revalidatePath('/workspace');
+    revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace');
     destination = `/workspace/acquisition/${prospectId}?invitation=${encodeURIComponent(url)}`;
   } catch (error) {
-    destination = `/workspace/acquisition?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create Step 2 invitation.')}`;
+    destination = `/workspace/acquisition?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create Technical Intake invitation.')}`;
   }
   redirect(destination);
 }
@@ -106,22 +104,15 @@ export async function qualifyProspectFormAction(formData: FormData) {
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const prospectId = String(formData.get('prospect_id') || '');
     if (!prospectId) throw new Error('Prospect ID is required.');
-
-    const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,company_name,project_type,requirement_summary').eq('organisation_id', organisationId).eq('id', prospectId).single();
-    if (prospectError || !prospect) throw new Error('Prospect not found.');
-    if (prospect.status === 'converted') throw new Error('This prospect has already been converted.');
+    const { prospect, session, review } = await assertCanQualifyProspect(supabase, organisationId, prospectId);
     if (prospect.status === 'qualified') { destination = `/workspace/acquisition/${prospectId}?qualified=1`; }
     else {
-      if (!prospect.company_name?.trim() || !prospect.project_type?.trim() || !prospect.requirement_summary?.trim()) throw new Error('Company, project type and requirement summary are required before qualification.');
-      const { data: session, error: sessionError } = await supabase.from('intake_sessions').select('id,status,submitted_at').eq('organisation_id', organisationId).eq('prospect_id', prospectId).eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(1).maybeSingle();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error('A submitted Step 2 technical intake is required before qualification.');
       const now = new Date().toISOString();
-      const { error: updateError } = await supabase.from('prospects').update({ status: 'qualified', next_action: 'Convert qualified prospect to governed lead', assigned_to: user.id, updated_at: now }).eq('organisation_id', organisationId).eq('id', prospectId);
+      const { error: updateError } = await supabase.from('prospects').update({ status: 'qualified', next_action: 'Create governed Case 360', assigned_to: user.id, updated_at: now }).eq('organisation_id', organisationId).eq('id', prospectId);
       if (updateError) throw updateError;
-      await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'prospect_qualified', event_data: { intakeSessionId: session.id, qualifiedAt: now, previousStatus: prospect.status } });
+      await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'prospect_qualified', event_data: { intakeSessionId: session.id, technicalReviewId: review.id, qualifiedAt: now, previousStatus: prospect.status, invariant:'TECHNICAL_REVIEW_REQUIRED' } });
       await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
-      revalidatePath('/workspace/acquisition'); revalidatePath('/workspace'); destination = `/workspace/acquisition/${prospectId}?qualified=1`;
+      revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace'); destination = `/workspace/acquisition/${prospectId}?qualified=1`;
     }
   } catch (error) { destination = `/workspace/acquisition?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to qualify prospect.')}`; }
   redirect(destination);
@@ -135,12 +126,12 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
     if (!prospectId) return { ok: false, error: 'Prospect ID is required.' };
     const lead = await convertProspectToLead(supabase, organisationId, user.id, prospectId);
     await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
-    revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/leads'); revalidatePath('/workspace/orchestration'); revalidatePath('/workspace');
+    revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/leads'); revalidatePath('/workspace/orchestration'); revalidatePath('/workspace');
     return { ok: true, data: lead };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : 'Unable to convert prospect.' }; }
 }
 
 export async function convertProspectFormAction(formData: FormData) {
   const result = await convertProspectAction(formData);
-  redirect(result.ok ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Continue the governed Case 360 workflow.')}` : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
+  redirect(result.ok ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns this opportunity.')}` : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
 }
