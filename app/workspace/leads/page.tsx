@@ -19,12 +19,12 @@ type QueueRow = {
 
 const PAGE_SIZE = 25;
 const viewMeta: Record<View,{kicker:string;title:string;subtitle:string}> = {
-  all: { kicker: 'Cases', title: 'Engineering work in motion.', subtitle: 'Open a case to see its current state and complete the one decision that moves it forward.' },
+  all: { kicker: 'Cases', title: 'Engineering work in motion.', subtitle: 'Only opportunities currently owned by Case 360 appear here. Once a Project exists, the Case becomes historical lineage.' },
   assessment: { kicker: 'Assess', title: 'Cases requiring technical definition.', subtitle: 'Cases remain here while technical scope, feasibility and execution evidence are being established.' },
   'partner-review': { kicker: 'Assess · Partner review', title: 'Cases ready for execution-partner review.', subtitle: 'Approved technical scopes that require partner feasibility, capacity or technical evidence.' },
   'partner-pricing': { kicker: 'Commercial · Partner pricing', title: 'Cases with partner pricing received.', subtitle: 'External delivery cost and lead-time evidence ready for the commercial decision.' },
   'commercial-review': { kicker: 'Commercial · Review', title: 'Cases at commercial review.', subtitle: 'Approved partner cost is being converted into the controlled selling position.' },
-  'client-quotes': { kicker: 'Commercial · Client quotes', title: 'Cases at client quotation.', subtitle: 'Draft, issued or concluded client quotations remain attached to their Case 360 record.' },
+  'client-quotes': { kicker: 'Commercial · Client quotes', title: 'Cases at client quotation.', subtitle: 'Draft, issued or concluded client quotations remain attached to their Case 360 record until delivery ownership moves to Project 360.' },
 };
 
 function pageHref(view: View, page: number) {
@@ -56,8 +56,17 @@ export default async function LeadsPage({ searchParams }: { searchParams?: Promi
   ]);
   if (error) throw new Error(`Case queue could not be loaded: ${error.message}`);
 
-  const rows = (data || []) as QueueRow[];
-  const total = rows.length ? Number(rows[0].total_count || 0) : 0;
+  const candidateRows = (data || []) as QueueRow[];
+  const caseIds = candidateRows.map(row => row.id);
+  const projectLinks = caseIds.length
+    ? await supabase.from('projects').select('lead_id').eq('organisation_id', organisationId).in('lead_id', caseIds)
+    : { data: [] as {lead_id:string}[], error: null };
+  if (projectLinks.error) throw new Error(`Lifecycle ownership could not be resolved: ${projectLinks.error.message}`);
+  const projectOwned = new Set((projectLinks.data || []).map(item => item.lead_id));
+  const rows = candidateRows.filter(row => !projectOwned.has(row.id));
+  const sourceTotal = candidateRows.length ? Number(candidateRows[0].total_count || 0) : 0;
+  const hiddenOnPage = candidateRows.length - rows.length;
+  const total = Math.max(0, sourceTotal - hiddenOnPage);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return <section className="vp-page">
@@ -71,18 +80,18 @@ export default async function LeadsPage({ searchParams }: { searchParams?: Promi
     {params.error ? <div className="vp-callout"><strong>Action could not be completed</strong><p>{String(params.error)}</p></div> : null}
 
     <section className="vp-object vp-object--hero">
-      <p className="vp-label">Queue position</p>
+      <p className="vp-label">Active Case position</p>
       <div className="vp-compact-metrics">
-        <div className="vp-metric"><span>Queue records</span><strong>{total}</strong></div>
+        <div className="vp-metric"><span>Visible active records</span><strong>{rows.length}</strong></div>
         <div className="vp-metric"><span>Page</span><strong>{Math.min(page,totalPages)} / {totalPages}</strong></div>
         <div className="vp-metric"><span>Rows per page</span><strong>{PAGE_SIZE}</strong></div>
       </div>
     </section>
 
     <section>
-      <div className="vp-section-title"><div><p className="vp-label">Paginated operating queue</p><h2>{view === 'all' ? 'Live cases' : meta.kicker}</h2></div>{view !== 'all' ? <Link href="/workspace/leads">View all cases</Link> : null}</div>
+      <div className="vp-section-title"><div><p className="vp-label">Active operating queue</p><h2>{view === 'all' ? 'Live cases' : meta.kicker}</h2></div>{view !== 'all' ? <Link href="/workspace/leads">View all cases</Link> : null}</div>
       <div className="vp-list">
-        {rows.length === 0 ? <div className="vp-empty">No cases currently match this lifecycle view.</div> : rows.map((row) => <Link href={`/workspace/leads/${row.id}`} className="vp-row" key={row.id}>
+        {rows.length === 0 ? <div className="vp-empty">No Cases currently own work in this lifecycle view.</div> : rows.map((row) => <Link href={`/workspace/leads/${row.id}`} className="vp-row" key={row.id}>
           <div><h3>{row.title || row.company_name}</h3><p>{row.company_name}{row.contact_name ? ` · ${row.contact_name}` : ''}</p></div>
           <div className="vp-row-status">{workspaceLabel(row.workflow_stage as any, 'lead')}</div>
           <div><strong>Open Case 360 →</strong></div>
