@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { projectStages, type ProjectStage } from '@/lib/projects/stages';
+import { assertCanAdvanceProjectStage } from '@/lib/business/invariants';
 
 const roles = ['owner','admin','operator','engineering','commercial'] as const;
 
@@ -20,6 +21,7 @@ function projectUrl(projectId: string, params: Record<string,string>) {
 function refreshProject(projectId: string) {
   revalidatePath(`/workspace/projects/${projectId}`);
   revalidatePath('/workspace/projects');
+  revalidatePath('/workspace/leads');
   revalidatePath('/workspace');
   revalidatePath('/workspace/commercial-control');
   revalidatePath('/workspace/intelligence');
@@ -34,6 +36,10 @@ export async function updateProjectMobilisationAction(formData: FormData) {
     const dueDate = required(formData,'due_date');
     const { supabase,user,profile,organisationId } = await requireUserContext();
     assertRole(profile.role,[...roles]);
+    const { data: project, error: projectError } = await supabase.from('projects').select('id,project_stage,status').eq('organisation_id',organisationId).eq('id',projectId).single();
+    if(projectError||!project) throw new Error(projectError?.message||'Project not found.');
+    if(String(project.project_stage||'mobilisation')!=='mobilisation') throw new Error('Mobilisation controls can only be changed while the Project is in Mobilisation.');
+    if(['completed','closed','cancelled'].includes(String(project.status))) throw new Error('This Project is no longer operational.');
     const { error } = await supabase.rpc('op_update_project_mobilisation',{
       p_organisation_id: organisationId,p_user_id:user.id,p_project_id:projectId,p_project_manager_id:managerId,p_start_date:startDate,p_due_date:dueDate,
     });
@@ -52,12 +58,18 @@ export async function createProjectActivityAction(formData: FormData) {
   try {
     const {supabase,user,profile,organisationId}=await requireUserContext();
     assertRole(profile.role,[...roles]);
+    const {data:project,error:projectError}=await supabase.from('projects').select('id,project_stage,status').eq('organisation_id',organisationId).eq('id',projectId).single();
+    if(projectError||!project)throw new Error(projectError?.message||'Project not found.');
+    if(['completed','closed','cancelled'].includes(String(project.status)))throw new Error('Activities cannot be added to a non-operational Project.');
+    const currentStage=String(project.project_stage||'mobilisation');
+    const requestedStage=String(formData.get('project_stage')||currentStage);
+    if(requestedStage!==currentStage)throw new Error('Activity stage must match the Project current stage. Refresh the Project before creating the activity.');
     const {error}=await supabase.rpc('op_create_project_activity',{
       p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,
       p_title:required(formData,'title'),p_activity_type:String(formData.get('activity_type')||'delivery'),
       p_owner_id:String(formData.get('owner_id')||'')||null,p_due_at:String(formData.get('due_at')||'')||null,
       p_priority:String(formData.get('priority')||'normal'),p_notes:String(formData.get('notes')||'')||null,
-      p_project_stage:String(formData.get('project_stage')||'mobilisation'),p_linked_document_id:String(formData.get('linked_document_id')||'')||null,
+      p_project_stage:currentStage,p_linked_document_id:String(formData.get('linked_document_id')||'')||null,
     });
     if(error) throw new Error(error.message);
     refreshProject(projectId);
@@ -74,6 +86,9 @@ export async function setProjectActivityStatusAction(formData: FormData) {
   try {
     const {supabase,user,profile,organisationId}=await requireUserContext();
     assertRole(profile.role,[...roles]);
+    const {data:project,error:projectError}=await supabase.from('projects').select('id,status').eq('organisation_id',organisationId).eq('id',projectId).single();
+    if(projectError||!project)throw new Error(projectError?.message||'Project not found.');
+    if(['completed','closed','cancelled'].includes(String(project.status)))throw new Error('Activities on a non-operational Project cannot be changed.');
     const {error}=await supabase.rpc('op_set_project_activity_status',{
       p_organisation_id:organisationId,p_user_id:user.id,p_task_id:required(formData,'task_id'),p_status:required(formData,'status'),
     });
@@ -96,15 +111,9 @@ export async function advanceProjectStageAction(formData: FormData) {
   if (!projectId || !projectStages.includes(targetStage)) redirect(`${destination}?error=${encodeURIComponent('Invalid project stage request.')}`);
 
   try {
-    const { supabase, user, profile } = await requireUserContext();
+    const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, [...roles]);
-
-    if (targetStage === 'ready_for_execution') {
-      const { data: gate, error: gateError } = await supabase.rpc('op_project_financial_gate', { p_project_id: projectId });
-      if (gateError) throw new Error(gateError.message);
-      if (!gate?.authorised) throw new Error(`Financial mobilisation gate blocked: ${gate?.reason || 'Commercial authorisation is incomplete.'}`);
-    }
-
+    await assertCanAdvanceProjectStage(supabase, organisationId, projectId, targetStage);
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id: projectId,p_target_stage: targetStage,p_actor_id: user.id,p_note: note || null });
     if (error) throw new Error(error.message);
     refreshProject(projectId);
