@@ -4,6 +4,8 @@ import { requireUserContext } from '@/lib/auth/context';
 import RecordWorkspace from '@/components/workspace/RecordWorkspace';
 import AcquisitionTechnicalBrief from '@/components/workspace/AcquisitionTechnicalBrief';
 import TechnicalPartnerReviewPanel from '@/components/workspace/TechnicalPartnerReviewPanel';
+import { acquisitionStages, resolveAcquisitionState } from '@/lib/acquisition/state';
+import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { convertProspectFormAction, createStep2InvitationFormAction } from '../actions';
 
 function dateTime(value: string | null | undefined) {
@@ -13,8 +15,6 @@ function display(value: unknown, fallback='Not recorded') {
   return value === null || value === undefined || value === '' ? fallback : String(value);
 }
 function Fact({label,value}:{label:string;value:React.ReactNode}){return <div className="vp-fact"><small>{label}</small><strong>{value??'Not recorded'}</strong></div>}
-
-const steps=['Prospect captured','Intake requested','Customer submitted','Technical review','Qualified','Case created'];
 
 export default async function AcquisitionRecordPage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|string[]|undefined>>}){
   const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
@@ -28,28 +28,30 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   let submission:any=null;
   if(session?.id){const result=await supabase.from('intake_submissions').select('*').eq('organisation_id',organisationId).eq('intake_session_id',session.id).maybeSingle();submission=result.data;}
   const events=activityResult.data??[];
-  const status=String(prospect.status||'new');
-  const submitted=Boolean(submission||session?.status==='submitted');
-  const qualified=status==='qualified';
-  const converted=status==='converted';
   const convertedCaseId=String(prospect.converted_lead_id||'');
-  const stageIndex=converted?5:qualified?4:submitted?3:session?1:0;
+  const acquisition=resolveAcquisitionState({
+    prospectStatus:prospect.status,
+    hasSession:Boolean(session),
+    sessionStatus:session?.status,
+    hasSubmission:Boolean(submission),
+    convertedCaseId,
+  });
 
-  let currentState='Prospect captured',nextAction='Create technical intake',nextReason='Structured technical evidence is required before this opportunity can be qualified.';
-  if(session&&!submitted){currentState='Awaiting customer technical intake';nextAction='Wait for customer submission';nextReason='The technical intake has been issued and remains with the customer.';}
-  if(submitted&&!qualified&&!converted){currentState='Technical review required';nextAction='Record technical partner review';nextReason='The submitted technical brief now needs an engineering qualification decision.';}
-  if(qualified){currentState='Qualified for Case creation';nextAction='Create governed Case 360';nextReason='Technical qualification is complete and the opportunity may enter the governed Case lifecycle.';}
-  if(converted){currentState='Converted to Case 360';nextAction='Continue in Case 360';nextReason='Acquisition is complete for this prospect.';}
+  const notices=<>{query.created||query.technical_review||query.qualified?<div className="vp-callout"><strong>Acquisition record updated</strong><p>{display(query.created||query.technical_review||query.qualified)}</p></div>:null}{query.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{operatorErrorMessage(String(query.error))}</p></div>:null}</>;
 
-  const notices=<>{query.created||query.technical_review||query.qualified?<div className="vp-callout"><strong>Acquisition record updated</strong><p>{display(query.created||query.technical_review||query.qualified)}</p></div>:null}{query.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{display(query.error)}</p></div>:null}</>;
+  const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/acquisition">← Back to acquisition</Link><p className="vp-kicker">Acquisition record · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p><div className="project-os-meta"><span>Current state · {acquisition.currentState}</span><span>Owner · Internal acquisition</span></div></div><span className="vp-status">{acquisition.currentState}</span></div>;
 
-  const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/acquisition">← Back to acquisition</Link><p className="vp-kicker">Acquisition record · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p><div className="project-os-meta"><span>Current state · {currentState}</span><span>Owner · Internal acquisition</span></div></div><span className="vp-status">{currentState}</span></div>;
+  const stateStrip=<div><div style={{display:'grid',gridTemplateColumns:`repeat(${acquisitionStages.length},minmax(0,1fr))`,gap:8}}>{acquisitionStages.map((label,index)=><div key={label} style={{padding:'10px 12px',borderTop:`2px solid ${index===acquisition.stageIndex?'var(--op-accent)':index<acquisition.stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>acquisition.stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<acquisition.stageIndex?'Complete':index===acquisition.stageIndex?'Current':'Future'}</small><strong>{label}</strong></div>)}</div><p style={{margin:'14px 0 0',color:'var(--op-muted)'}}>{acquisition.nextReason}</p></div>;
 
-  const stateStrip=<div><div style={{display:'grid',gridTemplateColumns:`repeat(${steps.length},minmax(0,1fr))`,gap:8}}>{steps.map((label,index)=><div key={label} style={{padding:'10px 12px',borderTop:`2px solid ${index===stageIndex?'var(--op-accent)':index<stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<stageIndex?'Complete':index===stageIndex?'Current':'Future'}</small><strong>{label}</strong></div>)}</div><p style={{margin:'14px 0 0',color:'var(--op-muted)'}}>{nextReason}</p></div>;
+  const readiness=<div className="vp-facts"><Fact label="Prospect" value={acquisition.readiness.prospect}/><Fact label="Technical intake" value={acquisition.readiness.technicalIntake}/><Fact label="Technical submission" value={acquisition.readiness.technicalSubmission}/><Fact label="Qualification" value={acquisition.readiness.qualification}/></div>;
 
-  const readiness=<div className="vp-facts"><Fact label="Prospect" value="Captured"/><Fact label="Technical intake" value={session?display(session.status).replaceAll('_',' '):'Not created'}/><Fact label="Technical submission" value={submitted?'Submitted':'Outstanding'}/><Fact label="Qualification" value={qualified?'Qualified':converted?'Converted':'Pending'}/></div>;
-
-  const nextActionPanel=<div><h2 style={{marginTop:0}}>{nextAction}</h2><p>{nextReason}</p>{!session&&!converted?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create technical intake</button></form>:null}{submitted&&!qualified&&!converted&&session?<TechnicalPartnerReviewPanel prospectId={id} intakeSessionId={session.id} prospectStatus={status}/>:null}{qualified?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create governed Case 360</button></form>:null}{session&&!submitted?<div className="vp-callout"><strong>Waiting on customer</strong><p>No internal decision is required until the technical intake is submitted.</p></div>:null}{converted?(convertedCaseId?<Link className="button" href={`/workspace/leads/${convertedCaseId}`}>Open Case 360</Link>:<Link className="button secondary" href="/workspace/leads">Open Cases</Link>):null}</div>;
+  const nextActionPanel=<div><h2 style={{marginTop:0}}>{acquisition.nextAction}</h2><p>{acquisition.nextReason}</p>
+    {acquisition.actionKey==='create_intake'?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create technical intake</button></form>:null}
+    {acquisition.actionKey==='review_submission'&&session?<TechnicalPartnerReviewPanel prospectId={id} intakeSessionId={session.id} prospectStatus={String(prospect.status||'new')}/>:null}
+    {acquisition.actionKey==='create_case'?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create governed Case 360</button></form>:null}
+    {acquisition.actionKey==='wait_customer'?<div className="vp-callout"><strong>Waiting on customer</strong><p>No internal decision is required until the technical intake is submitted.</p></div>:null}
+    {acquisition.actionKey==='open_case'?(convertedCaseId?<Link className="button" href={`/workspace/leads/${convertedCaseId}`}>Open Case 360</Link>:<Link className="button secondary" href="/workspace/leads">Open Cases</Link>):null}
+  </div>;
 
   const summary=<div className="vp-facts"><Fact label="Company" value={prospect.company_name}/><Fact label="Contact" value={prospect.contact_name}/><Fact label="Job title" value={prospect.job_title}/><Fact label="Source" value={prospect.source}/><Fact label="Initial requirement" value={prospect.requirement_summary}/><Fact label="Prospect status" value={display(prospect.status).replaceAll('_',' ')}/></div>;
 
