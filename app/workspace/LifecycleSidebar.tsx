@@ -30,7 +30,7 @@ const navigation: Record<LifecycleStageKey, Array<{key:string;label:string;href:
     { key: 'client-quotes', label: 'Client Quotes', href: '/workspace/leads?view=client-quotes' },
   ],
   deliver: [
-    { key: 'projects', label: 'Project 360', href: '/workspace/projects?view=delivery' },
+    { key: 'projects', label: 'Projects', href: '/workspace/projects?view=delivery' },
   ],
   close: [
     { key: 'closeout', label: 'Closeout', href: '/workspace/projects?view=closeout' },
@@ -80,7 +80,6 @@ export default function LifecycleSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const context = useMemo(() => recordContext(pathname, searchParams), [pathname, searchParams]);
-
   const viewingStage = context ? null : stageForRegister(pathname, searchParams.get('view'));
   const [recordStage, setRecordStage] = useState<LifecycleStageKey | null>(null);
   const [expandedStage, setExpandedStage] = useState<LifecycleStageKey>(viewingStage || 'acquire');
@@ -110,7 +109,7 @@ export default function LifecycleSidebar() {
   const evidenceHref=context?(context.type==='case'?`/workspace/documents?lead=${context.id}`:`/workspace/documents?project=${context.id}`):'';
   const lifecycleActive = Boolean(context || viewingStage);
 
-  return <nav aria-label="Business lifecycle" className="lifecycle-nav">
+  return <nav aria-label="Workspace navigation" className="lifecycle-nav">
     <div className="lifecycle-nav__overview">
       <p className="midts-nav-label">Overview</p>
       <Link className={pathname === '/workspace' ? 'active' : ''} href="/workspace">Dashboard</Link>
@@ -126,7 +125,7 @@ export default function LifecycleSidebar() {
         <Link className={pathname===overviewHref?'active':''} href={overviewHref}>Overview</Link>
         <Link className={pathname===communicationsHref?'active':''} href={communicationsHref}>Communications</Link>
         <Link className={isLinkActive(pathname,search,evidenceHref)?'active':''} href={evidenceHref}>Evidence</Link>
-        {context.type==='project'?<Link className={pathname.startsWith('/workspace/commercial-control')&&searchParams.get('project')===context.id?'active':''} href={`/workspace/commercial-control?project=${context.id}`}>Commercial Control</Link>:null}
+        {context.type==='project'?<Link className={pathname.startsWith('/workspace/commercial-control')&&searchParams.get('project')===context.id?'active':''} href={`/workspace/commercial-control?project=${context.id}`}>Project Financial Control</Link>:null}
       </div>
     </section> : null}
 
@@ -141,7 +140,6 @@ export default function LifecycleSidebar() {
             const viewing = Boolean(!context && viewingStage === stageKey);
             const expanded = expandedStage === stageKey;
             const items = navigation[stageKey];
-
             return <section key={stageKey} className={`lifecycle-stage ${current ? 'is-current' : ''} ${completed ? 'is-complete' : ''} ${viewing ? 'is-viewing' : ''} ${expanded ? 'is-expanded' : ''}`}>
               <div className="lifecycle-stage__marker"><span>{completed ? '✓' : stage.number}</span><i /></div>
               <div className="lifecycle-stage__body">
@@ -161,24 +159,27 @@ export default function LifecycleSidebar() {
       <summary><span>Business control</span><small>Cash, intelligence & risk</small><b aria-hidden="true">›</b></summary>
       <div>
         <Link className={pathname.startsWith('/workspace/commercial-control') ? 'active' : ''} href="/workspace/commercial-control">Commercial Control</Link>
-        <Link className={pathname.startsWith('/workspace/intelligence') ? 'active' : ''} href="/workspace/intelligence">Executive Intelligence</Link>
         <Link className={pathname.startsWith('/workspace/risk') ? 'active' : ''} href="/workspace/risk">Risk & Compliance</Link>
+        <Link className={pathname.startsWith('/workspace/intelligence') ? 'active' : ''} href="/workspace/intelligence">Executive Intelligence</Link>
       </div>
     </details>
 
-    <details className="lifecycle-utility" open={pathname.startsWith('/workspace/search')||pathname.startsWith('/workspace/knowledge')}>
-      <summary><span>Knowledge</span><small>Search & operating memory</small><b aria-hidden="true">›</b></summary>
-      <div><Link className={pathname.startsWith('/workspace/search') ? 'active' : ''} href="/workspace/search">Enterprise Search</Link><Link className={pathname.startsWith('/workspace/knowledge') ? 'active' : ''} href="/workspace/knowledge">Knowledge Library</Link></div>
+    <details className="lifecycle-utility" open={pathname.startsWith('/workspace/documents')||pathname.startsWith('/workspace/communications')||pathname.startsWith('/workspace/search')||pathname.startsWith('/workspace/knowledge')}>
+      <summary><span>Knowledge</span><small>Evidence, correspondence & findability</small><b aria-hidden="true">›</b></summary>
+      <div>
+        <Link className={pathname.startsWith('/workspace/documents') ? 'active' : ''} href="/workspace/documents">Documents</Link>
+        <Link className={pathname.startsWith('/workspace/communications') ? 'active' : ''} href="/workspace/communications">Communications</Link>
+        <Link className={pathname.startsWith('/workspace/search') ? 'active' : ''} href="/workspace/search">Search</Link>
+        <Link className={pathname.startsWith('/workspace/knowledge') ? 'active' : ''} href="/workspace/knowledge">Knowledge Library</Link>
+      </div>
     </details>
 
-    <details className="lifecycle-utility">
-      <summary><span>Control</span><small>Evidence & operations</small><b aria-hidden="true">›</b></summary>
-      <div><Link className={pathname.startsWith('/workspace/documents') ? 'active' : ''} href="/workspace/documents">Evidence registry</Link><Link className={pathname === '/workspace/communications' ? 'active' : ''} href="/workspace/communications">Communications</Link><Link className={pathname.startsWith('/workspace/notifications') ? 'active' : ''} href="/workspace/notifications">Notification Centre</Link><Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Partners</Link></div>
-    </details>
-
-    <details className="lifecycle-utility">
-      <summary><span>System</span><small>Workspace configuration</small><b aria-hidden="true">›</b></summary>
-      <div><Link className={pathname.startsWith('/workspace/settings') ? 'active' : ''} href="/workspace/settings">Settings</Link></div>
+    <details className="lifecycle-utility" open={pathname.startsWith('/workspace/partners')||pathname.startsWith('/workspace/settings')}>
+      <summary><span>System</span><small>Partners & workspace configuration</small><b aria-hidden="true">›</b></summary>
+      <div>
+        <Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Partners</Link>
+        <Link className={pathname.startsWith('/workspace/settings') ? 'active' : ''} href="/workspace/settings">Settings</Link>
+      </div>
     </details>
   </nav>;
 }
