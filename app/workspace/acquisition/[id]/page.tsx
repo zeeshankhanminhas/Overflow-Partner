@@ -32,6 +32,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const submitted=Boolean(submission||session?.status==='submitted');
   const qualified=status==='qualified';
   const converted=status==='converted';
+  const convertedCaseId=String(prospect.converted_lead_id||'');
   const stageIndex=converted?5:qualified?4:submitted?3:session?1:0;
 
   let currentState='Prospect captured',nextAction='Create technical intake',nextReason='Structured technical evidence is required before this opportunity can be qualified.';
@@ -48,7 +49,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
 
   const readiness=<div className="vp-facts"><Fact label="Prospect" value="Captured"/><Fact label="Technical intake" value={session?display(session.status).replaceAll('_',' '):'Not created'}/><Fact label="Technical submission" value={submitted?'Submitted':'Outstanding'}/><Fact label="Qualification" value={qualified?'Qualified':converted?'Converted':'Pending'}/></div>;
 
-  const nextActionPanel=<div><h2 style={{marginTop:0}}>{nextAction}</h2><p>{nextReason}</p>{!session&&!converted?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create technical intake</button></form>:null}{submitted&&!qualified&&!converted&&session?<TechnicalPartnerReviewPanel prospectId={id} intakeSessionId={session.id} prospectStatus={status}/>:null}{qualified?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create governed Case 360</button></form>:null}{session&&!submitted?<div className="vp-callout"><strong>Waiting on customer</strong><p>No internal decision is required until the technical intake is submitted.</p></div>:null}{converted?<Link className="button" href="/workspace/leads">Open converted Case</Link>:null}</div>;
+  const nextActionPanel=<div><h2 style={{marginTop:0}}>{nextAction}</h2><p>{nextReason}</p>{!session&&!converted?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create technical intake</button></form>:null}{submitted&&!qualified&&!converted&&session?<TechnicalPartnerReviewPanel prospectId={id} intakeSessionId={session.id} prospectStatus={status}/>:null}{qualified?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create governed Case 360</button></form>:null}{session&&!submitted?<div className="vp-callout"><strong>Waiting on customer</strong><p>No internal decision is required until the technical intake is submitted.</p></div>:null}{converted?(convertedCaseId?<Link className="button" href={`/workspace/leads/${convertedCaseId}`}>Open Case 360</Link>:<Link className="button secondary" href="/workspace/leads">Open Cases</Link>):null}</div>;
 
   const summary=<div className="vp-facts"><Fact label="Company" value={prospect.company_name}/><Fact label="Contact" value={prospect.contact_name}/><Fact label="Job title" value={prospect.job_title}/><Fact label="Source" value={prospect.source}/><Fact label="Initial requirement" value={prospect.requirement_summary}/><Fact label="Prospect status" value={display(prospect.status).replaceAll('_',' ')}/></div>;
 
