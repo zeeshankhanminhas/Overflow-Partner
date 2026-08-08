@@ -47,7 +47,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
         {prospects.length===0 ? <div className="vp-empty">No prospects have been captured yet.</div> : prospects.map((prospect:any) => {
           const session=sessionByProspect.get(prospect.id);
           const status=String(prospect.status||'new').replaceAll('_',' ');
-          const state=prospect.status==='qualified'?'Ready to create Case 360':prospect.status==='converted'?'Converted':session?.status==='submitted'?'Technical review required':session?`Intake ${String(session.status).replaceAll('_',' ')}`:'Step 2 intake required';
+          const state=prospect.status==='qualified'?'Ready to create Case 360':prospect.status==='converted'?'Converted':session?.status==='submitted'?'Technical review required':session?`Intake ${String(session.status).replaceAll('_',' ')}`:'Technical intake required';
           return <article className="acquisition-record" key={prospect.id} style={{padding:'18px 20px',borderTop:'1px solid var(--op-line)'}}>
             <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:18,alignItems:'start'}}><div><h3 style={{margin:0}}>{prospect.company_name}</h3><p style={{margin:'5px 0 0',color:'var(--op-muted)'}}>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'} · {prospect.source}</p></div><span className="vp-row-status">{status}</span></div>
             <div className="vp-facts" style={{marginTop:14}}><Fact label="Current acquisition state" value={state}/><Fact label="Initial requirement" value={prospect.requirement_summary}/><Fact label="Next movement" value={prospect.next_action}/><Fact label="Intake submitted" value={dateTime(session?.submitted_at)}/></div>
