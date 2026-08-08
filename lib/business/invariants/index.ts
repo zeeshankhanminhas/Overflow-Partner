@@ -45,14 +45,14 @@ export async function assertCanQualifyProspect(supabase: SupabaseClient, organis
   const [{ data: prospect, error: prospectError }, { data: session, error: sessionError }, { data: review, error: reviewError }] = await Promise.all([
     supabase.from('prospects').select('id,status,company_name,project_type,requirement_summary').eq('organisation_id', organisationId).eq('id', prospectId).single(),
     supabase.from('intake_sessions').select('id,status').eq('organisation_id', organisationId).eq('prospect_id', prospectId).eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('prospect_technical_reviews').select('id,status,decision').eq('organisation_id', organisationId).eq('prospect_id', prospectId).eq('status', 'approved').in('decision', ['feasible','feasible_with_clarification']).order('approved_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('prospect_technical_reviews').select('id,status,decision,partner_id,confidence_percent,pricing_ready').eq('organisation_id', organisationId).eq('prospect_id', prospectId).eq('status', 'approved').in('decision', ['feasible','feasible_with_clarification']).order('approved_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (prospectError) throw new Error(prospectError.message);
   if (sessionError) throw new Error(sessionError.message);
   if (reviewError) throw new Error(reviewError.message);
   ensure(Boolean(prospect.company_name?.trim() && prospect.project_type?.trim() && prospect.requirement_summary?.trim()), 'Company, project type and requirement summary are required before qualification.');
-  ensure(Boolean(session), 'A submitted Technical Intake is required before qualification.');
-  ensure(Boolean(review), 'An approved feasible technical review is required before qualification.');
+  ensure(session, 'A submitted Technical Intake is required before qualification.');
+  ensure(review, 'An approved feasible technical review is required before qualification.');
   return { prospect, session, review };
 }
 
@@ -108,8 +108,8 @@ export async function assertCanIssueQuote(supabase: SupabaseClient, organisation
   ensure(['draft','internal_review'].includes(String(quote.status)), 'Only a draft or internally reviewed quote can be issued.');
   const { data: document, error: documentError } = await supabase.from('documents').select('id,status').eq('organisation_id', organisationId).eq('lead_id', quote.lead_id).eq('quote_id', quote.id).in('document_type', ['client-quote','quote']).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (documentError) throw new Error(documentError.message);
-  ensure(Boolean(document), 'A controlled client quotation document is required before commercial issue.');
-  ensure(['approved','issued','published'].includes(String(document?.status)), 'The controlled client quotation must be approved before commercial issue.');
+  ensure(document, 'A controlled client quotation document is required before commercial issue.');
+  ensure(['approved','issued','published'].includes(String(document.status)), 'The controlled client quotation must be approved before commercial issue.');
   return quote;
 }
 
@@ -238,7 +238,7 @@ export async function assertCanApprovePayable(supabase: SupabaseClient, organisa
   const { data: payable, error } = await supabase.from('partner_payables').select('id,project_id,status,evidence_confirmed').eq('organisation_id', organisationId).eq('id', payableId).single();
   if (error || !payable) throw new Error(error?.message || 'Partner payable not found.');
   ensure(['received','matched'].includes(payable.status), 'This payable is not in an approvable state.');
-  ensure(Boolean(payable.evidence_confirmed), 'Delivery evidence must be confirmed before approval.');
+  ensure(payable.evidence_confirmed, 'Delivery evidence must be confirmed before approval.');
   await assertCanCreatePayable(supabase, organisationId, payable.project_id);
   return payable;
 }
