@@ -45,3 +45,7 @@ export function toOperatorError(error: unknown): OperatorError {
     message: raw || 'The requested action could not be completed. Refresh the record and try again.',
   };
 }
+
+export function operatorErrorMessage(error: unknown) {
+  return toOperatorError(error).message;
+}
