@@ -47,6 +47,8 @@ declare
   targets text[] := array[
     -- Acquisition / case lifecycle
     'prospect_technical_reviews',
+    'intake_files',
+    'intake_submissions',
     'intake_sessions',
     'prospects',
     'technical_intakes',
@@ -153,7 +155,7 @@ begin
       and child_ns.nspname = 'public'
     order by child_schema, child_table, fk_name
   loop
-    raise notice 'External FK dependency: %.% (% ) references transactional table %',
+    raise notice 'External FK dependency: %.% (%) references transactional table %',
       dep.child_schema, dep.child_table, dep.fk_name, dep.target_table;
   end loop;
 end $$;
