@@ -10,7 +10,7 @@ export async function requireUserContext() {
 
   const { data, error: profileError } = await supabase
     .from('profiles')
-    .select('id, organisation_id, full_name, first_name, last_name, email, role, is_active, developer_delete_enabled')
+    .select('id, organisation_id, full_name, first_name, last_name, email, role, is_active')
     .eq('id', user.id)
     .single();
 
@@ -25,10 +25,4 @@ export async function requireUserContext() {
 
 export function assertRole(role: AppRole, allowed: AppRole[]) {
   if (!allowed.includes(role)) throw new Error('You do not have permission to perform this action.');
-}
-
-export function assertDeveloperDelete(profile: Profile) {
-  if (!profile.developer_delete_enabled) {
-    throw new Error('Developer delete capability is not enabled for this account.');
-  }
 }
