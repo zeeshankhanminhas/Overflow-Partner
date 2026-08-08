@@ -9,10 +9,12 @@
 -- 3. Does NOT use CASCADE.
 -- 4. Missing optional tables are skipped.
 -- 5. Any unexpected dependency from a preserved table aborts the transaction.
--- 6. Any FK cycle inside the reset set aborts the transaction.
--- 7. Temporarily disables USER/business triggers only while deleting test data.
+-- 6. Nullable FK cycles between reset-target tables are broken only by setting
+--    those temporary lineage/reference columns to NULL inside this transaction.
+-- 7. Non-nullable FK cycles still abort the reset.
+-- 8. Temporarily disables USER/business triggers only while deleting test data.
 --    PostgreSQL internal FK constraint triggers remain enabled.
--- 8. USER/business triggers are re-enabled before commit.
+-- 9. USER/business triggers are re-enabled before commit.
 --
 -- Run this entire file in the Supabase SQL Editor.
 
@@ -139,12 +141,16 @@ end $$;
 
 -- Dependency-aware deletion.
 -- A table is safe to delete when no remaining reset-target table has a foreign key
--- pointing to it. This naturally deletes child records before their parents.
+-- pointing to it. If a true cycle remains, we may break one nullable FK edge by
+-- setting its child column(s) to NULL. This is safe here because both tables are
+-- transactional reset targets and all affected rows are about to be deleted.
 do $$
 declare
   candidate record;
   remaining_count integer;
   blocker record;
+  breakable_fk record;
+  set_clause text;
 begin
   loop
     select count(*) into remaining_count
@@ -152,6 +158,8 @@ begin
     where deleted = false;
 
     exit when remaining_count = 0;
+
+    candidate := null;
 
     select t.table_name, t.relid
       into candidate
@@ -170,24 +178,97 @@ begin
     order by t.table_name
     limit 1;
 
-    if candidate.table_name is null then
-      raise notice 'Unable to determine a safe delete order. Remaining target tables:';
+    if candidate.table_name is not null then
+      raise notice 'Deleting test data from public.%', candidate.table_name;
+
+      -- Deliberately no CASCADE. Internal FK triggers remain enabled.
+      execute format('delete from public.%I', candidate.table_name);
+
+      update _op_reset_targets
+      set deleted = true
+      where table_name = candidate.table_name;
+
+      continue;
+    end if;
+
+    -- No deletable node means the remaining target graph contains a cycle.
+    -- Find one FK edge whose CHILD columns are all nullable, clear it, and retry.
+    breakable_fk := null;
+    set_clause := null;
+
+    select
+      fk.oid as fk_oid,
+      fk.conname as fk_name,
+      child.table_name as child_table,
+      parent.table_name as parent_table,
+      string_agg(format('%I = null', a.attname), ', ' order by k.ord) as set_clause
+    into breakable_fk
+    from pg_constraint fk
+    join _op_reset_targets child
+      on child.relid = fk.conrelid
+     and child.deleted = false
+    join _op_reset_targets parent
+      on parent.relid = fk.confrelid
+     and parent.deleted = false
+    join lateral unnest(fk.conkey) with ordinality as k(attnum, ord)
+      on true
+    join pg_attribute a
+      on a.attrelid = fk.conrelid
+     and a.attnum = k.attnum
+    where fk.contype = 'f'
+      and fk.conrelid <> fk.confrelid
+    group by fk.oid, fk.conname, child.table_name, parent.table_name
+    having bool_and(a.attnotnull = false)
+    order by child.table_name, parent.table_name, fk.conname
+    limit 1;
+
+    if breakable_fk.fk_oid is null then
+      raise notice 'Unable to break the remaining FK cycle safely. Remaining target tables:';
       for blocker in
         select table_name from _op_reset_targets where deleted = false order by table_name
       loop
         raise notice '  %', blocker.table_name;
       end loop;
-      raise exception 'Reset stopped because the targeted tables contain a foreign-key cycle. No data was committed.';
+
+      raise notice 'Remaining target-to-target foreign keys:';
+      for blocker in
+        select
+          child.table_name as child_table,
+          fk.conname as fk_name,
+          parent.table_name as parent_table
+        from pg_constraint fk
+        join _op_reset_targets child
+          on child.relid = fk.conrelid
+         and child.deleted = false
+        join _op_reset_targets parent
+          on parent.relid = fk.confrelid
+         and parent.deleted = false
+        where fk.contype = 'f'
+          and fk.conrelid <> fk.confrelid
+        order by child.table_name, parent.table_name, fk.conname
+      loop
+        raise notice '  %.% -> %', blocker.child_table, blocker.fk_name, blocker.parent_table;
+      end loop;
+
+      raise exception 'Reset stopped because the remaining foreign-key cycle contains no safely nullable edge. No data was committed.';
     end if;
 
-    raise notice 'Deleting test data from public.%', candidate.table_name;
+    set_clause := breakable_fk.set_clause;
 
-    -- Deliberately no CASCADE. Internal FK triggers remain enabled.
-    execute format('delete from public.%I', candidate.table_name);
+    raise notice 'Breaking temporary nullable lineage FK %: %. -> %',
+      breakable_fk.fk_name,
+      breakable_fk.child_table,
+      breakable_fk.parent_table;
 
-    update _op_reset_targets
-    set deleted = true
-    where table_name = candidate.table_name;
+    execute format(
+      'update public.%I set %s where %s',
+      breakable_fk.child_table,
+      set_clause,
+      replace(set_clause, ' = null', ' is not null')
+    );
+
+    -- Retry dependency resolution after removing this nullable edge from the data.
+    -- The FK constraint itself remains installed and active throughout.
   end loop;
 end $$;
 
