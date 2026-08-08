@@ -13,7 +13,11 @@ function SettingCard({title,description,href,meta}:{title:string;description:str
 
 export default async function WorkspaceSettingsPage(){
   const { supabase, organisationId, profile } = await requireUserContext();
-  const {data:organisation}=await supabase.from('organisations').select('name').eq('id',organisationId).maybeSingle();
+  const [{data:organisation},{data:developerDelete}]=await Promise.all([
+    supabase.from('organisations').select('name').eq('id',organisationId).maybeSingle(),
+    supabase.rpc('op_can_delete_test_data'),
+  ]);
+  const canDeleteTestData=developerDelete===true;
 
   return <section className="vp-page">
     <header className="vp-header">
@@ -41,6 +45,7 @@ export default async function WorkspaceSettingsPage(){
         <SettingCard title="Partners" meta="Execution network" description="Manage approved execution partners and the controlled partner operating surface." href="/workspace/partners" />
         <SettingCard title="Evidence Registry" meta="Document control" description="Review organisation-wide governed documents and evidence records." href="/workspace/documents" />
         <SettingCard title="Risk & Compliance" meta="Governance" description="Manage business, project and partner risk or compliance exceptions." href="/workspace/risk" />
+        {canDeleteTestData?<SettingCard title="Test Data Cleanup" meta="Developer only" description="Permanently remove selected test records. This capability is tied to your individual profile and is not inherited by admins or owners." href="/workspace/settings/developer-data" />:null}
       </div>
     </section>
 
