@@ -10,6 +10,9 @@
 -- 4. Missing optional tables are skipped.
 -- 5. Any unexpected dependency from a preserved table aborts the transaction.
 -- 6. Any FK cycle inside the reset set aborts the transaction.
+-- 7. Temporarily disables USER/business triggers only while deleting test data.
+--    PostgreSQL internal FK constraint triggers remain enabled.
+-- 8. USER/business triggers are re-enabled before commit.
 --
 -- Run this entire file in the Supabase SQL Editor.
 
@@ -121,6 +124,19 @@ begin
   end loop;
 end $$;
 
+-- Suspend application/business triggers during teardown.
+-- DISABLE TRIGGER USER leaves PostgreSQL's internal FK constraint triggers active,
+-- so referential integrity is still enforced and unexpected dependencies still abort.
+do $$
+declare
+  r record;
+begin
+  for r in select table_name from _op_reset_targets order by table_name loop
+    raise notice 'Temporarily disabling USER triggers on public.%', r.table_name;
+    execute format('alter table public.%I disable trigger user', r.table_name);
+  end loop;
+end $$;
+
 -- Dependency-aware deletion.
 -- A table is safe to delete when no remaining reset-target table has a foreign key
 -- pointing to it. This naturally deletes child records before their parents.
@@ -166,13 +182,23 @@ begin
 
     raise notice 'Deleting test data from public.%', candidate.table_name;
 
-    -- Deliberately no CASCADE. If a preserved/non-target table references this
-    -- transactional table, PostgreSQL raises 23503 and this transaction rolls back.
+    -- Deliberately no CASCADE. Internal FK triggers remain enabled.
     execute format('delete from public.%I', candidate.table_name);
 
     update _op_reset_targets
     set deleted = true
     where table_name = candidate.table_name;
+  end loop;
+end $$;
+
+-- Re-enable all application/business triggers BEFORE verification/commit.
+do $$
+declare
+  r record;
+begin
+  for r in select table_name from _op_reset_targets order by table_name loop
+    raise notice 'Re-enabling USER triggers on public.%', r.table_name;
+    execute format('alter table public.%I enable trigger user', r.table_name);
   end loop;
 end $$;
 
