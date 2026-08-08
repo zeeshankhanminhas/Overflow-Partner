@@ -52,6 +52,7 @@ begin
     raise exception 'Developer delete capability is not enabled for this account.' using errcode = '42501';
   end if;
 
+  -- Keep this whitelist intentionally small. New destructive entity types must be reviewed explicitly.
   v_table := case lower(trim(p_entity_type))
     when 'prospect' then 'prospects'
     when 'case' then 'leads'
@@ -59,9 +60,6 @@ begin
     when 'document' then 'documents'
     when 'invoice' then 'invoices'
     when 'partner_payable' then 'partner_payables'
-    when 'risk' then 'risk_register'
-    when 'compliance' then 'compliance_register'
-    when 'knowledge' then 'knowledge_entries'
     else null
   end;
 
@@ -98,7 +96,7 @@ grant execute on function public.op_delete_test_record(text, uuid) to authentica
 -- set developer_delete_enabled = true
 -- where id = '00000000-0000-0000-0000-000000000000';
 --
--- Optional safety check after granting:
+-- Safety check after granting: exactly one row should be returned.
 -- select id, full_name, email, role, developer_delete_enabled
 -- from public.profiles
 -- where developer_delete_enabled = true;
