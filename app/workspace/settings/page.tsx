@@ -3,12 +3,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { Badge } from '@/components/ui/badge';
 
 function SettingCard({title,description,href,meta}:{title:string;description:string;href:string;meta:string}){
-  return <Link href={href} className="vp-object" style={{display:'grid',gap:8,textDecoration:'none'}}>
-    <div><Badge variant="outline">{meta}</Badge></div>
-    <h2 style={{margin:0,fontSize:'1.05rem'}}>{title}</h2>
-    <p style={{margin:0,color:'var(--op-muted)',lineHeight:1.6}}>{description}</p>
-    <span style={{marginTop:8}}>Open →</span>
-  </Link>;
+  return <Link href={href} className="vp-object" style={{display:'grid',gap:8,textDecoration:'none'}}><div><Badge variant="outline">{meta}</Badge></div><h2 style={{margin:0,fontSize:'1.05rem'}}>{title}</h2><p style={{margin:0,color:'var(--op-muted)',lineHeight:1.6}}>{description}</p><span style={{marginTop:8}}>Open →</span></Link>;
 }
 
 export default async function WorkspaceSettingsPage(){
@@ -20,38 +15,18 @@ export default async function WorkspaceSettingsPage(){
   const canDeleteTestData=developerDelete===true;
 
   return <section className="vp-page">
-    <header className="vp-header">
-      <div>
-        <p className="vp-kicker">System · Workspace configuration</p>
-        <h1>Settings</h1>
-        <p className="vp-subtitle">Manage the operating preferences and control surfaces that support this workspace. Business workflow and lifecycle rules remain governed elsewhere.</p>
-      </div>
-    </header>
+    <header className="vp-header"><div><p className="vp-kicker">Settings</p><h1>Workspace settings</h1><p className="vp-subtitle">Manage your workspace, notifications, partner directory and supporting business settings.</p></div></header>
 
-    <section className="vp-object vp-object--hero">
-      <p className="vp-label">Workspace identity</p>
-      <div className="vp-facts" style={{marginTop:0}}>
-        <div className="vp-fact"><small>Organisation</small><strong>{organisation?.name||'Organisation'}</strong></div>
-        <div className="vp-fact"><small>User</small><strong>{profile.full_name||'Workspace user'}</strong></div>
-        <div className="vp-fact"><small>Role</small><strong>{profile.role||'Not recorded'}</strong></div>
-        <div className="vp-fact"><small>Account state</small><strong><Badge variant={profile.is_active===false?'destructive':'secondary'}>{profile.is_active===false?'Inactive':'Active'}</Badge></strong></div>
-      </div>
-    </section>
+    <section className="vp-object vp-object--hero"><p className="vp-label">Your workspace</p><div className="vp-facts" style={{marginTop:0}}><div className="vp-fact"><small>Organisation</small><strong>{organisation?.name||'Organisation'}</strong></div><div className="vp-fact"><small>User</small><strong>{profile.full_name||'Workspace user'}</strong></div><div className="vp-fact"><small>Role</small><strong>{profile.role||'Not recorded'}</strong></div><div className="vp-fact"><small>Account</small><strong><Badge variant={profile.is_active===false?'destructive':'secondary'}>{profile.is_active===false?'Inactive':'Active'}</Badge></strong></div></div></section>
 
-    <section>
-      <div className="vp-section-title"><div><p className="vp-label">Configuration areas</p><h2>System controls</h2></div></div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:14}}>
-        <SettingCard title="Notification Centre" meta="Communications" description="Review delivery status, retries and scheduled operational notifications." href="/workspace/notifications" />
-        <SettingCard title="Partners" meta="Execution network" description="Manage approved execution partners and the controlled partner operating surface." href="/workspace/partners" />
-        <SettingCard title="Evidence Registry" meta="Document control" description="Review organisation-wide governed documents and evidence records." href="/workspace/documents" />
-        <SettingCard title="Risk & Compliance" meta="Governance" description="Manage business, project and partner risk or compliance exceptions." href="/workspace/risk" />
-        {canDeleteTestData?<SettingCard title="Test Data Cleanup" meta="Developer only" description="Permanently remove selected test records. This capability is tied to your individual profile and is not inherited by admins or owners." href="/workspace/settings/developer-data" />:null}
-      </div>
-    </section>
+    <section><div className="vp-section-title"><div><p className="vp-label">Settings</p><h2>Manage your workspace</h2></div></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:14}}>
+      <SettingCard title="Notification Centre" meta="Messages" description="Review sent, scheduled and failed workspace messages." href="/workspace/notifications" />
+      <SettingCard title="Partners" meta="Partner network" description="Manage execution partners, readiness and NDA status." href="/workspace/partners" />
+      <SettingCard title="Documents" meta="Documents" description="Browse documents and evidence across the workspace." href="/workspace/documents" />
+      <SettingCard title="Risk & Compliance" meta="Risk" description="Review business risks and compliance requirements." href="/workspace/risk" />
+      {canDeleteTestData?<SettingCard title="Test Data Cleanup" meta="Developer only" description="Permanently remove selected test records from this workspace." href="/workspace/settings/developer-data" />:null}
+    </div></section>
 
-    <section className="vp-callout">
-      <strong>Configuration boundary</strong>
-      <p>Workflow stages, approvals, commercial gates and document transitions are controlled by their respective business modules and are intentionally not editable from Settings.</p>
-    </section>
+    <section className="vp-callout"><strong>Business rules stay protected</strong><p>Workflow stages, approvals, pricing gates and document status rules are managed within the relevant work areas, not from Settings.</p></section>
   </section>;
 }
