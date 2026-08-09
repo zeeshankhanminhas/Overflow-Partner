@@ -1,5 +1,6 @@
 .continuity-highlight{scroll-margin-top:96px;scroll-margin-bottom:104px;animation:continuity-pulse 2.2s ease-out}
-[data-continuity-notice],.vp-callout,.project-os-notice,[id^="invoice-"],[id^="payable-"]{scroll-margin-top:96px;scroll-margin-bottom:104px}
+[data-continuity-notice],.vp-callout,.project-os-notice,[id^="invoice-"],[id^="payable-"],.vp-disclosure,.record-workspace__disclosure,form input,form select,form textarea{scroll-margin-top:96px;scroll-margin-bottom:104px}
+.continuity-submitting{opacity:.92}.continuity-submitting button[aria-busy="true"]{cursor:wait;opacity:.72}.continuity-submitting button[aria-busy="true"]::after{content:'…';margin-left:.15em}
 @keyframes continuity-pulse{0%{outline:2px solid var(--op-accent);outline-offset:4px}55%{outline:2px solid color-mix(in srgb,var(--op-accent) 45%,transparent);outline-offset:6px}100%{outline:2px solid transparent;outline-offset:8px}}
-@media (prefers-reduced-motion:reduce){.continuity-highlight{animation:none;outline:2px solid var(--op-accent);outline-offset:4px}}
-@media (max-width:767px){.continuity-highlight,[data-continuity-notice],.vp-callout,.project-os-notice,[id^="invoice-"],[id^="payable-"]{scroll-margin-top:88px;scroll-margin-bottom:132px}}
+@media (prefers-reduced-motion:reduce){.continuity-highlight{animation:none;outline:2px solid var(--op-accent);outline-offset:4px}.vp-disclosure,.record-workspace__disclosure{scroll-behavior:auto}}
+@media (max-width:767px){.continuity-highlight,[data-continuity-notice],.vp-callout,.project-os-notice,[id^="invoice-"],[id^="payable-"],.vp-disclosure,.record-workspace__disclosure,form input,form select,form textarea{scroll-margin-top:88px;scroll-margin-bottom:150px}}
