@@ -61,7 +61,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <Link href="/workspace/acquisition/prospects">Acquisition</Link>
       <Link href="/workspace/leads">Cases</Link>
       <Link href="/workspace/projects">Projects</Link>
-      <Link href="/workspace/search">Search</Link>
+      <Link href="/workspace/payments">Payments</Link>
     </nav>
   </div>;
 }
