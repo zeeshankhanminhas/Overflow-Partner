@@ -24,6 +24,13 @@ function reveal(target: HTMLElement | null, focus = true) {
   window.setTimeout(() => target.classList.remove('continuity-highlight'), 2600);
 }
 
+function contextualOwner(pathname: string) {
+  if (pathname.startsWith('/workspace/leads/')) return { label: 'Back to Case 360', kind: 'case' as const };
+  if (pathname.startsWith('/workspace/projects/')) return { label: 'Back to Project 360', kind: 'project' as const };
+  if (pathname.startsWith('/workspace/commercial-control')) return { label: 'Back to Commercial Control', kind: 'commercial' as const };
+  return null;
+}
+
 export default function MobileDocumentReviewShell({ children, mobileReview, title, status, documentRecordId }: {
   children: ReactNode;
   mobileReview: ReactNode;
@@ -43,17 +50,40 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
   const [isPending, setIsPending] = useState(false);
   const [backHref, setBackHref] = useState('/workspace/documents');
   const [backLabel, setBackLabel] = useState('Back to documents');
+  const [ownerKind, setOwnerKind] = useState<'case' | 'project' | 'commercial' | 'documents'>('documents');
 
   useEffect(() => {
+    const storageKey = documentRecordId ? `op:document-return:${documentRecordId}` : null;
     try {
-      if (!document.referrer) return;
-      const source = new URL(document.referrer);
-      if (source.origin !== window.location.origin) return;
-      if (source.pathname.startsWith('/workspace/leads/')) { setBackHref(`${source.pathname}${source.search}`); setBackLabel('Back to Case 360'); }
-      else if (source.pathname.startsWith('/workspace/projects/')) { setBackHref(`${source.pathname}${source.search}`); setBackLabel('Back to Project 360'); }
-      else if (source.pathname.startsWith('/workspace/commercial-control')) { setBackHref(`${source.pathname}${source.search}`); setBackLabel('Back to Commercial Control'); }
+      if (document.referrer) {
+        const source = new URL(document.referrer);
+        if (source.origin === window.location.origin) {
+          const owner = contextualOwner(source.pathname);
+          if (owner) {
+            const href = `${source.pathname}${source.search}`;
+            setBackHref(href);
+            setBackLabel(owner.label);
+            setOwnerKind(owner.kind);
+            if (storageKey) window.sessionStorage.setItem(storageKey, href);
+            return;
+          }
+        }
+      }
+
+      if (storageKey) {
+        const storedHref = window.sessionStorage.getItem(storageKey);
+        if (storedHref) {
+          const stored = new URL(storedHref, window.location.origin);
+          const owner = contextualOwner(stored.pathname);
+          if (owner) {
+            setBackHref(`${stored.pathname}${stored.search}`);
+            setBackLabel(owner.label);
+            setOwnerKind(owner.kind);
+          }
+        }
+      }
     } catch { /* fall back to document registry */ }
-  }, []);
+  }, [documentRecordId]);
 
   const normalizedStatus = currentStatus.toLowerCase();
   const hasRecord = Boolean(documentRecordId);
@@ -91,7 +121,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     window.setTimeout(() => observer.disconnect(), 5000);
   }
 
-  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>, onSuccess?: () => void) {
+  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>, onSuccess?: (status: string) => void) {
     setDecision(label);
     setIsPending(true);
     try {
@@ -101,7 +131,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
         setCurrentStatus(result.status);
         setActionMode(null);
         router.refresh();
-        onSuccess?.();
+        onSuccess?.(result.status);
       } else {
         scrollToId('document-review-feedback');
       }
@@ -113,13 +143,21 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     }
   }
 
+  function returnToOperationalOwner() {
+    if (ownerKind === 'case' || ownerKind === 'project' || ownerKind === 'commercial') {
+      router.push(backHref);
+      return true;
+    }
+    return false;
+  }
+
   async function submitSignature() {
     setDecision('');
     if (!requireRecord() || !documentRecordId) return;
     if (!signerName.trim()) { setDecision('Enter the signer name before applying the electronic signature.'); scrollToId('document-signer-name'); return; }
     if (!signerRole.trim()) { setDecision('Enter the signer role before applying the electronic signature.'); scrollToId('document-signer-role'); return; }
     if (!declarationAccepted) { setDecision('Accept the electronic-signature declaration before continuing.'); scrollToId('document-signature-declaration'); return; }
-    await runAction('Applying electronic signature…', () => signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted), scrollToSignatureEvidence);
+    await runAction('Applying electronic signature…', () => signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted), () => scrollToSignatureEvidence());
   }
 
   async function submitChangeRequest() {
@@ -132,12 +170,16 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   async function approveDocument() {
     if (!requireRecord() || !documentRecordId) return;
-    await runAction('Approving controlled document…', () => approveControlledDocumentAction(documentRecordId), () => scrollToId('document-review-status', 120));
+    await runAction('Approving controlled document…', () => approveControlledDocumentAction(documentRecordId), () => {
+      if (!returnToOperationalOwner()) scrollToId('document-review-status', 120);
+    });
   }
 
   async function issueDocument() {
     if (!requireRecord() || !documentRecordId) return;
-    await runAction('Issuing controlled document…', () => issueControlledDocumentAction(documentRecordId), () => scrollToId('document-review-status', 120));
+    await runAction('Issuing controlled document…', () => issueControlledDocumentAction(documentRecordId), () => {
+      if (!returnToOperationalOwner()) scrollToId('document-review-status', 120);
+    });
   }
 
   return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
