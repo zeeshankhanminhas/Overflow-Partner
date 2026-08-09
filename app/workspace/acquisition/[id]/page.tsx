@@ -8,6 +8,7 @@ import Step2TestLink from '@/components/workspace/Step2TestLink';
 import { acquisitionStages, resolveAcquisitionState } from '@/lib/acquisition/state';
 import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { convertProspectFormAction, createStep2InvitationFormAction } from '../actions';
+import { generateStep2TestLinkFormAction } from '../test-link-actions';
 
 function dateTime(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not yet';
@@ -57,7 +58,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     {acquisition.actionKey==='create_intake'?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create technical intake</button></form>:null}
     {acquisition.actionKey==='review_submission'&&session?<TechnicalPartnerReviewPanel prospectId={id} intakeSessionId={session.id} prospectStatus={String(prospect.status||'new')}/>:null}
     {acquisition.actionKey==='create_case'?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create governed Case 360</button></form>:null}
-    {acquisition.actionKey==='wait_customer'?<div className="vp-callout"><strong>Waiting on customer</strong><p>No internal decision is required until the technical intake is submitted.</p></div>:null}
+    {acquisition.actionKey==='wait_customer'?<div className="vp-callout"><strong>Waiting on customer</strong><p>No internal decision is required until the technical intake is submitted.</p>{canUseDeveloperLink?<form action={generateStep2TestLinkFormAction} style={{marginTop:12}}><input type="hidden" name="prospect_id" value={id}/><button className="button secondary">Generate customer Step 2 test link</button></form>:null}</div>:null}
     {acquisition.actionKey==='open_case'?(convertedCaseId?<Link className="button" href={`/workspace/leads/${convertedCaseId}`}>Open Case 360</Link>:<Link className="button secondary" href="/workspace/leads">Open Cases</Link>):null}
   </div>;
 
