@@ -6,7 +6,7 @@ import { acceptQuoteAction, approveCommercialAction, approveIntakeAction, create
 import { createPartnerReviewRequestAction, decidePartnerReviewAction } from './actions';
 import { eventLabel, partnerReviewNextAction, workspaceLabel } from '@/lib/presentation/vocabulary';
 import { getCaseDocumentRequirements } from '@/lib/cases/documentRequirements';
-import { resolveActionState, resolveEvidenceState } from '@/lib/workspace/state';
+import { documentSatisfiesRequirement, resolveActionState, resolveEvidenceState } from '@/lib/workspace/state';
 import { toOperatorError } from '@/lib/workspace/operatorErrors';
 import RecordWorkspace from '@/components/workspace/RecordWorkspace';
 import GovernedAction from '@/components/workspace/GovernedAction';
@@ -39,7 +39,7 @@ export default async function Case360Page({params,searchParams}:{params:Promise<
   const technicalApproved=workflow.technicalIntake?.status==='approved';
   const partnerApproved=['approved','approved_with_conditions'].includes(review?.status);
   const quote=workflow.clientQuote;
-  const quoteDocument=documents.find((document:any)=>['client-quote','quote'].includes(document.document_type)&&(!quote?.id||document.quote_id===quote.id));
+  const quoteDocument=documents.find((document:any)=>['client-quote','quote'].includes(document.document_type)&&document.status!=='superseded'&&(!quote?.id||document.quote_id===quote.id));
   const quoteDocumentStatus=String(quoteDocument?.status||'not generated');
 
   let currentStatus='New enquiry',nextAction='Create technical scope',reason='The case needs a governed technical definition.',actionKey='create_scope',blocker:string|null=null;
@@ -50,10 +50,10 @@ export default async function Case360Page({params,searchParams}:{params:Promise<
   if(review?.status==='clarification_required'){currentStatus='Clarification required';nextAction='Await revised response';reason='The clarification request is with the partner.';blocker='Waiting on revised partner evidence.';actionKey='wait_partner'}
   if(partnerApproved&&workflow.partnerQuote&&!workflow.commercialReview){currentStatus='Ready for commercial decision';nextAction='Set margin';reason='The approved partner cost is ready for a selling-price decision.';actionKey='create_commercial'}
   if(workflow.commercialReview&&!quote){currentStatus='Quote ready to generate';nextAction='Generate client quote';reason='The approved commercial position can now become a controlled quote.';actionKey='generate_quote'}
-  if(quote&&['draft','internal_review'].includes(quote.status)){currentStatus='Draft quote ready';nextAction=quoteDocumentStatus==='approved'?'Issue client quote':'Complete controlled quotation';reason=quoteDocumentStatus==='approved'?'The controlled quotation is approved and may now be commercially issued.':`Commercial issue is blocked until the controlled client quotation is approved. Current document state: ${quoteDocumentStatus}.`;actionKey='issue_quote';blocker=quoteDocumentStatus==='approved'?null:'Controlled quotation approval required.'}
-  if(quote?.status==='issued'&&!workflow.project){currentStatus='Awaiting client decision';nextAction='Record client outcome';reason='The issued quote is awaiting acceptance, rejection or revision.';actionKey='accept_quote'}
-  if(quote&&['rejected','expired','withdrawn'].includes(quote.status)&&!workflow.project){currentStatus=`Quote ${quote.status}`;nextAction='Open quote revision';reason='The concluded quotation may be revised through a new controlled publication.';actionKey='revise_quote'}
-  if(workflow.project){currentStatus=workflow.project.status==='active'?'Active project':'Project ready';nextAction='Open active project';reason='The accepted case has entered controlled delivery.';actionKey='open_project'}
+  if(quote&&['draft','internal_review'].includes(quote.status)){const quotationApproved=documentSatisfiesRequirement(quoteDocumentStatus,'approved');currentStatus='Draft quote ready';nextAction=quotationApproved?'Issue client quote':'Complete controlled quotation';reason=quotationApproved?'The controlled quotation satisfies the approval gate and may now be commercially issued.':`Commercial issue is blocked until the controlled client quotation is approved. Current document state: ${quoteDocumentStatus}.`;actionKey='issue_quote';blocker=quotationApproved?null:'Controlled quotation approval required.'}
+  if(quote?.status==='issued'&&!workflow.project){currentStatus='Awaiting client decision';nextAction='Record client outcome';reason='The issued quote is awaiting acceptance, rejection or revision.';actionKey='accept_quote';blocker=null}
+  if(quote&&['rejected','expired','withdrawn'].includes(quote.status)&&!workflow.project){currentStatus=`Quote ${quote.status}`;nextAction='Open quote revision';reason='The concluded quotation may be revised through a new controlled publication.';actionKey='revise_quote';blocker=null}
+  if(workflow.project){currentStatus=workflow.project.status==='active'?'Active project':'Project ready';nextAction='Open active project';reason='The accepted case has entered controlled delivery.';actionKey='open_project';blocker=null}
 
   const documentConfig=getCaseDocumentRequirements({
     hasIntake:Boolean(workflow.technicalIntake),scopeApproved:technicalApproved,hasReview:Boolean(review),partnerResponseReady:Boolean(review&&['submitted','approved','approved_with_conditions','clarification_required'].includes(review.status)),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:quote?.status,
