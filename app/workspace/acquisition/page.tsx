@@ -30,29 +30,36 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   const sessionByProspect=new Map<string,any>();
   for(const session of sessionsResult.data??[]){if(!sessionByProspect.has(session.prospect_id))sessionByProspect.set(session.prospect_id,session);}
 
-  return <section className="vp-page acquisition-workspace">
-    <header className="vp-header">
-      <div><p className="vp-kicker">Acquire · Control surface</p><h1>Acquisition.</h1><p className="vp-subtitle">Only opportunities currently owned by Acquisition appear here. Converted opportunities continue in Case 360 and are retained here only as historical lineage.</p></div>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/prospects">Prospect register</Link><Link className="button secondary" href="/workspace/acquisition/intake">Technical intake</Link></div>
-    </header>
+  return <section className="saas-page acquisition-workspace">
+    <section className="saas-hero">
+      <div className="saas-hero__inner">
+        <div className="saas-hero__copy"><p className="vp-kicker">Acquisition</p><h1>Manage incoming opportunities.</h1><p className="vp-subtitle">Track active prospects, customer intake, partner review and readiness for Case creation.</p></div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/prospects">All prospects</Link><Link className="button secondary" href="/workspace/acquisition/intake">Customer intake</Link></div>
+      </div>
+    </section>
 
-    {params.created ? <div className="vp-callout"><strong>Prospect added</strong><p>The acquisition record is available in the queue.</p></div> : null}
-    {params.error ? <div className="vp-callout"><strong>Action could not be completed</strong><p>{String(params.error)}</p></div> : null}
+    {params.created ? <div className="vp-callout"><strong>Prospect added</strong><p>The new opportunity is ready to work.</p></div> : null}
+    {params.error ? <div className="vp-callout"><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
 
-    <section className="vp-object vp-object--hero"><p className="vp-label">Active acquisition position</p><div className="vp-compact-metrics"><div className="vp-metric"><span>Awaiting customer</span><strong>{waitingResult.count||0}</strong></div><div className="vp-metric"><span>Technical review pending</span><strong>{technicalPendingResult.count||0}</strong></div><div className="vp-metric"><span>Qualified for Case creation</span><strong>{qualifiedResult.count||0}</strong></div><div className="vp-metric"><span>Active prospects</span><strong>{prospectsResult.count||0}</strong></div></div></section>
+    <section className="saas-metrics" aria-label="Acquisition summary">
+      <article className="saas-metric"><span>Awaiting customer</span><strong>{waitingResult.count||0}</strong><small>Intake invitations still open</small></article>
+      <article className="saas-metric"><span>Ready for review</span><strong>{technicalPendingResult.count||0}</strong><small>Customer submissions received</small></article>
+      <article className="saas-metric"><span>Ready for Case</span><strong>{qualifiedResult.count||0}</strong><small>Qualified opportunities</small></article>
+      <article className="saas-metric"><span>Active prospects</span><strong>{prospectsResult.count||0}</strong><small>Current acquisition workload</small></article>
+    </section>
 
-    <details className="vp-disclosure"><summary>Add a prospect manually</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Create the first company before adding a manual prospect. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
+    <details className="vp-disclosure"><summary>Add prospect</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating a prospect. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
 
-    <section>
-      <div className="vp-section-title"><div><p className="vp-label">Attention queue</p><h2>Current acquisition records</h2></div><Link href="/workspace/acquisition/prospects">View full register →</Link></div>
+    <section className="saas-section">
+      <div className="saas-section__header"><div><p className="vp-label">Active opportunities</p><h2>Acquisition queue</h2></div><Link href="/workspace/acquisition/prospects">View all →</Link></div>
       <div className="vp-list">
-        {prospects.length===0 ? <div className="vp-empty">No opportunities are currently owned by Acquisition.</div> : prospects.map((prospect:any) => {
+        {prospects.length===0 ? <div className="vp-empty">No active acquisition records.</div> : prospects.map((prospect:any) => {
           const session=sessionByProspect.get(prospect.id);
           const resolved=resolveAcquisitionState({prospectStatus:prospect.status,hasSession:Boolean(session),sessionStatus:session?.status,hasSubmission:session?.status==='submitted',convertedCaseId:prospect.converted_lead_id});
-          return <article className="acquisition-record" key={prospect.id} style={{padding:'18px 20px',borderTop:'1px solid var(--op-line)'}}>
+          return <article className="acquisition-record" key={prospect.id}>
             <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:18,alignItems:'start'}}><div><h3 style={{margin:0}}>{prospect.company_name}</h3><p style={{margin:'5px 0 0',color:'var(--op-muted)'}}>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'} · {prospect.source}</p></div><span className="vp-row-status">{resolved.currentState}</span></div>
-            <div className="vp-facts" style={{marginTop:14}}><Fact label="Current acquisition state" value={resolved.currentState}/><Fact label="Initial requirement" value={prospect.requirement_summary}/><Fact label="Next permitted movement" value={resolved.nextAction}/><Fact label="Intake submitted" value={dateTime(session?.submitted_at)}/></div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:16}}><Link className="button" href={`/workspace/acquisition/${prospect.id}`}>Open acquisition record</Link>{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Company</Link>:null}</div>
+            <div className="vp-facts" style={{marginTop:14}}><Fact label="Status" value={resolved.currentState}/><Fact label="Requirement" value={prospect.requirement_summary}/><Fact label="Next action" value={resolved.nextAction}/><Fact label="Intake received" value={dateTime(session?.submitted_at)}/></div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:16}}><Link className="button" href={`/workspace/acquisition/${prospect.id}`}>Open record</Link>{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Company</Link>:null}</div>
           </article>;
         })}
       </div>
