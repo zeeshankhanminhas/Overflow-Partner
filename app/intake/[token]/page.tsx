@@ -2,6 +2,15 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import TechnicalIntakeFiles from '@/components/intake/TechnicalIntakeFiles';
+
+type IntakeFile = {
+  id: string;
+  original_filename: string;
+  size_bytes: number;
+  file_category?: string | null;
+  uploaded_at?: string | null;
+};
 
 type IntakeState = {
   session?: {
@@ -15,6 +24,7 @@ type IntakeState = {
     };
   };
   submission?: Record<string, unknown> | null;
+  files?: IntakeFile[];
   message?: string;
 };
 
@@ -96,6 +106,7 @@ export default function TechnicalIntakePage() {
   const completed = ['submitted', 'converted'].includes(state.session.status);
   const expiresAt = new Date(state.session.expires_at);
   const previousDeliverables = String(state.submission?.deliverables || '').split(',').map((value) => value.trim()).filter(Boolean);
+  const intakeFiles = state.files || [];
 
   return (
     <main className="padding_global min-h-screen bg-[var(--paper)] py-16 md:py-24">
@@ -104,7 +115,7 @@ export default function TechnicalIntakePage() {
           <div className="grid gap-5">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Overflow Partner · Step 2</p>
             <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.035em] text-[var(--ink)] md:text-6xl">Technical intake</h1>
-            <p className="max-w-xl text-base leading-7 text-[var(--muted)]">Provide the engineering detail needed to assess scope, capability, timing and commercial fit.</p>
+            <p className="max-w-xl text-base leading-7 text-[var(--muted)]">Provide the engineering detail and source evidence needed to assess scope, capability, timing and commercial fit.</p>
           </div>
           <div className="grid gap-6 border-t border-black/10 pt-7">
             <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Company</p><p className="text-xl font-medium text-[var(--ink)]">{prospect.company_name}</p></div>
@@ -118,7 +129,10 @@ export default function TechnicalIntakePage() {
         </aside>
 
         {completed ? (
-          <section className="grid content-start gap-6 border-t border-black/10 pt-10"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Submission received</p><h2 className="text-3xl font-semibold tracking-[-0.025em] text-[var(--ink)]">Technical requirement submitted.</h2><p className="max-w-2xl text-base leading-7 text-[var(--muted)]">Your information is now awaiting internal engineering review. Overflow Partner will contact you if clarification is required.</p></section>
+          <section className="grid content-start gap-8 border-t border-black/10 pt-10">
+            <div className="grid gap-6"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Submission received</p><h2 className="text-3xl font-semibold tracking-[-0.025em] text-[var(--ink)]">Technical requirement submitted.</h2><p className="max-w-2xl text-base leading-7 text-[var(--muted)]">Your information and attached source files are now awaiting internal engineering review. Overflow Partner will contact you if clarification is required.</p></div>
+            <div className="border-t border-black/10 pt-8"><TechnicalIntakeFiles token={token} initialFiles={intakeFiles} disabled /></div>
+          </section>
         ) : (
           <form className="grid gap-10" onSubmit={submit}>
             <section className={sectionClass}>
@@ -162,9 +176,13 @@ export default function TechnicalIntakePage() {
               <label className={labelClass}>Special instructions<textarea className={`${fieldClass} min-h-28 resize-y normal-case tracking-normal`} name="special_instructions" defaultValue={String(state.submission?.special_instructions || '')} placeholder="Include assumptions, unknowns, other software/formats or anything that may affect delivery." disabled={submitting} /></label>
             </section>
 
+            <section className={sectionClass}>
+              <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">05 · Source evidence</p><h2 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--ink)]">Attach the engineering files needed for review.</h2></div>
+              <TechnicalIntakeFiles token={token} initialFiles={intakeFiles} disabled={submitting} />
+            </section>
+
             <section className="grid gap-6 border-t border-black/10 pt-8">
-              <div className="grid gap-2 border border-dashed border-black/20 bg-white/40 p-6"><p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Technical files</p><p className="text-sm leading-6 text-[var(--muted)]">Private file upload is being connected to the controlled technical-intake storage area. Your written technical requirement can be submitted now.</p></div>
-              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center"><button className="min-h-12 bg-[var(--ink)] px-7 py-3 text-sm font-medium uppercase tracking-[0.08em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-neutral-500" type="submit" disabled={submitting}>{submitting ? 'Submitting' : 'Submit technical intake'}</button><p className="text-sm leading-6 text-[var(--subtle)]">This creates the controlled Step 2 record for internal technical review.</p></div>
+              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center"><button className="min-h-12 bg-[var(--ink)] px-7 py-3 text-sm font-medium uppercase tracking-[0.08em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-neutral-500" type="submit" disabled={submitting}>{submitting ? 'Submitting' : 'Submit technical intake'}</button><p className="text-sm leading-6 text-[var(--subtle)]">This locks the written requirement and attached source evidence for internal technical review.</p></div>
               {result ? <p className="border border-black/10 bg-white/50 p-4 text-sm leading-6 text-[var(--muted)]" role="status">{result}</p> : null}
             </section>
           </form>
