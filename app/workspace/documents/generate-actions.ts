@@ -141,8 +141,6 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (!leadId) throw new Error('A Case is required before this document can be generated.');
       if (!caseDocuments.includes(slug)) throw new Error('This document is not available from Case 360.');
 
-      // Use the same canonical Case object rendered by Case 360 so document gates cannot
-      // disagree with the record workspace about which intake/commercial/quote is current.
       const workflow = await getWorkflowCase(supabase, organisationId, leadId);
       if (!workflow) throw new Error('Case could not be found.');
       auditEntityType = 'lead';
@@ -150,17 +148,19 @@ export async function generateControlledDocumentAction(formData: FormData) {
       failureEntityType = 'lead';
       failureEntityId = workflow.lead.id;
 
-      const [{ data: review, error: reviewError }] = await Promise.all([
-        supabase.from('partner_review_requests').select('id,status').eq('organisation_id', organisationId).eq('lead_id', workflow.lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-      ]);
+      const { data: review, error: reviewError } = await supabase.from('partner_review_requests')
+        .select('id,status').eq('organisation_id', organisationId).eq('lead_id', workflow.lead.id)
+        .order('created_at',{ascending:false}).limit(1).maybeSingle();
       if (reviewError) throw new Error(reviewError.message);
 
       const intake = workflow.technicalIntake;
       const commercial = workflow.commercialReview;
       const quote = workflow.clientQuote;
 
-      if (slug === 'scope-of-work' && !intake) throw new Error('Scope of Work cannot be generated because the technical intake has not been created yet.');
-      if (slug === 'scope-of-work' && intake.status !== 'approved') throw new Error(`Scope of Work requires an approved technical intake. Current intake status: ${String(intake.status).replaceAll('_',' ')}.`);
+      if (slug === 'scope-of-work') {
+        if (!intake) throw new Error('Scope of Work cannot be generated because the technical intake has not been created yet.');
+        if (intake.status !== 'approved') throw new Error(`Scope of Work requires an approved technical intake. Current intake status: ${String(intake.status).replaceAll('_',' ')}.`);
+      }
       if (slug === 'partner-technical-assessment-report' && !review) throw new Error('Partner Technical Assessment requires a partner review record.');
       if (['commercial-approval','commercial-qualification-record'].includes(slug) && commercial?.status !== 'approved') throw new Error('Commercial approval documents require an approved commercial decision.');
       if (['client-quote','quote'].includes(slug) && !quote) throw new Error('A client quote must exist before this document can be generated.');
@@ -224,15 +224,19 @@ export async function generateControlledDocumentAction(formData: FormData) {
     const message = error instanceof Error ? error.message : 'Document could not be generated.';
 
     if (auditSupabase && auditOrganisationId && auditUserId && failureEntityId) {
-      await auditSupabase.from('activity_events').insert({
-        organisation_id: auditOrganisationId,
-        entity_type: failureEntityType,
-        entity_id: failureEntityId,
-        user_id: auditUserId,
-        event_type: 'document.generation_failed',
-        event_data: { document_type: slug, reason: message },
-        new_value: { status: 'failed', reason: message },
-      }).catch(() => undefined);
+      try {
+        await auditSupabase.from('activity_events').insert({
+          organisation_id: auditOrganisationId,
+          entity_type: failureEntityType,
+          entity_id: failureEntityId,
+          user_id: auditUserId,
+          event_type: 'document.generation_failed',
+          event_data: { document_type: slug, reason: message },
+          new_value: { status: 'failed', reason: message },
+        });
+      } catch {
+        // Failure telemetry must never hide the operator-facing generation reason.
+      }
     }
 
     redirect(returnWithDocumentError(returnTo, message));
