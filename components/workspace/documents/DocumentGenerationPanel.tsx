@@ -3,6 +3,7 @@ import { generateControlledDocumentAction } from '@/app/workspace/documents/gene
 import { requireUserContext } from '@/lib/auth/context';
 import { documentSatisfiesRequirement } from '@/lib/workspace/state';
 import { getWorkspaceDocument, type WorkspaceDocumentSlug } from './documentRegistry';
+import DocumentGenerateButton from './DocumentGenerateButton';
 
 type MinimumStatus = 'draft' | 'signed' | 'approved' | 'issued';
 
@@ -22,6 +23,7 @@ type Props = {
   returnTo: string;
   stageLabel: string;
   items: Item[];
+  generationError?: string | null;
 };
 
 type GeneratedDocument = {
@@ -43,7 +45,7 @@ function documentUrl(document: GeneratedDocument, context: Props['context'], rec
   return `/workspace/documents/templates/${document.document_type}?${contextQuery}&document_record=${document.id}`;
 }
 
-export default async function DocumentGenerationPanel({ context, recordId, quoteId, returnTo, stageLabel, items }: Props) {
+export default async function DocumentGenerationPanel({ context, recordId, quoteId, returnTo, stageLabel, items, generationError }: Props) {
   if (!items.length) return null;
 
   const { supabase, organisationId } = await requireUserContext();
@@ -53,6 +55,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
     .select('id,document_type,reference,title,status,version,created_at')
     .eq('organisation_id', organisationId)
     .eq(ownershipColumn, recordId)
+    .neq('status', 'superseded')
     .order('created_at', { ascending: false });
 
   const generated = (data || []) as GeneratedDocument[];
@@ -80,6 +83,11 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
       </div>
       <Link href={`/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`} className="button secondary">Open document registry</Link>
     </header>
+
+    {generationError ? <div data-continuity-notice className="vp-callout" style={{marginBottom:14}}>
+      <strong>Document could not be generated</strong>
+      <p>{generationError}</p>
+    </div> : null}
 
     <div className="stage-documents__summary" aria-label="Document state summary">
       <span><strong>{required.length + actionRequired.length}</strong> Action needed</span>
@@ -175,7 +183,7 @@ function DocumentGroup({ title, state, items, context, recordId, quoteId, return
             <input type="hidden" name={context === 'case' ? 'lead_id' : 'project_id'} value={recordId}/>
             {quoteId ? <input type="hidden" name="quote_id" value={quoteId}/> : null}
             <input type="hidden" name="return_to" value={returnTo}/>
-            <button className="button" type="submit">Create document</button>
+            <DocumentGenerateButton/>
           </form>
         </article>;
       })}
