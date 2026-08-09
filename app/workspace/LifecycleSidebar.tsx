@@ -111,7 +111,8 @@ export default function LifecycleSidebar() {
       <Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Partners</Link>
     </Area>
 
-    <Area title="Operations" description="Documents, tasks & communications" open={pathname.startsWith('/workspace/documents') || pathname.startsWith('/workspace/tasks') || pathname.startsWith('/workspace/communications')}>
+    <Area title="Operations" description="Exceptions, documents & communications" open={pathname.startsWith('/workspace/exceptions') || pathname.startsWith('/workspace/documents') || pathname.startsWith('/workspace/tasks') || pathname.startsWith('/workspace/communications')}>
+      <Link className={pathname.startsWith('/workspace/exceptions') ? 'active' : ''} href="/workspace/exceptions">Exceptions</Link>
       <Link className={pathname.startsWith('/workspace/documents') ? 'active' : ''} href="/workspace/documents">Documents</Link>
       <Link className={pathname.startsWith('/workspace/tasks') ? 'active' : ''} href="/workspace/tasks">Tasks</Link>
       <Link className={pathname.startsWith('/workspace/communications') ? 'active' : ''} href="/workspace/communications">Communications</Link>
