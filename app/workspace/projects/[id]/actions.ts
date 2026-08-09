@@ -24,7 +24,12 @@ function refreshProject(projectId: string) {
   revalidatePath('/workspace/leads');
   revalidatePath('/workspace');
   revalidatePath('/workspace/commercial-control');
+  revalidatePath('/workspace/payments');
   revalidatePath('/workspace/intelligence');
+}
+
+async function audit(supabase:any,organisationId:string,userId:string,projectId:string,eventType:string,eventData:Record<string,unknown>){
+  await supabase.from('activity_events').insert({organisation_id:organisationId,entity_type:'project',entity_id:projectId,user_id:userId,event_type:eventType,event_data:eventData});
 }
 
 export async function updateProjectMobilisationAction(formData: FormData) {
@@ -99,6 +104,39 @@ export async function setProjectActivityStatusAction(formData: FormData) {
     destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Activity status could not be updated.',focus:'record-activities'});
   }
   redirect(destination);
+}
+
+export async function createProjectDeliveryItemAction(formData:FormData){
+  const projectId=required(formData,'project_id');
+  let destination=`/workspace/projects/${projectId}`;
+  try{
+    const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
+    const {data:project,error:projectError}=await supabase.from('projects').select('id,status').eq('organisation_id',organisationId).eq('id',projectId).single();
+    if(projectError||!project)throw new Error(projectError?.message||'Project not found.');
+    if(['completed','closed','cancelled'].includes(String(project.status)))throw new Error('Delivery items cannot be added to a non-operational Project.');
+    const itemType=String(formData.get('item_type')||'deliverable');
+    if(!['deliverable','milestone','dependency'].includes(itemType))throw new Error('Invalid delivery item type.');
+    const payload={organisation_id:organisationId,project_id:projectId,item_type:itemType,title:required(formData,'title'),description:String(formData.get('description')||'').trim()||null,status:'not_started',priority:String(formData.get('priority')||'normal'),owner_id:String(formData.get('owner_id')||'')||null,partner_id:String(formData.get('partner_id')||'')||null,depends_on_id:String(formData.get('depends_on_id')||'')||null,due_date:String(formData.get('due_date')||'')||null,revision:String(formData.get('revision')||'').trim()||null,internal_review_status:formData.get('internal_review_required')==='on'?'pending':'not_required',client_review_status:formData.get('client_review_required')==='on'?'pending':'not_required',linked_document_id:String(formData.get('linked_document_id')||'')||null,notes:String(formData.get('notes')||'').trim()||null,created_by:user.id};
+    const {data:item,error}=await supabase.from('project_delivery_items').insert(payload).select('id,title').single();if(error||!item)throw new Error(error?.message||'Delivery item could not be created.');
+    await audit(supabase,organisationId,user.id,projectId,'delivery_item_created',{deliveryItemId:item.id,itemType,title:item.title});
+    refreshProject(projectId);destination=projectUrl(projectId,{activity:`${itemType==='milestone'?'Milestone':itemType==='dependency'?'Dependency':'Deliverable'} created.`,focus:'delivery-control'});
+  }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Delivery item could not be created.',focus:'delivery-control'});}redirect(destination);
+}
+
+export async function updateProjectDeliveryItemAction(formData:FormData){
+  const projectId=required(formData,'project_id');const itemId=required(formData,'item_id');
+  let destination=`/workspace/projects/${projectId}`;
+  try{
+    const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
+    const {data:item,error:readError}=await supabase.from('project_delivery_items').select('id,project_id,status,title').eq('organisation_id',organisationId).eq('id',itemId).single();if(readError||!item)throw new Error(readError?.message||'Delivery item not found.');
+    if(item.project_id!==projectId)throw new Error('Delivery item does not belong to this Project.');
+    const status=required(formData,'status');if(!['not_started','in_progress','blocked','internal_review','ready_to_issue','client_review','complete','cancelled'].includes(status))throw new Error('Invalid delivery status.');
+    const internalReview=String(formData.get('internal_review_status')||'not_required');const clientReview=String(formData.get('client_review_status')||'not_required');
+    const updates={status,owner_id:String(formData.get('owner_id')||'')||null,partner_id:String(formData.get('partner_id')||'')||null,due_date:String(formData.get('due_date')||'')||null,revision:String(formData.get('revision')||'').trim()||null,internal_review_status:internalReview,client_review_status:clientReview,notes:String(formData.get('notes')||'').trim()||null,completed_at:status==='complete'?new Date().toISOString():null};
+    const {error}=await supabase.from('project_delivery_items').update(updates).eq('organisation_id',organisationId).eq('id',itemId);if(error)throw new Error(error.message);
+    await audit(supabase,organisationId,user.id,projectId,'delivery_item_updated',{deliveryItemId:itemId,title:item.title,fromStatus:item.status,toStatus:status,internalReview,clientReview});
+    refreshProject(projectId);destination=projectUrl(projectId,{activity:'Delivery item updated.',focus:`delivery-item-${itemId}`});
+  }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Delivery item could not be updated.',focus:'delivery-control'});}redirect(destination);
 }
 
 export async function advanceProjectStageAction(formData: FormData) {
