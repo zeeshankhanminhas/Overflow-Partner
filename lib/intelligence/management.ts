@@ -31,8 +31,8 @@ export async function getManagementIntelligence(supabase: any, organisationId: s
   ] = await Promise.all([
     supabase.from('prospects').select('id,source,status,created_at,updated_at,converted_lead_id').eq('organisation_id', organisationId).limit(2000),
     supabase.from('leads').select('id,status,source,created_at,updated_at').eq('organisation_id', organisationId).limit(2000),
-    supabase.from('quotes').select('id,lead_id,quote_number,status,total,currency,created_at,issued_at,accepted_at,valid_until').eq('organisation_id', organisationId).limit(2000),
-    supabase.from('projects').select('id,project_number,title,status,project_stage,created_at,start_date,due_date,project_manager_id').eq('organisation_id', organisationId).limit(1000),
+    supabase.from('quotes').select('id,lead_id,quote_number,status,total,currency,created_at,updated_at,issued_at,accepted_at,valid_until').eq('organisation_id', organisationId).limit(2000),
+    supabase.from('projects').select('id,project_number,title,status,project_stage,created_at,updated_at,start_date,due_date,project_manager_id').eq('organisation_id', organisationId).limit(1000),
     supabase.from('project_delivery_items').select('id,project_id,item_type,status,priority,due_date,created_at,updated_at,completed_at,owner_id,owner:profiles!project_delivery_items_owner_id_fkey(full_name,first_name)').eq('organisation_id', organisationId).limit(5000),
     supabase.from('invoices').select('id,project_id,status,total,amount_paid,currency,due_date,issued_at,paid_at,created_at').eq('organisation_id', organisationId).limit(3000),
     supabase.from('payments').select('id,project_id,amount,currency,status,paid_at,created_at').eq('organisation_id', organisationId).limit(5000),
