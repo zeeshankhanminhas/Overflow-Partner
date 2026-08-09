@@ -73,3 +73,59 @@ do $$ begin
       with check (organisation_id = public.current_organisation_id() and issued_by = auth.uid());
   end if;
 end $$;
+
+create or replace function public.op_sync_document_control_state()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.status::text = 'draft' then new.control_state := 'working';
+  elsif new.status::text in ('in_review','changes_requested','signed') then new.control_state := 'review';
+  elsif new.status::text = 'approved' then new.control_state := 'approved';
+  elsif new.status::text in ('issued','published') then new.control_state := 'issued';
+  elsif new.status::text = 'superseded' then
+    new.control_state := 'superseded';
+    new.is_current_revision := false;
+  end if;
+  if new.revision_code is null then new.revision_code := 'P' || lpad(greatest(coalesce(new.version,1),1)::text,2,'0'); end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists documents_sync_control_state on public.documents;
+create trigger documents_sync_control_state
+before insert or update of status, version on public.documents
+for each row execute function public.op_sync_document_control_state();
+
+create or replace function public.op_record_document_issue()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  next_sequence integer;
+begin
+  if new.status::text in ('issued','published')
+     and coalesce(old.status::text,'') not in ('issued','published')
+     and new.issued_by is not null then
+    select coalesce(max(issue_sequence),0)+1 into next_sequence
+    from public.document_issue_records
+    where organisation_id = new.organisation_id and document_id = new.id;
+
+    insert into public.document_issue_records(
+      organisation_id,document_id,project_id,lead_id,revision_code,issue_sequence,purpose,issued_by,issued_at
+    ) values (
+      new.organisation_id,new.id,new.project_id,new.lead_id,coalesce(new.revision_code,'P'||lpad(greatest(coalesce(new.version,1),1)::text,2,'0')),
+      next_sequence,coalesce(new.issue_purpose,'controlled_release'),new.issued_by,coalesce(new.issued_at,now())
+    ) on conflict (organisation_id,document_id,issue_sequence) do nothing;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists documents_record_issue on public.documents;
+create trigger documents_record_issue
+after update of status on public.documents
+for each row execute function public.op_record_document_issue();
