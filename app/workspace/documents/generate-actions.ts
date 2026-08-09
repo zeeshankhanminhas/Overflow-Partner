@@ -16,8 +16,29 @@ const projectDocuments: WorkspaceDocumentSlug[] = [
   'scope-of-work','statement-of-work','handover-pack','completion-report','invoice','document-register',
 ];
 
-function safePrefix(slug: string) {
-  return slug.split('-').map((part) => part[0]?.toUpperCase()).join('').slice(0, 6) || 'DOC';
+const documentPrefixes: Partial<Record<WorkspaceDocumentSlug,string>> = {
+  'client-requirements': 'CRQ',
+  'scope-of-work': 'SCP',
+  'statement-of-work': 'STW',
+  'partner-technical-assessment-report': 'PTA',
+  'vendor-safe-package': 'VSP',
+  'vendor-instructions': 'VIN',
+  'rfq-response': 'RFQ',
+  'commercial-approval': 'CAP',
+  'commercial-qualification-record': 'CQR',
+  'client-quote': 'CQT',
+  'quote': 'QTE',
+  'proposal': 'PRP',
+  'technical-review': 'TRV',
+  'requirement-sheet': 'REQ',
+  'handover-pack': 'HOP',
+  'completion-report': 'CMR',
+  'invoice': 'INV',
+  'document-register': 'DCR',
+};
+
+function safePrefix(slug: WorkspaceDocumentSlug) {
+  return documentPrefixes[slug] || slug.split('-').map((part) => part[0]?.toUpperCase()).join('').slice(0, 6) || 'DOC';
 }
 
 function isNextRedirect(error: unknown) {
@@ -30,6 +51,24 @@ function returnWithDocumentError(returnTo: string, message: string) {
   url.searchParams.set('error_scope', 'document');
   url.searchParams.set('focus', 'record-controlled-evidence');
   return `${url.pathname}${url.search}${url.hash}`;
+}
+
+async function allocateReference(supabase:any, organisationId:string, slug:WorkspaceDocumentSlug) {
+  const prefix = safePrefix(slug);
+  const year = new Date().getUTCFullYear();
+  const stem = `OP-${prefix}-${year}-`;
+  const { data, error } = await supabase
+    .from('documents')
+    .select('reference')
+    .eq('organisation_id', organisationId)
+    .like('reference', `${stem}%`)
+    .order('reference', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const latest = String(data?.[0]?.reference || '');
+  const match = latest.match(/-(\d+)$/);
+  const next = match ? Number(match[1]) + 1 : 1;
+  return `${stem}${String(next).padStart(3,'0')}`;
 }
 
 export async function generateControlledDocumentAction(formData: FormData) {
@@ -184,12 +223,12 @@ export async function generateControlledDocumentAction(formData: FormData) {
       }
     }
 
-    let versionQuery = supabase.from('documents').select('id',{count:'exact',head:true}).eq('organisation_id', organisationId).eq('document_type', slug);
-    versionQuery = projectId ? versionQuery.eq('project_id', projectId) : versionQuery.eq('lead_id', resolvedLeadId);
-    const { count, error: versionError } = await versionQuery;
+    const versionQuery = supabase.from('documents').select('id',{count:'exact',head:true}).eq('organisation_id', organisationId).eq('document_type', slug);
+    const scopedVersionQuery = projectId ? versionQuery.eq('project_id', projectId) : versionQuery.eq('lead_id', resolvedLeadId);
+    const { count, error: versionError } = await scopedVersionQuery;
     if (versionError) throw new Error(versionError.message);
     const version = Number(count || 0) + 1;
-    const reference = `OP-${safePrefix(slug)}-${new Date().getUTCFullYear()}-${String(version).padStart(3,'0')}`;
+    const reference = await allocateReference(supabase, organisationId, slug);
 
     const { data: record, error: insertError } = await supabase.from('documents').insert({
       organisation_id: organisationId,
