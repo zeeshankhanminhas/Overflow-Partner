@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { getWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
+import { getWorkflowCase } from '@/lib/orchestration/service';
 
 const roles = ['owner','admin','operator','engineering','commercial','business_development'] as const;
 
@@ -23,6 +24,14 @@ function isNextRedirect(error: unknown) {
   return Boolean(error && typeof error === 'object' && 'digest' in error && String((error as {digest?:unknown}).digest || '').startsWith('NEXT_REDIRECT'));
 }
 
+function returnWithDocumentError(returnTo: string, message: string) {
+  const url = new URL(returnTo, 'https://workspace.local');
+  url.searchParams.set('error', message);
+  url.searchParams.set('error_scope', 'document');
+  url.searchParams.set('focus', 'record-controlled-evidence');
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export async function generateControlledDocumentAction(formData: FormData) {
   const slug = String(formData.get('document_slug') || '') as WorkspaceDocumentSlug;
   const leadId = String(formData.get('lead_id') || '') || null;
@@ -32,13 +41,21 @@ export async function generateControlledDocumentAction(formData: FormData) {
   const definition = getWorkspaceDocument(slug);
 
   if (!definition || (!leadId && !projectId && !quoteId)) {
-    redirect(`${returnTo}?error=${encodeURIComponent('A valid document type and governed record are required.')}`);
+    redirect(returnWithDocumentError(returnTo, 'A valid document type and record are required.'));
   }
 
   let destination: string;
+  let auditSupabase: any = null;
+  let auditOrganisationId: string | null = null;
+  let auditUserId: string | null = null;
+  let failureEntityType = projectId ? 'project' : 'lead';
+  let failureEntityId = projectId || leadId;
 
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
+    auditSupabase = supabase;
+    auditOrganisationId = organisationId;
+    auditUserId = user.id;
     assertRole(profile.role, [...roles]);
 
     let resolvedLeadId = leadId;
@@ -47,20 +64,22 @@ export async function generateControlledDocumentAction(formData: FormData) {
     let auditEntityId = leadId;
 
     if (projectId) {
-      if (!projectDocuments.includes(slug)) throw new Error('This document is not permitted from the project workspace.');
+      if (!projectDocuments.includes(slug)) throw new Error('This document is not available from Project 360.');
       const { data: project, error } = await supabase.from('projects').select('id,lead_id,quote_id,project_stage,status').eq('organisation_id', organisationId).eq('id', projectId).single();
       if (error || !project) throw new Error('Project could not be found.');
       resolvedLeadId = project.lead_id;
       resolvedQuoteId = project.quote_id;
       auditEntityType = 'project';
       auditEntityId = project.id;
+      failureEntityType = 'project';
+      failureEntityId = project.id;
 
       const stage = project.project_stage || 'mobilisation';
       if (slug === 'handover-pack' && !['mobilisation','ready_for_execution','ready_for_client_issue','issued_to_client','client_review','completion','closed'].includes(stage)) throw new Error('The Handover Pack is not available at the current delivery stage.');
       if (slug === 'completion-report' && !['completion','closed'].includes(stage)) throw new Error('The Completion Report is available only at Completion or Closed.');
       if (slug === 'invoice' && !['completion','closed'].includes(stage)) throw new Error('The Invoice is available only after delivery reaches Completion.');
 
-      const { data: existingProjectDocument } = await supabase
+      const { data: existingProjectDocument, error: existingProjectDocumentError } = await supabase
         .from('documents')
         .select('id,reference,document_type,status,project_id,lead_id')
         .eq('organisation_id', organisationId)
@@ -70,6 +89,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (existingProjectDocumentError) throw new Error(existingProjectDocumentError.message);
 
       if (existingProjectDocument) {
         destination = `/workspace/documents/templates/${slug}?project=${projectId}&document_record=${existingProjectDocument.id}`;
@@ -88,7 +108,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
           .order('created_at', { ascending: false })
           .limit(1);
         if (project.quote_id) legacyQuery = legacyQuery.or(`quote_id.eq.${project.quote_id},quote_id.is.null`);
-        const { data: legacyDocument } = await legacyQuery.maybeSingle();
+        const { data: legacyDocument, error: legacyError } = await legacyQuery.maybeSingle();
+        if (legacyError) throw new Error(legacyError.message);
 
         if (legacyDocument) {
           const { data: adopted, error: adoptError } = await supabase
@@ -117,28 +138,56 @@ export async function generateControlledDocumentAction(formData: FormData) {
         }
       }
     } else {
-      if (!caseDocuments.includes(slug)) throw new Error('This document is not permitted from Case 360.');
-      const { data: lead, error } = await supabase.from('leads').select('id,status').eq('organisation_id', organisationId).eq('id', leadId).single();
-      if (error || !lead) throw new Error('Case could not be found.');
-      auditEntityType = 'lead';
-      auditEntityId = lead.id;
+      if (!leadId) throw new Error('A Case is required before this document can be generated.');
+      if (!caseDocuments.includes(slug)) throw new Error('This document is not available from Case 360.');
 
-      const [{ data: intake }, { data: review }, { data: commercial }, { data: quote }] = await Promise.all([
-        supabase.from('technical_intakes').select('id,status').eq('organisation_id', organisationId).eq('lead_id', lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('partner_review_requests').select('id,status').eq('organisation_id', organisationId).eq('lead_id', lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('commercial_reviews').select('id,status').eq('organisation_id', organisationId).eq('lead_id', lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-        supabase.from('quotes').select('id,status').eq('organisation_id', organisationId).eq('lead_id', lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+      // Use the same canonical Case object rendered by Case 360 so document gates cannot
+      // disagree with the record workspace about which intake/commercial/quote is current.
+      const workflow = await getWorkflowCase(supabase, organisationId, leadId);
+      if (!workflow) throw new Error('Case could not be found.');
+      auditEntityType = 'lead';
+      auditEntityId = workflow.lead.id;
+      failureEntityType = 'lead';
+      failureEntityId = workflow.lead.id;
+
+      const [{ data: review, error: reviewError }] = await Promise.all([
+        supabase.from('partner_review_requests').select('id,status').eq('organisation_id', organisationId).eq('lead_id', workflow.lead.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
       ]);
-      if (slug === 'scope-of-work' && intake?.status !== 'approved') throw new Error('Scope of Work requires an approved technical intake.');
+      if (reviewError) throw new Error(reviewError.message);
+
+      const intake = workflow.technicalIntake;
+      const commercial = workflow.commercialReview;
+      const quote = workflow.clientQuote;
+
+      if (slug === 'scope-of-work' && !intake) throw new Error('Scope of Work cannot be generated because the technical intake has not been created yet.');
+      if (slug === 'scope-of-work' && intake.status !== 'approved') throw new Error(`Scope of Work requires an approved technical intake. Current intake status: ${String(intake.status).replaceAll('_',' ')}.`);
       if (slug === 'partner-technical-assessment-report' && !review) throw new Error('Partner Technical Assessment requires a partner review record.');
       if (['commercial-approval','commercial-qualification-record'].includes(slug) && commercial?.status !== 'approved') throw new Error('Commercial approval documents require an approved commercial decision.');
-      if (['client-quote','quote'].includes(slug) && !quote) throw new Error('A client quote must exist before this publication can be generated.');
+      if (['client-quote','quote'].includes(slug) && !quote) throw new Error('A client quote must exist before this document can be generated.');
+      resolvedLeadId = workflow.lead.id;
       resolvedQuoteId = resolvedQuoteId || quote?.id || null;
+
+      const { data: existingCaseDocument, error: existingCaseDocumentError } = await supabase
+        .from('documents')
+        .select('id,reference,status,version')
+        .eq('organisation_id', organisationId)
+        .eq('lead_id', workflow.lead.id)
+        .eq('document_type', slug)
+        .neq('status', 'superseded')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingCaseDocumentError) throw new Error(existingCaseDocumentError.message);
+      if (existingCaseDocument) {
+        const context = resolvedQuoteId && ['client-quote','quote','invoice'].includes(slug) ? `quote=${resolvedQuoteId}` : `case=${workflow.lead.id}`;
+        redirect(`/workspace/documents/templates/${slug}?${context}&document_record=${existingCaseDocument.id}`);
+      }
     }
 
     let versionQuery = supabase.from('documents').select('id',{count:'exact',head:true}).eq('organisation_id', organisationId).eq('document_type', slug);
     versionQuery = projectId ? versionQuery.eq('project_id', projectId) : versionQuery.eq('lead_id', resolvedLeadId);
-    const { count } = await versionQuery;
+    const { count, error: versionError } = await versionQuery;
+    if (versionError) throw new Error(versionError.message);
     const version = Number(count || 0) + 1;
     const reference = `OP-${safePrefix(slug)}-${new Date().getUTCFullYear()}-${String(version).padStart(3,'0')}`;
 
@@ -173,7 +222,20 @@ export async function generateControlledDocumentAction(formData: FormData) {
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     const message = error instanceof Error ? error.message : 'Document could not be generated.';
-    redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
+
+    if (auditSupabase && auditOrganisationId && auditUserId && failureEntityId) {
+      await auditSupabase.from('activity_events').insert({
+        organisation_id: auditOrganisationId,
+        entity_type: failureEntityType,
+        entity_id: failureEntityId,
+        user_id: auditUserId,
+        event_type: 'document.generation_failed',
+        event_data: { document_type: slug, reason: message },
+        new_value: { status: 'failed', reason: message },
+      }).catch(() => undefined);
+    }
+
+    redirect(returnWithDocumentError(returnTo, message));
   }
 
   redirect(destination);
