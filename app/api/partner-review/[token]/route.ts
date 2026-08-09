@@ -141,7 +141,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
           p_category: 'transactional',
           p_scheduled_for: new Date().toISOString(),
           p_idempotency_key: `approval:partner-response:${review.id}`,
-        }).catch(() => null);
+        });
       }
     }
 
