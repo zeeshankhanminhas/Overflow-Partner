@@ -29,6 +29,11 @@ function recordContext(pathname: string, searchParams: URLSearchParams): RecordC
     if (lead) return { type: 'case', id: lead };
   }
 
+  if (pathname === '/workspace/payments' || pathname === '/workspace/commercial-control') {
+    const project = searchParams.get('project');
+    if (project) return { type: 'project', id: project };
+  }
+
   return null;
 }
 
@@ -86,6 +91,7 @@ export default function LifecycleSidebar() {
         {context.type === 'project' ? <>
           <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Communications</Link>
           <Link className={pathname === '/workspace/documents' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
+          <Link className={pathname === '/workspace/payments' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/payments?project=${context.id}`}>Payments</Link>
           <Link className={pathname.startsWith('/workspace/commercial-control') && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/commercial-control?project=${context.id}`}>Commercial</Link>
         </> : null}
         {context.type === 'case' ? <Link className={pathname === '/workspace/documents' && searchParams.get('lead') === context.id ? 'active' : ''} href={`/workspace/documents?lead=${context.id}`}>Documents</Link> : null}
@@ -98,7 +104,8 @@ export default function LifecycleSidebar() {
       <Link className={pathname.startsWith('/workspace/projects') ? 'active' : ''} href="/workspace/projects">Projects</Link>
     </Area>
 
-    <Area title="Commercial" description="Commercial control & partners" open={pathname.startsWith('/workspace/commercial-control') || pathname.startsWith('/workspace/partners')}>
+    <Area title="Commercial" description="Payments, control & partners" open={pathname.startsWith('/workspace/payments') || pathname.startsWith('/workspace/commercial-control') || pathname.startsWith('/workspace/partners')}>
+      <Link className={pathname.startsWith('/workspace/payments') ? 'active' : ''} href="/workspace/payments">Payments</Link>
       <Link className={pathname.startsWith('/workspace/commercial-control') ? 'active' : ''} href="/workspace/commercial-control">Commercial</Link>
       <Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Partners</Link>
     </Area>
