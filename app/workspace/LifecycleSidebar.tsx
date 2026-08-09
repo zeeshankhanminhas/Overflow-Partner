@@ -89,6 +89,7 @@ export default function LifecycleSidebar() {
         <Link className={pathname === contextHome ? 'active' : ''} href={contextHome}>Overview</Link>
         {context.type === 'case' ? <Link className={pathname.startsWith(`/workspace/communications/lead/${context.id}`) ? 'active' : ''} href={`/workspace/communications/lead/${context.id}`}>Communications</Link> : null}
         {context.type === 'project' ? <>
+          <Link className={pathname === `/workspace/projects/${context.id}/delivery` ? 'active' : ''} href={`/workspace/projects/${context.id}/delivery`}>Delivery</Link>
           <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Communications</Link>
           <Link className={pathname === '/workspace/documents' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
           <Link className={pathname === '/workspace/payments' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/payments?project=${context.id}`}>Payments</Link>
