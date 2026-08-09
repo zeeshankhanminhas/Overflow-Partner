@@ -38,8 +38,8 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       </div>
     </section>
 
-    {params.created ? <div className="vp-callout"><strong>Prospect added</strong><p>The new opportunity is ready to work.</p></div> : null}
-    {params.error ? <div className="vp-callout"><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
+    {params.created ? <div className="vp-callout" data-continuity-notice><strong>Prospect added</strong><p>The new opportunity is ready to work.</p></div> : null}
+    {params.error ? <div className="vp-callout" data-continuity-notice><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
 
     <section className="saas-metrics" aria-label="Acquisition summary">
       <article className="saas-metric"><span>Awaiting customer</span><strong>{waitingResult.count||0}</strong><small>Intake invitations still open</small></article>
@@ -48,7 +48,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       <article className="saas-metric"><span>Active prospects</span><strong>{prospectsResult.count||0}</strong><small>Current acquisition workload</small></article>
     </section>
 
-    <details className="vp-disclosure"><summary>Add prospect</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating a prospect. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
+    <details id="manual-prospect" className="vp-disclosure"><summary>Add prospect</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating a prospect. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
 
     <section className="saas-section">
       <div className="saas-section__header"><div><p className="vp-label">Active opportunities</p><h2>Acquisition queue</h2></div><Link href="/workspace/acquisition/prospects">View all →</Link></div>
