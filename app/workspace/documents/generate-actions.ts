@@ -19,6 +19,10 @@ function safePrefix(slug: string) {
   return slug.split('-').map((part) => part[0]?.toUpperCase()).join('').slice(0, 6) || 'DOC';
 }
 
+function isNextRedirect(error: unknown) {
+  return Boolean(error && typeof error === 'object' && 'digest' in error && String((error as {digest?:unknown}).digest || '').startsWith('NEXT_REDIRECT'));
+}
+
 export async function generateControlledDocumentAction(formData: FormData) {
   const slug = String(formData.get('document_slug') || '') as WorkspaceDocumentSlug;
   const leadId = String(formData.get('lead_id') || '') || null;
@@ -56,9 +60,6 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (slug === 'completion-report' && !['completion','closed'].includes(stage)) throw new Error('The Completion Report is available only at Completion or Closed.');
       if (slug === 'invoice' && !['completion','closed'].includes(stage)) throw new Error('The Invoice is available only after delivery reaches Completion.');
 
-      // Project 360 is the sole operational owner after Case handoff. If an older
-      // Case-owned copy of this controlled document already exists, adopt that
-      // record rather than manufacture a duplicate reference/version.
       const { data: existingProjectDocument } = await supabase
         .from('documents')
         .select('id,reference,document_type,status,project_id,lead_id')
@@ -144,7 +145,6 @@ export async function generateControlledDocumentAction(formData: FormData) {
     const { data: record, error: insertError } = await supabase.from('documents').insert({
       organisation_id: organisationId,
       created_by: user.id,
-      // Exactly one operational owner: Case OR Project, never both.
       lead_id: projectId ? null : resolvedLeadId,
       project_id: projectId,
       quote_id: resolvedQuoteId,
@@ -171,6 +171,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
     const context = projectId ? `project=${projectId}` : resolvedQuoteId && ['client-quote','quote','invoice'].includes(slug) ? `quote=${resolvedQuoteId}` : `case=${resolvedLeadId}`;
     destination = `/workspace/documents/templates/${slug}?${context}&document_record=${record.id}&generated=${encodeURIComponent(reference)}`;
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     const message = error instanceof Error ? error.message : 'Document could not be generated.';
     redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
   }
