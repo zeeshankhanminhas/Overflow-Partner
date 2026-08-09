@@ -74,25 +74,25 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
   return <section className="stage-documents" aria-labelledby={`${context}-stage-documents`}>
     <header className="stage-documents__header">
       <div>
-        <p className="vp-label">Stage documents · {stageLabel}</p>
-        <h2 id={`${context}-stage-documents`}>Controlled evidence</h2>
-        <p className="vp-subtitle">One live evidence surface. Existing documents are never presented as “not generated”; their current governance state determines whether they satisfy progression.</p>
+        <p className="vp-label">Documents · {stageLabel}</p>
+        <h2 id={`${context}-stage-documents`}>Required documents</h2>
+        <p className="vp-subtitle">See what needs action now, what is available, and what already satisfies this stage.</p>
       </div>
       <Link href={`/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`} className="button secondary">Open document registry</Link>
     </header>
 
     <div className="stage-documents__summary" aria-label="Document state summary">
-      <span><strong>{required.length + actionRequired.length}</strong> Action required</span>
+      <span><strong>{required.length + actionRequired.length}</strong> Action needed</span>
       <span><strong>{available.length}</strong> Available</span>
-      <span><strong>{satisfied.length}</strong> Satisfied</span>
+      <span><strong>{satisfied.length}</strong> Complete</span>
       <span><strong>{blockingCount}</strong> Blocking</span>
     </div>
 
     <div className="stage-documents__groups">
-      {required.length ? <DocumentGroup title="Required now · not generated" state="required" items={required} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
+      {required.length ? <DocumentGroup title="Required now" state="required" items={required} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
 
       {actionRequired.length ? <section className="stage-documents__group">
-        <div className="stage-documents__group-title"><h3>Generated · governance action required</h3><span>{actionRequired.length}</span></div>
+        <div className="stage-documents__group-title"><h3>Needs action</h3><span>{actionRequired.length}</span></div>
         <div className="stage-documents__list">
           {actionRequired.map(({ item, document }) => {
             const definition = getWorkspaceDocument(item.slug);
@@ -101,19 +101,19 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
               <span className="stage-document-row__icon" aria-hidden="true">▤</span>
               <div className="stage-document-row__copy">
                 <div className="stage-document-row__title"><h4>{definition.title}</h4><span>{document.status.replaceAll('_',' ')}</span></div>
-                <p>{document.reference} · v{document.version} · Minimum required state: {item.minimumStatus || 'draft'}.</p>
+                <p>{document.reference} · v{document.version} · Required status: {item.minimumStatus || 'draft'}.</p>
                 <p>{item.reason}</p>
               </div>
-              <Link className="button" href={documentUrl(document, context, recordId)}>Continue control</Link>
+              <Link className="button" href={documentUrl(document, context, recordId)}>Review document</Link>
             </article>;
           })}
         </div>
       </section> : null}
 
-      {available.length ? <DocumentGroup title="Available at this stage" state="available" items={available} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
+      {available.length ? <DocumentGroup title="Available now" state="available" items={available} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
 
       {satisfied.length ? <section className="stage-documents__group">
-        <div className="stage-documents__group-title"><h3>Evidence available</h3><span>{satisfied.length}</span></div>
+        <div className="stage-documents__group-title"><h3>Complete</h3><span>{satisfied.length}</span></div>
         <div className="stage-documents__list">
           {satisfied.map(({ item, document }) => {
             const definition = getWorkspaceDocument(item.slug);
@@ -123,16 +123,16 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
               <div className="stage-document-row__copy">
                 <div className="stage-document-row__title"><h4>{definition.title}</h4><span>{document.status.replaceAll('_', ' ')}</span></div>
                 <p>{document.reference} · v{document.version} · Generated {new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(document.created_at))}</p>
-                {item.requiredNow ? <p>Stage requirement satisfied · minimum state {item.minimumStatus || 'draft'}.</p> : null}
+                {item.requiredNow ? <p>Requirement complete · required status {item.minimumStatus || 'draft'}.</p> : null}
               </div>
-              <Link className="button secondary" href={documentUrl(document, context, recordId)}>Open</Link>
+              <Link className="button secondary" href={documentUrl(document, context, recordId)}>Open document</Link>
             </article>;
           })}
         </div>
       </section> : null}
 
       {blocked.length ? <details className="vp-disclosure">
-        <summary>Future-stage evidence · {blocked.length}</summary>
+        <summary>Later-stage documents · {blocked.length}</summary>
         <div className="stage-documents__list">
           {blocked.map((item) => {
             const definition = getWorkspaceDocument(item.slug);
@@ -140,7 +140,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
             return <article className="stage-document-row is-blocked" key={item.slug}>
               <span className="stage-document-row__icon" aria-hidden="true">⌁</span>
               <div className="stage-document-row__copy"><div className="stage-document-row__title"><h4>{definition.title}</h4><span>Locked</span></div><p>{item.blockedReason || item.reason}</p></div>
-              <strong>Complete prior evidence</strong>
+              <strong>Complete earlier requirements</strong>
             </article>;
           })}
         </div>
@@ -175,7 +175,7 @@ function DocumentGroup({ title, state, items, context, recordId, quoteId, return
             <input type="hidden" name={context === 'case' ? 'lead_id' : 'project_id'} value={recordId}/>
             {quoteId ? <input type="hidden" name="quote_id" value={quoteId}/> : null}
             <input type="hidden" name="return_to" value={returnTo}/>
-            <button className="button" type="submit">Generate</button>
+            <button className="button" type="submit">Create document</button>
           </form>
         </article>;
       })}
