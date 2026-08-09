@@ -84,9 +84,11 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
 
   if (submitted && !input.hasPartnerRequest && !converted && !closed) {
     stageIndex = 2;
-    currentState = 'Customer intake received';
+    currentState = qualified ? 'Partner gate required before Case creation' : 'Customer intake received';
     nextAction = 'Request governed partner review';
-    nextReason = 'The Step 2 evidence is complete enough to send a controlled technical and pricing request to an approved partner.';
+    nextReason = qualified
+      ? 'This Prospect carries a legacy qualified flag, but the new lifecycle does not trust that flag. A real partner response, pricing and Go / No-Go approval are still required.'
+      : 'The Step 2 evidence is complete enough to send a controlled technical and pricing request to an approved partner.';
     actionKey = 'request_partner';
   }
 
@@ -118,7 +120,7 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
     waitingExternally = true;
   }
 
-  if ((partnerApproved || qualified) && !converted && !closed) {
+  if (partnerApproved && !converted && !closed) {
     stageIndex = 5;
     currentState = 'Approved for Case creation';
     nextAction = 'Create governed Case 360';
@@ -161,7 +163,7 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
       partnerReview: input.hasPartnerRequest ? labelStatus(input.partnerRequestStatus) : 'Not requested',
       partnerPricing: input.hasPartnerPricing ? 'Received' : 'Outstanding',
       approval: partnerApproved ? 'Approved' : input.partnerDecision ? labelStatus(input.partnerDecision) : input.hasPartnerResponse ? 'Required' : 'Not ready',
-      qualification: converted ? 'Converted' : closed ? 'Closed' : partnerApproved || qualified ? 'Qualified' : 'Pending',
+      qualification: converted ? 'Converted' : closed ? 'Closed' : partnerApproved ? 'Qualified' : 'Pending',
     },
   };
 }
