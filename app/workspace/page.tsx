@@ -22,9 +22,9 @@ export default async function WorkspacePage() {
     const clarification=row.status==='clarification_required';
     return {
       id:`partner-${row.id}`,
-      title:internal?'Approval required — partner response':clarification?'Partner clarification required':'Waiting on partner response',
+      title:internal?'Partner response ready for review':clarification?'Partner clarification needed':'Waiting on partner response',
       company:row.prospect?.company_name||'Acquisition prospect',
-      reason:internal?'Technical + commercial response is ready for Go / No-Go':clarification?'Clarification cycle is blocking progression':`${row.partner?.company_name||'Execution partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,
+      reason:internal?'Technical and pricing response is ready for an internal decision':clarification?'Clarification is holding up the next step':`${row.partner?.company_name||'Execution partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,
       waitingSince:row.submitted_at||row.sent_at||row.created_at,
       priority:internal?'high':'normal',
       href:`/workspace/acquisition/${row.prospect_id}${internal?'#approval-decision':''}`,
@@ -35,58 +35,59 @@ export default async function WorkspacePage() {
   const attention = resolveBusinessAttention([...partnerAttention,...canonicalBase]);
   const actions = attention.items.slice(0, 8);
 
-  return <section style={{ display: 'grid', gap: 20 }}>
-    <section className="card" style={{ width: '100%', padding: 28, background: 'linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.025))' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 28, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <div style={{ maxWidth: 760 }}>
-          <p className="eyebrow">Owner command centre</p>
-          <h1 style={{ margin: '16px 0 12px' }}>Good morning, {name}.</h1>
-          <p className="lede" style={{ margin: 0 }}>Priority work, ageing risk and the next governed decision. Approval-required work is surfaced here rather than left hidden inside records.</p>
+  return <section className="saas-page">
+    <section className="saas-hero">
+      <div className="saas-hero__inner">
+        <div className="saas-hero__copy">
+          <p className="vp-kicker">Home</p>
+          <h1>Good morning, {name}.</h1>
+          <p className="vp-subtitle">See what needs attention, what is waiting, and where work is moving next.</p>
         </div>
-        <Link className="button secondary" href="/workspace/acquisition">Open acquisition</Link>
+        <Link className="button" href="/workspace/acquisition">Open acquisition</Link>
       </div>
     </section>
 
-    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
-      <article className="metric"><span>Open actions</span><strong>{attention.items.length}</strong><small>Business items requiring attention</small></article>
-      <article className="metric"><span>Overdue</span><strong>{attention.overdue}</strong><small>Waiting more than two days</small></article>
-      <article className="metric"><span>Approval required</span><strong>{partnerRows.filter(row=>row.status==='submitted').length}</strong><small>Partner responses awaiting Go / No-Go</small></article>
+    <section className="saas-metrics" aria-label="Business attention summary">
+      <article className="saas-metric"><span>Needs attention</span><strong>{attention.items.length}</strong><small>Open items across the workspace</small></article>
+      <article className="saas-metric"><span>Overdue</span><strong>{attention.overdue}</strong><small>Waiting more than two days</small></article>
+      <article className="saas-metric"><span>Ready for review</span><strong>{partnerRows.filter(row=>row.status==='submitted').length}</strong><small>Partner responses awaiting a decision</small></article>
+      <article className="saas-metric"><span>Active projects</span><strong>{dashboard.activeProjects}</strong><small>Current delivery workload</small></article>
     </section>
 
-    <section style={{ display: 'grid', gridTemplateColumns: 'minmax(260px,.72fr) minmax(0,1.28fr)', gap: 20, alignItems: 'start' }}>
-      <aside style={{ display: 'grid', gap: 20 }}>
-        <section className="card" style={{ width: '100%' }}>
-          <p className="eyebrow">Workload</p><h2 style={{ marginTop: 8 }}>Where work is waiting</h2>
-          <div style={{ display: 'grid', gap: 12, marginTop: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid', paddingTop: 12 }}><span>Internal decision</span><strong>{attention.waitingOnInternal}</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid', paddingTop: 12 }}><span>Execution partner</span><strong>{attention.waitingOnPartner}</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid', paddingTop: 12 }}><span>Client decision</span><strong>{attention.waitingOnClient}</strong></div>
+    <section className="saas-grid--dashboard">
+      <aside className="saas-stack">
+        <section className="saas-panel">
+          <p className="vp-label">Waiting on</p><h2>Workload</h2>
+          <div className="saas-signal-list">
+            <div className="saas-signal"><span>Internal decision</span><strong>{attention.waitingOnInternal}</strong></div>
+            <div className="saas-signal"><span>Execution partner</span><strong>{attention.waitingOnPartner}</strong></div>
+            <div className="saas-signal"><span>Client decision</span><strong>{attention.waitingOnClient}</strong></div>
           </div>
         </section>
-        <section className="card" style={{ width: '100%' }}>
-          <p className="eyebrow">Watchlist</p>
-          <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Customer intakes</span><strong>{dashboard.technicalIntakesAwaitingReview}</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Partner responses outstanding</span><strong>{partnerRows.filter(row=>['invited','opened','in_progress'].includes(row.status)).length}</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Active delivery</span><strong>{dashboard.activeProjects}</strong></div>
+        <section className="saas-panel">
+          <p className="vp-label">Watchlist</p><h2>Coming up</h2>
+          <div className="saas-signal-list">
+            <div className="saas-signal"><span>Customer intakes</span><strong>{dashboard.technicalIntakesAwaitingReview}</strong></div>
+            <div className="saas-signal"><span>Partner responses</span><strong>{partnerRows.filter(row=>['invited','opened','in_progress'].includes(row.status)).length}</strong></div>
+            <div className="saas-signal"><span>Active delivery</span><strong>{dashboard.activeProjects}</strong></div>
           </div>
         </section>
       </aside>
 
-      <section className="card" style={{ width: '100%', padding: 22 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'end' }}>
-          <div><p className="eyebrow">Needs action now</p><h2 style={{ margin: '8px 0 0' }}>Live action queue</h2></div>
+      <section className="saas-panel">
+        <div className="saas-section__header">
+          <div><p className="vp-label">Priority queue</p><h2>Needs action now</h2></div>
           <span>{attention.items.length} open</span>
         </div>
-        <div style={{ display: 'grid', marginTop: 20 }}>
-          {actions.length ? actions.map((item, index) => <Link href={item.href} key={`${item.id}-${item.title}`} style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) 100px 32px', gap: 14, alignItems: 'center', padding: '18px 4px', borderTop: '1px solid' }}>
-            <span style={{ color: '#b4975a', fontSize: 12 }}>{String(index + 1).padStart(2, '0')}</span>
-            <div style={{ minWidth: 0 }}><strong style={{ display: 'block' }}>{item.title}</strong><p style={{ margin: '5px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company} · {item.reason}</p></div>
-            <div><small>Waiting</small><strong style={{ display: 'block', marginTop: 4 }}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
-            <span>↗</span>
-          </Link>) : <p style={{ padding: '24px 0 8px' }}>No business items currently require a decision.</p>}
+        <div className="saas-action-list">
+          {actions.length ? actions.map((item, index) => <Link href={item.href} key={`${item.id}-${item.title}`} className="saas-action-row">
+            <span className="saas-action-row__index">{String(index + 1).padStart(2, '0')}</span>
+            <div><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div>
+            <div><small>Waiting</small><strong style={{display:'block',marginTop:4}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
+            <span aria-hidden="true">→</span>
+          </Link>) : <div className="saas-empty">Nothing needs your attention right now.</div>}
         </div>
-        {attention.items.length > actions.length ? <p style={{ margin: '14px 0 0', color: 'var(--op-muted)' }}>Showing the 8 oldest priority items.</p> : null}
+        {attention.items.length > actions.length ? <p style={{margin:'14px 0 0',color:'var(--op-muted)'}}>Showing the 8 oldest priority items.</p> : null}
       </section>
     </section>
   </section>;
