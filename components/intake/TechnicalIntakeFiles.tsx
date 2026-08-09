@@ -1,6 +1,7 @@
 'use client';
 
 import { ChangeEvent, useRef, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 type IntakeFile = {
   id: string;
@@ -8,6 +9,16 @@ type IntakeFile = {
   size_bytes: number;
   file_category?: string | null;
   uploaded_at?: string | null;
+};
+
+type PreparedUpload = {
+  path: string;
+  token: string;
+  bucket: string;
+  filename: string;
+  size: number;
+  mimeType: string;
+  category: string;
 };
 
 function fileSize(bytes: number) {
@@ -24,36 +35,66 @@ export default function TechnicalIntakeFiles({ token, initialFiles = [], disable
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
+  async function prepare(file: File): Promise<PreparedUpload> {
+    const response = await fetch(`/api/intake/${token}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'prepare',
+        filename: file.name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        category: 'client_source',
+      }),
+    });
+    const body = await response.json();
+    if (!response.ok || !body.upload) throw new Error(body.message || `Unable to prepare ${file.name}.`);
+    return body.upload as PreparedUpload;
+  }
+
+  async function finalize(upload: PreparedUpload): Promise<IntakeFile> {
+    const response = await fetch(`/api/intake/${token}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'finalize', ...upload }),
+    });
+    const body = await response.json();
+    if (!response.ok || !body.file) throw new Error(body.message || `Unable to register ${upload.filename}.`);
+    return body.file as IntakeFile;
+  }
+
   async function uploadSelected(event: ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files || []);
     if (!selected.length) return;
     setBusy(true);
     setMessage('');
     let uploaded = 0;
+    let lastError = '';
 
     for (const file of selected) {
       if (file.size > 25 * 1024 * 1024) {
-        setMessage(`${file.name} is larger than 25 MB.`);
+        lastError = `${file.name} is larger than 25 MB.`;
         continue;
       }
-      const form = new FormData();
-      form.append('file', file);
-      form.append('category', 'client_source');
       try {
-        const response = await fetch(`/api/intake/${token}/files`, { method: 'POST', body: form });
-        const body = await response.json();
-        if (!response.ok) {
-          setMessage(body.message || `Unable to upload ${file.name}.`);
-          continue;
-        }
-        setFiles((current) => [...current, body.file]);
+        const prepared = await prepare(file);
+        const supabase = createClient();
+        const { error: uploadError } = await supabase.storage
+          .from(prepared.bucket)
+          .uploadToSignedUrl(prepared.path, prepared.token, file, {
+            contentType: file.type || 'application/octet-stream',
+          });
+        if (uploadError) throw uploadError;
+
+        const registered = await finalize(prepared);
+        setFiles((current) => [...current, registered]);
         uploaded += 1;
-      } catch {
-        setMessage(`Unable to upload ${file.name}.`);
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : `Unable to upload ${file.name}.`;
       }
     }
 
-    if (uploaded > 0 && !message) setMessage(`${uploaded} file${uploaded === 1 ? '' : 's'} uploaded.`);
+    setMessage(lastError || `${uploaded} file${uploaded === 1 ? '' : 's'} uploaded securely.`);
     setBusy(false);
     if (inputRef.current) inputRef.current.value = '';
   }
