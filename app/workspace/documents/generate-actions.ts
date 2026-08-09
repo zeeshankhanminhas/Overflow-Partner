@@ -55,6 +55,66 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (slug === 'handover-pack' && !['mobilisation','ready_for_execution','ready_for_client_issue','issued_to_client','client_review','completion','closed'].includes(stage)) throw new Error('The Handover Pack is not available at the current delivery stage.');
       if (slug === 'completion-report' && !['completion','closed'].includes(stage)) throw new Error('The Completion Report is available only at Completion or Closed.');
       if (slug === 'invoice' && !['completion','closed'].includes(stage)) throw new Error('The Invoice is available only after delivery reaches Completion.');
+
+      // Project 360 is the sole operational owner after Case handoff. If an older
+      // Case-owned copy of this controlled document already exists, adopt that
+      // record rather than manufacture a duplicate reference/version.
+      const { data: existingProjectDocument } = await supabase
+        .from('documents')
+        .select('id,reference,document_type,status,project_id,lead_id')
+        .eq('organisation_id', organisationId)
+        .eq('project_id', projectId)
+        .eq('document_type', slug)
+        .neq('status', 'superseded')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingProjectDocument) {
+        destination = `/workspace/documents/templates/${slug}?project=${projectId}&document_record=${existingProjectDocument.id}`;
+        redirect(destination);
+      }
+
+      if (project.lead_id) {
+        let legacyQuery = supabase
+          .from('documents')
+          .select('id,reference,document_type,status,project_id,lead_id,quote_id')
+          .eq('organisation_id', organisationId)
+          .eq('lead_id', project.lead_id)
+          .is('project_id', null)
+          .eq('document_type', slug)
+          .neq('status', 'superseded')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (project.quote_id) legacyQuery = legacyQuery.or(`quote_id.eq.${project.quote_id},quote_id.is.null`);
+        const { data: legacyDocument } = await legacyQuery.maybeSingle();
+
+        if (legacyDocument) {
+          const { data: adopted, error: adoptError } = await supabase
+            .from('documents')
+            .update({ project_id: projectId, lead_id: null, quote_id: legacyDocument.quote_id || project.quote_id || null, updated_at: new Date().toISOString() })
+            .eq('organisation_id', organisationId)
+            .eq('id', legacyDocument.id)
+            .select('id,reference')
+            .single();
+          if (adoptError || !adopted) throw new Error(adoptError?.message || 'Existing controlled document could not be transferred to Project 360.');
+
+          await supabase.from('activity_events').insert({
+            organisation_id: organisationId,
+            entity_type: 'project',
+            entity_id: projectId,
+            user_id: user.id,
+            event_type: 'document.ownership_transferred',
+            event_data: { document_id: adopted.id, document_type: slug, from: 'case', to: 'project' },
+            new_value: { document_id: adopted.id, project_id: projectId, lead_id: null },
+          });
+
+          revalidatePath(returnTo);
+          revalidatePath('/workspace/documents');
+          destination = `/workspace/documents/templates/${slug}?project=${projectId}&document_record=${adopted.id}`;
+          redirect(destination);
+        }
+      }
     } else {
       if (!caseDocuments.includes(slug)) throw new Error('This document is not permitted from Case 360.');
       const { data: lead, error } = await supabase.from('leads').select('id,status').eq('organisation_id', organisationId).eq('id', leadId).single();
@@ -84,7 +144,8 @@ export async function generateControlledDocumentAction(formData: FormData) {
     const { data: record, error: insertError } = await supabase.from('documents').insert({
       organisation_id: organisationId,
       created_by: user.id,
-      lead_id: resolvedLeadId,
+      // Exactly one operational owner: Case OR Project, never both.
+      lead_id: projectId ? null : resolvedLeadId,
       project_id: projectId,
       quote_id: resolvedQuoteId,
       document_type: slug,
