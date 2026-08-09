@@ -3,7 +3,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { resolveLifecycleOwnership } from '@/lib/lifecycle/ownership';
 
 function typeOf(item:any){return String(item.entity_type||'').toLowerCase();}
-function ResultRows({items,empty}:{items:any[];empty?:string}){return <div className="vp-list">{items.map((item:any)=><Link className="vp-row" href={item.href} key={`${item.entity_type}-${item.entity_id}`}><div><strong>{item.title}</strong><p>{item.subtitle||'No additional context'}</p></div><div className="vp-row-status">{String(item.entity_type).replaceAll('_',' ')}</div><div><strong>Open →</strong></div></Link>)}{items.length===0&&empty?<div className="vp-empty">{empty}</div>:null}</div>}
+function ResultRows({items,empty}:{items:any[];empty?:string}){return <div className="vp-list">{items.map((item:any)=><Link className="vp-row" href={item.href} key={`${item.entity_type}-${item.entity_id}`}><div><strong>{item.title}</strong><p>{item.subtitle||'No additional details'}</p></div><div className="vp-row-status">{String(item.entity_type).replaceAll('_',' ')}</div><div><strong>Open →</strong></div></Link>)}{items.length===0&&empty?<div className="vp-empty">{empty}</div>:null}</div>}
 
 export default async function SearchPage({searchParams}:{searchParams?:Promise<Record<string,string|undefined>>}){
   const params=searchParams?await searchParams:{};const q=String(params.q||'').trim();const {supabase,organisationId}=await requireUserContext();
@@ -42,15 +42,15 @@ export default async function SearchPage({searchParams}:{searchParams?:Promise<R
   }
 
   return <section className="vp-page">
-    <header className="vp-header"><div><p className="vp-kicker">Enterprise search</p><h1>Find the current business record.</h1><p className="vp-subtitle">Lifecycle ownership is explicit: the current operating record is separated from historical Prospect/Case lineage and from controlled evidence.</p></div><Link className="button secondary" href="/workspace/knowledge">Knowledge library</Link></header>
+    <header className="vp-header"><div><p className="vp-kicker">Search</p><h1>Find anything in your workspace.</h1><p className="vp-subtitle">Search projects, clients, documents, invoices, partners, risks and saved knowledge from one place.</p></div><Link className="button secondary" href="/workspace/knowledge">Knowledge</Link></header>
     <form method="get" className="card" style={{width:'100%',display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:12}}><input autoFocus name="q" defaultValue={q} placeholder="Search project number, client, drawing, invoice, partner, risk, lesson…"/><button className="button">Search</button></form>
-    {error?<div className="vp-callout"><strong>Search unavailable</strong><p>{error}</p></div>:null}
-    {q.length>0&&q.length<2?<div className="vp-callout"><strong>Type at least two characters.</strong></div>:null}
+    {error?<div className="vp-callout"><strong>Search is temporarily unavailable</strong><p>Please try again. If the problem continues, check the workspace data connection.</p></div>:null}
+    {q.length>0&&q.length<2?<div className="vp-callout"><strong>Enter at least two characters.</strong></div>:null}
     {q&&results.length>0?<>
-      <section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Current record</p><h2>Operational ownership</h2></div><span>{current.length}</span></div><ResultRows items={current} empty="No lifecycle record in these results currently owns active work."/></section>
-      {evidence.length?<section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Evidence</p><h2>Controlled documents and evidence</h2></div><span>{evidence.length}</span></div><ResultRows items={evidence}/></section>:null}
-      {other.length?<section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Related business records</p><h2>Supporting records</h2></div><span>{other.length}</span></div><ResultRows items={other}/></section>:null}
-      {history.length?<details className="vp-disclosure"><summary>Historical lifecycle identities · {history.length}</summary><div style={{paddingTop:16}}><p style={{color:'var(--op-muted)'}}>These records are retained for lineage and audit. They no longer own operational work.</p><ResultRows items={history}/></div></details>:null}
-    </>:<section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Results</p><h2>{q?`0 matches for “${q}”`:'Search the workspace'}</h2></div></div>{q&&!error?<div className="vp-empty">No governed records match this search.</div>:null}</section>}
+      <section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Active work</p><h2>Current records</h2></div><span>{current.length}</span></div><ResultRows items={current} empty="No active records match this search."/></section>
+      {evidence.length?<section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Documents</p><h2>Documents and evidence</h2></div><span>{evidence.length}</span></div><ResultRows items={evidence}/></section>:null}
+      {other.length?<section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Related</p><h2>Other matching records</h2></div><span>{other.length}</span></div><ResultRows items={other}/></section>:null}
+      {history.length?<details className="vp-disclosure"><summary>Previous records · {history.length}</summary><div style={{paddingTop:16}}><p style={{color:'var(--op-muted)'}}>These records are kept for history and audit. Active work has moved to a newer record.</p><ResultRows items={history}/></div></details>:null}
+    </>:<section className="card" style={{width:'100%'}}><div className="vp-section-title"><div><p className="vp-label">Results</p><h2>{q?`0 matches for “${q}”`:'Search the workspace'}</h2></div></div>{q&&!error?<div className="vp-empty">No records match this search.</div>:null}</section>}
   </section>;
 }
