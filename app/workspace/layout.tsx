@@ -14,6 +14,7 @@ import './sprint-zero.css';
 import './record-workspace.css';
 import './continuity.css';
 import './phase-1c-consistency.css';
+import './phase-1f-mobile-polish.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
