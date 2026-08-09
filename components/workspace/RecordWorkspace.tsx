@@ -17,17 +17,17 @@ type RecordWorkspaceProps = {
   className?: string;
 };
 
-function Slot({ title, children, className = '' }: { title: string; children?: ReactNode; className?: string }) {
+function Slot({ id, title, children, className = '' }: { id?: string; title: string; children?: ReactNode; className?: string }) {
   if (!children) return null;
-  return <section className={`record-workspace__slot ${className}`.trim()}>
+  return <section id={id} className={`record-workspace__slot ${className}`.trim()}>
     <p className="record-workspace__eyebrow">{title}</p>
     {children}
   </section>;
 }
 
-function Disclosure({ title, description, children }: { title: string; description?: string; children?: ReactNode }) {
+function Disclosure({ id, title, description, children }: { id?: string; title: string; description?: string; children?: ReactNode }) {
   if (!children) return null;
-  return <details className="record-workspace__disclosure">
+  return <details id={id} className="record-workspace__disclosure">
     <summary>
       <span><strong>{title}</strong>{description ? <small>{description}</small> : null}</span>
       <i aria-hidden="true">+</i>
@@ -56,10 +56,10 @@ export default function RecordWorkspace({
   const hasSecondaryContext = Boolean(history || olderDocuments || metadata || audit);
 
   return <section className={`record-workspace ${className}`.trim()}>
-    <header className="record-workspace__header">{header}</header>
-    {notices ? <div className="record-workspace__notices">{notices}</div> : null}
+    <header id="record-header" className="record-workspace__header">{header}</header>
+    {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
 
-    <section className="record-workspace__state" aria-label="Record state">
+    <section id="record-state" className="record-workspace__state" aria-label="Record state">
       {stateStrip}
     </section>
 
@@ -69,9 +69,9 @@ export default function RecordWorkspace({
         <span>What needs attention and what to do next</span>
       </div>
       <div className="record-workspace__decision-grid">
-        <Slot title="Readiness" className="record-workspace__slot--readiness">{readiness}</Slot>
-        <Slot title="Next action" className="record-workspace__slot--action">{nextAction}</Slot>
-        <Slot title="Summary" className="record-workspace__slot--summary">{summary}</Slot>
+        <Slot id="record-readiness" title="Readiness" className="record-workspace__slot--readiness">{readiness}</Slot>
+        <Slot id="record-next-action" title="Next action" className="record-workspace__slot--action">{nextAction}</Slot>
+        <Slot id="record-summary" title="Summary" className="record-workspace__slot--summary">{summary}</Slot>
       </div>
     </section>
 
@@ -81,8 +81,8 @@ export default function RecordWorkspace({
         <span>Work relevant to this stage</span>
       </div>
       <div className="record-workspace__primary-work">
-        {activities ? <Slot title="Activities" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
-        {communications ? <Disclosure title="Communications" description="Open correspondence when you need it">{communications}</Disclosure> : null}
+        {activities ? <Slot id="record-activities" title="Activities" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
+        {communications ? <Disclosure id="record-communications" title="Communications" description="Open correspondence when you need it">{communications}</Disclosure> : null}
       </div>
     </section> : null}
 
@@ -91,7 +91,7 @@ export default function RecordWorkspace({
         <p id="record-controlled-evidence">Required documents</p>
         <span>Controlled evidence for this stage</span>
       </div>
-      <Slot title="Documents" className="record-workspace__slot--evidence">{evidence}</Slot>
+      <Slot id="record-documents" title="Documents" className="record-workspace__slot--evidence">{evidence}</Slot>
     </section> : null}
 
     {hasSecondaryContext ? <section className="record-workspace__group record-workspace__group--secondary" aria-labelledby="record-secondary-context">
@@ -100,10 +100,10 @@ export default function RecordWorkspace({
         <span>Details you can open when needed</span>
       </div>
       <div className="record-workspace__secondary-stack">
-        <Disclosure title="History" description="Previous record events">{history}</Disclosure>
-        <Disclosure title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
-        <Disclosure title="Metadata" description="Record and system identifiers">{metadata}</Disclosure>
-        <Disclosure title="Audit" description="Governance and change history">{audit}</Disclosure>
+        <Disclosure id="record-history" title="History" description="Previous record events">{history}</Disclosure>
+        <Disclosure id="record-older-documents" title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
+        <Disclosure id="record-metadata" title="Metadata" description="Record and system identifiers">{metadata}</Disclosure>
+        <Disclosure id="record-audit" title="Audit" description="Governance and change history">{audit}</Disclosure>
       </div>
     </section> : null}
   </section>;
