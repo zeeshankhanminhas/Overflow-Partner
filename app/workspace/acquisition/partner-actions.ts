@@ -7,6 +7,13 @@ import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders, queueNotification } from '@/lib/notifications/queue';
 
 function text(formData: FormData, key: string) { return String(formData.get(key) || '').trim(); }
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return fallback;
+}
 function siteUrl(path: string) {
   const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
   return `${base.startsWith('http') ? base : `https://${base}`}${path}`;
@@ -28,8 +35,9 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
       supabase.from('prospects').select('id,company_name,project_type').eq('organisation_id',organisationId).eq('id',prospectId).single(),
       supabase.from('partners').select('id,company_name,contact_name,email,status,nda_signed').eq('organisation_id',organisationId).eq('id',partnerId).single(),
     ]);
-    if (prospectError || !prospect) throw new Error('Prospect not found.');
-    if (partnerError || !partner || partner.status !== 'approved' || !partner.nda_signed) throw new Error('Select an approved NDA-compliant partner.');
+    if (prospectError || !prospect) throw prospectError || new Error('Prospect not found.');
+    if (partnerError) throw partnerError;
+    if (!partner || partner.status !== 'approved' || !partner.nda_signed) throw new Error('Select an approved NDA-compliant partner.');
 
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -54,6 +62,7 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
 
     const reviewUrl = siteUrl(`/partner-review/${token}`);
     const requestId = String(request?.id || '');
+    let notificationWarning = '';
     if (partner.email) {
       const payload = {
         name: partner.contact_name || partner.company_name,
@@ -63,30 +72,36 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
         dueDate: due.toISOString(),
         actionUrl: reviewUrl,
       };
-      await queueNotification(supabase, {
-        organisationId,eventKey:'partner.review_requested',recipientEmail:partner.email,
-        recipientName:partner.contact_name || partner.company_name,
-        subject:`Technical + pricing review requested — ${prospect.company_name}`,
-        templateKey:'partner_review_requested',payload,entityType:'prospect',entityId:prospectId,
-        idempotencyKey:`prospect-partner-review:requested:${requestId}`,
-      });
-      await queueNotification(supabase, {
-        organisationId,eventKey:'partner.review_reminder',recipientEmail:partner.email,
-        recipientName:partner.contact_name || partner.company_name,
-        subject:`Reminder: partner response due — ${prospect.company_name}`,
-        templateKey:'partner_review_reminder',payload,entityType:'prospect',entityId:prospectId,
-        category:'reminder',scheduledFor:new Date(Math.max(Date.now(),due.getTime()-48*60*60*1000)).toISOString(),
-        idempotencyKey:`prospect-partner-review:reminder:${requestId}`,
-      });
+      try {
+        await queueNotification(supabase, {
+          organisationId,eventKey:'partner.review_requested',recipientEmail:partner.email,
+          recipientName:partner.contact_name || partner.company_name,
+          subject:`Technical + pricing review requested — ${prospect.company_name}`,
+          templateKey:'partner_review_requested',payload,entityType:'prospect',entityId:prospectId,
+          idempotencyKey:`prospect-partner-review:requested:${requestId}`,
+        });
+        await queueNotification(supabase, {
+          organisationId,eventKey:'partner.review_reminder',recipientEmail:partner.email,
+          recipientName:partner.contact_name || partner.company_name,
+          subject:`Reminder: partner response due — ${prospect.company_name}`,
+          templateKey:'partner_review_reminder',payload,entityType:'prospect',entityId:prospectId,
+          category:'reminder',scheduledFor:new Date(Math.max(Date.now(),due.getTime()-48*60*60*1000)).toISOString(),
+          idempotencyKey:`prospect-partner-review:reminder:${requestId}`,
+        });
+      } catch (notificationError) {
+        console.error('Partner review notification queue failed after request creation', notificationError);
+        notificationWarning = '&notificationWarning=1';
+      }
     }
 
     revalidatePath(`/workspace/acquisition/${prospectId}`);
     revalidatePath('/workspace/acquisition');
     revalidatePath('/workspace');
     revalidatePath('/workspace/notifications');
-    destination = `/workspace/acquisition/${prospectId}?partnerReviewCreated=1&reviewUrl=${encodeURIComponent(reviewUrl)}`;
+    destination = `/workspace/acquisition/${prospectId}?partnerReviewCreated=1&reviewUrl=${encodeURIComponent(reviewUrl)}${notificationWarning}`;
   } catch (error) {
-    destination = `${destination}?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to request partner review.')}`;
+    console.error('Prospect partner review request failed', error);
+    destination = `${destination}?error=${encodeURIComponent(errorMessage(error, 'Unable to request partner review.'))}`;
   }
   redirect(destination);
 }
@@ -123,7 +138,8 @@ export async function decideProspectPartnerReviewAction(formData: FormData) {
     revalidatePath('/workspace/notifications');
     destination = `/workspace/acquisition/${prospectId}?partnerDecision=${encodeURIComponent(decision)}`;
   } catch (error) {
-    destination = `${destination}?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to record partner decision.')}`;
+    console.error('Prospect partner review decision failed', error);
+    destination = `${destination}?error=${encodeURIComponent(errorMessage(error, 'Unable to record partner decision.'))}`;
   }
   redirect(destination);
 }
