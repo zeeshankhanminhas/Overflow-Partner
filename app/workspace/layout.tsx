@@ -13,6 +13,7 @@ import './document-print.css';
 import './sprint-zero.css';
 import './record-workspace.css';
 import './continuity.css';
+import './phase-1c-consistency.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
