@@ -18,6 +18,10 @@ function siteUrl(path: string) {
   const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
   return `${base.startsWith('http') ? base : `https://${base}`}${path}`;
 }
+function acquisitionUrl(prospectId:string, params:Record<string,string>={}) {
+  const query=new URLSearchParams(params);
+  return `/workspace/acquisition/${prospectId}${query.size?`?${query.toString()}`:''}`;
+}
 
 export async function createProspectAction(formData: FormData): Promise<ActionResult<Prospect>> {
   try {
@@ -56,15 +60,17 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
 
 export async function createProspectFormAction(formData: FormData) {
   const result = await createProspectAction(formData);
-  redirect(result.ok ? '/workspace/acquisition?created=1' : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
+  redirect(result.ok
+    ? acquisitionUrl(result.data.id,{created:'Prospect added',focus:'record-next-action'})
+    : `/workspace/acquisition?error=${encodeURIComponent(result.error)}&focus=manual-prospect`);
 }
 
 export async function createStep2InvitationFormAction(formData: FormData) {
-  let destination = '/workspace/acquisition';
+  const prospectId = String(formData.get('prospect_id') || '');
+  let destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
-    const prospectId = String(formData.get('prospect_id') || '');
     if (!prospectId) throw new Error('Prospect ID is required.');
     await assertCanInviteTechnicalIntake(supabase, organisationId, prospectId);
     const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name').eq('organisation_id', organisationId).eq('id', prospectId).single();
@@ -90,31 +96,37 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     }
 
     revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace');
-    destination = `/workspace/acquisition/${prospectId}?invitation=${encodeURIComponent(url)}`;
+    destination = acquisitionUrl(prospectId,{invitation:url,focus:'record-next-action'});
   } catch (error) {
-    destination = `/workspace/acquisition?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create Technical Intake invitation.')}`;
+    const text=error instanceof Error ? error.message : 'Unable to create Technical Intake invitation.';
+    destination = prospectId
+      ? acquisitionUrl(prospectId,{error:text,focus:'record-next-action'})
+      : `/workspace/acquisition?error=${encodeURIComponent(text)}`;
   }
   redirect(destination);
 }
 
 export async function qualifyProspectFormAction(formData: FormData) {
-  let destination = '/workspace/acquisition';
+  const prospectId = String(formData.get('prospect_id') || '');
+  let destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
-    const prospectId = String(formData.get('prospect_id') || '');
     if (!prospectId) throw new Error('Prospect ID is required.');
     const { prospect, session, review } = await assertCanQualifyProspect(supabase, organisationId, prospectId);
-    if (prospect.status === 'qualified') { destination = `/workspace/acquisition/${prospectId}?qualified=1`; }
+    if (prospect.status === 'qualified') { destination = acquisitionUrl(prospectId,{qualified:'1',focus:'record-next-action'}); }
     else {
       const now = new Date().toISOString();
       const { error: updateError } = await supabase.from('prospects').update({ status: 'qualified', next_action: 'Create governed Case 360', assigned_to: user.id, updated_at: now }).eq('organisation_id', organisationId).eq('id', prospectId);
       if (updateError) throw updateError;
       await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'prospect_qualified', event_data: { intakeSessionId: session.id, technicalReviewId: review.id, qualifiedAt: now, previousStatus: prospect.status, invariant:'TECHNICAL_REVIEW_REQUIRED' } });
       await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
-      revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace'); destination = `/workspace/acquisition/${prospectId}?qualified=1`;
+      revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace'); destination = acquisitionUrl(prospectId,{qualified:'1',focus:'record-next-action'});
     }
-  } catch (error) { destination = `/workspace/acquisition?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to qualify prospect.')}`; }
+  } catch (error) {
+    const text=error instanceof Error ? error.message : 'Unable to qualify prospect.';
+    destination = prospectId ? acquisitionUrl(prospectId,{error:text,focus:'record-next-action'}) : `/workspace/acquisition?error=${encodeURIComponent(text)}`;
+  }
   redirect(destination);
 }
 
@@ -132,6 +144,11 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
 }
 
 export async function convertProspectFormAction(formData: FormData) {
+  const prospectId=String(formData.get('prospect_id')||'');
   const result = await convertProspectAction(formData);
-  redirect(result.ok ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns this opportunity.')}` : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
+  redirect(result.ok
+    ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns this opportunity.')}&focus=record-next-action`
+    : prospectId
+      ? acquisitionUrl(prospectId,{error:result.error,focus:'record-next-action'})
+      : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
 }
