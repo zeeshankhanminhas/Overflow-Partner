@@ -19,11 +19,27 @@ type Props = {
   projectId?: string | null;
 };
 
+function canonicalDocumentSlug(value: string) {
+  const aliases: Record<string, string> = {
+    client_quote: 'client-quote',
+    client_requirements: 'client-requirements',
+    scope_of_work: 'scope-of-work',
+    statement_of_work: 'statement-of-work',
+    commercial_approval: 'commercial-approval',
+    partner_technical_assessment_report: 'partner-technical-assessment-report',
+    vendor_safe_package: 'vendor-safe-package',
+    handover_pack: 'handover-pack',
+    completion_report: 'completion-report',
+    document_register: 'document-register',
+  };
+  return aliases[value] || value.replaceAll('_', '-');
+}
+
 function openUrl(document: RegistryDocument) {
   const context = document.project_id
     ? `project=${document.project_id}`
     : `case=${document.lead_id}`;
-  return `/workspace/documents/templates/${document.document_type}?${context}&document_record=${document.id}`;
+  return `/workspace/documents/templates/${canonicalDocumentSlug(document.document_type)}?${context}&document_record=${document.id}`;
 }
 
 export default async function DocumentEngineIndex({ leadId, projectId }: Props) {
@@ -87,7 +103,7 @@ export default async function DocumentEngineIndex({ leadId, projectId }: Props) 
           <tbody>
             {documents.map((document) => <tr key={document.id}>
               <td><strong>{document.reference}</strong></td>
-              <td><span>{document.title}</span><small>{document.document_type.replaceAll('-',' ')}</small></td>
+              <td><span>{document.title}</span><small>{canonicalDocumentSlug(document.document_type).replaceAll('-',' ')}</small></td>
               <td>{document.project_id ? 'Project 360' : 'Case 360'}</td>
               <td>v{document.version}</td>
               <td><span className={`document-status document-status--${document.status}`}>{document.status.replaceAll('_',' ')}</span></td>
