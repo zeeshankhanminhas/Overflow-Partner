@@ -85,6 +85,17 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     } catch { /* fall back to document registry */ }
   }, [documentRecordId]);
 
+  useEffect(() => {
+    if (!actionMode) return;
+    const id = actionMode === 'sign' ? 'document-sign-action' : 'document-change-action';
+    const firstField = actionMode === 'sign' ? 'document-signer-name' : 'document-change-reason';
+    const timer = window.setTimeout(() => {
+      reveal(document.getElementById(id), false);
+      window.setTimeout(() => document.getElementById(firstField)?.focus({ preventScroll: true }), 340);
+    }, 30);
+    return () => window.clearTimeout(timer);
+  }, [actionMode]);
+
   const normalizedStatus = currentStatus.toLowerCase();
   const hasRecord = Boolean(documentRecordId);
   const canSign = ['draft', 'in_review', 'changes_requested'].includes(normalizedStatus);
@@ -101,7 +112,6 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
   function openAction(mode: Exclude<ActionMode, null>) {
     setDecision('');
     setActionMode(mode);
-    scrollToId(mode === 'sign' ? 'document-sign-action' : 'document-change-action', 60);
   }
 
   function requireRecord() {
@@ -121,7 +131,15 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     window.setTimeout(() => observer.disconnect(), 5000);
   }
 
-  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>, onSuccess?: (status: string) => void) {
+  function operationalReturnHref(message:string) {
+    const url = new URL(backHref, window.location.origin);
+    url.searchParams.set('success', message);
+    if (ownerKind === 'case' || ownerKind === 'project') url.searchParams.set('focus', 'record-next-action');
+    if (ownerKind === 'commercial') url.searchParams.set('focus', 'financial-gate');
+    return `${url.pathname}${url.search}`;
+  }
+
+  async function runAction(label: string, action: () => Promise<{ ok: boolean; message: string; status?: string }>, onSuccess?: (status: string, message:string) => void) {
     setDecision(label);
     setIsPending(true);
     try {
@@ -131,21 +149,21 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
         setCurrentStatus(result.status);
         setActionMode(null);
         router.refresh();
-        onSuccess?.(result.status);
+        onSuccess?.(result.status, result.message);
       } else {
         scrollToId('document-review-feedback');
       }
     } catch (error) {
-      setDecision(error instanceof Error ? error.message : 'The governed document action failed.');
+      setDecision(error instanceof Error ? error.message : 'The document action could not be completed.');
       scrollToId('document-review-feedback');
     } finally {
       setIsPending(false);
     }
   }
 
-  function returnToOperationalOwner() {
+  function returnToOperationalOwner(message:string) {
     if (ownerKind === 'case' || ownerKind === 'project' || ownerKind === 'commercial') {
-      router.push(backHref);
+      router.push(operationalReturnHref(message));
       return true;
     }
     return false;
@@ -170,15 +188,15 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   async function approveDocument() {
     if (!requireRecord() || !documentRecordId) return;
-    await runAction('Approving controlled document…', () => approveControlledDocumentAction(documentRecordId), () => {
-      if (!returnToOperationalOwner()) scrollToId('document-review-status', 120);
+    await runAction('Approving document…', () => approveControlledDocumentAction(documentRecordId), (_status,message) => {
+      if (!returnToOperationalOwner(message)) scrollToId('document-review-status', 120);
     });
   }
 
   async function issueDocument() {
     if (!requireRecord() || !documentRecordId) return;
-    await runAction('Issuing controlled document…', () => issueControlledDocumentAction(documentRecordId), () => {
-      if (!returnToOperationalOwner()) scrollToId('document-review-status', 120);
+    await runAction('Issuing document…', () => issueControlledDocumentAction(documentRecordId), (_status,message) => {
+      if (!returnToOperationalOwner(message)) scrollToId('document-review-status', 120);
     });
   }
 
@@ -192,23 +210,23 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
     <section id="document-review-feedback" className="document-review-notice print:hidden" aria-live="polite">
       {decision || (hasRecord
-        ? isIssued ? 'This is the issued controlled publication. Commercial progression may continue.' : 'Review the live evidence and complete the next permitted controlled action.'
-        : 'Open this document from Case 360 or Project 360 to activate governed actions.')}
+        ? isIssued ? 'This document has been issued. Return to the record to continue.' : 'Review the document and complete the next available action.'
+        : 'Open this document from Case 360 or Project 360 to activate document actions.')}
     </section>
 
     {actionMode === 'sign' && <section id="document-sign-action" className="card stack print:hidden" aria-label="Electronic signature">
-      <div><p className="eyebrow">Electronic signature</p><h2>Sign controlled document</h2></div>
+      <div><p className="eyebrow">Electronic signature</p><h2>Sign document</h2></div>
       <div className="grid gap-4 md:grid-cols-2">
         <label className="field">Signer name<input id="document-signer-name" value={signerName} onChange={(event) => setSignerName(event.target.value)} autoComplete="name" /></label>
         <label className="field">Signer role<input id="document-signer-role" value={signerRole} onChange={(event) => setSignerRole(event.target.value)} placeholder="Engineering reviewer" /></label>
       </div>
-      <label id="document-signature-declaration" className="flex items-start gap-3 text-sm"><input className="mt-1" type="checkbox" checked={declarationAccepted} onChange={(event) => setDeclarationAccepted(event.target.checked)} /><span>I have reviewed this controlled document and intend this action to constitute my electronic signature.</span></label>
+      <label id="document-signature-declaration" className="flex items-start gap-3 text-sm"><input className="mt-1" type="checkbox" checked={declarationAccepted} onChange={(event) => setDeclarationAccepted(event.target.checked)} /><span>I have reviewed this document and intend this action to constitute my electronic signature.</span></label>
       <div className="flex flex-wrap gap-2"><button className="button" disabled={isPending} onClick={submitSignature} type="button">{isPending ? 'Signing…' : 'Apply e-signature'}</button><button className="button secondary" disabled={isPending} onClick={() => setActionMode(null)} type="button">Cancel</button></div>
     </section>}
 
     {actionMode === 'changes' && <section id="document-change-action" className="card stack print:hidden" aria-label="Request document changes">
-      <div><p className="eyebrow">Governed review</p><h2>Request changes</h2></div>
-      <label className="field">Required changes<textarea id="document-change-reason" rows={4} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Describe the amendment and evidence required before resubmission." /></label>
+      <div><p className="eyebrow">Document review</p><h2>Request changes</h2></div>
+      <label className="field">Required changes<textarea id="document-change-reason" rows={4} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Describe what needs to change before resubmission." /></label>
       <div className="flex flex-wrap gap-2"><button className="button" disabled={isPending} onClick={submitChangeRequest} type="button">{isPending ? 'Recording…' : 'Submit change request'}</button><button className="button secondary" disabled={isPending} onClick={() => setActionMode(null)} type="button">Cancel</button></div>
     </section>}
 
