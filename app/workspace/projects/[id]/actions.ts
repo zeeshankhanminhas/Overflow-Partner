@@ -45,9 +45,9 @@ export async function updateProjectMobilisationAction(formData: FormData) {
     });
     if(error) throw new Error(error.message);
     refreshProject(projectId);
-    destination=projectUrl(projectId,{updated:'Mobilisation controls saved.'});
+    destination=projectUrl(projectId,{updated:'Mobilisation controls saved.',focus:'record-readiness'});
   } catch(error) {
-    destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Project setup could not be saved.'});
+    destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Project setup could not be saved.',focus:'record-readiness'});
   }
   redirect(destination);
 }
@@ -73,9 +73,9 @@ export async function createProjectActivityAction(formData: FormData) {
     });
     if(error) throw new Error(error.message);
     refreshProject(projectId);
-    destination=projectUrl(projectId,{activity:'Activity created.'});
+    destination=projectUrl(projectId,{activity:'Activity created.',focus:'record-activities'});
   } catch(error) {
-    destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Activity could not be created.'});
+    destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Activity could not be created.',focus:'record-activities'});
   }
   redirect(destination);
 }
@@ -94,9 +94,9 @@ export async function setProjectActivityStatusAction(formData: FormData) {
     });
     if(error) throw new Error(error.message);
     refreshProject(projectId);
-    destination=projectUrl(projectId,{activity:'Activity status updated.'});
+    destination=projectUrl(projectId,{activity:'Activity status updated.',focus:'record-activities'});
   } catch(error) {
-    destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Activity status could not be updated.'});
+    destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Activity status could not be updated.',focus:'record-activities'});
   }
   redirect(destination);
 }
@@ -108,7 +108,7 @@ export async function advanceProjectStageAction(formData: FormData) {
   const note = String(formData.get('note') || '').trim();
   let destination = `/workspace/projects/${projectId}`;
 
-  if (!projectId || !projectStages.includes(targetStage)) redirect(`${destination}?error=${encodeURIComponent('Invalid project stage request.')}`);
+  if (!projectId || !projectStages.includes(targetStage)) redirect(`${destination}?error=${encodeURIComponent('Invalid project stage request.')}&focus=record-next-action`);
 
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
@@ -117,9 +117,9 @@ export async function advanceProjectStageAction(formData: FormData) {
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id: projectId,p_target_stage: targetStage,p_actor_id: user.id,p_note: note || null });
     if (error) throw new Error(error.message);
     refreshProject(projectId);
-    destination = `/workspace/projects/${projectId}?advanced=${targetStage}`;
+    destination = projectUrl(projectId,{advanced:targetStage,focus:targetStage==='closed'?'record-summary':'record-next-action'});
   } catch (error) {
-    destination = `/workspace/projects/${projectId}?error=${encodeURIComponent(error instanceof Error ? error.message : 'Project stage could not be advanced.')}`;
+    destination = projectUrl(projectId,{error:error instanceof Error ? error.message : 'Project stage could not be advanced.',focus:'record-next-action'});
   }
   redirect(destination);
 }
