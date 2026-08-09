@@ -66,44 +66,44 @@ export default function RecordWorkspace({
     <section className="record-workspace__group record-workspace__group--decision" aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
         <p id="record-decision-area">Decision</p>
-        <span>What is true · what is blocking progression · what happens next</span>
+        <span>What needs attention and what to do next</span>
       </div>
       <div className="record-workspace__decision-grid">
         <Slot title="Readiness" className="record-workspace__slot--readiness">{readiness}</Slot>
-        <Slot title="Next permitted action" className="record-workspace__slot--action">{nextAction}</Slot>
-        <Slot title="Record summary" className="record-workspace__slot--summary">{summary}</Slot>
+        <Slot title="Next action" className="record-workspace__slot--action">{nextAction}</Slot>
+        <Slot title="Summary" className="record-workspace__slot--summary">{summary}</Slot>
       </div>
     </section>
 
     {hasCurrentWork ? <section className="record-workspace__group" aria-labelledby="record-current-stage-work">
       <div className="record-workspace__group-heading">
         <p id="record-current-stage-work">Current work</p>
-        <span>Work relevant to the current governed state</span>
+        <span>Work relevant to this stage</span>
       </div>
       <div className="record-workspace__primary-work">
         {activities ? <Slot title="Activities" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
-        {communications ? <Disclosure title="Communications" description="Open contextual correspondence only when needed">{communications}</Disclosure> : null}
+        {communications ? <Disclosure title="Communications" description="Open correspondence when you need it">{communications}</Disclosure> : null}
       </div>
     </section> : null}
 
     {evidence ? <section className="record-workspace__group record-workspace__group--evidence" aria-labelledby="record-controlled-evidence">
       <div className="record-workspace__group-heading">
-        <p id="record-controlled-evidence">Controlled evidence</p>
-        <span>Evidence relevant to progression of this record</span>
+        <p id="record-controlled-evidence">Required documents</p>
+        <span>Controlled evidence for this stage</span>
       </div>
-      <Slot title="Current evidence" className="record-workspace__slot--evidence">{evidence}</Slot>
+      <Slot title="Documents" className="record-workspace__slot--evidence">{evidence}</Slot>
     </section> : null}
 
     {hasSecondaryContext ? <section className="record-workspace__group record-workspace__group--secondary" aria-labelledby="record-secondary-context">
       <div className="record-workspace__group-heading">
         <p id="record-secondary-context">More context</p>
-        <span>Available when needed; never competes with the current decision</span>
+        <span>Details you can open when needed</span>
       </div>
       <div className="record-workspace__secondary-stack">
         <Disclosure title="History" description="Previous record events">{history}</Disclosure>
-        <Disclosure title="Older documents" description="Evidence outside the current working set">{olderDocuments}</Disclosure>
-        <Disclosure title="Metadata" description="System and record identifiers">{metadata}</Disclosure>
-        <Disclosure title="Audit" description="Governed change trail">{audit}</Disclosure>
+        <Disclosure title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
+        <Disclosure title="Metadata" description="Record and system identifiers">{metadata}</Disclosure>
+        <Disclosure title="Audit" description="Governance and change history">{audit}</Disclosure>
       </div>
     </section> : null}
   </section>;
