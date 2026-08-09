@@ -53,8 +53,16 @@ async function sessionForToken(token: string) {
   return { supabase, session: data };
 }
 
+function validateDescriptor(filename: string, size: number) {
+  if (!filename) return 'File name is required.';
+  if (!Number.isFinite(size) || size <= 0) return 'The selected file is empty.';
+  if (size > MAX_FILE_BYTES) return 'Each file must be 25 MB or smaller.';
+  const ext = extension(filename);
+  if (!ext || !ALLOWED_EXTENSIONS.has(ext)) return `.${ext || 'unknown'} files are not accepted for technical intake.`;
+  return '';
+}
+
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
-  let uploadedPath = '';
   try {
     const { token } = await context.params;
     const { supabase, session } = await sessionForToken(token);
@@ -63,65 +71,94 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       return NextResponse.json({ message: 'Files can no longer be added to this technical intake.' }, { status: 409 });
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file');
-    const category = String(formData.get('category') || 'reference').trim().slice(0, 80) || 'reference';
-    if (!(file instanceof File)) return NextResponse.json({ message: 'Choose a file to upload.' }, { status: 400 });
-    if (file.size <= 0) return NextResponse.json({ message: 'The selected file is empty.' }, { status: 400 });
-    if (file.size > MAX_FILE_BYTES) return NextResponse.json({ message: 'Each file must be 25 MB or smaller.' }, { status: 413 });
+    const body = await request.json().catch(() => ({}));
+    const action = String(body?.action || '');
 
-    const ext = extension(file.name);
-    if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
-      return NextResponse.json({ message: `.${ext || 'unknown'} files are not accepted for technical intake.` }, { status: 415 });
+    if (action === 'prepare') {
+      const filename = String(body?.filename || '').trim();
+      const size = Number(body?.size || 0);
+      const mimeType = String(body?.mimeType || 'application/octet-stream').slice(0, 180);
+      const category = String(body?.category || 'client_source').trim().slice(0, 80) || 'client_source';
+      const descriptorError = validateDescriptor(filename, size);
+      if (descriptorError) return NextResponse.json({ message: descriptorError }, { status: size > MAX_FILE_BYTES ? 413 : 400 });
+
+      const { count, error: countError } = await supabase
+        .from('intake_files')
+        .select('id', { count: 'exact', head: true })
+        .eq('intake_session_id', session.id);
+      if (countError) throw countError;
+      if ((count || 0) >= MAX_FILES_PER_INTAKE) {
+        return NextResponse.json({ message: `A maximum of ${MAX_FILES_PER_INTAKE} files can be attached to one technical intake.` }, { status: 409 });
+      }
+
+      const storedName = `${randomUUID()}-${safeFilename(filename)}`;
+      const storagePath = `${session.organisation_id}/${session.prospect_id}/${session.id}/${storedName}`;
+      const { data: signed, error: signedError } = await supabase.storage.from(BUCKET).createSignedUploadUrl(storagePath);
+      if (signedError || !signed?.token) throw signedError || new Error('Signed upload token was not created.');
+
+      return NextResponse.json({
+        upload: {
+          path: storagePath,
+          token: signed.token,
+          bucket: BUCKET,
+          filename,
+          size,
+          mimeType,
+          category,
+        },
+      });
     }
 
-    const { count, error: countError } = await supabase
-      .from('intake_files')
-      .select('id', { count: 'exact', head: true })
-      .eq('intake_session_id', session.id);
-    if (countError) throw countError;
-    if ((count || 0) >= MAX_FILES_PER_INTAKE) {
-      return NextResponse.json({ message: `A maximum of ${MAX_FILES_PER_INTAKE} files can be attached to one technical intake.` }, { status: 409 });
+    if (action === 'finalize') {
+      const storagePath = String(body?.path || '');
+      const filename = String(body?.filename || '').trim();
+      const size = Number(body?.size || 0);
+      const mimeType = String(body?.mimeType || 'application/octet-stream').slice(0, 180);
+      const category = String(body?.category || 'client_source').trim().slice(0, 80) || 'client_source';
+      const descriptorError = validateDescriptor(filename, size);
+      if (descriptorError) return NextResponse.json({ message: descriptorError }, { status: 400 });
+
+      const requiredPrefix = `${session.organisation_id}/${session.prospect_id}/${session.id}/`;
+      if (!storagePath.startsWith(requiredPrefix)) {
+        return NextResponse.json({ message: 'The uploaded file does not belong to this technical intake.' }, { status: 403 });
+      }
+
+      const { data: existing } = await supabase.from('intake_files')
+        .select('id,original_filename,size_bytes,file_category,uploaded_at')
+        .eq('storage_path', storagePath)
+        .maybeSingle();
+      if (existing) return NextResponse.json({ file: existing });
+
+      const { data: row, error: insertError } = await supabase.from('intake_files').insert({
+        organisation_id: session.organisation_id,
+        intake_session_id: session.id,
+        prospect_id: session.prospect_id,
+        storage_path: storagePath,
+        original_filename: filename,
+        mime_type: mimeType || 'application/octet-stream',
+        size_bytes: size,
+        file_category: category,
+      }).select('id,original_filename,size_bytes,file_category,uploaded_at').single();
+      if (insertError) {
+        await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => null);
+        throw insertError;
+      }
+
+      if (session.status === 'invited' || session.status === 'opened') {
+        await supabase.from('intake_sessions').update({
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', session.id);
+      }
+
+      return NextResponse.json({ file: row }, { status: 201 });
     }
 
-    const storedName = `${randomUUID()}-${safeFilename(file.name)}`;
-    uploadedPath = `${session.organisation_id}/${session.prospect_id}/${session.id}/${storedName}`;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(uploadedPath, bytes, {
-      contentType: file.type || 'application/octet-stream',
-      upsert: false,
-    });
-    if (uploadError) throw uploadError;
-
-    const { data: row, error: insertError } = await supabase.from('intake_files').insert({
-      organisation_id: session.organisation_id,
-      intake_session_id: session.id,
-      prospect_id: session.prospect_id,
-      storage_path: uploadedPath,
-      original_filename: file.name,
-      mime_type: file.type || 'application/octet-stream',
-      size_bytes: file.size,
-      file_category: category,
-    }).select('id,original_filename,size_bytes,file_category,uploaded_at').single();
-
-    if (insertError) {
-      await supabase.storage.from(BUCKET).remove([uploadedPath]).catch(() => null);
-      uploadedPath = '';
-      throw insertError;
-    }
-
-    if (session.status === 'invited' || session.status === 'opened') {
-      await supabase.from('intake_sessions').update({
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('id', session.id);
-    }
-
-    return NextResponse.json({ file: row }, { status: 201 });
+    return NextResponse.json({ message: 'Unsupported file operation.' }, { status: 400 });
   } catch (error) {
-    console.error('Step 2 file upload failed', error);
-    return NextResponse.json({ message: 'The engineering file could not be uploaded.' }, { status: 500 });
+    console.error('Step 2 file operation failed', error);
+    return NextResponse.json({ message: 'The engineering file could not be processed.' }, { status: 500 });
   }
 }
 
