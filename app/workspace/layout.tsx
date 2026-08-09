@@ -25,7 +25,7 @@ import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
 
 export const metadata: Metadata = {
   title: 'Workspace | Overflow Partner',
-  description: 'Private engineering operations workspace for Overflow Partner.',
+  description: 'Engineering operations workspace for Overflow Partner.',
   robots: { index: false, follow: false },
 };
 
@@ -40,26 +40,26 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <Link href="/workspace" className="midts-brand" aria-label="Overflow Partner Workspace home"><span className="midts-brand-dot" />Overflow Partner</Link>
       <LifecycleSidebar />
       <div className="midts-sidebar-footer">
-        <p>Authenticated workspace</p>
+        <p>Workspace</p>
         <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
       </div>
     </aside>
 
     <section className="midts-main">
       <header className="midts-topbar">
-        <div><p>Private workspace</p><strong>Engineering operations</strong></div>
+        <div><p>Workspace</p><strong>Engineering operations</strong></div>
         <div className="midts-topbar-tools"><CommandPalette/><Link href="/workspace/notifications">Notifications</Link></div>
       </header>
-      <header className="midts-mobile-header"><div><span>Private workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
+      <header className="midts-mobile-header"><div><span>Workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
       <main className="midts-content">{children}</main>
     </section>
 
     <nav className="midts-mobile-nav" aria-label="Mobile workspace navigation">
       <Link href="/workspace">Home</Link>
-      <Link href="/workspace/acquisition/prospects">Acquire</Link>
-      <Link href="/workspace/leads?view=assessment">Cases</Link>
+      <Link href="/workspace/acquisition/prospects">Acquisition</Link>
+      <Link href="/workspace/leads">Cases</Link>
+      <Link href="/workspace/projects">Projects</Link>
       <Link href="/workspace/search">Search</Link>
-      <Link href="/workspace/commercial-control">Finance</Link>
     </nav>
   </div>;
 }
