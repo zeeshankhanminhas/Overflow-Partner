@@ -55,6 +55,35 @@ function revalidateDocumentOwners(document: ControlledDocument) {
   if (document.project_id) revalidatePath(`/workspace/projects/${document.project_id}`);
 }
 
+async function persistDocumentStatus({
+  supabase,
+  organisationId,
+  documentId,
+  expectedStatus,
+  values,
+}: {
+  supabase: Awaited<ReturnType<typeof requireUserContext>>['supabase'];
+  organisationId: string;
+  documentId: string;
+  expectedStatus: string;
+  values: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase
+    .from('documents')
+    .update(values)
+    .eq('organisation_id', organisationId)
+    .eq('id', documentId)
+    .select('id,status,signed_by,approved_by,issued_by')
+    .single();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Document update was not persisted. Check document update permissions.');
+  if (String(data.status) !== expectedStatus) {
+    throw new Error(`Document update did not reach the expected ${expectedStatus} state.`);
+  }
+  return data;
+}
+
 export async function signControlledDocumentAction(documentId: string, signerName: string, signerRole: string, declarationAccepted: boolean): Promise<DocumentReviewResult> {
   try {
     if (!documentId) return { ok: false, message: 'A controlled document record is required.' };
@@ -67,9 +96,13 @@ export async function signControlledDocumentAction(documentId: string, signerNam
     if (!['draft','in_review','changes_requested'].includes(document.status)) return { ok: false, message: `Document cannot be signed from ${document.status}.` };
 
     const signedAt = new Date().toISOString();
-    const { error: updateError } = await supabase.from('documents').update({ status: 'signed', signed_by: user.id, signed_at: signedAt, updated_at: signedAt })
-      .eq('organisation_id', organisationId).eq('id', documentId);
-    if (updateError) return { ok: false, message: updateError.message };
+    await persistDocumentStatus({
+      supabase,
+      organisationId,
+      documentId,
+      expectedStatus: 'signed',
+      values: { status: 'signed', signed_by: user.id, signed_at: signedAt, updated_at: signedAt },
+    });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.signed', oldStatus: document.status, newStatus: 'signed', evidence: {
       authority: 'technical_evidence_review', signer_name: signerName.trim(), signer_role: signerRole.trim(), signed_at: signedAt,
       declaration: 'I confirm that I reviewed the available evidence and apply my electronic signature in the stated operating authority.',
@@ -88,9 +121,13 @@ export async function requestDocumentChangesAction(documentId: string, reason: s
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
     if (!['draft','in_review','signed'].includes(document.status)) return { ok: false, message: `Changes cannot be requested from ${document.status}.` };
     const requestedAt = new Date().toISOString();
-    const { error: updateError } = await supabase.from('documents').update({ status: 'changes_requested', signed_by: null, signed_at: null, approved_by: null, approved_at: null, issued_by: null, issued_at: null, updated_at: requestedAt })
-      .eq('organisation_id', organisationId).eq('id', documentId);
-    if (updateError) return { ok: false, message: updateError.message };
+    await persistDocumentStatus({
+      supabase,
+      organisationId,
+      documentId,
+      expectedStatus: 'changes_requested',
+      values: { status: 'changes_requested', signed_by: null, signed_at: null, approved_by: null, approved_at: null, issued_by: null, issued_at: null, updated_at: requestedAt },
+    });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.changes_requested', oldStatus: document.status, newStatus: 'changes_requested', evidence: { reason: reason.trim(), requested_at: requestedAt } });
     revalidateDocumentOwners(document);
     return { ok: true, message: 'Changes requested; prior review authority has been reset.', status: 'changes_requested' };
@@ -109,9 +146,13 @@ export async function approveControlledDocumentAction(documentId: string): Promi
 
     const approvedAt = new Date().toISOString();
     const combinedAuthority = document.signed_by === user.id;
-    const { error: updateError } = await supabase.from('documents').update({ status: 'approved', approved_by: user.id, approved_at: approvedAt, updated_at: approvedAt })
-      .eq('organisation_id', organisationId).eq('id', documentId);
-    if (updateError) return { ok: false, message: updateError.message };
+    await persistDocumentStatus({
+      supabase,
+      organisationId,
+      documentId,
+      expectedStatus: 'approved',
+      values: { status: 'approved', approved_by: user.id, approved_at: approvedAt, updated_at: approvedAt },
+    });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.approved', oldStatus: document.status, newStatus: 'approved', evidence: {
       authority: 'owner_release_authority', approved_at: approvedAt, approver_email: user.email, approver_role: profile.role,
       combined_owner_authority: combinedAuthority,
@@ -133,9 +174,13 @@ export async function issueControlledDocumentAction(documentId: string): Promise
 
     const issuedAt = new Date().toISOString();
     const combinedAuthority = document.approved_by === user.id;
-    const { error: updateError } = await supabase.from('documents').update({ status: 'issued', issued_by: user.id, issued_at: issuedAt, updated_at: issuedAt })
-      .eq('organisation_id', organisationId).eq('id', documentId);
-    if (updateError) return { ok: false, message: updateError.message };
+    await persistDocumentStatus({
+      supabase,
+      organisationId,
+      documentId,
+      expectedStatus: 'issued',
+      values: { status: 'issued', issued_by: user.id, issued_at: issuedAt, updated_at: issuedAt },
+    });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.issued', oldStatus: document.status, newStatus: 'issued', evidence: {
       authority: 'controlled_release_authority', issued_at: issuedAt, issued_by_email: user.email, issued_by_role: profile.role,
       combined_owner_authority: combinedAuthority,
