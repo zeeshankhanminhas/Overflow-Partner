@@ -40,50 +40,60 @@
     overflow-x: hidden;
   }
 
-  body {
-    min-height: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
+  /*
+   * Mobile uses an explicit workspace scroller rather than relying on the
+   * browser document viewport. This avoids WebView/custom-tab root-scroll
+   * stalls while preserving normal desktop document flow.
+   */
   .workspace.op-shell {
+    position: fixed !important;
+    inset: 0 !important;
     display: block !important;
     width: 100%;
-    min-height: 100dvh;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    min-height: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
   }
 
   .op-main {
-    display: block;
+    display: flex !important;
+    flex-direction: column;
     width: 100%;
-    min-height: 100dvh;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .op-mobile-header {
+    position: relative !important;
+    top: auto !important;
+    z-index: 40;
+    flex: 0 0 auto;
+    padding-top: max(10px, env(safe-area-inset-top));
   }
 
   .op-content {
     position: relative;
     display: block;
+    flex: 1 1 auto;
     width: 100%;
-    min-height: calc(100dvh - 58px);
+    min-height: 0 !important;
     height: auto !important;
     max-height: none !important;
-    overflow: visible !important;
-    overscroll-behavior-y: auto;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     padding: 16px 12px calc(98px + env(safe-area-inset-bottom));
+    scrollbar-width: thin;
   }
 
   .op-content > section {
     margin-inline: auto;
-  }
-
-  .op-mobile-header {
-    padding-top: max(10px, env(safe-area-inset-top));
   }
 
   .op-mobile-header > div {
@@ -97,8 +107,12 @@
   }
 
   .op-mobile-nav {
+    position: fixed !important;
+    inset: auto 0 0 !important;
+    z-index: 50;
     grid-template-columns: repeat(5, minmax(54px, 1fr));
     overflow-x: auto;
+    overflow-y: hidden;
     overscroll-behavior-inline: contain;
     padding-bottom: max(7px, env(safe-area-inset-bottom));
   }
