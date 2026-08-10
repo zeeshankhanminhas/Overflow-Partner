@@ -1,0 +1,60 @@
+/* Final mobile composition guardrails for older modules that still use inline grid styles. */
+@media(max-width:900px){
+  .workspace [style*="grid-template-columns: repeat(2"],
+  .workspace [style*="grid-template-columns:repeat(2"],
+  .workspace [style*="grid-template-columns: minmax(280px"],
+  .workspace [style*="grid-template-columns:minmax(280px"],
+  .workspace [style*="grid-template-columns: minmax(320px"],
+  .workspace [style*="grid-template-columns:minmax(320px"]{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
+  .payments-workspace .saas-section__header form,
+  .commercial-workspace .vp-section-title form{
+    width:100%;
+  }
+
+  .payments-workspace .saas-section__header form select,
+  .payments-workspace .saas-section__header form button{
+    flex:1 1 160px;
+  }
+
+  .workspace .vp-toolbar-panel{
+    position:fixed!important;
+    inset:auto 10px calc(72px + env(safe-area-inset-bottom)) 10px!important;
+    z-index:90;
+    max-height:min(72vh,680px);
+    overflow:auto;
+    border:1px solid var(--saas-line-strong);
+    border-radius:10px;
+    background:#0b0f12;
+    box-shadow:0 18px 50px rgba(0,0,0,.36);
+    padding:14px;
+  }
+
+  .workspace details[open]>.vp-toolbar-panel{
+    animation:op-panel-in .14s ease-out;
+  }
+
+  .workspace .document-registry__table-scroll{
+    margin-inline:-2px;
+    overflow-x:auto;
+    overscroll-behavior-inline:contain;
+  }
+
+  .workspace .document-registry__table-scroll table{
+    min-width:760px;
+  }
+
+  .workspace .notification-record dl{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:560px){
+  .workspace .notification-record dl{grid-template-columns:1fr}
+  .workspace .vp-toolbar-panel{inset:auto 8px calc(70px + env(safe-area-inset-bottom)) 8px!important}
+}
+
+@keyframes op-panel-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.workspace details[open]>.vp-toolbar-panel{animation:none}}
