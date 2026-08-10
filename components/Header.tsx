@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -41,7 +42,7 @@ export default function Header() {
       <div className="container_large padding_global">
         <div className="header_wrapper flex items-center justify-between gap-6">
           <Link className="brand_link flex items-center" href="/" aria-label="Overflow Partner home" onClick={closeMenu}>
-            <img src={logoSrc} alt="Overflow Partner" className="h-8 w-auto object-contain brightness-0 invert md:h-10" />
+            <Image src={logoSrc} alt="Overflow Partner" width={320} height={64} priority className="h-8 w-auto object-contain brightness-0 invert md:h-10" />
           </Link>
           <nav className="nav_primary hidden items-center gap-5 text-sm text-white md:flex md:gap-7" aria-label="Primary navigation">
             {links.map((link) => (
