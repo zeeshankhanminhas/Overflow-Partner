@@ -1,6 +1,6 @@
 # Overflow Partner — Product Architecture
 
-This document is the canonical workspace information architecture and UI composition contract for the commercial SaaS product.
+This document is the canonical workspace information architecture and UI composition contract for the commercial SaaS product. The route inventory below is aligned with the production Next.js route manifest.
 
 ## Product model
 
@@ -41,10 +41,10 @@ A page must not duplicate a specialist module inside an Overview. Overview surfa
 - `/workspace/exceptions` — Derived operational exception register
 - `/workspace/tasks` — Cross-record task queue
 - `/workspace/documents` — Controlled document register
-- `/workspace/documents/templates/[slug]` — Controlled document viewer / review
+- `/workspace/documents/[documentId]` — Direct controlled document detail / authorisation evidence
+- `/workspace/documents/templates/[document]` — Controlled document template/viewer/review
 - `/workspace/communications` — Communication register
-- `/workspace/communications/lead/[id]` — Case communication timeline
-- `/workspace/communications/project/[id]` — Project communication timeline
+- `/workspace/communications/[entityType]/[entityId]` — Case or Project communication timeline
 
 ### Intelligence
 - `/workspace/intelligence` — Management / Executive BI
@@ -57,10 +57,44 @@ A page must not duplicate a specialist module inside an Overview. Overview surfa
 - `/workspace/settings` — Workspace administration
 - `/workspace/settings/developer-data` — Developer-only test cleanup where permitted
 - `/workspace/companies` — Master company register
-- `/workspace/companies/[id]` — Company detail / relationship context
+- `/workspace/companies/[companyId]` — Company 360 / relationship context
+- `/workspace/contacts` — Master contact register
+- `/workspace/users` — Current organisation membership and roles
+- `/workspace/activity` — Cross-workspace audit register
 
 ### Internal product-governance surface
 - `/workspace/opds` — Overflow Partner Engineering Design System reference. This is not a day-to-day operator navigation destination; it governs visual, language and controlled-reference conventions.
+
+### Compatibility routes retained intentionally
+These URLs remain so old bookmarks do not fail, but they no longer create parallel operating surfaces:
+- `/workspace/commercial-reviews` → canonical Case `commercial-review` queue
+- `/workspace/partner-quotes` → canonical Case `partner-pricing` queue
+- `/workspace/orchestration` → canonical Cases register
+
+## Adjacent public and API routes
+
+### Secure external experiences
+- `/intake/[token]` — customer technical intake
+- `/partner-review/[token]` — execution-partner review
+- `/invoice/[token]` — externally accessible controlled invoice view
+- `/login` — workspace authentication
+
+### APIs
+- `/api/intake`
+- `/api/intake/[token]`
+- `/api/intake/[token]/files`
+- `/api/partner-review/[token]`
+- `/api/notifications/process`
+- `/api/workspace/search`
+- `/api/workspace/lifecycle-context`
+
+### Public website / policy routes
+- `/`
+- `/privacy`
+- `/terms`
+- `/cookie-policy`
+- `/robots.txt`
+- `/sitemap.xml`
 
 ## Canonical record composition
 
