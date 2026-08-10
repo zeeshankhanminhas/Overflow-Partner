@@ -29,6 +29,7 @@ import { signOut } from '@/app/login/actions';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
+import MobileDiagnostics from '@/components/workspace/MobileDiagnostics';
 
 export const metadata: Metadata = {
   title: 'Overflow Partner | Engineering Operations',
@@ -43,6 +44,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
 
   return <div className="workspace midts-shell op-shell">
     <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
+    <MobileDiagnostics />
     <aside className="midts-sidebar op-sidebar">
       <Link href="/workspace" className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
       <LifecycleSidebar />
