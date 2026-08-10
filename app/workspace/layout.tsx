@@ -15,6 +15,7 @@ import './record-workspace.css';
 import './continuity.css';
 import './phase-1c-consistency.css';
 import './phase-1f-mobile-polish.css';
+import './commercial-saas-ui.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -58,10 +59,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
 
     <nav className="midts-mobile-nav" aria-label="Mobile workspace navigation">
       <Link href="/workspace">Home</Link>
-      <Link href="/workspace/acquisition/prospects">Acquisition</Link>
+      <Link href="/workspace/acquisition/prospects">Acquire</Link>
       <Link href="/workspace/leads">Cases</Link>
       <Link href="/workspace/projects">Projects</Link>
-      <Link href="/workspace/payments">Payments</Link>
+      <Link href="/workspace/payments">Finance</Link>
     </nav>
   </div>;
 }
