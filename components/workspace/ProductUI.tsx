@@ -82,9 +82,9 @@ export function ProductRegister({ children, className = '' }: { children: ReactN
   return <div className={`product-register ${className}`.trim()}>{children}</div>;
 }
 
-export function ProductRegisterRow({ children, href, className = '' }: { children: ReactNode; href?: string; className?: string }) {
+export function ProductRegisterRow({ children, href, className = '', id }: { children: ReactNode; href?: string; className?: string; id?: string }) {
   const body = <>{children}</>;
   return href
-    ? <Link className={`product-register-row ${className}`.trim()} href={href}>{body}</Link>
-    : <div className={`product-register-row ${className}`.trim()}>{body}</div>;
+    ? <Link id={id} className={`product-register-row ${className}`.trim()} href={href}>{body}</Link>
+    : <div id={id} className={`product-register-row ${className}`.trim()}>{body}</div>;
 }
