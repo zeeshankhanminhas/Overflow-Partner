@@ -3,6 +3,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 import { formatWaitingMinutes, resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/attention';
 import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/exceptions';
+import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 export default async function WorkspacePage() {
   const { supabase, organisationId, profile } = await requireUserContext();
@@ -39,69 +40,66 @@ export default async function WorkspacePage() {
   const businessActions=attention.items.slice(0,5);
   const exceptionActions=operationalExceptions.slice(0,5);
 
-  return <section className="saas-page">
-    <section className="saas-hero">
-      <div className="saas-hero__inner">
-        <div className="saas-hero__copy">
-          <p className="vp-kicker">Home</p>
-          <h1>Good morning, {name}.</h1>
-          <p className="vp-subtitle">See what needs attention, what is off-track, and where work is moving next.</p>
-        </div>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button" href="/workspace/acquisition">Open acquisition</Link><Link className="button secondary" href="/workspace/exceptions">Open exceptions</Link></div>
-      </div>
-    </section>
+  return <section className="vp-page">
+    <ProductPageHeader
+      eyebrow="Home · Mission Control"
+      title={`Good morning, ${name}.`}
+      description="See what needs attention, what is off-track, and where work is moving next."
+      actions={<><Link className="button" href="/workspace/acquisition">Open acquisition</Link><Link className="button secondary" href="/workspace/exceptions">Open exceptions</Link></>}
+    />
 
-    <section className="saas-metrics" aria-label="Business attention summary">
-      <article className="saas-metric"><span>Business decisions</span><strong>{attention.items.length}</strong><small>Work waiting on a person or external response</small></article>
-      <article className="saas-metric"><span>Operational exceptions</span><strong>{exceptionSummary.total}</strong><small>{exceptionSummary.critical} critical · {exceptionSummary.high} high</small></article>
-      <article className="saas-metric"><span>Overdue / blocked</span><strong>{exceptionSummary.overdue + exceptionSummary.blocked}</strong><small>Conditions already outside plan</small></article>
-      <article className="saas-metric"><span>Active projects</span><strong>{dashboard.activeProjects}</strong><small>Current delivery workload</small></article>
-    </section>
+    <ProductMetrics label="Business attention summary">
+      <ProductMetric label="Business decisions" value={attention.items.length} detail="Waiting on a person or external response" tone={attention.items.length?'attention':'complete'} />
+      <ProductMetric label="Operational exceptions" value={exceptionSummary.total} detail={`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`} tone={exceptionSummary.total?'attention':'complete'} />
+      <ProductMetric label="Overdue / blocked" value={exceptionSummary.overdue + exceptionSummary.blocked} detail="Conditions already outside plan" tone={exceptionSummary.overdue + exceptionSummary.blocked?'blocked':'complete'} />
+      <ProductMetric label="Active projects" value={dashboard.activeProjects} detail="Current delivery workload" tone={dashboard.activeProjects?'active':'neutral'} />
+    </ProductMetrics>
 
-    <section className="saas-grid--dashboard">
-      <aside className="saas-stack">
-        <section className="saas-panel">
-          <p className="vp-label">Waiting on</p><h2>Business workload</h2>
+    <div className="product-split">
+      <section className="product-stack">
+        <section className="product-panel">
+          <ProductSectionHeader eyebrow="Waiting on" title="Business workload" />
           <div className="saas-signal-list">
             <div className="saas-signal"><span>Internal decision</span><strong>{attention.waitingOnInternal}</strong></div>
             <div className="saas-signal"><span>Execution partner</span><strong>{attention.waitingOnPartner}</strong></div>
             <div className="saas-signal"><span>Client decision</span><strong>{attention.waitingOnClient}</strong></div>
           </div>
         </section>
-        <section className="saas-panel">
-          <p className="vp-label">Exception watch</p><h2>Operating health</h2>
+        <section className="product-panel">
+          <ProductSectionHeader eyebrow="Exception watch" title="Operating health" />
           <div className="saas-signal-list">
             <div className="saas-signal"><span>Critical</span><strong>{exceptionSummary.critical}</strong></div>
             <div className="saas-signal"><span>Overdue</span><strong>{exceptionSummary.overdue}</strong></div>
             <div className="saas-signal"><span>Blocked</span><strong>{exceptionSummary.blocked}</strong></div>
           </div>
         </section>
-      </aside>
+      </section>
 
-      <section className="saas-stack">
-        <section className="saas-panel">
-          <div className="saas-section__header"><div><p className="vp-label">Priority queue</p><h2>Business decisions</h2></div><span>{attention.items.length} open</span></div>
-          <div className="saas-action-list">
-            {businessActions.length ? businessActions.map((item, index) => <Link href={item.href} key={`${item.id}-${item.title}`} className="saas-action-row">
-              <span className="saas-action-row__index">{String(index + 1).padStart(2, '0')}</span>
+      <section className="product-stack">
+        <section>
+          <ProductSectionHeader eyebrow="Priority queue" title="Business decisions" meta={`${attention.items.length} open`} />
+          {businessActions.length ? <ProductRegister>
+            {businessActions.map((item,index)=><ProductRegisterRow href={item.href} key={`${item.id}-${item.title}`}>
+              <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{String(index+1).padStart(2,'0')}</ProductStatus>
               <div><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div>
-              <div><small>Waiting</small><strong style={{display:'block',marginTop:4}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
-              <span aria-hidden="true">→</span>
-            </Link>) : <div className="saas-empty">No business decisions need attention right now.</div>}
-          </div>
+              <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
+              <strong>Open →</strong>
+            </ProductRegisterRow>)}
+          </ProductRegister> : <ProductEmptyState title="No business decisions need attention" description="The queue will repopulate when a governed decision or external response is due." />}
         </section>
 
-        <section className="saas-panel">
-          <div className="saas-section__header"><div><p className="vp-label">Exception queue</p><h2>Off-track work</h2></div><Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link></div>
-          <div className="saas-action-list">
-            {exceptionActions.length ? exceptionActions.map((item,index)=><Link href={item.href} key={item.id} className="saas-action-row">
-              <span className="saas-action-row__index">{String(index+1).padStart(2,'0')}</span>
+        <section>
+          <ProductSectionHeader eyebrow="Exception queue" title="Off-track work" meta={<Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link>} />
+          {exceptionActions.length ? <ProductRegister>
+            {exceptionActions.map(item=><ProductRegisterRow href={item.href} key={item.id}>
+              <ProductStatus tone={item.severity==='critical'?'critical':item.severity==='high'?'blocked':'attention'}>{item.severity}</ProductStatus>
               <div><strong>{item.title}</strong><p>{item.relatedLabel} · {item.detail}</p></div>
-              <div><small>{item.severity}</small><strong style={{display:'block',marginTop:4}}>{item.owner}</strong></div><span aria-hidden="true">→</span>
-            </Link>):<div className="saas-empty">No operational exceptions right now.</div>}
-          </div>
+              <div><small>Owner</small><strong style={{display:'block',marginTop:3}}>{item.owner}</strong></div>
+              <strong>Open →</strong>
+            </ProductRegisterRow>)}
+          </ProductRegister> : <ProductEmptyState title="No operational exceptions" description="Delivery, finance and task controls are currently within plan." />}
         </section>
       </section>
-    </section>
+    </div>
   </section>;
 }

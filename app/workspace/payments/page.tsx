@@ -3,11 +3,15 @@ import { requireUserContext } from '@/lib/auth/context';
 import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { resolveInvoiceState, resolvePayableState } from '@/lib/finance/state';
 import { recordClientPaymentFromLedgerAction, recordPartnerPaymentFromLedgerAction } from './actions';
+import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 function money(value:unknown,currency='GBP'){const amount=Number(value||0);try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(amount)}catch{return `${currency} ${amount.toFixed(2)}`}}
 function date(value:unknown){if(!value)return '—';const d=new Date(String(value));return Number.isNaN(d.getTime())?String(value):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
 function first(value:string|string[]|undefined){return Array.isArray(value)?value[0]:value||''}
 function sum<T>(items:T[],selector:(item:T)=>number){return items.reduce((total,item)=>total+selector(item),0)}
+function invoiceTone(state:any):ProductTone{if(state.overdue)return 'blocked';if(state.settled)return 'complete';if(state.canRecordPayment)return 'waiting';return 'active'}
+function payableTone(state:any):ProductTone{if(state.settled)return 'complete';if(state.approvalBlockedReason)return 'attention';if(state.canRecordPayment)return 'waiting';return 'active'}
+function paymentViewHref(view:string,selectedProject:string){const params=new URLSearchParams();if(selectedProject)params.set('project',selectedProject);params.set('view',view);return `/workspace/payments?${params.toString()}`}
 
 export default async function PaymentsPage({searchParams}:{searchParams?:Promise<Record<string,string|string[]|undefined>>}){
   const params=searchParams?await searchParams:{};
@@ -62,58 +66,75 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
     ...partnerPayments.map(payment=>({id:`partner-${payment.id}`,direction:'out' as const,amount:Number(payment.amount||0),currency:String(payment.currency||'GBP'),paid_at:payment.paid_at,method:payment.payment_method,reference:payment.reference,record:payableMap.get(payment.payable_id),project:projectMap.get(payment.project_id)})),
   ].sort((a,b)=>new Date(String(b.paid_at||0)).getTime()-new Date(String(a.paid_at||0)).getTime()).slice(0,40);
 
-  return <section className="saas-page payments-workspace">
-    <section className="saas-hero">
-      <div className="saas-hero__inner">
-        <div className="saas-hero__copy"><p className="vp-kicker">Payments</p><h1>Know what is owed, paid and still exposed.</h1><p className="vp-subtitle">Track client receivables, partner liabilities and cash movement from the same project ledger.</p></div>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href={selectedProject?`/workspace/commercial-control?project=${selectedProject}`:'/workspace/commercial-control'}>Commercial control</Link>{selectedProject?<Link className="button secondary" href={`/workspace/projects/${selectedProject}`}>Project 360</Link>:null}</div>
-      </div>
+  return <section className="vp-page payments-workspace">
+    <ProductPageHeader
+      eyebrow="Commercial · Payments"
+      title="Payments"
+      description="Track client receivables, partner liabilities and cash movement from the same project ledger."
+      backHref={selectedProject?`/workspace/projects/${selectedProject}`:undefined}
+      backLabel="Back to Project 360"
+      actions={<Link className="button secondary" href={selectedProject?`/workspace/commercial-control?project=${selectedProject}`:'/workspace/commercial-control'}>Commercial control</Link>}
+    />
+
+    {params.updated?<ProductNotice title="Payment recorded" tone="complete"><p>{String(first(params.updated))}</p></ProductNotice>:null}
+    {params.error?<ProductNotice title="Payment could not be recorded" tone="blocked"><p>{operatorErrorMessage(String(first(params.error)))}</p></ProductNotice>:null}
+    {paymentsResult.error||partnerPaymentsResult.error?<ProductNotice title="Payment history is unavailable" tone="attention"><p>{operatorErrorMessage(String(paymentsResult.error?.message||partnerPaymentsResult.error?.message||''))}</p></ProductNotice>:null}
+
+    <ProductMetrics label="Commercial ledger summary">
+      <ProductMetric label="Outstanding receivables" value={money(receivable)} detail={`${money(overdue)} overdue`} tone={overdue?'blocked':receivable?'waiting':'complete'} />
+      <ProductMetric label="Partner liabilities" value={money(partnerOutstanding)} detail={`${money(partnerCommitted)} committed`} tone={partnerOutstanding?'waiting':'complete'} />
+      <ProductMetric label="Forecast margin" value={money(forecastMargin)} detail="Invoiced less partner commitments" tone={forecastMargin<0?'attention':'neutral'} />
+      <ProductMetric label="Cash position" value={money(cashPosition)} detail="Collected less partner payments" tone={cashPosition<0?'attention':'neutral'} />
+    </ProductMetrics>
+
+    <section className="product-panel">
+      <ProductSectionHeader eyebrow="Ledger scope" title={selected?`${(selected as any).project_number} · ${(selected as any).title}`:'All projects'} />
+      <form method="get" className="product-toolbar__group">
+        <select name="project" defaultValue={selectedProject}><option value="">All projects</option>{(projects as any[]).map(project=><option key={project.id} value={project.id}>{project.project_number} · {project.title}</option>)}</select>
+        <input type="hidden" name="view" value={view}/><button className="button secondary">Apply scope</button>
+      </form>
     </section>
 
-    {params.updated?<div data-continuity-notice className="vp-callout"><strong>Payment recorded</strong><p>{String(first(params.updated))}</p></div>:null}
-    {params.error?<div data-continuity-notice className="vp-callout"><strong>Payment could not be recorded</strong><p>{operatorErrorMessage(String(first(params.error)))}</p></div>:null}
-    {paymentsResult.error||partnerPaymentsResult.error?<div className="vp-callout"><strong>Payment history is unavailable</strong><p>{operatorErrorMessage(String(paymentsResult.error?.message||partnerPaymentsResult.error?.message||''))}</p></div>:null}
+    <ProductFilterBar>
+      {['open','overdue','settled','all'].map(item=><Link key={item} className={`button ${view===item?'':'secondary'}`} href={paymentViewHref(item,selectedProject)}>{item[0].toUpperCase()+item.slice(1)}</Link>)}
+    </ProductFilterBar>
 
-    <section className="saas-section">
-      <div className="saas-section__header"><div><p className="vp-label">Ledger scope</p><h2>{selected?`${(selected as any).project_number} · ${(selected as any).title}`:'All projects'}</h2></div><form method="get" style={{display:'flex',gap:8,flexWrap:'wrap'}}><select name="project" defaultValue={selectedProject}><option value="">All projects</option>{(projects as any[]).map(project=><option key={project.id} value={project.id}>{project.project_number} · {project.title}</option>)}</select><input type="hidden" name="view" value={view}/><button className="button secondary">Apply</button></form></div>
-    </section>
-
-    <section className="saas-metrics" aria-label="Commercial ledger summary">
-      <article className="saas-metric"><span>Outstanding receivables</span><strong>{money(receivable)}</strong><small>{money(overdue)} overdue</small></article>
-      <article className="saas-metric"><span>Partner liabilities</span><strong>{money(partnerOutstanding)}</strong><small>{money(partnerCommitted)} committed</small></article>
-      <article className="saas-metric"><span>Forecast margin</span><strong>{money(forecastMargin)}</strong><small>Invoiced less partner commitments</small></article>
-      <article className="saas-metric"><span>Cash position</span><strong>{money(cashPosition)}</strong><small>Collected less partner payments</small></article>
-    </section>
-
-    <section className="saas-section">
-      <div className="saas-section__header"><div><p className="vp-label">Focus</p><h2>What needs attention</h2></div><nav style={{display:'flex',gap:8,flexWrap:'wrap'}}>{['open','overdue','settled','all'].map(item=><Link key={item} className={`button ${view===item?'':'secondary'}`} href={`/workspace/payments?${new URLSearchParams({...selectedProject?{project:selectedProject}:{},view:item}).toString()}`}>{item[0].toUpperCase()+item.slice(1)}</Link>)}</nav></div>
-    </section>
-
-    <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:18}}>
-      <section className="saas-panel" id="receivables">
-        <div className="saas-section__header"><div><p className="vp-label">Money in</p><h2>Client receivables</h2></div><strong>{visibleInvoices.length}</strong></div>
-        <div className="vp-list" style={{marginTop:12}}>{visibleInvoices.length===0?<div className="vp-empty">No client invoices in this view.</div>:visibleInvoices.map(({invoice,state})=>{const project=projectMap.get(invoice.project_id) as any;const client=leadMap.get(invoice.lead_id) as any;return <article id={`invoice-${invoice.id}`} className="vp-row" key={invoice.id}>
-          <div><strong>{invoice.invoice_number}</strong><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div>
-          <span className="vp-row-status">{state.displayStatus}</span>
-          <div><strong>{money(state.balance,invoice.currency)} due</strong><small style={{display:'block'}}>{money(invoice.amount_paid,invoice.currency)} of {money(invoice.total,invoice.currency)} received</small></div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}{state.canRecordPayment?<details className="vp-disclosure" style={{width:'100%'}}><summary>Record payment</summary><form action={recordClientPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="invoice_id" value={invoice.id}/><input type="hidden" name="project_id" value={invoice.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record client payment</button></form></details>:null}</div>
-        </article>})}</div>
+    <div className="product-split payments-ledgers">
+      <section className="product-panel" id="receivables">
+        <ProductSectionHeader eyebrow="Money in" title="Client receivables" meta={`${visibleInvoices.length} record${visibleInvoices.length===1?'':'s'}`} />
+        {visibleInvoices.length===0?<ProductEmptyState title="No client invoices in this view" description="Change the filter or create an invoice from Commercial control." />:<ProductRegister>
+          {visibleInvoices.map(({invoice,state})=>{const project=projectMap.get(invoice.project_id) as any;const client=leadMap.get(invoice.lead_id) as any;return <ProductRegisterRow id={`invoice-${invoice.id}`} key={invoice.id}>
+            <div><strong>{invoice.invoice_number}</strong><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div>
+            <ProductStatus tone={invoiceTone(state)}>{state.displayStatus}</ProductStatus>
+            <div><strong>{money(state.balance,invoice.currency)} due</strong><small style={{display:'block'}}>{money(invoice.amount_paid,invoice.currency)} of {money(invoice.total,invoice.currency)} received</small></div>
+            <div className="product-row-actions"><Link className="button secondary" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><form action={recordClientPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="invoice_id" value={invoice.id}/><input type="hidden" name="project_id" value={invoice.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record client payment</button></form></details>:null}</div>
+          </ProductRegisterRow>})}
+        </ProductRegister>}
       </section>
 
-      <section className="saas-panel" id="payables">
-        <div className="saas-section__header"><div><p className="vp-label">Money out</p><h2>Partner payables</h2></div><strong>{visiblePayables.length}</strong></div>
-        <div className="vp-list" style={{marginTop:12}}>{visiblePayables.length===0?<div className="vp-empty">No partner payables in this view.</div>:visiblePayables.map(({payable,state})=>{const project=projectMap.get(payable.project_id) as any;const partner=partnerMap.get(payable.partner_id) as any;return <article id={`payable-${payable.id}`} className="vp-row" key={payable.id}>
-          <div><strong>{payable.payable_number}</strong><p>{partner?.company_name||'Partner'} · {project?.project_number||'Project'}</p><small>{payable.invoice_reference||'No partner invoice reference'} · due {date(payable.due_date)}</small></div>
-          <span className="vp-row-status">{state.displayStatus}</span>
-          <div><strong>{money(state.balance,payable.currency)} due</strong><small style={{display:'block'}}>{money(payable.amount_paid,payable.currency)} of {money(payable.total,payable.currency)} paid</small></div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}<Link className="button secondary" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>Commercial</Link>{state.canRecordPayment?<details className="vp-disclosure" style={{width:'100%'}}><summary>Record payment</summary><form action={recordPartnerPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record partner payment</button></form></details>:null}{state.approvalBlockedReason?<small>{state.approvalBlockedReason}</small>:null}</div>
-        </article>})}</div>
+      <section className="product-panel" id="payables">
+        <ProductSectionHeader eyebrow="Money out" title="Partner payables" meta={`${visiblePayables.length} record${visiblePayables.length===1?'':'s'}`} />
+        {visiblePayables.length===0?<ProductEmptyState title="No partner payables in this view" description="Change the filter or record a partner liability from Commercial control." />:<ProductRegister>
+          {visiblePayables.map(({payable,state})=>{const project=projectMap.get(payable.project_id) as any;const partner=partnerMap.get(payable.partner_id) as any;return <ProductRegisterRow id={`payable-${payable.id}`} key={payable.id}>
+            <div><strong>{payable.payable_number}</strong><p>{partner?.company_name||'Partner'} · {project?.project_number||'Project'}</p><small>{payable.invoice_reference||'No partner invoice reference'} · due {date(payable.due_date)}</small></div>
+            <ProductStatus tone={payableTone(state)}>{state.displayStatus}</ProductStatus>
+            <div><strong>{money(state.balance,payable.currency)} due</strong><small style={{display:'block'}}>{money(payable.amount_paid,payable.currency)} of {money(payable.total,payable.currency)} paid</small></div>
+            <div className="product-row-actions">{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}<Link className="button secondary" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>Commercial</Link>{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><form action={recordPartnerPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record partner payment</button></form></details>:null}{state.approvalBlockedReason?<small>{state.approvalBlockedReason}</small>:null}</div>
+          </ProductRegisterRow>})}
+        </ProductRegister>}
       </section>
     </div>
 
-    <section className="saas-panel" id="payment-history">
-      <div className="saas-section__header"><div><p className="vp-label">Cash movement</p><h2>Recent payments</h2></div><span>{payments.length} received · {partnerPayments.length} paid</span></div>
-      <div className="vp-list" style={{marginTop:12}}>{movementRows.length===0?<div className="vp-empty">No payment movements recorded yet.</div>:movementRows.map(row=><div className="vp-row" key={row.id}><div><strong>{row.direction==='in'?'Client payment':'Partner payment'}</strong><p>{row.direction==='in'?(row.record?.invoice_number||'Invoice'):(row.record?.payable_number||'Payable')} · {row.project?.project_number||'Project'}</p></div><span className="vp-row-status">{row.direction==='in'?'Money in':'Money out'}</span><div><strong>{row.direction==='in'?'+':'−'}{money(row.amount,row.currency)}</strong><small style={{display:'block'}}>{date(row.paid_at)} · {String(row.method||'').replaceAll('_',' ')}</small></div><div>{row.reference?<small>{row.reference}</small>:<small>No reference</small>}</div></div>)}</div>
+    <section>
+      <ProductSectionHeader eyebrow="Cash movement" title="Recent payments" meta={`${payments.length} received · ${partnerPayments.length} paid`} />
+      {movementRows.length===0?<ProductEmptyState title="No payment movements recorded" description="Recorded client and partner payments will appear here in chronological order." />:<ProductRegister>
+        {movementRows.map(row=><ProductRegisterRow key={row.id}>
+          <div><strong>{row.direction==='in'?'Client payment':'Partner payment'}</strong><p>{row.direction==='in'?(row.record?.invoice_number||'Invoice'):(row.record?.payable_number||'Payable')} · {row.project?.project_number||'Project'}</p></div>
+          <ProductStatus tone={row.direction==='in'?'complete':'active'}>{row.direction==='in'?'Money in':'Money out'}</ProductStatus>
+          <div><strong>{row.direction==='in'?'+':'−'}{money(row.amount,row.currency)}</strong><small style={{display:'block'}}>{date(row.paid_at)} · {String(row.method||'').replaceAll('_',' ')}</small></div>
+          <small>{row.reference||'No reference'}</small>
+        </ProductRegisterRow>)}
+      </ProductRegister>}
     </section>
   </section>;
 }

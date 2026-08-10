@@ -15,6 +15,9 @@
 .project-portfolio-row [data-label='Stage']>small{color:var(--saas-warning)}
 
 .product-register-row.is-selected{box-shadow:inset 2px 0 0 var(--saas-accent);background:rgba(255,255,255,.025)}
+.product-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;min-width:0}
+.product-row-actions>details{min-width:0}
+.product-row-actions summary{font-size:10px}
 
 @media(max-width:1180px){
   .project-portfolio-head,.project-portfolio-row{grid-template-columns:minmax(210px,1.5fr) minmax(120px,.8fr) minmax(110px,.75fr) minmax(95px,.6fr) minmax(110px,.75fr) minmax(120px,.85fr)}
@@ -32,6 +35,9 @@
   .project-portfolio-row>[data-label='Next action']{grid-column:1/-1;padding-top:8px;border-top:1px solid var(--saas-line)}
   .project-portfolio-row>[data-label='Next action'] strong{font-size:12px}
   .project-portfolio-row span{white-space:normal}
+  .product-row-actions{justify-content:flex-start;width:100%}
+  .product-row-actions :where(a,button,.button,form){flex:1 1 120px}
+  .product-row-actions details{flex:1 1 100%;width:100%}
 }
 
 @media(max-width:480px){
