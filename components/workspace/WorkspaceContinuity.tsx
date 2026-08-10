@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-const feedbackKeys = ['success','error','updated','created','advanced','activity','qualified','technical_review','invitation','partnerReviewDecision','partnerReviewCreated'];
+const feedbackKeys = ['success','error','updated','created','advanced','activity','qualified','technical_review','invitation','partnerReviewDecision','partnerReviewCreated','payment','saved','issued','approved','signed','completed','closed','archived','deleted'];
+const mutationFeedbackKeys = feedbackKeys.filter((key) => key !== 'error');
 const disclosureSelector = '.vp-disclosure, .record-workspace__disclosure';
 
 function visible(element: HTMLElement) {
@@ -34,9 +35,28 @@ function focusDestination(searchParams: URLSearchParams) {
   return null;
 }
 
+function pendingLabel(button: HTMLButtonElement) {
+  const explicit = button.dataset.pendingLabel;
+  if (explicit) return explicit;
+  const label = (button.textContent || '').trim().toLowerCase();
+  if (label.includes('save')) return 'Saving…';
+  if (label.includes('create') || label.includes('add')) return 'Creating…';
+  if (label.includes('record')) return 'Recording…';
+  if (label.includes('approve') || label.includes('authorise') || label.includes('authorize')) return 'Approving…';
+  if (label.includes('issue') || label.includes('send')) return 'Issuing…';
+  if (label.includes('generate')) return 'Generating…';
+  if (label.includes('complete') || label.includes('close')) return 'Completing…';
+  if (label.includes('update') || label.includes('change')) return 'Updating…';
+  if (label.includes('sign')) return 'Signing…';
+  return 'Working…';
+}
+
 export default function WorkspaceContinuity() {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const mutationSubmitted = useRef(false);
+  const refreshInFlight = useRef(false);
 
   useEffect(() => {
     const focusId = focusDestination(searchParams);
@@ -62,6 +82,20 @@ export default function WorkspaceContinuity() {
 
     return () => window.clearInterval(timer);
   }, [pathname, searchParams]);
+
+  useEffect(() => {
+    const mutationConfirmed = mutationFeedbackKeys.some((key) => searchParams.has(key));
+    if (!mutationConfirmed || refreshInFlight.current) return;
+
+    refreshInFlight.current = true;
+    mutationSubmitted.current = false;
+    const timer = window.setTimeout(() => {
+      router.refresh();
+      window.setTimeout(() => { refreshInFlight.current = false; }, 250);
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     const onInvalid = (event: Event) => {
@@ -92,24 +126,36 @@ export default function WorkspaceContinuity() {
     const onSubmit = (event: SubmitEvent) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement)) return;
+      mutationSubmitted.current = true;
       form.classList.add('continuity-submitting');
+      form.setAttribute('aria-busy', 'true');
       const button = event.submitter;
       if (button instanceof HTMLButtonElement) {
         button.dataset.continuityOriginalLabel = button.textContent || '';
         button.setAttribute('aria-busy', 'true');
+        button.textContent = pendingLabel(button);
         button.disabled = true;
       }
     };
 
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted || refreshInFlight.current) return;
+      refreshInFlight.current = true;
+      router.refresh();
+      window.setTimeout(() => { refreshInFlight.current = false; }, 250);
+    };
+
     window.addEventListener('invalid', onInvalid, true);
+    window.addEventListener('pageshow', onPageShow);
     document.addEventListener('click', onClick, true);
     document.addEventListener('submit', onSubmit, true);
     return () => {
       window.removeEventListener('invalid', onInvalid, true);
+      window.removeEventListener('pageshow', onPageShow);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('submit', onSubmit, true);
     };
-  }, []);
+  }, [router]);
 
   return null;
 }
