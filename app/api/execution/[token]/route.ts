@@ -89,7 +89,7 @@ async function audit(supabase:any, assignment:any, eventType:string, eventData:R
     entity_id: assignment.project_id,
     user_id: null,
     event_type: eventType,
-    event_data: { ...eventData, assignmentId: assignment.id, partnerId: assignment.partner_id, source: 'execution_partner', shadowMode: true },
+    event_data: { ...eventData, assignmentId: assignment.id, partnerId: assignment.partner_id, source: 'execution_partner', partnerReported: true },
   });
 }
 
@@ -163,20 +163,24 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     if (payload.action === 'commencement') {
       const { data: existing } = await supabase.from('partner_commencement_declarations').select('id').eq('assignment_id', assignment.id).maybeSingle();
       if (existing) return NextResponse.json({ message: 'A commencement declaration is already recorded for this execution assignment.' }, { status: 409 });
-      const declarationText = 'We confirm that we reviewed the controlled execution package, received the required inputs, have capacity to proceed, have no unresolved commencement blocker, and are commencing execution against the identified project scope.';
-      const { data, error } = await supabase.from('partner_commencement_declarations').insert({
-        organisation_id: assignment.organisation_id, assignment_id: assignment.id, project_id: assignment.project_id, partner_id: assignment.partner_id,
-        execution_lead_name: payload.execution_lead_name, execution_lead_role: payload.execution_lead_role || null,
-        planned_commencement_date: payload.planned_commencement_date, forecast_delivery_date: payload.forecast_delivery_date,
-        scope_reviewed: payload.scope_reviewed, inputs_received: payload.inputs_received, capacity_confirmed: payload.capacity_confirmed,
-        no_unresolved_blocker: payload.no_unresolved_blocker, assumptions: payload.assumptions || null,
-        declaration_text: declarationText, submitted_by_name: payload.submitted_by_name, submitted_by_role: payload.submitted_by_role || null,
-      }).select('id,submitted_at').single();
+
+      const { data, error } = await supabase.rpc('op_record_partner_commencement', {
+        p_assignment_id: assignment.id,
+        p_session_id: session.id,
+        p_execution_lead_name: payload.execution_lead_name,
+        p_execution_lead_role: payload.execution_lead_role || '',
+        p_planned_commencement_date: payload.planned_commencement_date,
+        p_forecast_delivery_date: payload.forecast_delivery_date,
+        p_assumptions: payload.assumptions || '',
+        p_submitted_by_name: payload.submitted_by_name,
+        p_submitted_by_role: payload.submitted_by_role || '',
+      });
       if (error) throw error;
-      await supabase.from('project_execution_assignments').update({ execution_state: 'executing' }).eq('id', assignment.id);
-      await supabase.from('partner_execution_sessions').update({ status: 'active' }).eq('id', session.id);
-      await audit(supabase, assignment, 'partner_execution.commencement_declared', { declarationId: data.id, submittedAt: data.submitted_at, executionLeadName: payload.execution_lead_name, forecastDeliveryDate: payload.forecast_delivery_date });
-      return NextResponse.json({ success: true, message: 'Commencement declaration recorded. Overflow Partner has been notified in Project 360 shadow evidence.' });
+      return NextResponse.json({
+        success: true,
+        stage: data?.projectStage || 'in_progress',
+        message: 'Commencement declaration recorded. Project 360 has moved to In progress.',
+      });
     }
 
     if (payload.action === 'progress') {
@@ -214,7 +218,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     if (error) throw error;
     await supabase.from('project_execution_assignments').update({ execution_state: 'delivery_submitted' }).eq('id', assignment.id);
     await audit(supabase, assignment, 'partner_execution.delivery_submitted', { submissionId: data.id, submittedAt: data.submitted_at, revision: payload.revision || null });
-    return NextResponse.json({ success: true, message: 'Delivery submission recorded for Overflow Partner internal review. Project stage remains unchanged in shadow mode.' });
+    return NextResponse.json({ success: true, message: 'Delivery submission recorded for Overflow Partner internal review. Project stage remains In progress until Overflow Partner completes the next cutover.' });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ message: error.issues[0]?.message || 'Please check the execution update.' }, { status: 400 });
     console.error('Partner execution submission failed', error);
