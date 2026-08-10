@@ -93,6 +93,7 @@ export default function LifecycleSidebar() {
         </> : null}
         {context.type === 'project' ? <>
           <Link className={pathname === `/workspace/projects/${context.id}/delivery` ? 'active' : ''} href={`/workspace/projects/${context.id}/delivery`}>Delivery</Link>
+          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Execution</Link>
           <Link className={pathname === '/workspace/documents' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
           <Link className={pathname === '/workspace/payments' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/payments?project=${context.id}`}>Payments</Link>
           <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Communications</Link>
