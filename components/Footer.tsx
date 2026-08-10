@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 const quickLinks = [
@@ -20,7 +21,7 @@ export default function Footer() {
         <div className="footer_wrapper grid gap-10 border-t border-white/40 pt-10 text-sm text-white lg:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
           <div className="footer_brand max-w-md">
             <Link className="inline-flex items-center" href="/" aria-label="Overflow Partner home">
-              <img src="/overflow-partner-logo-monochrome.svg" alt="Overflow Partner" className="h-10 w-auto brightness-0 invert" />
+              <Image src="/overflow-partner-logo-monochrome.svg" alt="Overflow Partner" width={320} height={64} className="h-10 w-auto brightness-0 invert" />
             </Link>
             <p className="mt-5 text-base leading-7 text-white">Engineering capacity when delivery requirements exceed internal resource.</p>
           </div>
