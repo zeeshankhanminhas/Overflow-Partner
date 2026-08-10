@@ -1,0 +1,142 @@
+/* Phase 2F — Commercial SaaS UI productisation.
+   Loaded last: one calm responsive product language across desktop and mobile. */
+
+.workspace.midts-shell{
+  --saas-sidebar:264px;
+  --saas-content:1240px;
+  --saas-radius:10px;
+  --saas-control:40px;
+  grid-template-columns:var(--saas-sidebar) minmax(0,1fr);
+}
+.midts-sidebar{padding:18px 12px 14px}
+.midts-brand{padding:4px 10px 20px;font-size:10px}
+.lifecycle-nav{gap:18px;padding:12px 4px 24px}
+.lifecycle-nav__overview>a,.lifecycle-utility a{min-height:36px;padding:8px 10px;border-radius:7px;font-size:12px}
+.lifecycle-utility{padding-top:10px}
+.lifecycle-utility summary{padding:8px 9px;grid-template-columns:auto 1fr auto}
+.lifecycle-utility summary span{font-size:9px;letter-spacing:.12em}
+.lifecycle-utility summary small{font-size:9px;text-align:right}
+.lifecycle-context{padding:12px;border-radius:9px;gap:10px}
+.lifecycle-context__links{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.lifecycle-context__links a{padding:8px;font-size:11px}
+.lifecycle-context__links a:first-child{grid-column:1/-1}
+.midts-sidebar-footer{padding-top:12px}
+
+.midts-topbar{min-height:56px;padding:0 24px}
+.midts-topbar strong{font-size:13px}
+.midts-topbar-tools{align-items:center;gap:12px}
+.midts-topbar-tools>a{font-size:12px;color:var(--op-muted)}
+.midts-content{width:100%;padding:28px 32px 64px}
+.midts-content>section,.midts-content>.vp-page,.midts-content>.project-os-page,.midts-content>.record-workspace{width:100%;max-width:var(--saas-content);margin-inline:auto}
+
+/* Calm page hierarchy */
+.workspace .vp-page,.workspace .project-os-page,.workspace .record-workspace{gap:20px}
+.workspace .vp-header,.workspace .record-workspace__header{padding:2px 0 12px;border-bottom:1px solid var(--op-line)}
+.workspace .vp-header h1,.workspace .project-os-header h1,.workspace .record-workspace__header h1{font-size:clamp(30px,3vw,44px)!important;line-height:1.02;letter-spacing:-.04em}
+.workspace .vp-subtitle{max-width:760px;font-size:13px!important;line-height:1.55!important}
+.workspace .vp-kicker,.workspace .vp-label,.workspace .record-workspace__eyebrow,.workspace .project-os-section-label{font-size:9px!important;letter-spacing:.13em}
+
+/* Reduce the card-inside-card feeling. */
+.workspace .vp-object,.workspace .vp-action,.workspace .vp-list,.workspace .record-workspace__slot,.workspace .record-workspace__state,.workspace .project-os-panel,.workspace .project-os-progress-card,.workspace .project-os-stage-card{border-radius:var(--saas-radius);box-shadow:none;background:rgba(255,255,255,.018)}
+.workspace .record-workspace__decision-grid{grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:12px}
+.workspace .record-workspace__slot--summary{display:none}
+.workspace .record-workspace__slot{padding:18px}
+.workspace .record-workspace__state{padding:16px 18px}
+.workspace .record-workspace__secondary-stack{gap:6px}
+.workspace .record-workspace__disclosure{border-radius:8px;background:transparent}
+.workspace .record-workspace__disclosure summary{min-height:48px;padding:12px 14px}
+
+/* Registers: dense enough for 20–100 records, readable enough for daily work. */
+.workspace .vp-list{border-radius:9px;background:transparent}
+.workspace .vp-row{grid-template-columns:minmax(260px,1.45fr) minmax(120px,.55fr) minmax(110px,.45fr);min-height:58px;padding:11px 14px;gap:12px;background:rgba(255,255,255,.012)}
+.workspace .vp-row:hover{background:rgba(255,255,255,.035)}
+.workspace .vp-row h3,.workspace .vp-row>div>strong{font-size:13px}
+.workspace .vp-row p{margin-top:3px;font-size:11px!important}
+.workspace table{font-size:12px!important}
+.workspace th{position:sticky;top:56px;z-index:3;padding:9px 12px!important;background:#090d10;font-size:9px!important}
+.workspace td{padding:11px 12px!important}
+.workspace tbody tr:hover{background:rgba(255,255,255,.025)}
+
+/* Metrics should scan, not dominate. */
+.workspace .saas-metrics,.workspace .vp-compact-metrics{gap:8px}
+.workspace .saas-metric,.workspace .vp-metric{min-height:82px;padding:13px 14px!important;border:1px solid var(--op-line);border-radius:9px;background:rgba(255,255,255,.015)}
+.workspace .saas-metric strong,.workspace .vp-metric strong{font-size:22px!important;letter-spacing:-.03em}
+
+/* Forms/actions */
+.workspace .midts-content input,.workspace .midts-content select,.workspace .midts-content textarea{min-height:var(--saas-control);border-radius:7px!important}
+.workspace .midts-content .button,.workspace .midts-content button{min-height:var(--saas-control);border-radius:7px!important}
+.workspace .midts-content form.stack{gap:10px}
+
+/* Project lifecycle is useful context, not the page hero. */
+.workspace .project-os-progress-card{padding:14px 16px}
+.workspace .project-os-progress-scroll{padding-top:2px}
+.workspace .project-os-progress{min-width:760px}
+.workspace .project-os-node{width:24px;height:24px}
+.workspace .project-os-progress li:before,.workspace .project-os-progress li:after{top:12px}
+.workspace .project-os-progress-footer{margin-top:12px;padding-top:10px}
+
+/* Tablet: preserve density; don't prematurely turn the product into stacked cards. */
+@media(max-width:1100px){
+  .workspace.midts-shell{--saas-sidebar:236px}
+  .midts-content{padding:24px 22px 56px}
+  .lifecycle-context__links{grid-template-columns:1fr}
+  .lifecycle-context__links a:first-child{grid-column:auto}
+}
+
+/* Mobile is a distinct operating mode. */
+@media(max-width:900px){
+  .workspace.midts-shell{display:block;padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+  .midts-sidebar,.midts-topbar{display:none!important}
+  .midts-mobile-header{display:flex!important;position:sticky;top:0;z-index:70;min-height:56px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));background:rgba(6,9,11,.96);backdrop-filter:blur(18px)}
+  .midts-mobile-header>div:first-child span{display:none}
+  .midts-mobile-header>div:first-child strong{font-size:14px}
+  .midts-mobile-header .button{min-height:36px!important;padding:6px 9px!important;font-size:10px}
+  .midts-content{padding:16px 12px calc(86px + env(safe-area-inset-bottom))}
+  .midts-content>section,.midts-content>.vp-page,.midts-content>.project-os-page,.midts-content>.record-workspace{max-width:none}
+  .workspace .vp-page,.workspace .project-os-page,.workspace .record-workspace{gap:14px}
+  .workspace .vp-header,.workspace .record-workspace__header{display:grid;gap:10px;padding-bottom:10px}
+  .workspace .vp-header h1,.workspace .project-os-header h1,.workspace .record-workspace__header h1{font-size:clamp(27px,8vw,34px)!important;line-height:1.05}
+  .workspace .vp-subtitle{font-size:13px!important}
+
+  .workspace .record-workspace__decision-grid{grid-template-columns:1fr}
+  .workspace .record-workspace__slot{padding:14px}
+  .workspace .record-workspace__state{padding:13px 14px}
+  .workspace .record-workspace__group-heading{display:flex;align-items:baseline;gap:10px}
+  .workspace .record-workspace__group-heading span{margin-left:auto;text-align:right;font-size:10px}
+
+  /* On phones, registers become concise records rather than squeezed desktop tables. */
+  .workspace .vp-row{grid-template-columns:minmax(0,1fr)!important;gap:7px;min-height:0;padding:13px!important;border-radius:8px!important}
+  .workspace .vp-row>div:last-child{display:flex;gap:7px;flex-wrap:wrap}
+  .workspace .vp-row>div:last-child :where(a,button,.button,form){flex:1 1 120px}
+  .workspace table{display:block;width:100%;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
+  .workspace th{top:56px}
+  .workspace th,.workspace td{white-space:nowrap;min-width:112px}
+
+  .workspace .saas-metrics,.workspace .vp-compact-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .workspace .saas-metric,.workspace .vp-metric{min-height:72px;padding:11px 12px!important}
+  .workspace .saas-metric strong,.workspace .vp-metric strong{font-size:19px!important}
+  .workspace .saas-metric small{display:none}
+
+  .workspace .project-os-progress-card{padding:12px}
+  .workspace .project-os-progress-scroll{margin:0 -12px;padding:0 12px 6px;scroll-snap-type:x proximity}
+  .workspace .project-os-progress{width:max-content!important;min-width:0!important;display:flex!important}
+  .workspace .project-os-progress li{flex:0 0 112px;min-width:112px!important;scroll-snap-align:start}
+  .workspace .project-os-progress-footer{display:grid!important;gap:8px}
+
+  .midts-mobile-nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;inset:auto 0 0;z-index:80;gap:2px;padding:5px 6px max(5px,env(safe-area-inset-bottom));border-top:1px solid var(--op-line);background:rgba(6,9,11,.97);backdrop-filter:blur(18px)}
+  .midts-mobile-nav a{min-width:0;min-height:50px;display:grid;place-items:center;padding:5px 2px;border-radius:7px;font-size:10px;line-height:1.1;text-align:center;color:var(--op-muted)}
+  .midts-mobile-nav a:active{background:rgba(255,255,255,.05);color:var(--op-text)}
+}
+
+@media(max-width:480px){
+  .midts-content{padding-inline:10px}
+  .workspace .saas-metrics,.workspace .vp-compact-metrics{grid-template-columns:1fr 1fr!important}
+  .workspace .record-workspace__group-heading{display:grid;gap:3px}
+  .workspace .record-workspace__group-heading span{margin-left:0;text-align:left}
+  .workspace .midts-content :where(.button,button){min-height:44px}
+}
+
+@media(max-width:360px){
+  .workspace .saas-metrics,.workspace .vp-compact-metrics{grid-template-columns:1fr!important}
+  .midts-mobile-nav a{font-size:9px}
+}
