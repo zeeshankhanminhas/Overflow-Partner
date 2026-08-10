@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export type ProductTone = 'neutral' | 'active' | 'waiting' | 'attention' | 'blocked' | 'complete' | 'critical';
 
 export function ProductStatus({ children, tone = 'neutral' }: { children: ReactNode; tone?: ProductTone }) {
-  return <span className={`product-status product-status--${tone}`}>{children}</span>;
+  return <span className={`product-status product-status--${tone}`} data-tone={tone}>{children}</span>;
 }
 
 export function ProductPageHeader({
@@ -38,7 +38,7 @@ export function ProductMetrics({ children, label }: { children: ReactNode; label
 }
 
 export function ProductMetric({ label, value, detail, tone = 'neutral' }: { label: string; value: ReactNode; detail?: ReactNode; tone?: ProductTone }) {
-  return <article className={`product-metric product-metric--${tone}`}>
+  return <article className={`product-metric product-metric--${tone}`} data-tone={tone}>
     <span>{label}</span>
     <strong>{value}</strong>
     {detail ? <small>{detail}</small> : null}
@@ -53,7 +53,7 @@ export function ProductSectionHeader({ eyebrow, title, meta, actions }: { eyebro
 }
 
 export function ProductEmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="product-empty-state">
+  return <div className="product-empty-state" role="status">
     <strong>{title}</strong>
     {description ? <p>{description}</p> : null}
     {action ? <div>{action}</div> : null}
@@ -61,7 +61,14 @@ export function ProductEmptyState({ title, description, action }: { title: strin
 }
 
 export function ProductNotice({ title, children, tone = 'neutral' }: { title: string; children?: ReactNode; tone?: ProductTone }) {
-  return <div className={`product-notice product-notice--${tone}`} data-continuity-notice>
+  const urgent = tone === 'blocked' || tone === 'critical';
+  return <div
+    className={`product-notice product-notice--${tone}`}
+    data-continuity-notice
+    data-tone={tone}
+    role={urgent ? 'alert' : 'status'}
+    aria-live={urgent ? 'assertive' : 'polite'}
+  >
     <strong>{title}</strong>
     {children ? <div>{children}</div> : null}
   </div>;
