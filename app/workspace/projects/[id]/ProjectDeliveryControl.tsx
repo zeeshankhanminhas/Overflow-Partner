@@ -9,15 +9,27 @@ function overdue(item:any){if(!item.due_date||['complete','cancelled'].includes(
 export default async function ProjectDeliveryControl({projectId,closed=false}:{projectId:string;closed?:boolean}){
   const {supabase,organisationId}=await requireUserContext();
   const [itemsResult,membersResult,partnersResult,documentsResult]=await Promise.all([
-    supabase.from('project_delivery_items').select('*,owner:profiles!project_delivery_items_owner_id_fkey(id,full_name,role),partner:partners!project_delivery_items_partner_id_fkey(id,company_name),dependency:project_delivery_items!project_delivery_items_depends_on_id_fkey(id,title,status)').eq('organisation_id',organisationId).eq('project_id',projectId).order('created_at',{ascending:true}),
+    supabase.from('project_delivery_items').select('*').eq('organisation_id',organisationId).eq('project_id',projectId).order('created_at',{ascending:true}),
     supabase.from('profiles').select('id,full_name,role').eq('organisation_id',organisationId).eq('is_active',true).order('full_name'),
     supabase.from('partners').select('id,company_name,status').eq('organisation_id',organisationId).order('company_name'),
     supabase.from('documents').select('id,reference,title,status').eq('organisation_id',organisationId).eq('project_id',projectId).order('created_at',{ascending:false}),
   ]);
 
-  if(itemsResult.error){return <section id="delivery-control" className="vp-callout"><strong>Delivery control needs its database migration</strong><p>Apply <code>20260809215500_project_delivery_control.sql</code> to activate deliverables, milestones and dependencies. Existing Project activities continue to work.</p></section>}
+  if(itemsResult.error){
+    console.error('Project delivery control query failed', { projectId, code: itemsResult.error.code, message: itemsResult.error.message, details: itemsResult.error.details, hint: itemsResult.error.hint });
+    return <section id="delivery-control" className="vp-callout"><strong>Delivery control could not be loaded</strong><p>The delivery-control database is available, but this request failed. Refresh the page; if it persists, the error is now recorded for diagnosis.</p></section>;
+  }
 
-  const items=itemsResult.data??[];const members=membersResult.data??[];const partners=partnersResult.data??[];const documents=documentsResult.data??[];
+  const rawItems=itemsResult.data??[];const members=membersResult.data??[];const partners=partnersResult.data??[];const documents=documentsResult.data??[];
+  const memberById=new Map(members.map((member:any)=>[member.id,member]));
+  const partnerById=new Map(partners.map((partner:any)=>[partner.id,partner]));
+  const rawItemById=new Map(rawItems.map((item:any)=>[item.id,item]));
+  const items=rawItems.map((item:any)=>({
+    ...item,
+    owner:item.owner_id?memberById.get(item.owner_id)||null:null,
+    partner:item.partner_id?partnerById.get(item.partner_id)||null:null,
+    dependency:item.depends_on_id?rawItemById.get(item.depends_on_id)||null:null,
+  }));
   const deliverables=items.filter((item:any)=>item.item_type==='deliverable');const milestones=items.filter((item:any)=>item.item_type==='milestone');const dependencies=items.filter((item:any)=>item.item_type==='dependency');
   const open=items.filter((item:any)=>!['complete','cancelled'].includes(item.status));const overdueItems=open.filter(overdue);const blocked=open.filter((item:any)=>item.status==='blocked');const awaitingReview=open.filter((item:any)=>['internal_review','client_review'].includes(item.status)||item.internal_review_status==='changes_required'||item.client_review_status==='changes_required');
 
