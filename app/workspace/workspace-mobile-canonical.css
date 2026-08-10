@@ -151,16 +151,184 @@
     max-width: 100%;
   }
 
-  .project-os-progress-card {
-    overflow: hidden;
+  /* Project 360 stage tracker: current-forward, balanced and non-scrolling on mobile. */
+  .workspace .project-os-progress-card {
+    overflow: hidden !important;
+    padding: 14px 12px 13px !important;
   }
 
-  .project-os-progress-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-inline: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x pan-y;
+  .workspace .project-os-progress-scroll {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+    touch-action: pan-y !important;
+    scrollbar-width: none !important;
+  }
+
+  .workspace .project-os-progress-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workspace .project-os-progress {
+    position: relative;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    list-style: none;
+  }
+
+  /* On mobile, completed history lives elsewhere; keep the decision surface focused on now + next two stages. */
+  .workspace .project-os-progress li.complete {
+    display: none !important;
+  }
+
+  .workspace .project-os-progress li.current,
+  .workspace .project-os-progress li.current + li,
+  .workspace .project-os-progress li.current + li + li {
+    display: grid !important;
+  }
+
+  .workspace .project-os-progress li.current + li + li ~ li {
+    display: none !important;
+  }
+
+  .workspace .project-os-progress li {
+    position: relative;
+    flex: 0 0 33.3333% !important;
+    min-width: 0 !important;
+    max-width: 33.3333% !important;
+    grid-template-rows: 32px minmax(38px, auto) 14px;
+    justify-items: center;
+    align-items: start;
+    gap: 5px;
+    padding: 0 5px !important;
+    text-align: center;
+    scroll-snap-align: none !important;
+  }
+
+  .workspace .project-os-progress li.current:nth-last-child(2),
+  .workspace .project-os-progress li.current:nth-last-child(2) + li {
+    flex-basis: 50% !important;
+    max-width: 50% !important;
+  }
+
+  .workspace .project-os-progress li.current:last-child {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .workspace .project-os-progress li::before,
+  .workspace .project-os-progress li::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 15px !important;
+    height: 1px !important;
+    background: rgba(255, 255, 255, .14) !important;
+    z-index: 0 !important;
+  }
+
+  .workspace .project-os-progress li::before {
+    left: 0 !important;
+    right: 50% !important;
+  }
+
+  .workspace .project-os-progress li::after {
+    left: 50% !important;
+    right: 0 !important;
+  }
+
+  .workspace .project-os-progress li:first-child::before,
+  .workspace .project-os-progress li.current::before {
+    background: transparent !important;
+  }
+
+  .workspace .project-os-progress li:last-child::after,
+  .workspace .project-os-progress li.current + li + li::after {
+    background: transparent !important;
+  }
+
+  .workspace .project-os-node {
+    position: relative;
+    z-index: 2;
+    display: grid !important;
+    place-items: center;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 0 !important;
+    background: #090d10;
+  }
+
+  .workspace .project-os-node span {
+    display: grid !important;
+    place-items: center;
+    width: 30px !important;
+    height: 30px !important;
+    border: 1px solid rgba(255, 255, 255, .16) !important;
+    border-radius: 999px !important;
+    background: #0a0f12 !important;
+    color: var(--op-muted) !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+  }
+
+  .workspace .project-os-progress li.current .project-os-node span {
+    border-color: var(--op-green) !important;
+    color: var(--op-green) !important;
+    background: rgba(67, 209, 122, .07) !important;
+    box-shadow: 0 0 0 3px rgba(67, 209, 122, .08) !important;
+  }
+
+  .workspace .project-os-progress li > strong {
+    display: block;
+    width: 100%;
+    max-width: 112px;
+    margin: 0 auto;
+    color: #cbd1d4;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    font-weight: 650 !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    text-wrap: balance;
+  }
+
+  .workspace .project-os-progress li.current > strong {
+    color: var(--op-green) !important;
+  }
+
+  .workspace .project-os-progress li > small {
+    margin: 0;
+    color: var(--op-subtle, #687178) !important;
+    font-size: 8px !important;
+    line-height: 1.2;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .workspace .project-os-progress-footer {
+    display: grid !important;
+    gap: 5px !important;
+    margin-top: 10px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid rgba(255, 255, 255, .09);
+  }
+
+  .workspace .project-os-progress-footer p {
+    margin: 0 !important;
+    color: var(--op-muted) !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+
+  .workspace .project-os-progress-footer span {
+    color: var(--op-subtle, #687178) !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
   }
 
   .project-portfolio-register {
@@ -213,5 +381,14 @@
   .op-mobile-header {
     padding-right: 10px;
     padding-left: 10px;
+  }
+
+  .workspace .project-os-progress li {
+    padding-inline: 3px !important;
+  }
+
+  .workspace .project-os-progress li > strong {
+    max-width: 104px;
+    font-size: 10.5px !important;
   }
 }
