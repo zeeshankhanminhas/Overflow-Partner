@@ -26,7 +26,7 @@ export default async function ProspectRegisterPage(){
         {prospects.map(item=><ProductRegisterRow href={`/workspace/acquisition/${item.id}`} key={item.id}>
           <div><strong>{item.company_name}</strong><p>{item.contact_name||'Contact not recorded'} · {item.source}</p></div>
           <ProductStatus tone={tone(item.status)}>{item.status.replaceAll('_',' ')}</ProductStatus>
-          <div><small>Requirement</small><strong style={{display:'block',marginTop:3}}>{item.requirement_summary||'Not defined'}</strong></div>
+          <div><small>Contact</small><strong style={{display:'block',marginTop:3}}>{item.contact_name||'Not recorded'}</strong></div>
           <strong>Open Prospect →</strong>
         </ProductRegisterRow>)}
       </ProductRegister>}
