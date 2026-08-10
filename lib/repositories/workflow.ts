@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Partner, PartnerQuote, CommercialReview, ClientQuote, Project, Task, Profile, ActivityEvent } from '@/types/domain';
 import type { PartnerInput, PartnerQuoteInput, CommercialReviewInput, ClientQuoteInput, ProjectInput, TaskInput } from '@/lib/validation/workflow';
 import { assertUniqueProjectNumber } from '@/lib/business/identifierIntegrity';
+import { RecordNotFoundError } from '@/lib/repositories/errors';
 
 function nullable(value: unknown) { return value === '' || value === undefined ? null : value; }
 
@@ -52,7 +53,7 @@ export async function getProjectById(supabase: SupabaseClient, organisationId: s
     .maybeSingle();
 
   if (projectError) throw new Error(projectError.message);
-  if (!project) throw new Error('Project not found in the current organisation.');
+  if (!project) throw new RecordNotFoundError('Project');
 
   const [leadResult, quoteResult, managerResult] = await Promise.all([
     project.lead_id
