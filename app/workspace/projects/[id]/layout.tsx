@@ -7,6 +7,7 @@ export default async function ProjectLayout({children,params}:{children:ReactNod
     <nav aria-label="Project 360 navigation" style={{display:'flex',gap:6,overflowX:'auto',padding:'0 0 12px',marginBottom:4,scrollbarWidth:'thin'}}>
       <Link className="button secondary" href={`/workspace/projects/${id}`}>Overview</Link>
       <Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Delivery</Link>
+      <Link className="button secondary" href={`/workspace/projects/${id}/execution`}>Execution</Link>
       <Link className="button secondary" href={`/workspace/documents?project=${id}`}>Documents</Link>
       <Link className="button secondary" href={`/workspace/payments?project=${id}`}>Payments</Link>
       <Link className="button secondary" href={`/workspace/communications/project/${id}`}>Communications</Link>
