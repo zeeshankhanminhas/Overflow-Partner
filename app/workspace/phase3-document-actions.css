@@ -1,0 +1,15 @@
+/* Phase 3 — controlled-document action bar.
+   Loaded after legacy mobile polish so the available governed actions determine layout. */
+@media (max-width: 720px) {
+  .document-review-actions > div {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .document-review-actions button {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
