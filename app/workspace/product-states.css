@@ -1,0 +1,13 @@
+/* Product-level loading, error and transition states. */
+.product-skeleton{overflow:hidden;position:relative}
+.product-skeleton:after,.product-skeleton-panel:after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.045),transparent);animation:op-skeleton 1.25s ease-in-out infinite}
+.product-skeleton>span,.product-skeleton>strong,.product-skeleton>small{display:block;border-radius:4px;background:rgba(255,255,255,.06)}
+.product-skeleton>span{width:52%;height:9px}.product-skeleton>strong{width:34%;height:22px;margin-top:8px}.product-skeleton>small{width:70%;height:8px;margin-top:9px}
+.product-skeleton-panel{position:relative;overflow:hidden;display:grid;gap:11px;min-height:220px}
+.product-skeleton-panel>span{display:block;height:34px;border-radius:6px;background:rgba(255,255,255,.045)}
+@keyframes op-skeleton{100%{transform:translateX(100%)}}
+@media(prefers-reduced-motion:reduce){.product-skeleton:after,.product-skeleton-panel:after{animation:none}}
+
+.workspace form[aria-busy='true'],.workspace button[aria-busy='true']{cursor:progress}
+.workspace [data-continuity-notice]{scroll-margin-top:82px}
+.workspace :target{scroll-margin-top:82px}
