@@ -13,7 +13,7 @@ Overflow Partner is organised around four operating levels:
 
 A page must not duplicate a specialist module inside an Overview. Overview surfaces show only the summary and the next action, then link to the specialist control surface.
 
-## Canonical navigation
+## Canonical navigation and workspace route map
 
 ### Home
 - `/workspace` — Mission Control
@@ -58,6 +58,9 @@ A page must not duplicate a specialist module inside an Overview. Overview surfa
 - `/workspace/settings/developer-data` — Developer-only test cleanup where permitted
 - `/workspace/companies` — Master company register
 - `/workspace/companies/[id]` — Company detail / relationship context
+
+### Internal product-governance surface
+- `/workspace/opds` — Overflow Partner Engineering Design System reference. This is not a day-to-day operator navigation destination; it governs visual, language and controlled-reference conventions.
 
 ## Canonical record composition
 
