@@ -2,12 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { getProjectById } from '@/lib/repositories/workflow';
+import { isRecordNotFoundError } from '@/lib/repositories/errors';
 import { workspaceLabel } from '@/lib/presentation/vocabulary';
 import { normaliseProjectStage, projectStageMeta, projectStages } from '@/lib/projects/stages';
 import { getProjectDocumentRequirements } from '@/lib/projects/documentRequirements';
 import { resolveActionState, resolveEvidenceState } from '@/lib/workspace/state';
 import { toOperatorError } from '@/lib/workspace/operatorErrors';
-import { resolveFinancialGate, resolveInvoiceState, resolvePayableState } from '@/lib/finance/state';
+import { resolveFinancialGate } from '@/lib/finance/state';
 import RecordWorkspace from '@/components/workspace/RecordWorkspace';
 import GovernedAction from '@/components/workspace/GovernedAction';
 import { getWorkspaceDocument } from '@/components/workspace/documents/documentRegistry';
@@ -20,17 +21,16 @@ type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number
 
 export default async function ProjectWorkspacePage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|undefined>>}){
   const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
-  let project;try{project=await getProjectById(supabase,organisationId,id)}catch{notFound()}
+  let project;
+  try{project=await getProjectById(supabase,organisationId,id)}catch(error){if(isRecordNotFoundError(error))notFound();throw error;}
 
-  const [tasksResult,documentsResult,activityResult,membersResult,readinessResult,financialGateResult,invoicesResult,payablesResult]=await Promise.all([
+  const [tasksResult,documentsResult,activityResult,membersResult,readinessResult,financialGateResult]=await Promise.all([
     supabase.from('tasks').select('id,title,status,priority,due_at').eq('organisation_id',organisationId).eq('entity_type','project').eq('entity_id',id).order('created_at',{ascending:false}),
     supabase.from('documents').select('*').eq('organisation_id',organisationId).eq('project_id',id).order('created_at',{ascending:false}),
     supabase.from('activity_events').select('*').eq('organisation_id',organisationId).eq('entity_type','project').eq('entity_id',id).order('created_at',{ascending:false}).limit(30),
     supabase.from('profiles').select('id,full_name,role').eq('organisation_id',organisationId).order('full_name'),
     supabase.rpc('op_project_stage_readiness',{p_project_id:id}),
     supabase.rpc('op_project_financial_gate',{p_project_id:id}),
-    supabase.from('invoices').select('id,status,total,amount_paid,currency').eq('organisation_id',organisationId).eq('project_id',id),
-    supabase.from('partner_payables').select('id,status,total,amount_paid,currency').eq('organisation_id',organisationId).eq('project_id',id),
   ]);
 
   const projectRecord=project as typeof project&{project_stage?:string};const stage=normaliseProjectStage(projectRecord.project_stage);const stageMeta=projectStageMeta[stage];const stageIndex=projectStages.indexOf(stage);
@@ -39,9 +39,6 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const readiness=(readinessResult.data||{ready:false,stage,reasons:['Project stage readiness is not available yet.'],activityTotal:tasks.length,activityOpen:tasks.filter(t=>!['completed','cancelled'].includes(t.status)).length,approvedDocuments:0,issuedDocuments:0}) as Readiness;
   const financialGate=resolveFinancialGate(financialGateResult.data);
   const mobilisationControlsComplete=Boolean(project.project_manager_id&&project.start_date&&project.due_date);
-  const invoices=invoicesResult.data??[];const payables=payablesResult.data??[];
-  const receivablesOutstanding=invoices.reduce((sum,item:any)=>sum+Math.max(0,resolveInvoiceState(item).balance),0);
-  const payablesOutstanding=payables.reduce((sum,item:any)=>sum+Math.max(0,resolvePayableState(item).balance),0);
   const financeHref=`/workspace/commercial-control?project=${id}&focus=financial-gate`;
   const deliveryHref=`/workspace/projects/${id}/delivery`;
   const documentsHref=`/workspace/documents?project=${id}`;
