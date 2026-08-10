@@ -51,6 +51,7 @@ async function recordDocumentEvent({ supabase, organisationId, userId, document,
 
 function revalidateDocumentOwners(document: ControlledDocument) {
   revalidatePath('/workspace/documents');
+  revalidatePath(`/workspace/documents/${document.id}`);
   if (document.lead_id) revalidatePath(`/workspace/leads/${document.lead_id}`);
   if (document.project_id) revalidatePath(`/workspace/projects/${document.project_id}`);
 }
@@ -59,13 +60,15 @@ async function persistDocumentStatus({
   supabase,
   organisationId,
   documentId,
-  expectedStatus,
+  expectedCurrentStatus,
+  nextStatus,
   values,
 }: {
   supabase: Awaited<ReturnType<typeof requireUserContext>>['supabase'];
   organisationId: string;
   documentId: string;
-  expectedStatus: string;
+  expectedCurrentStatus: string;
+  nextStatus: string;
   values: Record<string, unknown>;
 }) {
   const { data, error } = await supabase
@@ -73,15 +76,38 @@ async function persistDocumentStatus({
     .update(values)
     .eq('organisation_id', organisationId)
     .eq('id', documentId)
+    .eq('status', expectedCurrentStatus)
     .select('id,status,signed_by,approved_by,issued_by')
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('Document update was not persisted. Check document update permissions.');
-  if (String(data.status) !== expectedStatus) {
-    throw new Error(`Document update did not reach the expected ${expectedStatus} state.`);
-  }
+  if (!data) throw new Error(`This document changed after the view loaded. Refresh before moving it from ${expectedCurrentStatus.replaceAll('_',' ')} to ${nextStatus.replaceAll('_',' ')}.`);
+  if (String(data.status) !== nextStatus) throw new Error(`Document update did not reach the expected ${nextStatus.replaceAll('_',' ')} state.`);
   return data;
+}
+
+export async function submitControlledDocumentForReviewAction(documentId: string): Promise<DocumentReviewResult> {
+  try {
+    if (!documentId) return { ok: false, message: 'A controlled document record is required.' };
+    const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
+    assertRole(profile.role, [...reviewRoles]);
+    if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    if (document.status === 'in_review') return { ok: true, message: 'Document is already in review.', status: 'in_review' };
+    if (!['draft','changes_requested'].includes(document.status)) return { ok: false, message: `Document cannot enter review from ${document.status}.` };
+
+    const submittedAt = new Date().toISOString();
+    await persistDocumentStatus({
+      supabase,
+      organisationId,
+      documentId,
+      expectedCurrentStatus: document.status,
+      nextStatus: 'in_review',
+      values: { status: 'in_review', updated_at: submittedAt },
+    });
+    await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.review_started', oldStatus: document.status, newStatus: 'in_review', evidence: { submitted_at: submittedAt } });
+    revalidateDocumentOwners(document);
+    return { ok: true, message: document.status === 'changes_requested' ? 'Revised document resubmitted for review.' : 'Document submitted for controlled review.', status: 'in_review' };
+  } catch (error) { return { ok: false, message: error instanceof Error ? error.message : 'Document review could not be started.' }; }
 }
 
 export async function signControlledDocumentAction(documentId: string, signerName: string, signerRole: string, declarationAccepted: boolean): Promise<DocumentReviewResult> {
@@ -92,15 +118,16 @@ export async function signControlledDocumentAction(documentId: string, signerNam
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...reviewRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
-    if (['signed','approved','issued','published'].includes(document.status)) return { ok: true, message: 'Document is already signed.', status: document.status };
-    if (!['draft','in_review','changes_requested'].includes(document.status)) return { ok: false, message: `Document cannot be signed from ${document.status}.` };
+    if (['signed','approved','issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already signed.', status: document.status };
+    if (document.status !== 'in_review') return { ok: false, message: 'Document must be in controlled review before it can be signed.' };
 
     const signedAt = new Date().toISOString();
     await persistDocumentStatus({
       supabase,
       organisationId,
       documentId,
-      expectedStatus: 'signed',
+      expectedCurrentStatus: document.status,
+      nextStatus: 'signed',
       values: { status: 'signed', signed_by: user.id, signed_at: signedAt, updated_at: signedAt },
     });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.signed', oldStatus: document.status, newStatus: 'signed', evidence: {
@@ -119,13 +146,14 @@ export async function requestDocumentChangesAction(documentId: string, reason: s
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...reviewRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
-    if (!['draft','in_review','signed'].includes(document.status)) return { ok: false, message: `Changes cannot be requested from ${document.status}.` };
+    if (!['in_review','signed'].includes(document.status)) return { ok: false, message: 'Changes can only be requested during review or after technical sign-off but before approval.' };
     const requestedAt = new Date().toISOString();
     await persistDocumentStatus({
       supabase,
       organisationId,
       documentId,
-      expectedStatus: 'changes_requested',
+      expectedCurrentStatus: document.status,
+      nextStatus: 'changes_requested',
       values: { status: 'changes_requested', signed_by: null, signed_at: null, approved_by: null, approved_at: null, issued_by: null, issued_at: null, updated_at: requestedAt },
     });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.changes_requested', oldStatus: document.status, newStatus: 'changes_requested', evidence: { reason: reason.trim(), requested_at: requestedAt } });
@@ -140,7 +168,7 @@ export async function approveControlledDocumentAction(documentId: string): Promi
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...ownerAuthorityRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
-    if (['approved','issued','published'].includes(document.status)) return { ok: true, message: 'Document is already approved.', status: document.status };
+    if (['approved','issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already approved.', status: document.status };
     if (document.status !== 'signed') return { ok: false, message: 'Document must be electronically signed before approval.' };
     if (document.independent_review_required && document.signed_by === user.id) return { ok: false, message: 'Independent review is required, so the signer cannot approve this document.' };
 
@@ -150,7 +178,8 @@ export async function approveControlledDocumentAction(documentId: string): Promi
       supabase,
       organisationId,
       documentId,
-      expectedStatus: 'approved',
+      expectedCurrentStatus: document.status,
+      nextStatus: 'approved',
       values: { status: 'approved', approved_by: user.id, approved_at: approvedAt, updated_at: approvedAt },
     });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.approved', oldStatus: document.status, newStatus: 'approved', evidence: {
@@ -169,7 +198,7 @@ export async function issueControlledDocumentAction(documentId: string): Promise
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...ownerAuthorityRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
-    if (['issued','published'].includes(document.status)) return { ok: true, message: 'Document is already issued.', status: document.status };
+    if (['issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already issued.', status: document.status };
     if (document.status !== 'approved') return { ok: false, message: 'Document must be approved before controlled issue.' };
 
     const issuedAt = new Date().toISOString();
@@ -178,7 +207,8 @@ export async function issueControlledDocumentAction(documentId: string): Promise
       supabase,
       organisationId,
       documentId,
-      expectedStatus: 'issued',
+      expectedCurrentStatus: document.status,
+      nextStatus: 'issued',
       values: { status: 'issued', issued_by: user.id, issued_at: issuedAt, updated_at: issuedAt },
     });
     await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.issued', oldStatus: document.status, newStatus: 'issued', evidence: {
@@ -189,4 +219,30 @@ export async function issueControlledDocumentAction(documentId: string): Promise
     revalidateDocumentOwners(document);
     return { ok: true, message: 'Controlled document issued under owner release authority.', status: 'issued' };
   } catch (error) { return { ok: false, message: error instanceof Error ? error.message : 'Document issue failed.' }; }
+}
+
+export async function archiveControlledDocumentAction(documentId: string): Promise<DocumentReviewResult> {
+  try {
+    if (!documentId) return { ok: false, message: 'A controlled document record is required.' };
+    const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
+    assertRole(profile.role, [...ownerAuthorityRoles]);
+    if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    if (document.status === 'archived') return { ok: true, message: 'Document is already archived.', status: 'archived' };
+    if (!['issued','published'].includes(document.status)) return { ok: false, message: 'Only an issued controlled document can be archived.' };
+
+    const archivedAt = new Date().toISOString();
+    await persistDocumentStatus({
+      supabase,
+      organisationId,
+      documentId,
+      expectedCurrentStatus: document.status,
+      nextStatus: 'archived',
+      values: { status: 'archived', updated_at: archivedAt },
+    });
+    await recordDocumentEvent({ supabase, organisationId, userId: user.id, document, eventType: 'document.archived', oldStatus: document.status, newStatus: 'archived', evidence: {
+      authority: 'records_control', archived_at: archivedAt, archived_by_email: user.email, archived_by_role: profile.role,
+    }});
+    revalidateDocumentOwners(document);
+    return { ok: true, message: 'Controlled document archived. The issued evidence remains in the audit trail.', status: 'archived' };
+  } catch (error) { return { ok: false, message: error instanceof Error ? error.message : 'Document archive failed.' }; }
 }
