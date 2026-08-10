@@ -10,3 +10,5 @@ Every pull request to `main` and every push to `main` runs:
 4. `npx next build`
 
 This is intentionally independent of the Vercel deployment check so product code can still be validated when the hosting account is temporarily subject to build-rate limits.
+
+Vercel remains the deployment/runtime gate after repository validation passes.
