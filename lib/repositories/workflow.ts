@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Partner, PartnerQuote, CommercialReview, ClientQuote, Project, Task, Profile, ActivityEvent } from '@/types/domain';
 import type { PartnerInput, PartnerQuoteInput, CommercialReviewInput, ClientQuoteInput, ProjectInput, TaskInput } from '@/lib/validation/workflow';
+import { assertUniqueProjectNumber } from '@/lib/business/identifierIntegrity';
 
 function nullable(value: unknown) { return value === '' || value === undefined ? null : value; }
 
@@ -80,7 +81,7 @@ export async function getProjectById(supabase: SupabaseClient, organisationId: s
     project_manager?: Record<string, unknown> | null;
   };
 }
-export async function createProject(supabase: SupabaseClient, organisationId: string, userId: string, input: ProjectInput) { const {data,error}=await supabase.from('projects').insert({organisation_id:organisationId,created_by:userId,project_manager_id:userId,lead_id:input.lead_id,quote_id:nullable(input.quote_id),project_number:input.project_number,title:input.title,status:input.status,start_date:nullable(input.start_date),due_date:nullable(input.due_date),notes:nullable(input.notes)}).select('*').single(); if(error)throw new Error(error.message); return data as Project; }
+export async function createProject(supabase: SupabaseClient, organisationId: string, userId: string, input: ProjectInput) { const projectNumber=await assertUniqueProjectNumber(supabase,organisationId,input.project_number); const {data,error}=await supabase.from('projects').insert({organisation_id:organisationId,created_by:userId,project_manager_id:userId,lead_id:input.lead_id,quote_id:nullable(input.quote_id),project_number:projectNumber,title:input.title,status:input.status,start_date:nullable(input.start_date),due_date:nullable(input.due_date),notes:nullable(input.notes)}).select('*').single(); if(error)throw new Error(error.message); return data as Project; }
 export async function listTasks(supabase: SupabaseClient, organisationId: string) { const {data,error}=await supabase.from('tasks').select('*').eq('organisation_id',organisationId).order('created_at',{ascending:false}); if(error)throw new Error(error.message); return (data??[]) as Task[]; }
 export async function createTask(supabase: SupabaseClient, organisationId: string, userId: string, input: TaskInput) { const {data,error}=await supabase.from('tasks').insert({organisation_id:organisationId,created_by:userId,assigned_to:userId,entity_type:input.entity_type,entity_id:input.entity_id,title:input.title,description:nullable(input.description),priority:input.priority,status:input.status,due_at:nullable(input.due_at),completed_at:input.status==='completed'?new Date().toISOString():null}).select('*').single(); if(error)throw new Error(error.message); return data as Task; }
 export async function listProfiles(supabase: SupabaseClient, organisationId: string) { const {data,error}=await supabase.from('profiles').select('*').eq('organisation_id',organisationId).order('created_at'); if(error)throw new Error(error.message); return (data??[]) as Profile[]; }
