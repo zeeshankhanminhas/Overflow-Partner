@@ -1,4 +1,4 @@
-import { OpdsBadge, OpdsPanel, OpdsReference, WorkflowStatus } from '@/components/opds';
+import { OpdsPanel, OpdsReference, WorkflowStatus } from '@/components/opds';
 import { opds } from '@/lib/opds/tokens';
 
 export default function OpdsPage() {
@@ -17,7 +17,7 @@ export default function OpdsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}><span className="opds-mark" aria-hidden="true"><i /><b /></span><div><strong style={{ fontSize: 24 }}>Overflow Partner</strong><p style={{ marginBottom: 0 }}>Black structure. Red capacity extension. Never decorative.</p></div></div>
       </OpdsPanel>
       <OpdsPanel eyebrow="References" title="Controlled identifiers">
-        <div style={{ display: 'grid', gap: 12 }}><OpdsReference>OP-LEAD-2026-0001</OpdsReference><OpdsReference>OP-Q-2026-0001-R00</OpdsReference><OpdsReference>OP-PRJ-2026-0001</OpdsReference><OpdsReference>OP-DOC-2026-0001</OpdsReference></div>
+        <div style={{ display: 'grid', gap: 12 }}><OpdsReference>OP-CASE-2026-0001</OpdsReference><OpdsReference>OP-Q-2026-0001-R00</OpdsReference><OpdsReference>OP-PRJ-2026-0001</OpdsReference><OpdsReference>OP-DOC-2026-0001</OpdsReference></div>
       </OpdsPanel>
     </div>
 
