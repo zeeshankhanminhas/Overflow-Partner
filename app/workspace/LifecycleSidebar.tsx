@@ -75,13 +75,13 @@ export default function LifecycleSidebar() {
 
   return <nav aria-label="Workspace navigation" className="lifecycle-nav">
     <div className="lifecycle-nav__overview">
-      <p className="midts-nav-label">Home</p>
+      <p className="op-nav-label">Home</p>
       <Link className={pathname === '/workspace' ? 'active' : ''} href="/workspace">Mission Control</Link>
     </div>
 
     {context ? <section className="lifecycle-context">
       <div className="lifecycle-context__heading">
-        <div><p className="midts-nav-label">Current record</p><strong>{contextLabel}</strong></div>
+        <div><p className="op-nav-label">Current record</p><strong>{contextLabel}</strong></div>
         <span>Working context</span>
       </div>
       <div className="lifecycle-context__links">
@@ -129,7 +129,7 @@ export default function LifecycleSidebar() {
     </Area>
 
     <div className="lifecycle-nav__overview">
-      <p className="midts-nav-label">Admin</p>
+      <p className="op-nav-label">Admin</p>
       <Link className={isActive(pathname, '/workspace/search') ? 'active' : ''} href="/workspace/search">Search</Link>
       <Link className={isActive(pathname, '/workspace/notifications') ? 'active' : ''} href="/workspace/notifications">Attention Centre</Link>
       <Link className={isActive(pathname, '/workspace/settings') ? 'active' : ''} href="/workspace/settings">Settings</Link>
