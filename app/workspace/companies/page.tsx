@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import CompanyForm from '@/components/workspace/CompanyForm';
 import { requireUserContext } from '@/lib/auth/context';
 import { listCompanies } from '@/lib/repositories/companies';
