@@ -6,9 +6,11 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
   approveControlledDocumentAction,
+  archiveControlledDocumentAction,
   issueControlledDocumentAction,
   requestDocumentChangesAction,
   signControlledDocumentAction,
+  submitControlledDocumentForReviewAction,
 } from '@/app/workspace/documents/review-actions';
 
 type ActionMode = 'sign' | 'changes' | null;
@@ -98,12 +100,14 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   const normalizedStatus = currentStatus.toLowerCase();
   const hasRecord = Boolean(documentRecordId);
-  const canSign = ['draft', 'in_review', 'changes_requested'].includes(normalizedStatus);
-  const canRequestChanges = ['draft', 'in_review', 'signed'].includes(normalizedStatus);
+  const canSubmitForReview = ['draft', 'changes_requested'].includes(normalizedStatus);
+  const canSign = normalizedStatus === 'in_review';
+  const canRequestChanges = ['in_review', 'signed'].includes(normalizedStatus);
   const canApprove = normalizedStatus === 'signed';
   const canIssue = normalizedStatus === 'approved';
-  const isApproved = ['approved', 'issued', 'published'].includes(normalizedStatus);
+  const canArchive = ['issued', 'published'].includes(normalizedStatus);
   const isIssued = ['issued', 'published'].includes(normalizedStatus);
+  const isArchived = normalizedStatus === 'archived';
 
   function scrollToId(id: string, delay = 40) {
     window.setTimeout(() => reveal(document.getElementById(id)), delay);
@@ -169,6 +173,11 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     return false;
   }
 
+  async function submitForReview() {
+    if (!requireRecord() || !documentRecordId) return;
+    await runAction('Submitting for controlled review…', () => submitControlledDocumentForReviewAction(documentRecordId), () => scrollToId('document-review-status', 120));
+  }
+
   async function submitSignature() {
     setDecision('');
     if (!requireRecord() || !documentRecordId) return;
@@ -200,6 +209,13 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     });
   }
 
+  async function archiveDocument() {
+    if (!requireRecord() || !documentRecordId) return;
+    await runAction('Archiving controlled document…', () => archiveControlledDocumentAction(documentRecordId), (_status,message) => {
+      if (!returnToOperationalOwner(message)) scrollToId('document-review-status', 120);
+    });
+  }
+
   return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
     <header className="document-review-header print:hidden">
       <Link aria-label={backLabel} title={backLabel} className="button secondary" href={backHref}>←</Link>
@@ -210,7 +226,10 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
     <section id="document-review-feedback" className="document-review-notice print:hidden" aria-live="polite">
       {decision || (hasRecord
-        ? isIssued ? 'This document has been issued. Return to the record to continue.' : 'Review the document and complete the next available action.'
+        ? isArchived ? 'This controlled revision is archived. Its issued evidence remains in the audit trail.'
+          : isIssued ? 'This document has been issued. Archive it when the controlled revision is no longer active.'
+          : canSubmitForReview ? 'Submit this revision for controlled review when the evidence is ready.'
+          : 'Review the document and complete the next permitted action.'
         : 'Open this document from Case 360 or Project 360 to activate document actions.')}
     </section>
 
@@ -235,10 +254,12 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
     <div className="document-review-actions print:hidden"><div>
       <button onClick={() => window.print()} type="button">Print / Save PDF</button>
-      <button disabled={isPending || !hasRecord || !canRequestChanges} onClick={() => openAction('changes')} type="button">Request Changes</button>
-      <button disabled={isPending || !hasRecord || !canSign} onClick={() => openAction('sign')} type="button">E-Sign</button>
-      <button disabled={isPending || !hasRecord || !canApprove || isApproved} onClick={approveDocument} type="button">{isApproved ? 'Approved' : 'Approve'}</button>
-      <button disabled={isPending || !hasRecord || !canIssue || isIssued} onClick={issueDocument} type="button">{isIssued ? 'Issued' : 'Issue'}</button>
+      {canSubmitForReview ? <button disabled={isPending || !hasRecord} onClick={submitForReview} type="button">{isPending ? 'Submitting…' : 'Submit for Review'}</button> : null}
+      {canRequestChanges ? <button disabled={isPending || !hasRecord} onClick={() => openAction('changes')} type="button">Request Changes</button> : null}
+      {canSign ? <button disabled={isPending || !hasRecord} onClick={() => openAction('sign')} type="button">E-Sign</button> : null}
+      {canApprove ? <button disabled={isPending || !hasRecord} onClick={approveDocument} type="button">Approve</button> : null}
+      {canIssue ? <button disabled={isPending || !hasRecord} onClick={issueDocument} type="button">Issue</button> : null}
+      {canArchive ? <button disabled={isPending || !hasRecord} onClick={archiveDocument} type="button">Archive</button> : null}
     </div></div>
   </div>;
 }
