@@ -29,7 +29,6 @@ import { signOut } from '@/app/login/actions';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
-import MobileWorkspaceGuard from '@/components/workspace/MobileWorkspaceGuard';
 
 export const metadata: Metadata = {
   title: 'Overflow Partner | Engineering Operations',
@@ -42,28 +41,27 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  return <div className="workspace op-shell">
+  return <div className="workspace midts-shell op-shell">
     <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
-    <MobileWorkspaceGuard />
-    <aside className="op-sidebar">
-      <Link href="/workspace" className="op-brand" aria-label="Overflow Partner Mission Control"><span className="op-brand-mark" />Overflow Partner</Link>
+    <aside className="midts-sidebar op-sidebar">
+      <Link href="/workspace" className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
       <LifecycleSidebar />
-      <div className="op-sidebar-footer">
+      <div className="midts-sidebar-footer op-sidebar-footer">
         <p>Engineering operations</p>
         <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
       </div>
     </aside>
 
-    <section className="op-main">
-      <header className="op-topbar">
+    <section className="midts-main op-main">
+      <header className="midts-topbar op-topbar">
         <div><p>Overflow Partner</p><strong>Engineering operations</strong></div>
-        <div className="op-topbar-tools"><CommandPalette/><Link href="/workspace/notifications">Attention Centre</Link></div>
+        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href="/workspace/notifications">Attention Centre</Link></div>
       </header>
-      <header className="op-mobile-header"><div><span>Engineering operations</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
-      <main className="op-content">{children}</main>
+      <header className="midts-mobile-header op-mobile-header"><div><span>Engineering operations</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
+      <main className="midts-content op-content">{children}</main>
     </section>
 
-    <nav className="op-mobile-nav" aria-label="Mobile workspace navigation">
+    <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
       <Link href="/workspace">Home</Link>
       <Link href="/workspace/acquisition/prospects">Acquire</Link>
       <Link href="/workspace/leads">Cases</Link>
