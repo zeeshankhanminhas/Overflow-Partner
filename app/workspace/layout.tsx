@@ -17,6 +17,7 @@ import './phase-1c-consistency.css';
 import './phase-1f-mobile-polish.css';
 import './commercial-saas-ui.css';
 import './product-registers.css';
+import './product-states.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
