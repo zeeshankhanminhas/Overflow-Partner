@@ -13,6 +13,14 @@ function stateLabel(value?: string | null) {
   return String(value || 'not_released').replaceAll('_',' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+const metricValueStyle = {
+  fontSize: 'clamp(1.45rem, 2.2vw, 2.2rem)',
+  lineHeight: 1.08,
+  overflowWrap: 'normal' as const,
+  wordBreak: 'normal' as const,
+  hyphens: 'none' as const,
+};
+
 export default async function PartnerExecutionControlPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string,string | undefined>>;
@@ -81,32 +89,33 @@ export default async function PartnerExecutionControlPage({ params, searchParams
 
   const latestProgress = progress[0];
   const openExceptions = exceptions.filter(item => ['open','acknowledged'].includes(item.status));
+  const commencementPending = Boolean(assignment && !commencement && project.project_stage === 'ready_for_execution');
 
   return <section className="stack" style={{gap:24,maxWidth:1180}}>
     <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
       <div>
         <Link href={`/workspace/projects/${id}`} className="project-os-back">← Project 360</Link>
-        <p className="eyebrow" style={{marginTop:18}}>Partner execution · Shadow mode</p>
+        <p className="eyebrow" style={{marginTop:18}}>Partner execution · Controlled delivery</p>
         <h1 style={{marginTop:8}}>{project.title}</h1>
-        <p className="lede">Capture partner commencement, progress, exceptions and delivery submissions without changing the current Project lifecycle.</p>
+        <p className="lede">Control partner release, commencement, progress, exceptions and engineering delivery evidence from one governed execution record.</p>
       </div>
-      <span className="status-pill attention">Shadow mode · no stage control</span>
+      <span className={`status-pill ${commencementPending ? 'attention' : 'success'}`}>{commencementPending ? 'Waiting on partner commencement' : 'Controlled partner execution'}</span>
     </div>
 
     {query.success ? <div className="card" style={{borderLeft:'3px solid var(--op-success)'}}><strong>{query.success}</strong></div> : null}
     {query.error ? <div className="card" style={{borderLeft:'3px solid var(--op-danger)'}}><strong>{query.error}</strong></div> : null}
-    {query.execution_link ? <div className="card stack" style={{gap:10}}><p className="eyebrow">One-time secure link</p><strong>Copy this now. Only the token hash is stored.</strong><input readOnly value={query.execution_link} onFocus={(event)=>event.currentTarget.select()} /><small>Generating another link revokes the current active session.</small></div> : null}
+    {query.execution_link ? <div className="card stack" style={{gap:10}}><p className="eyebrow">Secure partner link</p><strong>Copy this now. Only the token hash is stored.</strong><input readOnly value={query.execution_link} onFocus={(event)=>event.currentTarget.select()} /><small>Generating another link revokes the previous active session.</small></div> : null}
 
     <div className="metric-grid">
-      <article className="metric"><span>Project stage</span><strong>{stateLabel(project.project_stage)}</strong></article>
-      <article className="metric"><span>Execution state</span><strong>{stateLabel(assignment?.execution_state)}</strong></article>
-      <article className="metric"><span>Open partner exceptions</span><strong>{openExceptions.length}</strong></article>
-      <article className="metric"><span>Partner updates</span><strong>{progress.length}</strong></article>
+      <article className="metric"><span>Project stage</span><strong style={metricValueStyle}>{stateLabel(project.project_stage)}</strong></article>
+      <article className="metric"><span>Execution state</span><strong style={metricValueStyle}>{stateLabel(assignment?.execution_state)}</strong></article>
+      <article className="metric"><span>Open partner exceptions</span><strong style={metricValueStyle}>{openExceptions.length}</strong></article>
+      <article className="metric"><span>Partner updates</span><strong style={metricValueStyle}>{progress.length}</strong></article>
     </div>
 
     <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
       <article className="card stack" style={{gap:20}}>
-        <div><p className="eyebrow">Execution assignment</p><h2>{assignment ? 'Controlled partner assignment' : 'Configure partner execution'}</h2><p>This record is external-execution evidence only. It does not change <code>project_stage</code>.</p></div>
+        <div><p className="eyebrow">Execution assignment</p><h2>{assignment ? 'Controlled partner assignment' : 'Configure partner execution'}</h2><p>This record defines who is authorised to execute the work, the controlled scope they receive, the delivery dates and the reporting obligation. Partner commencement is the governed event that starts execution.</p></div>
         <form action={saveExecutionAssignmentAction} className="stack" style={{gap:16}}>
           <input type="hidden" name="project_id" value={id}/>
           <label>Execution Partner<select name="partner_id" required defaultValue={defaultPartnerId}>{partners.map(partner => <option key={partner.id} value={partner.id}>{partner.company_name}{partner.nda_signed ? '' : ' · NDA missing'}</option>)}</select></label>
@@ -121,7 +130,7 @@ export default async function PartnerExecutionControlPage({ params, searchParams
             <label>Reporting cadence<select name="reporting_cadence" defaultValue={assignment?.reporting_cadence || 'milestone'}><option value="milestone">Milestone only</option><option value="daily">Daily</option><option value="every_2_business_days">Every 2 business days</option><option value="weekly">Weekly</option><option value="on_change">On change / exception</option></select></label>
           </div>
           <label>Release notes<textarea name="release_notes" rows={4} defaultValue={assignment?.release_notes || ''} placeholder="Instructions visible in the controlled execution context."/></label>
-          <button className="button" type="submit">{assignment ? 'Save execution controls' : 'Create shadow execution assignment'}</button>
+          <button className="button" type="submit">{assignment ? 'Save execution controls' : 'Create execution assignment'}</button>
         </form>
       </article>
 
@@ -135,14 +144,14 @@ export default async function PartnerExecutionControlPage({ params, searchParams
             <div><dt>Last opened</dt><dd>{session?.last_opened_at ? formatDate(session.last_opened_at) : 'Never'}</dd></div>
           </dl>
           <form action={generateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit">{session ? 'Rotate secure execution link' : 'Generate secure execution link'}</button></form>
-          <small>Generating a link changes only the shadow execution state. It does not advance the Project stage.</small>
+          <small>The secure link lets the assigned partner review the controlled release and submit commencement, progress, exceptions and delivery evidence. Rotating it revokes the previous session.</small>
         </> : <p>Create the execution assignment first.</p>}
       </aside>
     </div>
 
     {assignment ? <>
       <article className="card stack" style={{gap:16}}>
-        <div><p className="eyebrow">Partner-reported execution</p><h2>Execution intelligence</h2></div>
+        <div><p className="eyebrow">Partner-reported execution</p><h2>Execution intelligence</h2><p>Partner reports remain identifiable as partner-reported evidence. Commencement controls entry into execution; routine progress updates do not independently change Project stage.</p></div>
         <div className="grid gap-4 md:grid-cols-4">
           <div><small>Commencement</small><strong style={{display:'block',marginTop:6}}>{commencement ? formatDate(commencement.submitted_at) : 'Awaiting'}</strong></div>
           <div><small>Latest partner state</small><strong style={{display:'block',marginTop:6}}>{latestProgress ? stateLabel(latestProgress.progress_state) : 'No update'}</strong></div>
