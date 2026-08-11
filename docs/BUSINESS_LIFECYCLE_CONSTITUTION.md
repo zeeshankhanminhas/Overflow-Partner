@@ -26,7 +26,7 @@
 | **G05 Go / No-Go approved** | Acquisition | OP approves feasible response and positive partner price | Partner Review Internal Decision | None required to qualify | Create Case 360 |
 | **G06 Case technical basis controlled** | Case 360 | Prospect converted; Step 2 and approved partner evidence inherited | Technical Intake + inherited Partner Review/Quote | Client Requirements approved, then Scope of Work approved; Partner Technical Assessment approved before commercial progression | Create commercial review |
 | **G07 Commercial position approved** | Case 360 | Partner cost + markup/margin decision approved | Commercial Review | Commercial Review itself is authority; Commercial Approval publication is optional | Generate controlled Client Quote |
-| **G08 Client quotation issued** | Case 360 | Quote generated, controlled quotation approved and commercially issued | Quote record | Client Quote approved before issue; issued after commercial issue | Await client outcome |
+| **G08 Client quotation issued** | Case 360 | Quote generated, controlled quotation approved and commercially transmitted | Quote + Quote Issue Record (recipient, method, evidence reference) | Client Quote approved before issue; issued publication remains authoritative | Await client outcome |
 | **G09 Client acceptance evidenced** | Case 360 | Written acceptance is recorded | Quote Acceptance Record (signed quote / PO / email / portal / other written evidence) | Existing issued Client Quote remains authoritative | Create Project 360 |
 | **G10 Project mobilisation complete** | Project 360 | Project created from accepted quote | Project + accepted quote + selected partner lineage | Inherited Scope of Work approved; Statement of Work approved; mobilisation/financial controls complete | Authorise execution |
 | **G11 Partner execution released and commenced** | Project 360 / Execution Partner | OP releases controlled execution assignment; partner declares commencement | Project Execution Assignment + Partner Commencement Declaration | Execution assignment must link approved controlled scope | Project becomes In Progress |
@@ -59,7 +59,7 @@
   - approved Partner Technical Assessment.
 - `commercial_reviews` approval is the commercial authority. A separate Commercial Approval document is optional, not a lifecycle blocker.
 - Quote generation creates exactly one canonical `client-quote` controlled document shell.
-- Quote issue requires that canonical document to be approved.
+- Quote issue requires that canonical document to be approved **and** a Quote Issue Record identifying recipient, delivery method and evidence reference. A status change alone is not commercial transmission evidence.
 - Project creation requires written acceptance evidence.
 
 ### Project 360
