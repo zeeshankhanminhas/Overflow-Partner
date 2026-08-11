@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 type DeliveryFile={id:string;submission_id?:string|null;original_filename:string;mime_type?:string|null;size_bytes:number;uploaded_at?:string|null;attached_at?:string|null};
@@ -12,13 +12,13 @@ function fileSize(bytes:number){if(bytes<1024)return`${bytes} B`;if(bytes<1024*1
 export default function PartnerDeliveryFiles({token,onStateChange}:{token:string;onStateChange?:(state:{count:number;locked:boolean;cycle:number})=>void}){
   const inputRef=useRef<HTMLInputElement>(null);const[files,setFiles]=useState<DeliveryFile[]>([]);const[busy,setBusy]=useState(false);const[message,setMessage]=useState('');const[locked,setLocked]=useState(false);const[cycle,setCycle]=useState(1);const[loading,setLoading]=useState(true);
 
-  async function load(){
+  const load=useCallback(async()=>{
     const response=await fetch(`/api/execution/${token}/files`,{cache:'no-store'});const body=await response.json();
     if(!response.ok)throw new Error(body.message||'Unable to load engineering delivery files.');
     const nextFiles=(body.files||[]) as DeliveryFile[];const nextLocked=Boolean(body.locked);const nextCycle=Number(body.execution_cycle||1);
     setFiles(nextFiles);setLocked(nextLocked);setCycle(nextCycle);onStateChange?.({count:nextFiles.length,locked:nextLocked,cycle:nextCycle});setLoading(false);
-  }
-  useEffect(()=>{load().catch(error=>{setMessage(error instanceof Error?error.message:'Unable to load engineering delivery files.');setLoading(false);});},[token]);
+  },[token,onStateChange]);
+  useEffect(()=>{load().catch(error=>{setMessage(error instanceof Error?error.message:'Unable to load engineering delivery files.');setLoading(false);});},[load]);
 
   async function prepare(file:File):Promise<PreparedUpload>{
     const response=await fetch(`/api/execution/${token}/files`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'prepare',filename:file.name,size:file.size,mimeType:file.type||'application/octet-stream'})});
