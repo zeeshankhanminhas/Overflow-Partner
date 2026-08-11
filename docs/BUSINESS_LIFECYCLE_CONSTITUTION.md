@@ -32,7 +32,7 @@
 | **G11 Partner execution released and commenced** | Project 360 / Execution Partner | OP releases controlled execution assignment; partner declares commencement | Project Execution Assignment + Partner Commencement Declaration | Execution assignment must link approved controlled scope | Project becomes In Progress |
 | **G12 Governed execution** | Project 360 / Execution Partner | Partner works, reports progress/exceptions and submits delivery | Progress Updates, Execution Exceptions, Delivery Control Items, current-cycle Partner Delivery Submission **plus attached engineering output files** | Deliverables may link controlled documents; open exceptions, unresolved required delivery items or a file-less Partner submission block progression | Submit for Internal Review |
 | **G13 Internal review and controlled client issue** | Project 360 | OP verifies current-cycle submission | Current-cycle Partner Delivery Submission review outcome + internal review evidence | Technical Review / Document Register as required; issued client package | Record client transmittal |
-| **G14 Client review, completion and closure** | Project 360 | Client outcome recorded, closeout evidence complete, finance reconciled | Client Transmittal + Client Review Outcome + closeout audit | Completion Report / Handover evidence; Invoice where applicable | Close Project |
+| **G14 Client review, completion and closure** | Project 360 | Client outcome recorded, closeout evidence complete, finance reconciled | Client Transmittal + Client Review Outcome + closeout audit | Completion Report / Handover evidence; issued Invoice where applicable | Close Project |
 
 ## Mandatory branch rules
 
@@ -78,6 +78,7 @@
 - Client issue requires a transmittal record identifying recipient, method, time and controlled package.
 - Client Review requires an explicit outcome. `changes_requested` routes back through correction; accepted outcomes permit Completion.
 - Closure requires no open execution exceptions, no unresolved delivery-control items/tasks, final issued closeout evidence, and no outstanding client receivables or partner payables.
+- For a positive-value Project, closeout additionally requires client invoices whose recorded total covers the accepted Client Quote, an issued current controlled `invoice` document, and Execution Partner payables whose recorded total covers the accepted Partner cost with payable evidence confirmed. An empty or under-recorded finance ledger is not a valid closeout state.
 
 ## Controlled document naming
 
