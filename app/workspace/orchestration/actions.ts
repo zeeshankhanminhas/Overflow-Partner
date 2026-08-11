@@ -9,7 +9,6 @@ import {
   approveTechnicalIntake,
   createCommercialReviewFromPartnerQuote,
   ensureTechnicalIntakeShell,
-  issueClientQuote,
 } from '@/lib/orchestration/service';
 
 function required(formData: FormData, key: string) {
@@ -62,27 +61,27 @@ export async function approveCommercialAction(formData: FormData) {
 }
 
 export async function issueQuoteAction(formData: FormData) {
-  const quoteId = required(formData, 'quote_id'); const leadId = required(formData, 'lead_id'); let destination = `/workspace/leads/${leadId}`;
-  try {
-    const { supabase, organisationId, user } = await requireUserContext();
-    const quote = await issueClientQuote(supabase, organisationId, user.id, quoteId);
-    const recipient = await leadRecipient(supabase, organisationId, leadId);
-    if (recipient?.contact_email) {
-      // There is deliberately no customer link into the authenticated workspace.
-      // Until a governed public Client Quote workspace exists, the notification
-      // points only to the public site and acceptance is evidenced separately.
-      const actionUrl = publicSiteUrl();
-      const payload = { name: recipient.contact_name, company: recipient.company_name, reference: quote.quote_number, validUntil: quote.valid_until, actionUrl };
-      await queueNotification(supabase,{organisationId,eventKey:'quote.issued',recipientEmail:recipient.contact_email,recipientName:recipient.contact_name,subject:`Quotation ${quote.quote_number} has been issued`,templateKey:'quote_issued',payload,entityType:'quote',entityId:quote.id,idempotencyKey:`quote:issued:${quote.id}:${quote.revision}`}).catch(()=>null);
+  const quoteId=required(formData,'quote_id');const leadId=required(formData,'lead_id');let destination=`/workspace/leads/${leadId}`;
+  try{
+    const recipientName=required(formData,'recipient_name');const deliveryMethod=required(formData,'delivery_method');const evidenceReference=required(formData,'issue_evidence_reference');
+    const recipientEmail=String(formData.get('recipient_email')||'').trim();const issueNote=String(formData.get('issue_note')||'').trim();
+    const {supabase,organisationId,user}=await requireUserContext();
+    const {data:quote,error}=await supabase.rpc('op_issue_quote_with_evidence',{
+      p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quoteId,p_recipient_name:recipientName,p_recipient_email:recipientEmail||null,
+      p_delivery_method:deliveryMethod,p_evidence_reference:evidenceReference,p_note:issueNote||null,
+    });
+    if(error)throw new Error(error.message);if(!quote?.id)throw new Error('Issued Client Quote was not returned.');
+
+    const recipient=await leadRecipient(supabase,organisationId,leadId);
+    if(recipient?.contact_email){
+      // The Quote Issue Record proves transmission. Automated messages here are
+      // follow-ups only; they are not treated as the commercial transmittal itself.
+      const actionUrl=publicSiteUrl();const payload={name:recipient.contact_name,company:recipient.company_name,reference:quote.quote_number,validUntil:quote.valid_until,actionUrl};
       await queueNotification(supabase,{organisationId,eventKey:'quote.reminder.followup',recipientEmail:recipient.contact_email,recipientName:recipient.contact_name,subject:`A polite follow-up on quotation ${quote.quote_number}`,templateKey:'quote_reminder',payload,entityType:'quote',entityId:quote.id,category:'reminder',scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`quote:reminder:3d:${quote.id}:${quote.revision}`}).catch(()=>null);
-      if (quote.valid_until) {
-        const validityReminder = new Date(`${quote.valid_until}T09:00:00Z`); validityReminder.setUTCDate(validityReminder.getUTCDate()-3);
-        if (validityReminder.getTime()>Date.now()) await queueNotification(supabase,{organisationId,eventKey:'quote.reminder.expiry',recipientEmail:recipient.contact_email,recipientName:recipient.contact_name,subject:`Quotation ${quote.quote_number} validity reminder`,templateKey:'quote_reminder',payload,entityType:'quote',entityId:quote.id,category:'reminder',scheduledFor:validityReminder.toISOString(),idempotencyKey:`quote:reminder:expiry:${quote.id}:${quote.revision}`}).catch(()=>null);
-      }
+      if(quote.valid_until){const validityReminder=new Date(`${quote.valid_until}T09:00:00Z`);validityReminder.setUTCDate(validityReminder.getUTCDate()-3);if(validityReminder.getTime()>Date.now())await queueNotification(supabase,{organisationId,eventKey:'quote.reminder.expiry',recipientEmail:recipient.contact_email,recipientName:recipient.contact_name,subject:`Quotation ${quote.quote_number} validity reminder`,templateKey:'quote_reminder',payload,entityType:'quote',entityId:quote.id,category:'reminder',scheduledFor:validityReminder.toISOString(),idempotencyKey:`quote:reminder:expiry:${quote.id}:${quote.revision}`}).catch(()=>null);}
     }
-    refreshCase(leadId); destination = caseUrl(leadId, { success: `Quote ${quote.quote_number} issued. Record written client acceptance evidence before Project 360 can be created.`, resultStatus: 'Awaiting client decision', quote: quote.id, focus:'record-next-action' });
-  }
-  catch (error) { destination = caseUrl(leadId, { error: message(error), focus:'record-next-action' }); }
+    refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${quote.quote_number} issued with recorded transmission evidence. Written client acceptance is now required before Project 360.`,resultStatus:'Awaiting client decision',quote:quote.id,focus:'record-next-action'});
+  }catch(error){destination=caseUrl(leadId,{error:message(error),focus:'record-next-action'});}
   redirect(destination);
 }
 
