@@ -80,6 +80,70 @@ before insert or update of assignment_id,session_id,submission_id,execution_cycl
 on public.partner_delivery_submission_files
 for each row execute function public.op_guard_partner_delivery_file_identity();
 
+-- Service-role-only atomic delivery transaction. The external Partner API is the
+-- caller. The declaration, current-cycle file attachment, execution state and
+-- audit event either commit together or not at all.
+create or replace function public.op_record_partner_delivery_submission(
+  p_assignment_id uuid,
+  p_session_id uuid,
+  p_revision text,
+  p_delivery_summary text,
+  p_deliverables_manifest text,
+  p_submitted_by_name text,
+  p_submitted_by_role text
+) returns jsonb
+language plpgsql security definer set search_path=public
+as $$
+declare
+  a public.project_execution_assignments;
+  p public.projects;
+  s public.partner_execution_sessions;
+  d public.partner_delivery_submissions;
+  v_file_count integer;
+  v_declaration text:='We confirm that the listed engineering outputs and attached files are submitted against the controlled project scope for Overflow Partner review. This submission does not constitute client issue or acceptance.';
+begin
+  select * into a from public.project_execution_assignments where id=p_assignment_id for update;
+  if not found then raise exception 'Execution assignment not found.'; end if;
+  if a.execution_state in ('closed','cancelled') then raise exception 'Execution assignment is not active.'; end if;
+  select * into s from public.partner_execution_sessions where id=p_session_id and assignment_id=a.id and project_id=a.project_id;
+  if not found or s.status in ('revoked','expired') then raise exception 'Partner Execution session is not active.'; end if;
+  select * into p from public.projects where id=a.project_id for update;
+  if not found then raise exception 'Project not found.'; end if;
+  if p.project_stage not in ('in_progress','partner_correction') then raise exception 'Engineering delivery can be submitted only during active execution or correction.'; end if;
+  if not exists(select 1 from public.partner_commencement_declarations where assignment_id=a.id) then raise exception 'Partner commencement must be declared before engineering delivery.'; end if;
+  if exists(select 1 from public.partner_delivery_submissions where assignment_id=a.id and execution_cycle=a.execution_cycle) then raise exception 'This execution cycle already has a submitted engineering delivery.'; end if;
+
+  select count(*) into v_file_count from public.partner_delivery_submission_files f
+  where f.assignment_id=a.id and f.session_id=s.id and f.execution_cycle=a.execution_cycle and f.submission_id is null;
+  if v_file_count<1 then raise exception 'Attach at least one engineering output file before submitting this delivery.'; end if;
+  if nullif(trim(coalesce(p_delivery_summary,'')),'') is null then raise exception 'Delivery summary is required.'; end if;
+  if nullif(trim(coalesce(p_deliverables_manifest,'')),'') is null then raise exception 'Deliverables manifest is required.'; end if;
+  if nullif(trim(coalesce(p_submitted_by_name,'')),'') is null then raise exception 'Submitted by name is required.'; end if;
+
+  insert into public.partner_delivery_submissions(
+    organisation_id,assignment_id,project_id,partner_id,execution_cycle,revision,delivery_summary,deliverables_manifest,
+    declaration_text,submitted_by_name,submitted_by_role
+  ) values(
+    a.organisation_id,a.id,a.project_id,a.partner_id,a.execution_cycle,nullif(trim(coalesce(p_revision,'')),''),trim(p_delivery_summary),trim(p_deliverables_manifest),
+    v_declaration,trim(p_submitted_by_name),nullif(trim(coalesce(p_submitted_by_role,'')),'')
+  ) returning * into d;
+
+  update public.partner_delivery_submission_files
+  set submission_id=d.id,attached_at=now()
+  where assignment_id=a.id and session_id=s.id and execution_cycle=a.execution_cycle and submission_id is null;
+
+  update public.project_execution_assignments set execution_state='delivery_submitted',updated_at=now() where id=a.id;
+  insert into public.activity_events(organisation_id,entity_type,entity_id,user_id,event_type,event_data)
+  values(a.organisation_id,'project',a.project_id,null,'partner_execution.delivery_submitted',
+    jsonb_build_object('submissionId',d.id,'submittedAt',d.submitted_at,'revision',d.revision,'executionCycle',a.execution_cycle,
+      'fileCount',v_file_count,'assignmentId',a.id,'partnerId',a.partner_id,'source','execution_partner','partnerReported',true));
+
+  return jsonb_build_object('submissionId',d.id,'submittedAt',d.submitted_at,'executionCycle',a.execution_cycle,'fileCount',v_file_count);
+end $$;
+
+revoke all on function public.op_record_partner_delivery_submission(uuid,uuid,text,text,text,text,text) from public,anon,authenticated;
+grant execute on function public.op_record_partner_delivery_submission(uuid,uuid,text,text,text,text,text) to service_role;
+
 -- Keep the public readiness function as the single Project gate. The previous
 -- canonical implementation becomes its core and this wrapper adds the physical
 -- delivery-file evidence requirement.
