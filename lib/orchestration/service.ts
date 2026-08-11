@@ -4,13 +4,10 @@ import type { WorkflowCase } from '@/types/orchestration';
 import { buildLead360Context, inheritedSnapshot } from '@/lib/context/inheritance';
 import { deriveWorkflowStage } from '@/lib/lifecycle/resolver';
 import {
-  assertCanAcceptQuote,
   assertCanApproveTechnical,
-  assertCanConvertProspect,
   assertCanCreateCommercialReview,
   assertCanCreateTechnicalScope,
   assertCanGenerateQuote,
-  assertCanIssueQuote,
 } from '@/lib/business/invariants';
 
 export async function listWorkflowCases(supabase: SupabaseClient, organisationId: string): Promise<WorkflowCase[]> {
@@ -90,7 +87,7 @@ export async function ensureTechnicalIntakeShell(
   await assertCanCreateTechnicalScope(supabase, organisationId, leadId);
   const { data: lead, error: leadError } = await supabase.from('leads').select('*')
     .eq('organisation_id', organisationId).eq('id', leadId).single();
-  if (leadError || !lead) throw new Error(leadError?.message || 'Lead 360 context could not be loaded.');
+  if (leadError || !lead) throw new Error(leadError?.message || 'Case 360 context could not be loaded.');
 
   const context = buildLead360Context(lead as Lead, null);
   const { data, error } = await supabase.from('technical_intakes').insert({
@@ -112,7 +109,7 @@ export async function ensureTechnicalIntakeShell(
     p_user_id: userId,
     p_entity_type: 'lead',
     p_entity_id: leadId,
-    p_event_type: 'technical_scope_inherited_from_lead_360',
+    p_event_type: 'technical_scope_inherited_from_case_360',
     p_event_data: {
       technicalIntakeId: data.id,
       inherited: inheritedSnapshot(context),
@@ -156,23 +153,8 @@ export async function approveCommercialAndGenerateQuote(
   });
 }
 
-export async function issueClientQuote(supabase: SupabaseClient, organisationId: string, userId: string, quoteId: string) {
-  await assertCanIssueQuote(supabase, organisationId, quoteId);
-  return rpc<ClientQuote>(supabase, 'op_issue_quote', {
-    p_organisation_id: organisationId, p_user_id: userId, p_quote_id: quoteId,
-  });
-}
-
-export async function acceptQuoteAndCreateProject(supabase: SupabaseClient, organisationId: string, userId: string, quoteId: string) {
-  await assertCanAcceptQuote(supabase, organisationId, quoteId);
-  return rpc<Project>(supabase, 'op_accept_quote_create_project', {
-    p_organisation_id: organisationId, p_user_id: userId, p_quote_id: quoteId,
-  });
-}
-
-export async function convertProspectToLead(supabase: SupabaseClient, organisationId: string, userId: string, prospectId: string) {
-  await assertCanConvertProspect(supabase, organisationId, prospectId);
-  return rpc<Lead>(supabase, 'op_convert_prospect', {
-    p_organisation_id: organisationId, p_user_id: userId, p_prospect_id: prospectId,
-  });
-}
+// Quote issue, client acceptance/Project creation and Prospect conversion are
+// intentionally not exposed here as generic helpers. They require additional
+// governed evidence and are performed only through their dedicated server
+// actions/RPCs. This prevents future UI code from reintroducing a bare status
+// transition around the canonical lifecycle.
