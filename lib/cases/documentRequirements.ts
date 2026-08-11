@@ -22,26 +22,78 @@ export function getCaseDocumentRequirements(input: {
   commercialApproved: boolean;
   quoteStatus?: string | null;
 }): { stageLabel: string; items: CaseDocumentRequirement[] } {
-  const quoteExists=Boolean(input.quoteStatus);
-  const stageLabel=quoteExists
+  const quoteExists = Boolean(input.quoteStatus);
+  const stageLabel = quoteExists
     ? 'Commercial · Client quotation'
     : input.commercialApproved
-      ? 'Commercial · Approval'
-      : input.partnerResponseReady
-        ? 'Assess · Partner response'
-        : input.scopeApproved
-          ? 'Assess · Partner engagement'
-          : input.hasIntake
-            ? 'Acquire · Technical definition'
-            : 'Acquire · Lead intake';
+      ? 'Commercial · Approved position'
+      : input.scopeApproved
+        ? 'Case · Controlled technical basis'
+        : input.hasIntake
+          ? 'Case · Customer requirements'
+          : 'Case · Technical intake';
 
-  return {stageLabel,items:[
-    {slug:'client-requirements',enabled:input.hasIntake,requiredNow:input.hasIntake&&!input.scopeApproved,minimumStatus:'approved',reason:'Publish the inherited customer requirement and clarification basis as the approved technical-input record.',blockedReason:'Create the technical intake first.'},
-    {slug:'scope-of-work',enabled:input.scopeApproved,requiredNow:input.scopeApproved&&!input.hasReview,minimumStatus:'approved',reason:'Publish the approved technical and delivery scope before controlled partner engagement.',blockedReason:'Approve the technical intake first.'},
-    {slug:'vendor-safe-package',enabled:input.scopeApproved,requiredNow:input.scopeApproved&&!input.partnerResponseReady,minimumStatus:'issued',reason:'Issue the controlled partner-facing scope and authorised document package.',blockedReason:'Approve the technical intake first.'},
-    {slug:'partner-technical-assessment-report',enabled:input.partnerResponseReady,requiredNow:input.partnerResponseReady&&!input.commercialApproved,minimumStatus:'approved',reason:'Approve the partner feasibility, capacity, assumptions, risks and pricing-readiness evidence.',blockedReason:'A partner review response is required.'},
-    {slug:'commercial-approval',enabled:input.commercialApproved,requiredNow:input.commercialApproved&&!quoteExists,minimumStatus:'approved',reason:'Retain the approved internal cost, price, margin and commercial decision before client quotation.',blockedReason:'Approve the commercial position first.'},
-    {slug:'client-quote',enabled:quoteExists,requiredNow:quoteExists,minimumStatus:'approved',reason:input.quoteStatus==='issued'?'The commercial quote has been issued. The approved controlled quotation remains the authoritative supporting document for this live commercial state.':'Sign and approve the controlled quotation before commercial issue to the client.',blockedReason:'Generate the client quote first.'},
-    {slug:'statement-of-work',enabled:input.scopeApproved&&quoteExists,requiredNow:input.quoteStatus==='accepted',minimumStatus:'approved',reason:'Publish the agreed scope, responsibilities, programme and change-control basis for project mobilisation.',blockedReason:'Approved scope and client quotation are required.'},
-  ]};
+  return {
+    stageLabel,
+    items: [
+      {
+        slug: 'client-requirements',
+        enabled: input.hasIntake,
+        requiredNow: input.hasIntake && !input.scopeApproved,
+        minimumStatus: 'approved',
+        reason: 'Publish the inherited Step 2 requirement and clarification basis as the approved customer-input record before Technical Scope approval.',
+        blockedReason: 'Create the inherited Technical Intake first.',
+      },
+      {
+        slug: 'scope-of-work',
+        enabled: input.scopeApproved,
+        requiredNow: input.scopeApproved && !input.commercialApproved && !quoteExists,
+        minimumStatus: 'approved',
+        reason: 'Formalise the controlled technical and delivery boundary before the partner cost becomes an Overflow Partner commercial position.',
+        blockedReason: 'Approve the Technical Scope first.',
+      },
+      {
+        slug: 'partner-technical-assessment-report',
+        enabled: input.partnerResponseReady,
+        requiredNow: input.partnerResponseReady && !input.commercialApproved && !quoteExists,
+        minimumStatus: 'approved',
+        reason: 'Publish the inherited partner feasibility, capacity, assumptions, risks and pricing-readiness evidence before commercial progression.',
+        blockedReason: 'The governed Acquisition Partner Review must be inherited first.',
+      },
+      {
+        slug: 'vendor-safe-package',
+        enabled: input.scopeApproved,
+        requiredNow: false,
+        minimumStatus: 'issued',
+        reason: 'Optional controlled publication for any additional partner-facing package. The canonical pre-commercial Partner Review is already completed in Acquisition.',
+        blockedReason: 'Approve the Technical Scope first.',
+      },
+      {
+        slug: 'commercial-approval',
+        enabled: input.commercialApproved,
+        requiredNow: false,
+        minimumStatus: 'approved',
+        reason: 'Optional publication of the approved commercial position. The Commercial Review record itself is the governed approval authority.',
+        blockedReason: 'Approve the Commercial Review first.',
+      },
+      {
+        slug: 'client-quote',
+        enabled: quoteExists,
+        requiredNow: quoteExists,
+        minimumStatus: 'approved',
+        reason: input.quoteStatus === 'issued'
+          ? 'The issued controlled quotation remains the authoritative commercial publication while the client decision is pending.'
+          : 'Approve the canonical controlled Client Quote before commercial issue.',
+        blockedReason: 'Generate the Client Quote first.',
+      },
+      {
+        slug: 'statement-of-work',
+        enabled: false,
+        requiredNow: false,
+        minimumStatus: 'approved',
+        reason: 'Statement of Work belongs to Project 360 mobilisation after written client acceptance.',
+        blockedReason: 'Create Project 360 from governed client acceptance first.',
+      },
+    ],
+  };
 }

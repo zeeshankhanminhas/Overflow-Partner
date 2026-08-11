@@ -9,9 +9,8 @@ import { createProspect } from '@/lib/repositories/prospects';
 import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
-import { convertProspectToLead } from '@/lib/orchestration/service';
 import { cancelEntityReminders, queueNotification, scheduleLeadNurture } from '@/lib/notifications/queue';
-import { assertCanInviteTechnicalIntake, assertCanQualifyProspect } from '@/lib/business/invariants';
+import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
 function siteUrl(path: string) {
@@ -106,28 +105,13 @@ export async function createStep2InvitationFormAction(formData: FormData) {
   redirect(destination);
 }
 
+// Qualification is owned by the governed Partner Review Go / No-Go decision.
+// Keep the legacy export as an explicit dead-end for stale callers rather than
+// allowing a second qualification path to reappear.
 export async function qualifyProspectFormAction(formData: FormData) {
   const prospectId = String(formData.get('prospect_id') || '');
-  let destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
-  try {
-    const { supabase, user, profile, organisationId } = await requireUserContext();
-    assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
-    if (!prospectId) throw new Error('Prospect ID is required.');
-    const { prospect, session, review } = await assertCanQualifyProspect(supabase, organisationId, prospectId);
-    if (prospect.status === 'qualified') { destination = acquisitionUrl(prospectId,{qualified:'1',focus:'record-next-action'}); }
-    else {
-      const now = new Date().toISOString();
-      const { error: updateError } = await supabase.from('prospects').update({ status: 'qualified', next_action: 'Create governed Case 360', assigned_to: user.id, updated_at: now }).eq('organisation_id', organisationId).eq('id', prospectId);
-      if (updateError) throw updateError;
-      await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'prospect_qualified', event_data: { intakeSessionId: session.id, technicalReviewId: review.id, qualifiedAt: now, previousStatus: prospect.status, invariant:'TECHNICAL_REVIEW_REQUIRED' } });
-      await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
-      revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace'); destination = acquisitionUrl(prospectId,{qualified:'1',focus:'record-next-action'});
-    }
-  } catch (error) {
-    const text=error instanceof Error ? error.message : 'Unable to qualify prospect.';
-    destination = prospectId ? acquisitionUrl(prospectId,{error:text,focus:'record-next-action'}) : `/workspace/acquisition?error=${encodeURIComponent(text)}`;
-  }
-  redirect(destination);
+  const destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
+  redirect(`${destination}${destination.includes('?') ? '&' : '?'}error=${encodeURIComponent('Qualification is controlled by the governed Partner Review Go / No-Go decision. Review the partner response instead.')}&focus=record-next-action`);
 }
 
 export async function convertProspectAction(formData: FormData): Promise<ActionResult<Lead>> {
@@ -136,10 +120,16 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const prospectId = String(formData.get('prospect_id') || '');
     if (!prospectId) return { ok: false, error: 'Prospect ID is required.' };
-    const lead = await convertProspectToLead(supabase, organisationId, user.id, prospectId);
+    const { data: lead, error } = await supabase.rpc('op_convert_prospect', {
+      p_organisation_id: organisationId,
+      p_user_id: user.id,
+      p_prospect_id: prospectId,
+    });
+    if (error) throw new Error(error.message);
+    if (!lead?.id) throw new Error('Case 360 was not returned after conversion.');
     await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
     revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/leads'); revalidatePath('/workspace/orchestration'); revalidatePath('/workspace');
-    return { ok: true, data: lead };
+    return { ok: true, data: lead as Lead };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : 'Unable to convert prospect.' }; }
 }
 
@@ -147,7 +137,7 @@ export async function convertProspectFormAction(formData: FormData) {
   const prospectId=String(formData.get('prospect_id')||'');
   const result = await convertProspectAction(formData);
   redirect(result.ok
-    ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns this opportunity.')}&focus=record-next-action`
+    ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns the controlled technical and commercial conversion workflow.')}&focus=record-next-action`
     : prospectId
       ? acquisitionUrl(prospectId,{error:result.error,focus:'record-next-action'})
       : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
