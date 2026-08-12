@@ -2,6 +2,8 @@
 
 Status: Normative presentation-language standard
 
+Implementation: PR #18 — UI Language & Microcopy Lock
+
 This document governs user-facing language only. It does not rename database enums, columns, tables, routes, RPCs or audit event keys.
 
 ## 1. Principle
