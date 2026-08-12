@@ -14,6 +14,7 @@ type OverlayProps = {
   disabled?: boolean;
   triggerTone?: TriggerTone;
   triggerClassName?: string;
+  defaultOpen?: boolean;
 };
 
 function triggerClass(tone: TriggerTone, extra = '') {
@@ -81,8 +82,9 @@ export function ActionDialog({
   disabled = false,
   triggerTone = 'primary',
   triggerClassName = '',
+  defaultOpen = false,
 }: OverlayProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const titleId = useId();
   const descriptionId = useId();
   const close = () => setOpen(false);
@@ -110,8 +112,9 @@ export function ContextDrawer({
   disabled = false,
   triggerTone = 'secondary',
   triggerClassName = '',
+  defaultOpen = false,
 }: OverlayProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const titleId = useId();
   const descriptionId = useId();
   const close = () => setOpen(false);
