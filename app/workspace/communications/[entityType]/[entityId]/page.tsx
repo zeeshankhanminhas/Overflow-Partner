@@ -1,11 +1,22 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
+import {
+  ProductEmptyState,
+  ProductMetric,
+  ProductMetrics,
+  ProductPageHeader,
+  ProductRegister,
+  ProductRegisterRow,
+  ProductSectionHeader,
+  ProductStatus,
+  type ProductTone,
+} from '@/components/workspace/ProductUI';
 
 export const dynamic = 'force-dynamic';
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return 'Not recorded';
+  if (!value) return 'Not scheduled';
   return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -13,84 +24,85 @@ function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
-function label(value: string) {
-  return value.replace(/[._-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+function label(value: string | null | undefined) {
+  return String(value || '').replace(/[._-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export default async function CommunicationTimelinePage({ params }: { params: Promise<{ entityType: string; entityId: string }> }) {
+function tone(status: string): ProductTone {
+  if (status === 'sent') return 'complete';
+  if (status === 'failed') return 'blocked';
+  if (['pending', 'processing'].includes(status)) return 'waiting';
+  return 'neutral';
+}
+
+function recordHref(entityType: string, entityId: string) {
+  if (entityType === 'lead') return `/workspace/leads/${entityId}`;
+  if (entityType === 'project') return `/workspace/projects/${entityId}`;
+  if (entityType === 'prospect') return `/workspace/acquisition/${entityId}`;
+  if (entityType === 'quote') return '/workspace/quotes';
+  if (entityType === 'document') return `/workspace/documents/${entityId}`;
+  return '/workspace';
+}
+
+export default async function RecordMessagesPage({ params }: { params: Promise<{ entityType: string; entityId: string }> }) {
   const { entityType, entityId } = await params;
   if (!['lead', 'project', 'prospect', 'quote', 'document'].includes(entityType)) notFound();
 
   const { supabase, organisationId } = await requireUserContext();
-  const [eventsResult, notificationsResult] = await Promise.all([
-    supabase.from('activity_events')
-      .select('id,event_type,event_data,created_at,user_id')
-      .eq('organisation_id', organisationId)
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .order('created_at', { ascending: false })
-      .limit(200),
-    supabase.from('notification_outbox')
-      .select('id,event_key,category,recipient_email,recipient_name,subject,status,scheduled_for,sent_at,created_at,last_error,provider_message_id')
-      .eq('organisation_id', organisationId)
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .order('created_at', { ascending: false })
-      .limit(200),
-  ]);
+  const { data, error } = await supabase.from('notification_outbox')
+    .select('id,event_key,category,recipient_email,recipient_name,subject,status,scheduled_for,sent_at,created_at,last_error')
+    .eq('organisation_id', organisationId)
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .in('category', ['transactional', 'reminder', 'nurture'])
+    .order('created_at', { ascending: false })
+    .limit(200);
 
-  if (eventsResult.error) throw new Error(`Audit history could not be loaded: ${eventsResult.error.message}`);
-  if (notificationsResult.error) throw new Error(`Communication history could not be loaded: ${notificationsResult.error.message}`);
+  if (error) throw new Error(`Messages could not be loaded: ${error.message}`);
 
-  const timeline = [
-    ...(eventsResult.data || []).map((event) => ({
-      id: `event-${event.id}`,
-      kind: 'audit' as const,
-      title: label(event.event_type),
-      summary: 'Governed workflow event',
-      status: 'recorded',
-      at: event.created_at,
-      detail: event.event_data,
-      recipient: null,
-      error: null,
-    })),
-    ...(notificationsResult.data || []).map((notification) => ({
-      id: `notification-${notification.id}`,
-      kind: 'email' as const,
-      title: notification.subject,
-      summary: label(notification.event_key),
-      status: notification.status,
-      at: notification.sent_at || notification.scheduled_for || notification.created_at,
-      detail: { category: notification.category, providerMessageId: notification.provider_message_id },
-      recipient: notification.recipient_name || notification.recipient_email,
-      error: notification.last_error,
-    })),
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  const messages = data || [];
+  const sent = messages.filter((message) => message.status === 'sent').length;
+  const scheduled = messages.filter((message) => ['pending', 'processing'].includes(message.status)).length;
+  const failed = messages.filter((message) => message.status === 'failed').length;
+  const backHref = recordHref(entityType, entityId);
 
-  const backHref = entityType === 'lead' ? `/workspace/leads/${entityId}` : entityType === 'project' ? `/workspace/projects/${entityId}` : '/workspace/notifications';
+  return <section className="vp-page">
+    <ProductPageHeader
+      eyebrow="Operations · Messages"
+      title="Messages"
+      description="Business correspondence linked to this record. Workflow events and governance trace stay in History & Audit rather than appearing as messages."
+      backHref={backHref}
+      backLabel="Back to record"
+      actions={<Link className="button secondary" href="/workspace/communications">All messages</Link>}
+    />
 
-  return <section className="notification-centre communication-timeline">
-    <header className="notification-centre__header">
-      <div>
-        <p className="eyebrow">Audit and communication evidence</p>
-        <h1>Communication Timeline</h1>
-        <p>{label(entityType)} · {entityId}</p>
-      </div>
-      <Link className="button secondary" href={backHref}>Back to record</Link>
-    </header>
+    <ProductMetrics label="Message summary">
+      <ProductMetric label="Sent" value={sent} detail="Delivered business messages" tone={sent ? 'complete' : 'neutral'} />
+      <ProductMetric label="Scheduled" value={scheduled} detail="Pending or processing" tone={scheduled ? 'waiting' : 'neutral'} />
+      <ProductMetric label="Failed" value={failed} detail="Delivery needs attention" tone={failed ? 'blocked' : 'complete'} />
+      <ProductMetric label="Record" value={label(entityType)} detail="Messages are scoped to this record only" />
+    </ProductMetrics>
 
-    {timeline.length === 0 ? <div className="notification-centre__empty"><h2>No communication evidence yet</h2><p>Workflow actions and outbound messages will appear here.</p></div> : <div className="communication-timeline__list">
-      {timeline.map((item) => <article key={item.id} className={`communication-event communication-event--${item.kind}`}>
-        <div className="communication-event__marker" aria-hidden="true" />
-        <div className="communication-event__content">
-          <div className="communication-event__meta"><span>{item.kind === 'email' ? 'Outbound email' : 'Audit event'}</span><span>{formatDate(item.at)}</span></div>
-          <h2>{item.title}</h2>
-          <p>{item.summary}{item.recipient ? ` · ${item.recipient}` : ''}</p>
-          <div className="communication-event__status">{label(item.status)}</div>
-          {item.error ? <p className="notification-record__error">{item.error}</p> : null}
-          <details><summary>Evidence</summary><pre>{JSON.stringify(item.detail || {}, null, 2)}</pre></details>
-        </div>
-      </article>)}
-    </div>}
+    <section>
+      <ProductSectionHeader eyebrow="Correspondence" title="Message history" meta={`${messages.length} message${messages.length === 1 ? '' : 's'}`} />
+      {messages.length === 0 ? <ProductEmptyState title="No messages yet" description="Business messages sent or scheduled for this record will appear here. Audit events remain in History & Audit." /> : <ProductRegister>
+        {messages.map((message) => <ProductRegisterRow key={message.id}>
+          <div>
+            <strong>{message.subject}</strong>
+            <p>Outbound · {message.recipient_name || message.recipient_email}</p>
+            {message.last_error ? <small>{message.last_error}</small> : null}
+          </div>
+          <ProductStatus tone={tone(message.status)}>{label(message.status)}</ProductStatus>
+          <div>
+            <small>{message.sent_at ? 'Sent' : 'Scheduled'}</small>
+            <strong style={{ display: 'block', marginTop: 3 }}>{formatDate(message.sent_at || message.scheduled_for || message.created_at)}</strong>
+          </div>
+          <div>
+            <small>Purpose</small>
+            <strong style={{ display: 'block', marginTop: 3 }}>{label(message.event_key)}</strong>
+          </div>
+        </ProductRegisterRow>)}
+      </ProductRegister>}
+    </section>
   </section>;
 }
