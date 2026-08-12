@@ -36,17 +36,13 @@ type GeneratedDocument = {
   created_at: string;
 };
 
-function meetsMinimumStatus(status: string, minimum: MinimumStatus = 'draft') {
-  return documentSatisfiesRequirement(status, minimum);
-}
-
 function documentUrl(document: GeneratedDocument, context: Props['context'], recordId: string) {
   const contextQuery = context === 'case' ? `case=${recordId}` : `project=${recordId}`;
   return `/workspace/documents/templates/${document.document_type}?${contextQuery}&document_record=${document.id}`;
 }
 
 export default async function DocumentGenerationPanel({ context, recordId, quoteId, returnTo, stageLabel, items, generationError }: Props) {
-  if (!items.length) return null;
+  if (!items.length && !generationError) return null;
 
   const { supabase, organisationId } = await requireUserContext();
   const ownershipColumn = context === 'case' ? 'lead_id' : 'project_id';
@@ -64,24 +60,29 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
     if (!latestByType.has(document.document_type)) latestByType.set(document.document_type, document);
   }
 
-  const required = items.filter((item) => item.requiredNow && !latestByType.has(item.slug));
-  const available = items.filter((item) => item.enabled && !item.requiredNow && !latestByType.has(item.slug));
-  const blocked = items.filter((item) => !item.enabled && !latestByType.has(item.slug));
-  const generatedItems = items
-    .map((item) => ({ item, document: latestByType.get(item.slug) }))
-    .filter((entry): entry is { item: Item; document: GeneratedDocument } => Boolean(entry.document));
-  const actionRequired = generatedItems.filter(({ item, document }) => item.requiredNow && !meetsMinimumStatus(document.status, item.minimumStatus || 'draft'));
-  const satisfied = generatedItems.filter(({ item, document }) => !item.requiredNow || meetsMinimumStatus(document.status, item.minimumStatus || 'draft'));
-  const blockingCount = required.length + actionRequired.length + blocked.filter(item => item.requiredNow).length;
+  const missingRequired = items.filter(item => item.requiredNow && item.enabled && !latestByType.has(item.slug));
+  const blockedRequired = items.filter(item => item.requiredNow && !item.enabled && !latestByType.has(item.slug));
+  const actionRequired = items
+    .map(item => ({ item, document: latestByType.get(item.slug) }))
+    .filter((entry): entry is { item: Item; document: GeneratedDocument } => Boolean(
+      entry.item.requiredNow &&
+      entry.document &&
+      !documentSatisfiesRequirement(entry.document.status, entry.item.minimumStatus || 'draft'),
+    ));
 
-  return <section className="stage-documents" aria-labelledby={`${context}-stage-documents`}>
+  const actionCount = missingRequired.length + blockedRequired.length + actionRequired.length;
+  if (!generationError && actionCount === 0) return null;
+
+  const registryHref = `/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`;
+
+  return <section className="stage-documents" aria-labelledby={`${context}-documents-needed-now`}>
     <header className="stage-documents__header">
       <div>
         <p className="vp-label">Documents · {stageLabel}</p>
-        <h2 id={`${context}-stage-documents`}>Required documents</h2>
-        <p className="vp-subtitle">See what needs action now, what is available, and what already satisfies this stage.</p>
+        <h2 id={`${context}-documents-needed-now`}>Documents needed now</h2>
+        <p className="vp-subtitle">Only controlled-document work that affects the current decision appears here.</p>
       </div>
-      <Link href={`/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`} className="button secondary">Open document registry</Link>
+      <Link href={registryHref} className="button secondary">Open document registry</Link>
     </header>
 
     {generationError ? <div data-continuity-notice className="vp-callout" style={{marginBottom:14}}>
@@ -89,18 +90,11 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
       <p>{generationError}</p>
     </div> : null}
 
-    <div className="stage-documents__summary" aria-label="Document state summary">
-      <span><strong>{required.length + actionRequired.length}</strong> Action needed</span>
-      <span><strong>{available.length}</strong> Available</span>
-      <span><strong>{satisfied.length}</strong> Complete</span>
-      <span><strong>{blockingCount}</strong> Blocking</span>
-    </div>
-
-    <div className="stage-documents__groups">
-      {required.length ? <DocumentGroup title="Required now" state="required" items={required} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
+    {actionCount ? <div className="stage-documents__groups">
+      {missingRequired.length ? <DocumentGroup items={missingRequired} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
 
       {actionRequired.length ? <section className="stage-documents__group">
-        <div className="stage-documents__group-title"><h3>Needs action</h3><span>{actionRequired.length}</span></div>
+        <div className="stage-documents__group-title"><h3>Review required</h3><span>{actionRequired.length}</span></div>
         <div className="stage-documents__list">
           {actionRequired.map(({ item, document }) => {
             const definition = getWorkspaceDocument(item.slug);
@@ -109,7 +103,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
               <span className="stage-document-row__icon" aria-hidden="true">▤</span>
               <div className="stage-document-row__copy">
                 <div className="stage-document-row__title"><h4>{definition.title}</h4><span>{document.status.replaceAll('_',' ')}</span></div>
-                <p>{document.reference} · v{document.version} · Required status: {item.minimumStatus || 'draft'}.</p>
+                <p>{document.reference} · Required status: {item.minimumStatus || 'draft'}.</p>
                 <p>{item.reason}</p>
               </div>
               <Link className="button" href={documentUrl(document, context, recordId)}>Review document</Link>
@@ -118,48 +112,27 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
         </div>
       </section> : null}
 
-      {available.length ? <DocumentGroup title="Available now" state="available" items={available} context={context} recordId={recordId} quoteId={quoteId} returnTo={returnTo}/> : null}
-
-      {satisfied.length ? <section className="stage-documents__group">
-        <div className="stage-documents__group-title"><h3>Complete</h3><span>{satisfied.length}</span></div>
+      {blockedRequired.length ? <section className="stage-documents__group">
+        <div className="stage-documents__group-title"><h3>Waiting on earlier requirement</h3><span>{blockedRequired.length}</span></div>
         <div className="stage-documents__list">
-          {satisfied.map(({ item, document }) => {
-            const definition = getWorkspaceDocument(item.slug);
-            if (!definition) return null;
-            return <article className="stage-document-row is-generated" key={document.id}>
-              <span className="stage-document-row__icon" aria-hidden="true">✓</span>
-              <div className="stage-document-row__copy">
-                <div className="stage-document-row__title"><h4>{definition.title}</h4><span>{document.status.replaceAll('_', ' ')}</span></div>
-                <p>{document.reference} · v{document.version} · Generated {new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(document.created_at))}</p>
-                {item.requiredNow ? <p>Requirement complete · required status {item.minimumStatus || 'draft'}.</p> : null}
-              </div>
-              <Link className="button secondary" href={documentUrl(document, context, recordId)}>Open document</Link>
-            </article>;
-          })}
-        </div>
-      </section> : null}
-
-      {blocked.length ? <details className="vp-disclosure">
-        <summary>Later-stage documents · {blocked.length}</summary>
-        <div className="stage-documents__list">
-          {blocked.map((item) => {
+          {blockedRequired.map(item => {
             const definition = getWorkspaceDocument(item.slug);
             if (!definition) return null;
             return <article className="stage-document-row is-blocked" key={item.slug}>
               <span className="stage-document-row__icon" aria-hidden="true">⌁</span>
-              <div className="stage-document-row__copy"><div className="stage-document-row__title"><h4>{definition.title}</h4><span>Locked</span></div><p>{item.blockedReason || item.reason}</p></div>
-              <strong>Complete earlier requirements</strong>
+              <div className="stage-document-row__copy">
+                <div className="stage-document-row__title"><h4>{definition.title}</h4><span>Not available yet</span></div>
+                <p>{item.blockedReason || item.reason}</p>
+              </div>
             </article>;
           })}
         </div>
-      </details> : null}
-    </div>
+      </section> : null}
+    </div> : null}
   </section>;
 }
 
-function DocumentGroup({ title, state, items, context, recordId, quoteId, returnTo }: {
-  title: string;
-  state: 'required' | 'available';
+function DocumentGroup({ items, context, recordId, quoteId, returnTo }: {
   items: Item[];
   context: Props['context'];
   recordId: string;
@@ -167,15 +140,15 @@ function DocumentGroup({ title, state, items, context, recordId, quoteId, return
   returnTo: string;
 }) {
   return <section className="stage-documents__group">
-    <div className="stage-documents__group-title"><h3>{title}</h3><span>{items.length}</span></div>
+    <div className="stage-documents__group-title"><h3>Generate required document</h3><span>{items.length}</span></div>
     <div className="stage-documents__list">
-      {items.map((item) => {
+      {items.map(item => {
         const definition = getWorkspaceDocument(item.slug);
         if (!definition) return null;
-        return <article className={`stage-document-row is-${state}`} key={item.slug}>
+        return <article className="stage-document-row is-required" key={item.slug}>
           <span className="stage-document-row__icon" aria-hidden="true">▤</span>
           <div className="stage-document-row__copy">
-            <div className="stage-document-row__title"><h4>{definition.title}</h4><span>{state === 'required' ? `Required · ${item.minimumStatus || 'draft'}` : 'Available'}</span></div>
+            <div className="stage-document-row__title"><h4>{definition.title}</h4><span>Required · {item.minimumStatus || 'draft'}</span></div>
             <p>{item.reason}</p>
           </div>
           <form action={generateControlledDocumentAction}>
