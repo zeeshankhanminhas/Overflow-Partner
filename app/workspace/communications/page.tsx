@@ -6,6 +6,7 @@ export const dynamic='force-dynamic';
 function formatDate(value:string|null){if(!value)return 'Not scheduled';return new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/London'}).format(new Date(value));}
 function words(value:string){return value.replace(/[._-]+/g,' ').replace(/\b\w/g,letter=>letter.toUpperCase())}
 function tone(status:string):ProductTone{if(status==='sent')return 'complete';if(status==='failed')return 'blocked';if(['pending','processing'].includes(status))return 'waiting';return 'neutral'}
+function messageHref(entityType:string|null,entityId:string|null){if(!entityId)return undefined;if(entityType==='lead')return `/workspace/communications/lead/${entityId}`;if(entityType==='project')return `/workspace/communications/project/${entityId}`;if(entityType==='prospect')return `/workspace/communications/prospect/${entityId}`;if(entityType==='quote')return `/workspace/communications/quote/${entityId}`;if(entityType==='document')return `/workspace/communications/document/${entityId}`;return undefined;}
 
 export default async function CommunicationsPage(){
   const {supabase,organisationId}=await requireUserContext();
@@ -24,7 +25,7 @@ export default async function CommunicationsPage(){
     <section>
       <ProductSectionHeader eyebrow="Correspondence" title="Recent messages" />
       {rows.length===0?<ProductEmptyState title="No messages yet" description="Business correspondence created by governed workflows will appear here." />:<ProductRegister>
-        {rows.map(row=>{const href=row.entity_type==='lead'&&row.entity_id?`/workspace/communications/lead/${row.entity_id}`:row.entity_type==='project'&&row.entity_id?`/workspace/communications/project/${row.entity_id}`:undefined;return <ProductRegisterRow href={href} key={row.id}>
+        {rows.map(row=>{const href=messageHref(row.entity_type,row.entity_id);return <ProductRegisterRow href={href} key={row.id}>
           <div><strong>{row.subject}</strong><p>Outbound · {row.recipient_name||row.recipient_email}</p></div>
           <ProductStatus tone={tone(row.status)}>{words(row.status)}</ProductStatus>
           <div><small>{row.sent_at?'Sent':'Scheduled'}</small><strong style={{display:'block',marginTop:3}}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</strong></div>
