@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { executionSessionIdFromToken } from '@/lib/execution/sessionToken';
 
 const BUCKET='partner-delivery';
 const MAX_FILE_BYTES=25*1024*1024;
@@ -24,7 +25,11 @@ function descriptorError(filename:string,size:number){if(!filename)return 'File 
 
 async function contextForToken(token:string){
   const supabase=admin();
-  const {data:session,error}=await supabase.from('partner_execution_sessions').select('*').eq('token_hash',hashToken(token)).maybeSingle();
+  const signedSessionId=executionSessionIdFromToken(token);
+  const sessionQuery=supabase.from('partner_execution_sessions').select('*');
+  const {data:session,error}=signedSessionId
+    ? await sessionQuery.eq('id',signedSessionId).maybeSingle()
+    : await sessionQuery.eq('token_hash',hashToken(token)).maybeSingle();
   if(error||!session)return{supabase,session:null,assignment:null,project:null};
   if(new Date(session.expires_at).getTime()<Date.now()&&!['expired','revoked'].includes(session.status)){
     await supabase.from('partner_execution_sessions').update({status:'expired'}).eq('id',session.id);
