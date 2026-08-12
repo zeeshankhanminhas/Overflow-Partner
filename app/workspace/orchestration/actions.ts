@@ -47,8 +47,21 @@ export async function approveIntakeAction(formData: FormData) {
 }
 
 export async function createCommercialReviewAction(formData: FormData) {
-  const partnerQuoteId = required(formData, 'partner_quote_id'); const leadId = required(formData, 'lead_id'); const markupPercent = Number(formData.get('markup_percent') ?? 30); let destination = `/workspace/leads/${leadId}`;
-  try { if (!Number.isFinite(markupPercent) || markupPercent < 0 || markupPercent > 500) throw new Error('Markup must be between 0 and 500.'); const { supabase, organisationId, user } = await requireUserContext(); await createCommercialReviewFromPartnerQuote(supabase, organisationId, user.id, partnerQuoteId, markupPercent); refreshCase(leadId); destination = caseUrl(leadId, { success: 'Commercial position calculated from the governed partner cost.', resultStatus: 'Commercial decision required', focus:'record-next-action' }); }
+  const partnerQuoteId = required(formData, 'partner_quote_id');
+  const leadId = required(formData, 'lead_id');
+  const markupPercent = Number(formData.get('markup_percent') ?? 30);
+  const startPaymentPercent = Number(formData.get('start_payment_percent'));
+  const paymentTermsDays = Number(formData.get('payment_terms_days') ?? 30);
+  let destination = `/workspace/leads/${leadId}`;
+  try {
+    if (!Number.isFinite(markupPercent) || markupPercent < 0 || markupPercent > 500) throw new Error('Markup must be between 0 and 500.');
+    if (!Number.isFinite(startPaymentPercent) || startPaymentPercent <= 0 || startPaymentPercent > 100) throw new Error('Client start payment must be greater than 0% and no more than 100%.');
+    if (!Number.isInteger(paymentTermsDays) || paymentTermsDays < 0 || paymentTermsDays > 365) throw new Error('Payment terms must be between 0 and 365 days.');
+    const { supabase, organisationId, user } = await requireUserContext();
+    await createCommercialReviewFromPartnerQuote(supabase, organisationId, user.id, partnerQuoteId, markupPercent, startPaymentPercent, paymentTermsDays);
+    refreshCase(leadId);
+    destination = caseUrl(leadId, { success: 'Commercial position and client start-payment terms recorded from the governed Partner cost.', resultStatus: 'Commercial decision required', focus:'record-next-action' });
+  }
   catch (error) { destination = caseUrl(leadId, { error: message(error), focus:'record-next-action' }); }
   redirect(destination);
 }
