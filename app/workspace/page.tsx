@@ -6,7 +6,7 @@ import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 export default async function WorkspacePage() {
-  const { supabase, organisationId, profile } = await requireUserContext();
+  const { supabase, organisationId } = await requireUserContext();
   const [dashboard,pendingPartnerResult,operationalExceptions] = await Promise.all([
     getDashboardSnapshot(supabase, organisationId),
     supabase.from('partner_review_requests')
@@ -17,7 +17,6 @@ export default async function WorkspacePage() {
       .order('created_at',{ascending:false}),
     getOperationalExceptions(supabase,organisationId),
   ]);
-  const name = profile.first_name || profile.full_name?.split(' ')[0] || 'Operator';
   const partnerRows=(pendingPartnerResult.data||[]) as any[];
   const prospectIds=new Set(partnerRows.map(row=>String(row.prospect_id)));
   const partnerAttention:AttentionSource[]=partnerRows.map(row=>{
@@ -25,9 +24,9 @@ export default async function WorkspacePage() {
     const clarification=row.status==='clarification_required';
     return {
       id:`partner-${row.id}`,
-      title:internal?'Partner response ready for review':clarification?'Partner clarification needed':'Waiting on partner response',
+      title:internal?'Partner response ready for review':clarification?'Partner clarification needed':'Waiting on Partner response',
       company:row.prospect?.company_name||'Acquisition prospect',
-      reason:internal?'Technical and pricing response is ready for an internal decision':clarification?'Clarification is holding up the next step':`${row.partner?.company_name||'Execution partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,
+      reason:internal?'Technical and pricing response is ready for an internal decision':clarification?'Clarification is holding up the next step':`${row.partner?.company_name||'Execution Partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,
       waitingSince:row.submitted_at||row.sent_at||row.created_at,
       priority:internal?'high':'normal',
       href:`/workspace/acquisition/${row.prospect_id}${internal?'#approval-decision':''}`,
@@ -39,16 +38,38 @@ export default async function WorkspacePage() {
   const exceptionSummary=summariseExceptions(operationalExceptions);
   const businessActions=attention.items.slice(0,5);
   const exceptionActions=operationalExceptions.slice(0,5);
+  const nextDecision=businessActions[0];
 
   return <section className="vp-page">
     <ProductPageHeader
-      eyebrow="Home · Mission Control"
-      title={`Good morning, ${name}.`}
-      description="See what needs attention, what is off-track, and where work is moving next."
+      eyebrow="Mission Control"
+      title="Operating position"
+      description="One view of the next governed decision, external dependencies and work that has moved outside plan."
       actions={<><Link className="button" href="/workspace/acquisition">Open acquisition</Link><Link className="button secondary" href="/workspace/exceptions">Open exceptions</Link></>}
     />
 
-    <ProductMetrics label="Business attention summary">
+    <section className="operating-brief" aria-label="Current operating brief">
+      <div className="operating-brief__primary">
+        <small>Next controlled decision</small>
+        {nextDecision ? <>
+          <h2>{nextDecision.title}</h2>
+          <p><strong>{nextDecision.company}</strong> · {nextDecision.reason}</p>
+          <p style={{marginTop:6}}>Waiting {formatWaitingMinutes(nextDecision.waitingMinutes)} · {nextDecision.priority==='high'?'Priority attention':'Normal priority'}</p>
+          <Link href={nextDecision.href}>Open decision →</Link>
+        </> : <>
+          <h2>No governed decision is waiting.</h2>
+          <p>The operating queue is clear. New actions will surface here when an internal decision, Partner response or client outcome becomes due.</p>
+        </>}
+      </div>
+      <div className="operating-brief__signals" aria-label="Control signals">
+        <div className="operating-brief__signal"><small>Internal decision</small><strong>{attention.waitingOnInternal}</strong></div>
+        <div className="operating-brief__signal"><small>Execution Partner</small><strong>{attention.waitingOnPartner}</strong></div>
+        <div className="operating-brief__signal"><small>Client decision</small><strong>{attention.waitingOnClient}</strong></div>
+        <div className="operating-brief__signal"><small>Off-plan</small><strong>{exceptionSummary.total}</strong></div>
+      </div>
+    </section>
+
+    <ProductMetrics label="Operating control summary">
       <ProductMetric label="Business decisions" value={attention.items.length} detail="Waiting on a person or external response" tone={attention.items.length?'attention':'complete'} />
       <ProductMetric label="Operational exceptions" value={exceptionSummary.total} detail={`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`} tone={exceptionSummary.total?'attention':'complete'} />
       <ProductMetric label="Overdue / blocked" value={exceptionSummary.overdue + exceptionSummary.blocked} detail="Conditions already outside plan" tone={exceptionSummary.overdue + exceptionSummary.blocked?'blocked':'complete'} />
@@ -58,10 +79,10 @@ export default async function WorkspacePage() {
     <div className="product-split">
       <section className="product-stack">
         <section className="product-panel">
-          <ProductSectionHeader eyebrow="Waiting on" title="Business workload" />
+          <ProductSectionHeader eyebrow="Waiting on" title="Dependency position" />
           <div className="saas-signal-list">
             <div className="saas-signal"><span>Internal decision</span><strong>{attention.waitingOnInternal}</strong></div>
-            <div className="saas-signal"><span>Execution partner</span><strong>{attention.waitingOnPartner}</strong></div>
+            <div className="saas-signal"><span>Execution Partner</span><strong>{attention.waitingOnPartner}</strong></div>
             <div className="saas-signal"><span>Client decision</span><strong>{attention.waitingOnClient}</strong></div>
           </div>
         </section>
@@ -77,7 +98,7 @@ export default async function WorkspacePage() {
 
       <section className="product-stack">
         <section>
-          <ProductSectionHeader eyebrow="Priority queue" title="Business decisions" meta={`${attention.items.length} open`} />
+          <ProductSectionHeader eyebrow="Priority queue" title="Governed decisions" meta={`${attention.items.length} open`} />
           {businessActions.length ? <ProductRegister>
             {businessActions.map((item,index)=><ProductRegisterRow href={item.href} key={`${item.id}-${item.title}`}>
               <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{String(index+1).padStart(2,'0')}</ProductStatus>
