@@ -2,6 +2,8 @@
 
 Status: Normative
 
+Implementation reference: PR #22 — Primary Navigation Product Contract.
+
 ## Rule
 
 Anything promoted into primary workspace navigation is a product surface, not a utility shortcut.
