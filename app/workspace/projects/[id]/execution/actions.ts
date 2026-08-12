@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
+import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
 
 const roles = ['owner','admin','operator','engineering','commercial'] as const;
 const cadenceValues = ['milestone','daily','every_2_business_days','weekly','on_change'] as const;
@@ -95,14 +96,17 @@ export async function generateExecutionLinkAction(formData: FormData) {
     if(!assignment.scope_document_id)throw new Error('Controlled execution scope is required before Partner release.');
     if(['closed','cancelled'].includes(String(assignment.execution_state)))throw new Error('This execution assignment is no longer active.');
 
-    const rawToken=randomBytes(32).toString('base64url');const tokenHash=createHash('sha256').update(rawToken).digest('hex');
+    const placeholderToken=randomBytes(32).toString('base64url');const placeholderHash=createHash('sha256').update(placeholderToken).digest('hex');
     const due=assignment.committed_due_date?new Date(`${assignment.committed_due_date}T23:59:59Z`):new Date();const minimumExpiry=new Date(Date.now()+90*24*60*60*1000);due.setUTCDate(due.getUTCDate()+30);const expiresAt=due.getTime()>minimumExpiry.getTime()?due:minimumExpiry;
     await supabase.from('partner_execution_sessions').update({status:'revoked'}).eq('organisation_id',organisationId).eq('assignment_id',assignment.id).in('status',['invited','opened','active']);
-    const {data:session,error:sessionError}=await supabase.from('partner_execution_sessions').insert({organisation_id:organisationId,assignment_id:assignment.id,project_id:projectId,partner_id:assignment.partner_id,recipient_email:assignment.partner_contact_email,token_hash:tokenHash,status:'invited',expires_at:expiresAt.toISOString(),created_by:user.id}).select('id').single();
+    const {data:session,error:sessionError}=await supabase.from('partner_execution_sessions').insert({organisation_id:organisationId,assignment_id:assignment.id,project_id:projectId,partner_id:assignment.partner_id,recipient_email:assignment.partner_contact_email,token_hash:placeholderHash,status:'invited',expires_at:expiresAt.toISOString(),created_by:user.id}).select('id').single();
     if(sessionError||!session)throw new Error(sessionError?.message||'Secure execution session could not be created.');
+
+    const signedToken=createExecutionSessionToken(session.id);const signedHash=createHash('sha256').update(signedToken).digest('hex');
+    const {error:tokenError}=await supabase.from('partner_execution_sessions').update({token_hash:signedHash}).eq('id',session.id);if(tokenError)throw new Error(tokenError.message);
     const now=new Date().toISOString();const {error:releaseError}=await supabase.from('project_execution_assignments').update({execution_state:assignment.execution_state==='not_released'?'awaiting_acknowledgement':assignment.execution_state,released_at:now}).eq('organisation_id',organisationId).eq('id',assignment.id);if(releaseError)throw new Error(releaseError.message);
-    await audit(supabase,organisationId,user.id,projectId,'partner_execution.secure_link_issued',{assignmentId:assignment.id,sessionId:session.id,recipientEmail:assignment.partner_contact_email,scopeDocumentId:assignment.scope_document_id,expiresAt:expiresAt.toISOString(),canonicalLifecycle:true});
-    const baseUrl=process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app';const link=`${baseUrl}/execution/${rawToken}`;
+    await audit(supabase,organisationId,user.id,projectId,'partner_execution.secure_link_issued',{assignmentId:assignment.id,sessionId:session.id,recipientEmail:assignment.partner_contact_email,scopeDocumentId:assignment.scope_document_id,expiresAt:expiresAt.toISOString(),canonicalLifecycle:true,reopenableSignedLink:true});
+    const baseUrl=process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app';const link=`${baseUrl}/execution/${signedToken}`;
     refresh(projectId);destination=executionUrl(projectId,{success:'Secure Partner Execution link generated.',execution_link:link});
   }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Execution link could not be generated.'});}
   redirect(destination);
