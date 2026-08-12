@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
+import { resolveProjectStartPaymentGate } from '@/lib/finance/startPayment';
 import { resolveExecutionExceptionAction } from './actions';
 import { guardedGenerateExecutionLinkAction, guardedReleasePartnerExecutionAction } from './guardedActions';
 import { ActionDialog, ContextDrawer, EvidenceRow, ProductDisclosure } from '@/components/workspace/InteractionPrimitives';
@@ -11,6 +12,7 @@ function formatDate(value?: string | null) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+function money(value:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(Number(value||0))}catch{return `${currency} ${Number(value||0).toFixed(2)}`}}
 function stateLabel(value?: string | null) { return String(value || '').replaceAll('_',' ').replace(/\b\w/g, (char) => char.toUpperCase()); }
 
 export default async function PartnerExecutionControlPage({ params, searchParams }: {
@@ -21,9 +23,10 @@ export default async function PartnerExecutionControlPage({ params, searchParams
   const {data:project,error:projectError}=await supabase.from('projects').select('id,project_number,title,lead_id,quote_id,start_date,due_date,project_stage,status').eq('organisation_id',organisationId).eq('id',id).maybeSingle();
   if(projectError)throw new Error(projectError.message);if(!project)notFound();
 
-  const [assignmentResult,documentsResult]=await Promise.all([
+  const [assignmentResult,documentsResult,startPaymentGate]=await Promise.all([
     supabase.from('project_execution_assignments').select('*').eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
     supabase.from('documents').select('id,title,reference,status,revision_code,document_type,is_current_revision,created_at').eq('organisation_id',organisationId).eq('project_id',id).in('document_type',['scope-of-work','statement-of-work']).in('status',['approved','issued','published']).order('created_at',{ascending:false}),
+    resolveProjectStartPaymentGate(supabase,organisationId,id),
   ]);
   if(assignmentResult.error)throw new Error(assignmentResult.error.message);if(documentsResult.error)throw new Error(documentsResult.error.message);
   const assignment=assignmentResult.data;const documents=documentsResult.data||[];const currentScopes=documents.filter(doc=>doc.is_current_revision);
@@ -61,10 +64,11 @@ export default async function PartnerExecutionControlPage({ params, searchParams
   const assignedScope=assignment?documents.find(doc=>doc.id===assignment.scope_document_id):null;
   const releaseScope=currentScopes.length===1?currentScopes[0]:null;
   const partnerName=commercialPartner?.company_name||'Execution Partner';
-  const readyForRelease=!noCommercialPartner&&!partnerMismatch&&commercialPartner?.status==='approved'&&commercialPartner?.nda_signed&&Boolean(commercialPartner?.email)&&Boolean(releaseScope);
+  const paymentReady=startPaymentGate.authorised;
+  const readyForRelease=paymentReady&&project.project_stage==='ready_for_execution'&&!noCommercialPartner&&!partnerMismatch&&commercialPartner?.status==='approved'&&commercialPartner?.nda_signed&&Boolean(commercialPartner?.email)&&Boolean(releaseScope);
 
-  const state=partnerMismatch?'Release basis needs attention':noCommercialPartner?'Commercial Partner missing':!assignment||!sessionUsable?'Ready to release':!commencement?'Waiting for Partner commencement':'Partner execution';
-  const tone=partnerMismatch||noCommercialPartner?'attention':commencement?'success':'neutral';
+  const state=!paymentReady&&!assignment?'Awaiting client payment':partnerMismatch?'Release basis needs attention':noCommercialPartner?'Commercial Partner missing':!assignment||!sessionUsable?'Ready to release':!commencement?'Waiting for Partner commencement':'Partner execution';
+  const tone=partnerMismatch||noCommercialPartner?'attention':!paymentReady&&!assignment?'neutral':commencement?'success':'neutral';
 
   return <section className="stack" style={{gap:24,maxWidth:1040}}>
     <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
@@ -75,7 +79,13 @@ export default async function PartnerExecutionControlPage({ params, searchParams
     {query.success?<div className="card" style={{borderLeft:'3px solid var(--op-success)'}}><strong>{query.success}</strong></div>:null}
     {query.error?<div className="card" style={{borderLeft:'3px solid var(--op-danger)'}}><strong>{query.error}</strong></div>:null}
 
-    {!assignment||!sessionUsable ? <article className="card stack" style={{gap:18}}>
+    {!paymentReady&&!assignment ? <article className="card stack" style={{gap:14}}>
+      <div><p className="eyebrow">Commercial start gate</p><h2>Awaiting client payment</h2><p>Partner release is unavailable until the required client start payment has actually been received and cleared.</p></div>
+      <div className="grid gap-4 md:grid-cols-2"><EvidenceRow label="Required to start" value={money(startPaymentGate.required,startPaymentGate.currency)} tone="waiting"/><EvidenceRow label="Received" value={money(startPaymentGate.received,startPaymentGate.currency)} /></div>
+      <Link className="button" href={`/workspace/payments?project=${id}`}>Record payment</Link>
+    </article> : null}
+
+    {paymentReady&&(!assignment||!sessionUsable) ? <article className="card stack" style={{gap:18}}>
       <div><p className="eyebrow">Next action</p><h2>Release to {partnerName}</h2><p>The system inherits the accepted Partner, current controlled scope and Project dates. You do not need to create or manage an assignment record.</p></div>
       <div className="grid gap-4 md:grid-cols-2">
         <div><small>Execution Partner</small><strong style={{display:'block',marginTop:5}}>{partnerName}</strong>{commercialPartner?<span style={{display:'block',marginTop:4}}>{commercialPartner.status==='approved'&&commercialPartner.nda_signed?'Approved · NDA ready':'Partner readiness incomplete'}</span>:null}</div>
@@ -92,6 +102,7 @@ export default async function PartnerExecutionControlPage({ params, searchParams
         disabled={!readyForRelease||partnerMismatch}
       >
         <div className="stack" style={{gap:16}}>
+          <EvidenceRow label="Start payment" value="Received and cleared" tone="complete" />
           <EvidenceRow label="Execution Partner" value={partnerName} />
           <EvidenceRow label="Controlled scope" value={releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:'Current approved scope required'} />
           <EvidenceRow label="Recipient" value={commercialPartner?.email||'Email required'} />
