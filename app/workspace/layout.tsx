@@ -23,6 +23,7 @@ import './workspace-mobile-canonical.css';
 import './phase3-document-actions.css';
 import './ux-ui-parity.css';
 import './ux-ui-parity-mobile.css';
+import './global-presentation.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -58,7 +59,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <section className="midts-main op-main">
       <header className="midts-topbar op-topbar">
         <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href="/workspace/notifications">Attention</Link></div>
+        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href="/workspace/approvals">Approvals</Link><Link href="/workspace/notifications">Attention</Link></div>
       </header>
       <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
       <main className="midts-content op-content">{children}</main>
@@ -69,7 +70,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <Link href="/workspace/acquisition/prospects">Enquiries</Link>
       <Link href="/workspace/leads">Cases</Link>
       <Link href="/workspace/projects">Projects</Link>
-      <Link href="/workspace/payments">Finance</Link>
+      <Link href="/workspace/approvals">Approvals</Link>
     </nav>
   </div>;
 }

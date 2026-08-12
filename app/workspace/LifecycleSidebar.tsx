@@ -77,6 +77,7 @@ export default function LifecycleSidebar() {
     <div className="lifecycle-nav__overview">
       <p className="op-nav-label">Home</p>
       <Link className={pathname === '/workspace' ? 'active' : ''} href="/workspace">Mission Control</Link>
+      <Link className={pathname.startsWith('/workspace/approvals') ? 'active' : ''} href="/workspace/approvals">Approvals</Link>
     </div>
 
     {context ? <section className="lifecycle-context">

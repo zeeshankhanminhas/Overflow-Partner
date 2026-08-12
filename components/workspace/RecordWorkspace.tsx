@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { ProductProvenance } from '@/components/workspace/ProductUI';
+import OperatingStatePanel from '@/components/workspace/OperatingStatePanel';
+import type { OperatingPresentation } from '@/lib/presentation/operatingState';
 
 type RecordWorkspaceProps = {
   header: ReactNode;
@@ -7,6 +9,7 @@ type RecordWorkspaceProps = {
   readiness: ReactNode;
   nextAction: ReactNode;
   summary: ReactNode;
+  presentation?: OperatingPresentation;
   evidence?: ReactNode;
   activities?: ReactNode;
   communications?: ReactNode;
@@ -43,6 +46,7 @@ export default function RecordWorkspace({
   readiness,
   nextAction,
   summary,
+  presentation,
   evidence,
   activities,
   communications,
@@ -56,7 +60,7 @@ export default function RecordWorkspace({
   const hasCurrentWork = Boolean(activities || communications);
   const hasSecondaryContext = Boolean(history || olderDocuments || metadata || audit);
 
-  return <section className={`record-workspace ${className}`.trim()}>
+  return <section className={`record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
     {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
 
@@ -70,14 +74,16 @@ export default function RecordWorkspace({
       </div>
     </section>
 
-    <section className="record-workspace__group record-workspace__group--decision" aria-labelledby="record-decision-area">
+    {presentation ? <OperatingStatePanel presentation={presentation} /> : null}
+
+    <section className={`record-workspace__group record-workspace__group--decision ${presentation ? 'record-workspace__group--interpreted' : ''}`} aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
-        <p id="record-decision-area">What happens next</p>
-        <span>Your next action and the evidence needed before you can take it</span>
+        <p id="record-decision-area">{presentation ? 'Working details' : 'What happens next'}</p>
+        <span>{presentation ? 'Use these controls and checks only when the operating state above calls for them' : 'Your next action and the evidence needed before you can take it'}</span>
       </div>
       <div className="record-workspace__decision-grid">
-        <Slot id="record-next-action" title="Next action" className="record-workspace__slot--action">{nextAction}</Slot>
-        <Slot id="record-readiness" title="Ready to proceed?" className="record-workspace__slot--readiness">{readiness}</Slot>
+        <Slot id="record-next-action" title={presentation ? 'Action controls' : 'Next action'} className="record-workspace__slot--action">{nextAction}</Slot>
+        <Slot id="record-readiness" title={presentation ? 'Readiness details' : 'Ready to proceed?'} className="record-workspace__slot--readiness">{readiness}</Slot>
         <Slot id="record-summary" title="Key details" className="record-workspace__slot--summary">{summary}</Slot>
       </div>
     </section>

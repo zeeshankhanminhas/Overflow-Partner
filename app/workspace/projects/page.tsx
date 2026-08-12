@@ -4,56 +4,149 @@ import { requireUserContext } from '@/lib/auth/context';
 import { listClientQuotes } from '@/lib/repositories/workflow';
 import { listLeads } from '@/lib/repositories/leads';
 import { createProjectFormAction } from '../workflow-actions';
-import { normaliseProjectStage, projectStageMeta } from '@/lib/projects/stages';
+import { normaliseProjectStage } from '@/lib/projects/stages';
 import { resolveFinancialGate } from '@/lib/finance/state';
-import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
+import { resolveProjectPresentation } from '@/lib/presentation/operatingState';
+import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 const PAGE_SIZE=25;
 type View='all'|'attention'|'mobilisation'|'delivery'|'client_review'|'closeout'|'closed';
 type QueueRow={id:string;project_number:string;title:string;project_status:string;project_stage:string;start_date:string|null;due_date:string|null;created_at:string;total_count:number|string};
-const viewMeta:Record<View,{label:string;description:string}>={all:{label:'All active',description:'Every current project.'},attention:{label:'Needs attention',description:'Projects with a live blocker, overdue date or unresolved exception.'},mobilisation:{label:'Mobilisation',description:'Accepted work not yet authorised for execution.'},delivery:{label:'In delivery',description:'Projects in execution and technical review.'},client_review:{label:'Client review',description:'Projects waiting on client-facing review or issue.'},closeout:{label:'Closeout',description:'Completion-stage work waiting for closure.'},closed:{label:'Closed',description:'Completed historical project records.'}};
+const viewMeta:Record<View,{label:string;description:string}>={all:{label:'All active',description:'Every current project.'},attention:{label:'Needs attention',description:'Projects with a real blocker, overdue date or unresolved exception.'},mobilisation:{label:'Mobilisation',description:'Accepted work not yet in execution.'},delivery:{label:'In delivery',description:'Projects in Partner execution and technical review.'},client_review:{label:'Client review',description:'Projects in client issue or review.'},closeout:{label:'Closeout',description:'Completion-stage work waiting for closure.'},closed:{label:'Closed',description:'Completed historical project records.'}};
 function href(view:View,page=1,q=''){const p=new URLSearchParams();if(view!=='all')p.set('view',view);if(page>1)p.set('page',String(page));if(q)p.set('q',q);const s=p.toString();return `/workspace/projects${s?`?${s}`:''}`}
 function formatDate(value:string|null){if(!value)return 'Not set';const d=new Date(value);return Number.isNaN(d.getTime())?value:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function money(value:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency,maximumFractionDigits:0}).format(Number(value||0))}catch{return `${currency} ${Number(value||0).toFixed(0)}`}}
-function stageTone(attention:boolean,stage:string):ProductTone{if(attention)return 'attention';if(stage==='closed')return 'complete';return 'active'}
 
 export default async function Page({searchParams}:{searchParams?:Promise<Record<string,string|undefined>>}){
-  const params=searchParams?await searchParams:{};if(params.project)redirect(`/workspace/projects/${params.project}`);const requested=String(params.view||'all');const view=(Object.keys(viewMeta).includes(requested)?requested:'all') as View;const q=String(params.q||'').trim();const requestedPage=Number.parseInt(String(params.page||'1'),10);const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;const {supabase,organisationId}=await requireUserContext();
-  const [{data,error},quotes,leads]=await Promise.all([supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0}),listClientQuotes(supabase,organisationId),listLeads(supabase,organisationId)]);if(error)throw new Error(`Project queue could not be loaded: ${error.message}`);const baseRows=(data||[]) as QueueRow[];const ids=baseRows.map(r=>r.id);
-  const [projectDetails,taskRows,deliveryRows]=await Promise.all([ids.length?supabase.from('projects').select('id,project_manager_id,due_date,project_stage,quote_id, project_manager:profiles(full_name), lead:leads(company_name), quote:quotes(total,currency)').eq('organisation_id',organisationId).in('id',ids):Promise.resolve({data:[] as any[]}),ids.length?supabase.from('tasks').select('entity_id,status').eq('organisation_id',organisationId).eq('entity_type','project').in('entity_id',ids):Promise.resolve({data:[] as any[]}),ids.length?supabase.from('project_delivery_items').select('project_id,status,due_date').eq('organisation_id',organisationId).in('project_id',ids):Promise.resolve({data:[] as any[]})]);
-  const detailMap=new Map((projectDetails.data||[]).map((p:any)=>[p.id,p]));const taskMap=new Map<string,{open:number;blocked:number}>();for(const t of taskRows.data||[]){const key=String((t as any).entity_id);const current=taskMap.get(key)||{open:0,blocked:0};if(!['completed','cancelled'].includes(String((t as any).status)))current.open++;if(String((t as any).status)==='blocked')current.blocked++;taskMap.set(key,current)}const deliveryMap=new Map<string,{open:number;blocked:number;overdue:number}>();const now=Date.now();for(const d of deliveryRows.data||[]){const key=String((d as any).project_id);const current=deliveryMap.get(key)||{open:0,blocked:0,overdue:0};if(!['complete','cancelled'].includes(String((d as any).status)))current.open++;if(String((d as any).status)==='blocked')current.blocked++;if((d as any).due_date&&!['complete','cancelled'].includes(String((d as any).status))&&new Date(String((d as any).due_date)).getTime()<now)current.overdue++;deliveryMap.set(key,current)}
-  const enriched=await Promise.all(baseRows.map(async row=>{const detail:any=detailMap.get(row.id)||{};const stage=normaliseProjectStage(row.project_stage);const tasks=taskMap.get(row.id)||{open:0,blocked:0};const delivery=deliveryMap.get(row.id)||{open:0,blocked:0,overdue:0};let finance={authorised:true,displayState:'Not required',reason:''};if(stage==='mobilisation'){const result=await supabase.rpc('op_project_financial_gate',{p_project_id:row.id});finance=resolveFinancialGate(result.data)}const overdue=Boolean(row.due_date&&new Date(row.due_date).getTime()<now&&!['closed','completed','cancelled'].includes(String(row.project_status)));const attention=overdue||!finance.authorised||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0;const nextAction=!finance.authorised?'Resolve finance':delivery.blocked||delivery.overdue?'Resolve delivery':tasks.blocked?'Resolve task blocker':stage==='mobilisation'?'Authorise execution':projectStageMeta[stage].action;return {...row,stage,detail,tasks,delivery,finance,overdue,attention,nextAction}}));
-  let filtered=enriched;if(view==='attention')filtered=filtered.filter(p=>p.attention);if(view==='mobilisation')filtered=filtered.filter(p=>p.stage==='mobilisation'||p.stage==='ready_for_execution');if(view==='client_review')filtered=filtered.filter(p=>['ready_for_client_issue','issued_to_client','client_review'].includes(p.stage));if(q){const needle=q.toLowerCase();filtered=filtered.filter(p=>[p.project_number,p.title,p.detail?.lead?.company_name,p.detail?.project_manager?.full_name].some(v=>String(v||'').toLowerCase().includes(needle)))}const total=filtered.length;const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));const pageRows=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);const attentionCount=enriched.filter(p=>p.attention).length;const mobilisationCount=enriched.filter(p=>p.stage==='mobilisation'||p.stage==='ready_for_execution').length;const deliveryCount=enriched.filter(p=>['in_progress','internal_review','partner_correction','ready_for_client_issue','issued_to_client','client_review'].includes(p.stage)).length;const closeoutCount=enriched.filter(p=>p.stage==='completion').length;
+  const params=searchParams?await searchParams:{};
+  if(params.project)redirect(`/workspace/projects/${params.project}`);
+  const requested=String(params.view||'all');
+  const view=(Object.keys(viewMeta).includes(requested)?requested:'all') as View;
+  const q=String(params.q||'').trim();
+  const requestedPage=Number.parseInt(String(params.page||'1'),10);
+  const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;
+  const {supabase,organisationId}=await requireUserContext();
+
+  const [{data,error},quotes,leads]=await Promise.all([
+    supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0}),
+    listClientQuotes(supabase,organisationId),
+    listLeads(supabase,organisationId),
+  ]);
+  if(error)throw new Error(`Project queue could not be loaded: ${error.message}`);
+  const baseRows=(data||[]) as QueueRow[];
+  const ids=baseRows.map(r=>r.id);
+
+  const [projectDetails,taskRows,deliveryRows,assignmentRows,clientReviewRows]=await Promise.all([
+    ids.length?supabase.from('projects').select('id,project_manager_id,start_date,due_date,project_stage,quote_id, project_manager:profiles(full_name), lead:leads(company_name), quote:quotes(total,currency)').eq('organisation_id',organisationId).in('id',ids):Promise.resolve({data:[] as any[]}),
+    ids.length?supabase.from('tasks').select('entity_id,status').eq('organisation_id',organisationId).eq('entity_type','project').in('entity_id',ids):Promise.resolve({data:[] as any[]}),
+    ids.length?supabase.from('project_delivery_items').select('project_id,status,due_date').eq('organisation_id',organisationId).in('project_id',ids):Promise.resolve({data:[] as any[]}),
+    ids.length?supabase.from('project_execution_assignments').select('id,project_id,partner_id,execution_state,execution_cycle,committed_due_date').eq('organisation_id',organisationId).in('project_id',ids):Promise.resolve({data:[] as any[]}),
+    ids.length?supabase.from('project_client_reviews').select('project_id,outcome,execution_cycle,recorded_at').eq('organisation_id',organisationId).in('project_id',ids).order('recorded_at',{ascending:false}):Promise.resolve({data:[] as any[]}),
+  ]);
+
+  const assignments=(assignmentRows.data||[]) as any[];
+  const assignmentIds=assignments.map(item=>item.id);
+  const partnerIds=[...new Set(assignments.map(item=>String(item.partner_id)).filter(Boolean))];
+  const [commencementRows,submissionRows,partnerRows,exceptionRows]=await Promise.all([
+    assignmentIds.length?supabase.from('partner_commencement_declarations').select('assignment_id,project_id,submitted_at').eq('organisation_id',organisationId).in('assignment_id',assignmentIds):Promise.resolve({data:[] as any[]}),
+    assignmentIds.length?supabase.from('partner_delivery_submissions').select('assignment_id,project_id,execution_cycle,submitted_at,review_status').eq('organisation_id',organisationId).in('assignment_id',assignmentIds):Promise.resolve({data:[] as any[]}),
+    partnerIds.length?supabase.from('partners').select('id,company_name').eq('organisation_id',organisationId).in('id',partnerIds):Promise.resolve({data:[] as any[]}),
+    assignmentIds.length?supabase.from('partner_execution_exceptions').select('assignment_id,project_id,status').eq('organisation_id',organisationId).in('assignment_id',assignmentIds).in('status',['open','acknowledged']):Promise.resolve({data:[] as any[]}),
+  ]);
+
+  const detailMap=new Map((projectDetails.data||[]).map((p:any)=>[p.id,p]));
+  const assignmentMap=new Map(assignments.map((a:any)=>[a.project_id,a]));
+  const commencementSet=new Set((commencementRows.data||[]).map((r:any)=>String(r.assignment_id)));
+  const partnerMap=new Map((partnerRows.data||[]).map((p:any)=>[p.id,p]));
+  const submissionMap=new Map<string,any>();
+  for(const submission of submissionRows.data||[]){const assignment=assignments.find((item:any)=>item.id===(submission as any).assignment_id);if(!assignment||Number((submission as any).execution_cycle)!==Number(assignment.execution_cycle||1))continue;submissionMap.set(String(assignment.project_id),submission)}
+  const exceptionMap=new Map<string,number>();
+  for(const exception of exceptionRows.data||[]){const key=String((exception as any).project_id);exceptionMap.set(key,(exceptionMap.get(key)||0)+1)}
+  const clientOutcomeMap=new Map<string,any>();
+  for(const review of clientReviewRows.data||[]){const key=String((review as any).project_id);if(!clientOutcomeMap.has(key))clientOutcomeMap.set(key,review)}
+
+  const taskMap=new Map<string,{open:number;blocked:number}>();
+  for(const t of taskRows.data||[]){const key=String((t as any).entity_id);const current=taskMap.get(key)||{open:0,blocked:0};if(!['completed','cancelled'].includes(String((t as any).status)))current.open++;if(String((t as any).status)==='blocked')current.blocked++;taskMap.set(key,current)}
+  const deliveryMap=new Map<string,{open:number;blocked:number;overdue:number}>();
+  const now=Date.now();
+  for(const d of deliveryRows.data||[]){const key=String((d as any).project_id);const current=deliveryMap.get(key)||{open:0,blocked:0,overdue:0};if(!['complete','cancelled'].includes(String((d as any).status)))current.open++;if(String((d as any).status)==='blocked')current.blocked++;if((d as any).due_date&&!['complete','cancelled'].includes(String((d as any).status))&&new Date(String((d as any).due_date)).getTime()<now)current.overdue++;deliveryMap.set(key,current)}
+
+  const enriched=await Promise.all(baseRows.map(async row=>{
+    const detail:any=detailMap.get(row.id)||{};
+    const stage=normaliseProjectStage(row.project_stage);
+    const tasks=taskMap.get(row.id)||{open:0,blocked:0};
+    const delivery=deliveryMap.get(row.id)||{open:0,blocked:0,overdue:0};
+    const assignment:any=assignmentMap.get(row.id);
+    const partner:any=assignment?partnerMap.get(assignment.partner_id):null;
+    const commencement=assignment?commencementSet.has(String(assignment.id)):false;
+    const currentDelivery=submissionMap.get(row.id);
+    const openExceptions=exceptionMap.get(row.id)||0;
+    const clientReview=clientOutcomeMap.get(row.id);
+    let finance={authorised:true,displayState:'Not required',reason:''};
+    if(stage==='mobilisation'){const result=await supabase.rpc('op_project_financial_gate',{p_project_id:row.id});finance=resolveFinancialGate(result.data)}
+    const overdue=Boolean(row.due_date&&new Date(row.due_date).getTime()<now&&!['closed','completed','cancelled'].includes(String(row.project_status)));
+    const trueBlockers=[
+      ...(overdue?['Project due date is overdue.']:[]),
+      ...(!finance.authorised?['Commercial release is not authorised.']:[]),
+      ...(tasks.blocked>0?[`${tasks.blocked} task${tasks.blocked===1?' is':'s are'} blocked.`]:[]),
+      ...(delivery.blocked>0?[`${delivery.blocked} Delivery Control item${delivery.blocked===1?' is':'s are'} blocked.`]:[]),
+      ...(delivery.overdue>0?[`${delivery.overdue} Delivery Control item${delivery.overdue===1?' is':'s are'} overdue.`]:[]),
+      ...(openExceptions>0?[`${openExceptions} Partner exception${openExceptions===1?' is':'s are'} unresolved.`]:[]),
+      ...(stage==='mobilisation'&&!detail.project_manager_id?['Project manager is required.']:[]),
+      ...(stage==='mobilisation'&&(!detail.start_date||!detail.due_date)?['Programme dates are required.']:[]),
+    ];
+    const ready=trueBlockers.length===0&&(
+      stage==='mobilisation'?Boolean(detail.project_manager_id&&detail.start_date&&detail.due_date&&finance.authorised):
+      stage==='ready_for_execution'?commencement:
+      stage==='in_progress'?Boolean(currentDelivery&&delivery.open===0&&openExceptions===0):
+      stage==='partner_correction'?Boolean(currentDelivery&&openExceptions===0):
+      stage==='client_review'?Boolean(clientReview?.outcome):
+      stage==='closed'?false:false
+    );
+    const presentation=resolveProjectPresentation({
+      stage,ready,readinessReasons:trueBlockers,partnerControlled:Boolean(assignment),partnerName:partner?.company_name||'Execution Partner',executionState:assignment?.execution_state,executionCycle:Number(assignment?.execution_cycle||1),commencementConfirmed:commencement,currentCycleDeliverySubmitted:Boolean(currentDelivery),deliveryItems:delivery.open,deliveryWorkOpen:delivery.open,openPartnerExceptions:openExceptions,financialAuthorised:finance.authorised,clientOutcome:clientReview?.outcome,
+    });
+    const attention=overdue||!finance.authorised||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0||openExceptions>0||presentation.tone==='blocked'||presentation.tone==='critical';
+    return {...row,stage,detail,tasks,delivery,finance,overdue,attention,presentation,assignment,partner};
+  }));
+
+  let filtered=enriched;
+  if(view==='attention')filtered=filtered.filter(p=>p.attention);
+  if(view==='mobilisation')filtered=filtered.filter(p=>p.stage==='mobilisation'||p.stage==='ready_for_execution');
+  if(view==='client_review')filtered=filtered.filter(p=>['ready_for_client_issue','issued_to_client','client_review'].includes(p.stage));
+  if(q){const needle=q.toLowerCase();filtered=filtered.filter(p=>[p.project_number,p.title,p.detail?.lead?.company_name,p.detail?.project_manager?.full_name,p.partner?.company_name].some(v=>String(v||'').toLowerCase().includes(needle)))}
+  const total=filtered.length;const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));const pageRows=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+  const attentionCount=enriched.filter(p=>p.attention).length;const waitingCount=enriched.filter(p=>p.presentation.tone==='waiting').length;const deliveryCount=enriched.filter(p=>['in_progress','internal_review','partner_correction','ready_for_client_issue','issued_to_client','client_review'].includes(p.stage)).length;const closeoutCount=enriched.filter(p=>p.stage==='completion').length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Triage 20–100+ projects from one operating register. Open Project 360 only when the row shows a decision, blocker or delivery action that needs attention." actions={<details><summary className="button secondary">Administrative exception</summary><div className="vp-toolbar-panel"><form action={createProjectFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><select className={input} name="lead_id" required><option value="">Select Case</option>{leads.map(l=><option key={l.id} value={l.id}>{l.title||l.company_name}</option>)}</select><select className={input} name="quote_id"><option value="">No linked quote</option>{quotes.map(qt=><option key={qt.id} value={qt.id}>{qt.quote_number} · {qt.status}</option>)}</select><input className={input} name="project_number" placeholder="OP-PRJ-0001" required/><input className={input} name="title" placeholder="Project title" required/></div><textarea className={input} name="notes" rows={3} placeholder="Reason" required/><button className="button">Create exceptional project</button></form></div></details>} />
+    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Every row uses the same operating-state interpretation as Project 360: real blockers are attention; normal Partner or client waits stay waiting." actions={<details><summary className="button secondary">Administrative exception</summary><div className="vp-toolbar-panel"><form action={createProjectFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><select className={input} name="lead_id" required><option value="">Select Case</option>{leads.map(l=><option key={l.id} value={l.id}>{l.title||l.company_name}</option>)}</select><select className={input} name="quote_id"><option value="">No linked quote</option>{quotes.map(qt=><option key={qt.id} value={qt.id}>{qt.quote_number} · {qt.status}</option>)}</select><input className={input} name="project_number" placeholder="OP-PRJ-0001" required/><input className={input} name="title" placeholder="Project title" required/></div><textarea className={input} name="notes" rows={3} placeholder="Reason" required/><button className="button">Create exceptional project</button></form></div></details>} />
 
     <ProductMetrics label="Project portfolio summary">
       <ProductMetric label="Active portfolio" value={enriched.filter(p=>p.stage!=='closed').length} detail="Current project-owned work" />
-      <ProductMetric label="Needs attention" value={attentionCount} detail="Blocked, overdue or off-plan" tone={attentionCount?'attention':'complete'} />
-      <ProductMetric label="Mobilisation" value={mobilisationCount} detail="Not yet in execution" tone={mobilisationCount?'waiting':'neutral'} />
+      <ProductMetric label="Needs attention" value={attentionCount} detail="Real blockers or overdue work" tone={attentionCount?'attention':'complete'} />
+      <ProductMetric label="Waiting normally" value={waitingCount} detail="Partner or client owns the next move" tone={waitingCount?'waiting':'neutral'} />
       <ProductMetric label="In delivery" value={deliveryCount} detail={`${closeoutCount} currently in closeout`} tone={deliveryCount?'active':'neutral'} />
     </ProductMetrics>
 
     <ProductFilterBar>
       {(Object.keys(viewMeta) as View[]).map(key=><Link key={key} className={`button ${view===key?'':'secondary'}`} href={href(key,1,q)}>{viewMeta[key].label}</Link>)}
-      <form method="get" className="product-toolbar__group" style={{marginLeft:'auto',flex:'1 1 300px',justifyContent:'flex-end'}}>{view!=='all'?<input type="hidden" name="view" value={view}/>:null}<input name="q" type="search" defaultValue={q} placeholder="Search project, customer or owner"/><button className="button secondary">Search</button>{q?<Link className="button secondary" href={href(view)}>Clear</Link>:null}</form>
+      <form method="get" className="product-toolbar__group" style={{marginLeft:'auto',flex:'1 1 300px',justifyContent:'flex-end'}}>{view!=='all'?<input type="hidden" name="view" value={view}/>:null}<input name="q" type="search" defaultValue={q} placeholder="Search project, client, Partner or owner"/><button className="button secondary">Search</button>{q?<Link className="button secondary" href={href(view)}>Clear</Link>:null}</form>
     </ProductFilterBar>
 
     <section>
       <ProductSectionHeader eyebrow="Operating register" title={`${total} project${total===1?'':'s'}`} meta={viewMeta[view].description} />
       {pageRows.length===0?<ProductEmptyState title="No projects match this view" description="Change the portfolio filter or clear search to broaden the register." />:<div className="project-portfolio-register">
-        <div className="project-portfolio-head" aria-hidden="true"><span>Project</span><span>Stage</span><span>Owner</span><span>Due</span><span>Value</span><span>Delivery</span><span>Finance</span><span>Next action</span></div>
+        <div className="project-portfolio-head" aria-hidden="true"><span>Project</span><span>Operating state</span><span>Owner</span><span>Due</span><span>Value</span><span>Delivery</span><span>Waiting on</span><span>What happens next</span></div>
         {pageRows.map((p:any)=><Link className={`project-portfolio-row ${p.attention?'project-portfolio-row--attention':''}`} href={`/workspace/projects/${p.id}`} key={p.id}>
-          <div data-label="Project"><strong>{p.project_number}</strong><span>{p.title}</span><small>{p.detail?.lead?.company_name||'Customer not recorded'}</small></div>
-          <div data-label="Stage"><ProductStatus tone={stageTone(p.attention,p.stage)}>{projectStageMeta[normaliseProjectStage(String(p.project_stage))].label}</ProductStatus>{p.attention?<small>Needs attention</small>:null}</div>
+          <div data-label="Project"><strong>{p.project_number}</strong><span>{p.title}</span><small>{p.detail?.lead?.company_name||'Client not recorded'}</small></div>
+          <div data-label="Operating state"><ProductStatus tone={p.presentation.tone}>{p.presentation.state}</ProductStatus><small>{p.attention?'Needs attention':p.presentation.tone==='waiting'?'On plan · waiting':'On plan'}</small></div>
           <div data-label="Owner"><strong>{p.detail?.project_manager?.full_name||'Unassigned'}</strong></div>
           <div data-label="Due"><strong>{formatDate(p.due_date)}</strong>{p.overdue?<small>Overdue</small>:null}</div>
           <div data-label="Value"><strong>{money(p.detail?.quote?.total,p.detail?.quote?.currency||'GBP')}</strong></div>
-          <div data-label="Delivery"><strong>{p.delivery.open} open</strong>{p.delivery.blocked||p.delivery.overdue?<small>{p.delivery.blocked} blocked · {p.delivery.overdue} overdue</small>:<small>On plan</small>}</div>
-          <div data-label="Finance"><strong>{normaliseProjectStage(String(p.project_stage))==='mobilisation'?p.finance.displayState:'—'}</strong></div>
-          <div data-label="Next action"><strong>{p.nextAction} →</strong></div>
+          <div data-label="Delivery"><strong>{p.delivery.open} open</strong>{p.delivery.blocked||p.delivery.overdue?<small>{p.delivery.blocked} blocked · {p.delivery.overdue} overdue</small>:<small>{p.assignment?`Cycle ${p.assignment.execution_cycle||1}`:'Internal'}</small>}</div>
+          <div data-label="Waiting on"><strong>{p.presentation.waitingOn?.label||'—'}</strong></div>
+          <div data-label="What happens next"><strong>{p.presentation.nextAction.label}{p.presentation.nextAction.available?' →':''}</strong></div>
         </Link>)}
       </div>}
       {totalPages>1?<nav className="vp-pagination" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginTop:16}}>{page>1?<Link className="button secondary" href={href(view,page-1,q)}>← Previous</Link>:<span/>}<span style={{color:'var(--saas-muted)',fontSize:11}}>Page {page} of {totalPages}</span>{page<totalPages?<Link className="button secondary" href={href(view,page+1,q)}>Next →</Link>:<span/>}</nav>:null}
