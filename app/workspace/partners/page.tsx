@@ -16,26 +16,26 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
   const needsNda=partners.filter(p=>p.status==='approved'&&!p.nda_signed).length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Commercial · Partners" title="Execution partner network" description="Manage partner readiness, NDA status and delivery capability from one controlled directory. Assignment remains attached to the Prospect or Case that needs the work." actions={<details><summary className="button">Add partner</summary><div className="vp-toolbar-panel"><form action={createPartnerFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><input className={input} name="company_name" placeholder="Company name" required/><input className={input} name="country" placeholder="Country"/><input className={input} name="contact_name" placeholder="Contact name"/><input className={input} name="email" type="email" placeholder="Email"/><input className={input} name="phone" placeholder="Phone"/><select className={input} name="status" defaultValue="prospective"><option value="prospective">Prospective</option><option value="approved">Approved</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select><select className={input} name="nda_signed" defaultValue="false"><option value="false">NDA not signed</option><option value="true">NDA signed</option></select><input className={input} name="rating" type="number" min="0" max="5" step="0.1" placeholder="Rating"/></div><textarea className={input} name="services" required rows={3} placeholder="Capabilities and services"/><textarea className={input} name="notes" rows={3} placeholder="Notes"/><button className="button">Add partner</button></form></div></details>} />
+    <ProductPageHeader eyebrow="Commercial · Partners" title="Execution partner network" description="Maintain Partner identity and capability here. Approval, NDA evidence and performance remain governed controls rather than creation-time fields." actions={<details><summary className="button">Add partner</summary><div className="vp-toolbar-panel"><form action={createPartnerFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><input className={input} name="company_name" placeholder="Company name" required/><input className={input} name="country" placeholder="Country"/><input className={input} name="contact_name" placeholder="Contact name"/><input className={input} name="email" type="email" placeholder="Email"/><input className={input} name="phone" placeholder="Phone"/></div><textarea className={input} name="services" required rows={3} placeholder="Capabilities and services"/><textarea className={input} name="notes" rows={3} placeholder="Optional context"/><button className="button">Add partner</button></form></div></details>} />
 
-    {params.created?<ProductNotice title="Partner added" tone="complete"><p>The partner is now available for governed review and assignment.</p></ProductNotice>:null}
+    {params.created?<ProductNotice title="Partner added" tone="complete"><p>The Partner starts as Prospective and becomes available for governed assignment only after the required controls are complete.</p></ProductNotice>:null}
     {params.error?<ProductNotice title="Partner could not be added" tone="blocked"><p>Review the partner details and try again.</p></ProductNotice>:null}
 
     <ProductMetrics label="Partner network summary">
       <ProductMetric label="Network" value={partners.length} detail="Execution partners on record" />
       <ProductMetric label="Approved" value={approved} detail="Available for governed assignment" tone={approved?'complete':'neutral'} />
       <ProductMetric label="NDA ready" value={ndaReady} detail="Partners with signed confidentiality control" />
-      <ProductMetric label="Approved / NDA missing" value={needsNda} detail="Readiness gap requiring attention" tone={needsNda?'attention':'complete'} />
+      <ProductMetric label="Readiness gaps" value={needsNda} detail="Approved Partners still missing NDA evidence" tone={needsNda?'attention':'complete'} />
     </ProductMetrics>
 
     <section>
-      <ProductSectionHeader eyebrow="Partner register" title="Execution partners" meta="Use partner performance in Executive Intelligence when comparing response reliability." />
-      {partners.length===0?<ProductEmptyState title="No execution partners yet" description="Add a partner to make them available for technical review and delivery assignment." />:<ProductRegister>
+      <ProductSectionHeader eyebrow="Partner register" title="Execution partners" meta="Capability and readiness are shown here; delivery performance belongs in Executive Intelligence." />
+      {partners.length===0?<ProductEmptyState title="No execution partners yet" description="Add a Partner to begin their governed readiness process." />:<ProductRegister>
         {partners.map(p=><ProductRegisterRow key={p.id}>
           <div><strong>{p.company_name}</strong><p>{p.services||'Capabilities not recorded'}{p.country?` · ${p.country}`:''}</p></div>
           <ProductStatus tone={tone(p.status)}>{workspaceLabel(p.status)}</ProductStatus>
-          <div><small>Commercial readiness</small><strong style={{display:'block',marginTop:3}}>{p.nda_signed?'NDA ready':'NDA required'}</strong></div>
-          <div><small>Rating</small><strong style={{display:'block',marginTop:3}}>{p.rating!==null?`${p.rating}/5`:'Not rated'}</strong></div>
+          <div><small>Readiness</small><strong style={{display:'block',marginTop:3}}>{p.nda_signed?'NDA ready':'NDA required'}</strong></div>
+          <div><small>Performance</small><strong style={{display:'block',marginTop:3}}>{p.rating!==null?`${p.rating}/5`:'No rating yet'}</strong></div>
         </ProductRegisterRow>)}
       </ProductRegister>}
     </section>
