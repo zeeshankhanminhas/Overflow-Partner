@@ -5,16 +5,76 @@ export const projectStages = [
 export type ProjectStage = typeof projectStages[number];
 
 export const projectStageMeta: Record<ProjectStage, { label: string; objective: string; completion: string; next: ProjectStage | null; action: string }> = {
-  mobilisation: { label: 'Mobilisation', objective: 'Confirm the accepted scope, commercial basis, ownership, dates and delivery controls.', completion: 'Accepted quote linked and project dates recorded.', next: 'ready_for_execution', action: 'Authorise execution' },
-  ready_for_execution: { label: 'Ready for execution', objective: 'Confirm that the delivery basis is complete and engineering work may begin.', completion: 'Execution is formally started.', next: 'in_progress', action: 'Start engineering work' },
-  in_progress: { label: 'In progress', objective: 'Complete the governed engineering delivery activities.', completion: 'All delivery activities are completed or cancelled.', next: 'internal_review', action: 'Submit for internal review' },
-  internal_review: { label: 'Internal review', objective: 'Verify technical quality, completeness and release readiness.', completion: 'Approve for client issue or return for correction.', next: 'ready_for_client_issue', action: 'Approve for client issue' },
-  partner_correction: { label: 'Partner correction', objective: 'Resolve the technical or quality findings raised during internal review.', completion: 'Corrections are complete and evidence is ready for re-review or release.', next: 'in_progress', action: 'Return to work in progress' },
-  ready_for_client_issue: { label: 'Ready for client issue', objective: 'Confirm controlled deliverables and release authority.', completion: 'At least one approved controlled document is issued.', next: 'issued_to_client', action: 'Record client issue' },
-  issued_to_client: { label: 'Issued to client', objective: 'Record the controlled release and move the package into client review.', completion: 'Client review period begins.', next: 'client_review', action: 'Start client review' },
-  client_review: { label: 'Client review', objective: 'Capture client acceptance, comments or required corrective action.', completion: 'Client outcome is recorded and all open delivery activities are resolved.', next: 'completion', action: 'Record completion' },
-  completion: { label: 'Completion', objective: 'Confirm final delivery evidence, completion publication and commercial closure readiness.', completion: 'Final issued document exists and closure obligations are complete.', next: 'closed', action: 'Close project' },
-  closed: { label: 'Closed', objective: 'The project is commercially, technically and administratively closed.', completion: 'No further governed action is required.', next: null, action: 'Closed' },
+  mobilisation: {
+    label: 'Mobilisation',
+    objective: 'Set the owner, dates, approved scope and commercial authority for delivery.',
+    completion: 'Owner, dates, controlled scope and financial authority are ready.',
+    next: 'ready_for_execution',
+    action: 'Release to Execution Partner',
+  },
+  ready_for_execution: {
+    label: 'Ready to release',
+    objective: 'The approved delivery basis is ready with the Execution Partner.',
+    completion: 'Partner commencement received.',
+    next: 'in_progress',
+    action: 'Await Partner start',
+  },
+  in_progress: {
+    label: 'Partner execution',
+    objective: 'Track Partner delivery, progress, exceptions and required outputs.',
+    completion: 'Partner delivery received with the required evidence.',
+    next: 'internal_review',
+    action: 'Review Partner delivery',
+  },
+  internal_review: {
+    label: 'Internal review',
+    objective: 'Check technical quality, completeness and readiness for client release.',
+    completion: 'Approve the delivery for client release or return it for correction.',
+    next: 'ready_for_client_issue',
+    action: 'Approve for client release',
+  },
+  partner_correction: {
+    label: 'Partner correction',
+    objective: 'The Execution Partner is correcting findings from internal review.',
+    completion: 'A revised Partner delivery is ready for review.',
+    next: 'in_progress',
+    action: 'Return to Partner execution',
+  },
+  ready_for_client_issue: {
+    label: 'Ready to send',
+    objective: 'The approved controlled delivery is ready to send to the client.',
+    completion: 'Client transmittal is recorded.',
+    next: 'issued_to_client',
+    action: 'Send approved delivery to client',
+  },
+  issued_to_client: {
+    label: 'Sent to client',
+    objective: 'The controlled delivery has been sent and is awaiting client review.',
+    completion: 'Client review begins.',
+    next: 'client_review',
+    action: 'Open client review',
+  },
+  client_review: {
+    label: 'Client review',
+    objective: 'Record the client outcome: accepted, comments received or correction required.',
+    completion: 'Client outcome recorded and required follow-up resolved.',
+    next: 'completion',
+    action: 'Record client outcome',
+  },
+  completion: {
+    label: 'Delivery complete',
+    objective: 'Confirm final delivery evidence and commercial closeout.',
+    completion: 'Final evidence, billing and Partner liability are complete.',
+    next: 'closed',
+    action: 'Close project',
+  },
+  closed: {
+    label: 'Closed',
+    objective: 'The project is technically, commercially and administratively closed.',
+    completion: 'No further action required.',
+    next: null,
+    action: 'Closed',
+  },
 };
 
 export function normaliseProjectStage(value: unknown): ProjectStage {
