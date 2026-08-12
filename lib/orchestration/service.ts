@@ -133,12 +133,22 @@ export async function approveTechnicalIntake(supabase: SupabaseClient, organisat
 }
 
 export async function createCommercialReviewFromPartnerQuote(
-  supabase: SupabaseClient, organisationId: string, userId: string, partnerQuoteId: string, markupPercent: number,
+  supabase: SupabaseClient,
+  organisationId: string,
+  userId: string,
+  partnerQuoteId: string,
+  markupPercent: number,
+  startPaymentPercent: number,
+  paymentTermsDays: number,
 ) {
   await assertCanCreateCommercialReview(supabase, organisationId, partnerQuoteId);
   return rpc<CommercialReview>(supabase, 'op_create_commercial_review', {
-    p_organisation_id: organisationId, p_user_id: userId, p_partner_quote_id: partnerQuoteId,
+    p_organisation_id: organisationId,
+    p_user_id: userId,
+    p_partner_quote_id: partnerQuoteId,
     p_markup_percent: markupPercent,
+    p_start_payment_percent: startPaymentPercent,
+    p_payment_terms_days: paymentTermsDays,
   });
 }
 
