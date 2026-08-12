@@ -34,7 +34,6 @@ export default async function AssessmentsPage({ searchParams }: { searchParams?:
   const decisionSet=new Set((decisionsResult.data||[]).map((item:any)=>String(item.partner_review_request_id)));
   const positivePriceSet=new Set((pricesResult.data||[]).filter((item:any)=>Number(item.price)>0).map((item:any)=>String(item.partner_review_request_id)));
   const partner=requests.map(request=>({request,presentation:resolvePartnerAssessmentQueuePresentation({requestStatus:request.status,hasResponse:responseSet.has(String(request.id)),hasDecision:decisionSet.has(String(request.id)),hasPositivePrice:positivePriceSet.has(String(request.id))})}));
-  const rows=view==='technical'?technical:partner;
   const approvals=partner.filter(item=>item.presentation.approval?.required).length;
   const waiting=partner.filter(item=>item.presentation.tone==='waiting'&&!item.presentation.approval?.required).length;
 
