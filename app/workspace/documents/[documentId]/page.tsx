@@ -57,7 +57,7 @@ export default async function Page({ params }: { params: Promise<{ documentId: s
       status={doc.status}
       documentType={doc.document_type}
       title={doc.title}
-      footer={<><span>Created {dateTime(doc.created_at)}</span><span className="opds-reference">Document ID {doc.id}</span></>}
+      footer={<span>Created {dateTime(doc.created_at)}</span>}
     >
       <p className="lede">This controlled record is linked to the Overflow Partner operating workflow. Its reference, revision, status and relationships are governed by OPDS.</p>
 
