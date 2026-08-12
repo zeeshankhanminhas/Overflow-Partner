@@ -11,10 +11,25 @@ import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, Pro
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 const PAGE_SIZE=25;
-type View='all'|'attention'|'mobilisation'|'delivery'|'client_review'|'closeout'|'closed';
+type View='all'|'my_work'|'attention'|'awaiting_payment'|'waiting_partner'|'waiting_client'|'due_week'|'recent'|'mobilisation'|'delivery'|'client_review'|'closeout'|'closed';
 type QueueRow={id:string;project_number:string;title:string;project_status:string;project_stage:string;start_date:string|null;due_date:string|null;created_at:string;total_count:number|string};
-const viewMeta:Record<View,{label:string;description:string}>={all:{label:'All active',description:'Every current project.'},attention:{label:'Needs attention',description:'Projects with a real blocker, overdue date or unresolved exception.'},mobilisation:{label:'Mobilisation',description:'Accepted work not yet in execution.'},delivery:{label:'In delivery',description:'Projects in Partner execution and technical review.'},client_review:{label:'Client review',description:'Projects in client issue or review.'},closeout:{label:'Closeout',description:'Completion-stage work waiting for closure.'},closed:{label:'Closed',description:'Completed historical project records.'}};
+const viewMeta:Record<View,{label:string;description:string}>={
+  all:{label:'All active',description:'Every current project.'},
+  my_work:{label:'My work',description:'Projects assigned to you.'},
+  attention:{label:'Needs attention',description:'Projects with a real blocker, overdue date or unresolved exception.'},
+  awaiting_payment:{label:'Awaiting Payment',description:'Projects that cannot start until qualifying client money is received and cleared.'},
+  waiting_partner:{label:'Waiting on Partner',description:'On-plan Projects where the Execution Partner owns the next move.'},
+  waiting_client:{label:'Waiting on Client',description:'On-plan Projects where the client owns the next non-payment move.'},
+  due_week:{label:'Due this week',description:'Current Projects due within the next seven days.'},
+  recent:{label:'Recently updated',description:'Current Projects ordered by the most recent governed change.'},
+  mobilisation:{label:'Mobilisation',description:'Accepted work not yet in execution.'},
+  delivery:{label:'In delivery',description:'Projects in Partner execution and technical review.'},
+  client_review:{label:'Client review',description:'Projects in client issue or review.'},
+  closeout:{label:'Closeout',description:'Completion-stage work waiting for closure.'},
+  closed:{label:'Closed',description:'Completed historical project records.'},
+};
 function href(view:View,page=1,q=''){const p=new URLSearchParams();if(view!=='all')p.set('view',view);if(page>1)p.set('page',String(page));if(q)p.set('q',q);const s=p.toString();return `/workspace/projects${s?`?${s}`:''}`}
+function sourceView(view:View){if(['my_work','attention','awaiting_payment','waiting_partner','waiting_client','due_week','recent','mobilisation'].includes(view))return 'all';if(view==='client_review')return 'delivery';return view;}
 function formatDate(value:string|null){if(!value)return 'Not set';const d=new Date(value);return Number.isNaN(d.getTime())?value:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function money(value:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency,maximumFractionDigits:0}).format(Number(value||0))}catch{return `${currency} ${Number(value||0).toFixed(0)}`}}
 
@@ -26,10 +41,10 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const q=String(params.q||'').trim();
   const requestedPage=Number.parseInt(String(params.page||'1'),10);
   const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;
-  const {supabase,organisationId}=await requireUserContext();
+  const {supabase,organisationId,user}=await requireUserContext();
 
   const [{data,error},quotes,leads]=await Promise.all([
-    supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0}),
+    supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:sourceView(view),p_limit:200,p_offset:0}),
     listClientQuotes(supabase,organisationId),
     listLeads(supabase,organisationId),
   ]);
@@ -38,7 +53,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const ids=baseRows.map(r=>r.id);
 
   const [projectDetails,taskRows,deliveryRows,assignmentRows,clientReviewRows]=await Promise.all([
-    ids.length?supabase.from('projects').select('id,project_manager_id,start_date,due_date,project_stage,quote_id, project_manager:profiles(full_name), lead:leads(company_name), quote:quotes(total,currency)').eq('organisation_id',organisationId).in('id',ids):Promise.resolve({data:[] as any[]}),
+    ids.length?supabase.from('projects').select('id,project_manager_id,start_date,due_date,project_stage,quote_id,updated_at, project_manager:profiles(full_name), lead:leads(company_name), quote:quotes(total,currency)').eq('organisation_id',organisationId).in('id',ids):Promise.resolve({data:[] as any[]}),
     ids.length?supabase.from('tasks').select('entity_id,status').eq('organisation_id',organisationId).eq('entity_type','project').in('entity_id',ids):Promise.resolve({data:[] as any[]}),
     ids.length?supabase.from('project_delivery_items').select('project_id,status,due_date').eq('organisation_id',organisationId).in('project_id',ids):Promise.resolve({data:[] as any[]}),
     ids.length?supabase.from('project_execution_assignments').select('id,project_id,partner_id,execution_state,execution_cycle,committed_due_date').eq('organisation_id',organisationId).in('project_id',ids):Promise.resolve({data:[] as any[]}),
@@ -119,11 +134,18 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
       primaryActions:[],
     }:basePresentation;
     const attention=overdue||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0||openExceptions>0||presentation.tone==='blocked'||presentation.tone==='critical';
-    return {...row,stage,detail,tasks,delivery,finance,overdue,attention,presentation,assignment,partner};
+    return {...row,stage,detail,tasks,delivery,finance,paymentWaiting,overdue,attention,presentation,assignment,partner};
   }));
 
   let filtered=enriched;
+  const weekFromNow=now+7*24*60*60*1000;
+  if(view==='my_work')filtered=filtered.filter(p=>String(p.detail?.project_manager_id||'')===user.id);
   if(view==='attention')filtered=filtered.filter(p=>p.attention);
+  if(view==='awaiting_payment')filtered=filtered.filter(p=>p.paymentWaiting);
+  if(view==='waiting_partner')filtered=filtered.filter(p=>p.presentation.waitingOn?.actor==='partner');
+  if(view==='waiting_client')filtered=filtered.filter(p=>p.presentation.waitingOn?.actor==='client'&&!p.paymentWaiting);
+  if(view==='due_week')filtered=filtered.filter(p=>{if(!p.due_date)return false;const due=new Date(p.due_date).getTime();return due>=now&&due<=weekFromNow&&p.stage!=='closed';});
+  if(view==='recent')filtered=[...filtered].sort((a,b)=>new Date(b.detail?.updated_at||b.created_at).getTime()-new Date(a.detail?.updated_at||a.created_at).getTime());
   if(view==='mobilisation')filtered=filtered.filter(p=>p.stage==='mobilisation'||p.stage==='ready_for_execution');
   if(view==='client_review')filtered=filtered.filter(p=>['ready_for_client_issue','issued_to_client','client_review'].includes(p.stage));
   if(q){const needle=q.toLowerCase();filtered=filtered.filter(p=>[p.project_number,p.title,p.detail?.lead?.company_name,p.detail?.project_manager?.full_name,p.partner?.company_name].some(v=>String(v||'').toLowerCase().includes(needle)))}
