@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { resolveFinancialGate, resolveInvoiceState, resolvePayableState } from '@/lib/finance/state';
-import { approvePartnerPayableAction, createInvoiceAction, createPartnerPayableAction, issueInvoiceAction, recordClientPaymentAction, recordPartnerPaymentAction, setCommercialTermsAction } from './actions';
+import { approvePartnerPayableAction, createInvoiceAction, createPartnerPayableAction, issueInvoiceAction, recordClientPaymentAction, recordPartnerPaymentAction } from './actions';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 function money(value:unknown,currency='GBP'){const amount=Number(value||0);try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(amount)}catch{return `${currency} ${amount.toFixed(2)}`}}
@@ -43,7 +43,7 @@ export default async function CommercialControlPage({searchParams}:{searchParams
     <ProductPageHeader
       eyebrow="Commercial · Control"
       title={scoped?`${project.project_number} · Finance`:'Commercial control'}
-      description={scoped?'Financial authorisation, client invoices and partner liabilities for this project.':'Control client receivables, partner liabilities and mobilisation authority across the business.'}
+      description={scoped?'Accepted commercial terms, client invoices and Execution Partner liabilities for this project. Settlement is recorded in Payments.':'Control client receivables, partner liabilities and accepted commercial position across the business.'}
       backHref={scoped?`/workspace/projects/${project.id}?focus=record-next-action`:undefined}
       backLabel="Back to Project 360"
       actions={<>{scoped?<Link className="button secondary" href="/workspace/commercial-control">Full ledger</Link>:null}<Link className="button secondary" href="/workspace/payments">Payments</Link><Link className="button secondary" href="/workspace/intelligence">Executive Intelligence</Link></>}
@@ -62,23 +62,23 @@ export default async function CommercialControlPage({searchParams}:{searchParams
 
     <section id="financial-gate" className="product-panel">
       <ProductSectionHeader
-        eyebrow="Project financial control"
-        title="Financial authorisation"
-        actions={<form method="get" className="product-toolbar__group"><select name="project" defaultValue={projectId}><option value="">Select project</option>{(projects as any[]).map(p=><option value={p.id} key={p.id}>{p.project_number} · {p.title}</option>)}</select><button className="button secondary">Open</button></form>}
+        eyebrow="Project commercial basis"
+        title="Client start payment"
+        actions={scoped?null:<form method="get" className="product-toolbar__group"><select name="project" defaultValue={projectId}><option value="">Select project</option>{(projects as any[]).map(p=><option value={p.id} key={p.id}>{p.project_number} · {p.title}</option>)}</select><button className="button secondary">Open</button></form>}
       />
       {project?<div className="product-split">
         <div className="product-stack">
           <div><p className="product-eyebrow">{project.project_number}</p><h3>{project.title}</h3></div>
-          <ProductMetrics label="Project financial gate">
-            <ProductMetric label="Gate" value={gate.displayState} detail={gate.reason} tone={gate.authorised?'complete':'blocked'} />
-            <ProductMetric label="Basis" value={gate.basis} detail="Authorisation basis" />
-            <ProductMetric label="Required" value={money(gate.required)} detail="Required before mobilisation" />
-            <ProductMetric label="Received" value={money(gate.received)} detail={gate.shortfall>0?`${money(gate.shortfall)} shortfall`:'Requirement satisfied'} tone={gate.shortfall>0?'attention':'complete'} />
+          <ProductMetrics label="Accepted start-payment gate">
+            <ProductMetric label="State" value={gate.authorised?'Start payment received':'Awaiting client payment'} detail={gate.reason} tone={gate.authorised?'complete':'waiting'} />
+            <ProductMetric label="Accepted term" value={projectTerms?`${Number(projectTerms.deposit_percent||0).toFixed(2).replace(/\.00$/,'')}% of Client Quote`:'Not recorded'} detail={projectTerms?`Payment terms · ${Number(projectTerms.payment_terms_days||0)} days`:'Revise and re-accept the Client Quote; do not create a Project override.'} tone={projectTerms?'active':'attention'} />
+            <ProductMetric label="Required" value={money(gate.required)} detail="Derived from the accepted Client Quote" />
+            <ProductMetric label="Received" value={money(gate.received)} detail={gate.shortfall>0?`${money(gate.shortfall)} still to clear`:'Requirement satisfied'} tone={gate.shortfall>0?'waiting':'complete'} />
           </ProductMetrics>
-          <Link href={`/workspace/projects/${project.id}?focus=record-next-action`}>Return to Project 360 →</Link>
+          <div className="product-row-actions"><Link href={`/workspace/projects/${project.id}?focus=record-next-action`}>Return to Project 360 →</Link>{!gate.authorised?<Link href={`/workspace/payments?project=${project.id}`}>Open Payments →</Link>:null}</div>
         </div>
-        <details className="vp-disclosure" open={!gate.authorised}><summary>Configure commercial terms</summary><form action={setCommercialTermsAction} className="stack" style={{paddingTop:16}}><input type="hidden" name="project_id" value={project.id}/><input type="hidden" name="quote_id" value={String(project.quote_id||'')}/><label>Authorisation basis<select name="authorisation_basis" defaultValue={projectTerms?.authorisation_basis||'deposit'}><option value="deposit">Deposit received</option><option value="po">Purchase order</option><option value="credit">Approved credit terms</option><option value="manual">Manual finance override</option><option value="none">No pre-mobilisation payment condition</option></select></label><div className="grid gap-4 md:grid-cols-2"><label>Payment terms (days)<input type="number" min="0" name="payment_terms_days" defaultValue={projectTerms?.payment_terms_days??30}/></label><label>Deposit %<input type="number" min="0" max="100" step="0.01" name="deposit_percent" defaultValue={projectTerms?.deposit_percent??0}/></label><label>Required deposit amount<input type="number" min="0" step="0.01" name="deposit_required_amount" defaultValue={projectTerms?.deposit_required_amount??0}/></label><label>PO number<input name="po_number" defaultValue={projectTerms?.po_number||''}/></label></div><label><input style={{width:'auto'}} type="checkbox" name="credit_approved" defaultChecked={Boolean(projectTerms?.credit_approved)}/> Credit approved</label><label>Override / authorisation reason<textarea name="override_reason" rows={3} defaultValue={projectTerms?.override_reason||''}/></label><button className="button">Save commercial terms</button></form></details>
-      </div>:<ProductEmptyState title="Select a project" description="Choose a project to inspect and configure its financial authorisation gate." />}
+        <div className="vp-callout"><strong>Accepted commercial evidence</strong><p>Start-payment terms are set with the Case commercial position and carried by the accepted Client Quote. They are read-only here. Payments owns received/cleared settlement evidence.</p></div>
+      </div>:<ProductEmptyState title="Select a project" description="Choose a project to inspect its accepted start-payment term and commercial ledger." />}
     </section>
 
     <div className="product-split commercial-ledgers">
