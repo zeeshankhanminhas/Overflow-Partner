@@ -30,7 +30,7 @@ export default async function LeadsPage({searchParams}:{searchParams?:Promise<Re
   const approvals=rows.filter(item=>item.presentation.approval?.required).length;const attention=rows.filter(item=>['attention','blocked','critical'].includes(item.presentation.tone)).length;const waiting=rows.filter(item=>item.presentation.tone==='waiting'&&!item.presentation.approval?.required).length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Cases" title={meta.title} description={meta.subtitle} actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{approvals?` · ${approvals}`:''}</Link><Link className="button secondary" href="/workspace/assessments">Assessments</Link><details><summary className="button secondary">Exceptional entry</summary><div className="vp-toolbar-panel">{companies.length?<LeadForm companies={companies} contacts={contacts}/>:<ProductEmptyState title="Create a company first" description="A direct Case still needs a governed company record." action={<Link href="/workspace/companies">Add company →</Link>}/>}</div></details></>} />
+    <ProductPageHeader eyebrow="Work · Cases" title={meta.title} description={meta.subtitle} actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{approvals?` · ${approvals}`:''}</Link><Link className="button secondary" href="/workspace/assessments">Assessments</Link></>} />
 
     {params.created?<ProductNotice title="Case created" tone="complete"><p>The direct Case is now available in the operating register.</p></ProductNotice>:null}
     {params.converted?<ProductNotice title="Enquiry converted" tone="complete"><p>The qualified opportunity is now a governed Case.</p></ProductNotice>:null}
@@ -57,5 +57,13 @@ export default async function LeadsPage({searchParams}:{searchParams?:Promise<Re
       </ProductRegister>}
       {totalPages>1?<nav className="vp-pagination" aria-label="Case queue pages" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginTop:16}}>{page>1?<Link className="button secondary" href={pageHref(view,page-1)}>← Previous</Link>:<span/>}<span style={{color:'var(--saas-muted)',fontSize:11}}>Page {Math.min(page,totalPages)} of {totalPages}</span>{page<totalPages?<Link className="button secondary" href={pageHref(view,page+1)}>Next →</Link>:<span/>}</nav>:null}
     </section>
+
+    <details className="vp-disclosure" style={{marginTop:20}}>
+      <summary>Advanced · create Case without Acquisition handoff</summary>
+      <div className="vp-toolbar-panel">
+        <p style={{marginTop:0,color:'var(--op-muted)'}}>Exceptional entry is not part of the normal operator journey. Use it only when a governed Acquisition handoff genuinely cannot be used.</p>
+        {companies.length?<LeadForm companies={companies} contacts={contacts}/>:<ProductEmptyState title="Create a company first" description="A direct Case still needs a governed company record." action={<Link href="/workspace/companies">Add company →</Link>}/>} 
+      </div>
+    </details>
   </section>;
 }
