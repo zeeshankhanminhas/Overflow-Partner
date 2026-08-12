@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
-import { generateExecutionLinkAction, releasePartnerExecutionAction, resolveExecutionExceptionAction } from './actions';
+import { resolveExecutionExceptionAction } from './actions';
+import { guardedGenerateExecutionLinkAction, guardedReleasePartnerExecutionAction } from './guardedActions';
+import { ActionDialog, ContextDrawer, EvidenceRow, ProductDisclosure } from '@/components/workspace/InteractionPrimitives';
 
 function formatDate(value?: string | null) {
   if (!value) return 'Not set';
@@ -83,14 +85,31 @@ export default async function PartnerExecutionControlPage({ params, searchParams
       </div>
       {partnerMismatch?<p className="vp-callout">The existing execution record does not match the accepted commercial Partner. Resolve the lineage before release.</p>:null}
       {currentScopes.length>1?<p className="vp-callout">More than one current controlled execution scope is available. Resolve the current scope in Documents before release.</p>:null}
-      <form action={releasePartnerExecutionAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit" disabled={!readyForRelease||partnerMismatch}>Release to {partnerName}</button></form>
+      <ActionDialog
+        title={`Release work to ${partnerName}`}
+        description="This creates the governed execution assignment and Partner access underneath one operator action. The client start-payment gate is rechecked server-side before release."
+        triggerLabel={`Release to ${partnerName}`}
+        disabled={!readyForRelease||partnerMismatch}
+      >
+        <div className="stack" style={{gap:16}}>
+          <EvidenceRow label="Execution Partner" value={partnerName} />
+          <EvidenceRow label="Controlled scope" value={releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:'Current approved scope required'} />
+          <EvidenceRow label="Recipient" value={commercialPartner?.email||'Email required'} />
+          <EvidenceRow label="Committed due" value={formatDate(project.due_date)} />
+          <form action={guardedReleasePartnerExecutionAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit">Confirm release</button></form>
+        </div>
+      </ActionDialog>
     </article> : null}
 
     {assignment&&sessionUsable ? <article className="card stack" style={{gap:18}}>
       <div><p className="eyebrow">Current execution</p><h2>{commencement?`${partnerName} is executing Cycle ${assignment.execution_cycle||1}`:`Waiting for ${partnerName} to start`}</h2><p>{commencement?`Commencement confirmed ${formatDate(commencement.submitted_at)}. The next Partner evidence is a progress update or delivery package.`:'Work has been released. The Project will move forward when the Partner confirms commencement from the secure workspace.'}</p></div>
-      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{currentExecutionLink?<a className="button" href={currentExecutionLink} target="_blank" rel="noreferrer">Open Partner workspace</a>:null}<Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Open delivery</Link></div>
-      <details className="vp-disclosure"><summary>Release evidence</summary><div className="grid gap-4 md:grid-cols-2" style={{paddingTop:14}}><div><small>Partner</small><strong style={{display:'block'}}>{partnerName}</strong></div><div><small>Scope</small><strong style={{display:'block'}}>{assignedScope?`${assignedScope.reference} · ${assignedScope.title}`:'Controlled scope recorded'}</strong></div><div><small>Recipient</small><strong style={{display:'block'}}>{assignment.partner_contact_email}</strong></div><div><small>Committed due</small><strong style={{display:'block'}}>{formatDate(assignment.committed_due_date||project.due_date)}</strong></div></div></details>
-      {currentExecutionLink?<details className="vp-disclosure"><summary>Advanced Partner access</summary><div className="stack" style={{gap:12,paddingTop:14}}><label>Current secure Partner link<input readOnly value={currentExecutionLink}/></label><form action={generateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button secondary" type="submit">Replace Partner link</button><small style={{display:'block',marginTop:8}}>Replacing the link revokes the current one. Use this only for an access problem.</small></form></div></details>:null}
+      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{currentExecutionLink?<a className="button" href={currentExecutionLink} target="_blank" rel="noreferrer">Open Partner workspace</a>:null}<Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Open delivery</Link>{currentExecutionLink?<ContextDrawer title="Partner access" description="Security and access controls are exceptional context, not permanent Project controls." triggerLabel="Partner access"><div className="stack" style={{gap:16}}><EvidenceRow label="Recipient" value={assignment.partner_contact_email}/><EvidenceRow label="Access status" value="Active secure workspace" tone="complete" meta={`Expires ${formatDate(session.expires_at)}`}/><label>Current secure Partner link<input readOnly value={currentExecutionLink}/></label><form action={guardedGenerateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button secondary" type="submit">Replace Partner link</button><small style={{display:'block',marginTop:8}}>Replacing the link revokes the current one. Use this only for an access problem.</small></form></div></ContextDrawer>:null}</div>
+      <ProductDisclosure summary="Release evidence">
+        <EvidenceRow label="Partner" value={partnerName} tone="complete" />
+        <EvidenceRow label="Scope" value={assignedScope?`${assignedScope.reference} · ${assignedScope.title}`:'Controlled scope recorded'} />
+        <EvidenceRow label="Recipient" value={assignment.partner_contact_email} />
+        <EvidenceRow label="Committed due" value={formatDate(assignment.committed_due_date||project.due_date)} />
+      </ProductDisclosure>
     </article> : null}
 
     {commencement ? <article className="card stack" style={{gap:14}}>
