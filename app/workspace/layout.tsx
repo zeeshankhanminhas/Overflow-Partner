@@ -21,6 +21,7 @@ import './product-states.css';
 import './product-mobile-overrides.css';
 import './workspace-mobile-canonical.css';
 import './phase3-document-actions.css';
+import './ux-ui-parity.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
