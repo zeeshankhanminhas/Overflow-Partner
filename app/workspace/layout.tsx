@@ -30,6 +30,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/app/login/actions';
+import { primaryNavigation } from '@/lib/presentation/navigationContract';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
@@ -44,11 +45,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+  const n=primaryNavigation;
 
   return <div className="workspace midts-shell op-shell">
     <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
     <aside className="midts-sidebar op-sidebar">
-      <Link href="/workspace" className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
+      <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
       <LifecycleSidebar />
       <div className="midts-sidebar-footer op-sidebar-footer">
         <p>Governed delivery</p>
@@ -59,18 +61,18 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <section className="midts-main op-main">
       <header className="midts-topbar op-topbar">
         <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href="/workspace/approvals">Approvals</Link><Link href="/workspace/notifications">Attention</Link></div>
+        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href={n.approvals.href}>{n.approvals.label}</Link><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
       </header>
       <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
       <main className="midts-content op-content">{children}</main>
     </section>
 
     <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
-      <Link href="/workspace">Home</Link>
-      <Link href="/workspace/acquisition/prospects">Enquiries</Link>
-      <Link href="/workspace/leads">Cases</Link>
-      <Link href="/workspace/projects">Projects</Link>
-      <Link href="/workspace/approvals">Approvals</Link>
+      <Link href={n.missionControl.href}>Home</Link>
+      <Link href={n.enquiries.href}>{n.enquiries.label}</Link>
+      <Link href={n.cases.href}>{n.cases.label}</Link>
+      <Link href={n.projects.href}>{n.projects.label}</Link>
+      <Link href={n.approvals.href}>{n.approvals.label}</Link>
     </nav>
   </div>;
 }

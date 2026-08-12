@@ -56,16 +56,15 @@ export async function getOperationalExceptions(supabase: any, organisationId: st
     const project = row.project as any;
     const isOverdue = overdue(row.due_date);
     const isBlocked = row.status === 'blocked';
-    const reviewWaiting = row.status === 'internal_review' || row.status === 'client_review';
-    if (!isOverdue && !isBlocked && !reviewWaiting) continue;
-    const severity: ExceptionSeverity = row.priority === 'critical' || (isBlocked && isOverdue) ? 'critical' : isOverdue || isBlocked ? 'high' : 'medium';
+    if (!isOverdue && !isBlocked) continue;
+    const severity: ExceptionSeverity = row.priority === 'critical' || (isBlocked && isOverdue) ? 'critical' : 'high';
     items.push({
       id:`delivery-${row.id}`, category:'delivery', severity,
-      title:isBlocked ? `${row.item_type === 'milestone' ? 'Milestone' : 'Deliverable'} blocked` : isOverdue ? `${row.item_type === 'milestone' ? 'Milestone' : 'Deliverable'} overdue` : 'Delivery review waiting',
+      title:isBlocked ? `${row.item_type === 'milestone' ? 'Milestone' : 'Deliverable'} blocked` : `${row.item_type === 'milestone' ? 'Milestone' : 'Deliverable'} overdue`,
       detail:`${row.title}${row.due_date ? ` · due ${new Date(row.due_date).toLocaleDateString('en-GB')}` : ''}`,
       owner:profileName(row.owner), relatedLabel:project?.project_number || project?.title || 'Project',
       href:`/workspace/projects/${row.project_id}/delivery#delivery-${row.id}`,
-      dueAt:row.due_date, ageMinutes:ageMinutes(row.updated_at), condition:isBlocked?'blocked':isOverdue?'overdue':'waiting_review',
+      dueAt:row.due_date, ageMinutes:ageMinutes(row.updated_at), condition:isBlocked?'blocked':'overdue',
     });
   }
 
@@ -117,16 +116,16 @@ export async function getOperationalExceptions(supabase: any, organisationId: st
     if (age < 24 * 60) continue;
     const context = document.project_id ? `project=${document.project_id}` : `case=${document.lead_id}`;
     items.push({
-      id:`document-${document.id}`, category:'document', severity:age > 72*60 ? 'high':'medium', title:'Document waiting for action',
+      id:`document-${document.id}`, category:'document', severity:age > 72*60 ? 'high':'medium', title:'Document action overdue',
       detail:`${document.reference} · ${document.title} · ${document.revision_code || `v${1}`}`, owner:'Document control', relatedLabel:document.project_id?'Project document':'Case document',
-      href:`/workspace/documents?${context}`, dueAt:null, ageMinutes:age, condition:String(document.status),
+      href:`/workspace/documents?${context}`, dueAt:null, ageMinutes:age, condition:'document_action_overdue',
     });
   }
 
   for (const row of outboxResult.data || []) {
     items.push({
       id:`communication-${row.id}`, category:'communication', severity:Number(row.attempts||0) >= Number(row.max_attempts||3) ? 'high':'medium', title:'Message delivery failed',
-      detail:`${row.subject}${row.last_error ? ` · ${row.last_error}` : ''}`, owner:'Operations', relatedLabel:'Notification Centre',
+      detail:`${row.subject}${row.last_error ? ` · ${row.last_error}` : ''}`, owner:'Operations', relatedLabel:'Notifications',
       href:'/workspace/notifications?status=failed', dueAt:null, ageMinutes:ageMinutes(row.created_at), condition:'delivery_failed',
     });
   }
@@ -141,6 +140,6 @@ export function summariseExceptions(items: OperationalException[]) {
     high: items.filter(item=>item.severity==='high').length,
     overdue: items.filter(item=>item.condition.includes('overdue')).length,
     blocked: items.filter(item=>item.condition.includes('blocked')).length,
-    waitingReview: items.filter(item=>item.condition.includes('review') || ['signed','approved','in_review','changes_requested'].includes(item.condition)).length,
+    waitingReview: 0,
   };
 }
