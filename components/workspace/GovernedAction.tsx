@@ -28,8 +28,8 @@ export default function GovernedAction({ state, children, blockedAction }: Props
       <ul>{blockers.map(blocker => <li key={blocker}>{blocker}</li>)}</ul>
     </div> : null}
 
-    <div className="governed-action__controls">
-      {permitted ? children : blockedAction ?? null}
-    </div>
+    {permitted || (blockedAction && action.kind !== 'wait') ? <div className="governed-action__controls">
+      {permitted ? children : blockedAction}
+    </div> : null}
   </div>;
 }
