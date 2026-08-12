@@ -14,7 +14,8 @@ type DeliveryVerb =
   | 'approve_internally'
   | 'request_partner_correction'
   | 'send_to_client'
-  | 'record_client_acceptance';
+  | 'record_client_acceptance'
+  | 'complete_delivery';
 
 function required(formData: FormData, key: string) {
   const value = String(formData.get(key) || '').trim();
@@ -60,15 +61,25 @@ function transitionFor(item:any, verb:DeliveryVerb) {
       if(status!=='internal_review'||internal!=='pending') throw new Error('This item is not awaiting Internal Review approval.');
       return {status:'ready_to_issue',internal_review_status:'approved',client_review_status:client,completed_at:null};
     case 'request_partner_correction':
-      if(status!=='internal_review') throw new Error('Partner correction can only be requested from Internal Review.');
-      return {status:'in_progress',internal_review_status:'changes_required',client_review_status:client,completed_at:null};
+      if(!['internal_review','client_review'].includes(status)) throw new Error('Partner correction can only be requested from a review state.');
+      return {
+        status:'in_progress',
+        internal_review_status:status==='internal_review'?'changes_required':internal,
+        client_review_status:status==='client_review'?'changes_required':client,
+        completed_at:null,
+      };
     case 'send_to_client':
-      if(status!=='ready_to_issue') throw new Error('Only internally cleared delivery can be sent to the client.');
+      if(!['ready_to_issue','in_progress'].includes(status)) throw new Error('This delivery item is not ready for client issue.');
+      if(status==='in_progress'&&internal!=='not_required') throw new Error('Complete Internal Review before client issue.');
       if(client==='not_required') throw new Error('Client Review is not required for this delivery item.');
       return {status:'client_review',internal_review_status:internal,client_review_status:'pending',completed_at:null};
     case 'record_client_acceptance':
       if(status!=='client_review'||client!=='pending') throw new Error('This item is not awaiting Client acceptance.');
       return {status:'complete',internal_review_status:internal,client_review_status:'accepted',completed_at:new Date().toISOString()};
+    case 'complete_delivery':
+      if(status==='in_progress'&&internal==='not_required'&&client==='not_required') return {status:'complete',internal_review_status:internal,client_review_status:client,completed_at:new Date().toISOString()};
+      if(status==='ready_to_issue'&&client==='not_required') return {status:'complete',internal_review_status:internal,client_review_status:client,completed_at:new Date().toISOString()};
+      throw new Error('Required review must be completed before this delivery item can be completed.');
   }
 }
 
@@ -85,7 +96,7 @@ export async function actOnProjectDeliveryItemAction(formData:FormData){
       .eq('organisation_id',organisationId).eq('id',itemId).single();
     if(readError||!item) throw new Error(readError?.message||'Delivery item not found.');
     if(item.project_id!==projectId) throw new Error('Delivery item does not belong to this Project.');
-    const allowedVerbs:DeliveryVerb[]=['start_work','mark_blocked','resolve_blocker','submit_internal_review','approve_internally','request_partner_correction','send_to_client','record_client_acceptance'];
+    const allowedVerbs:DeliveryVerb[]=['start_work','mark_blocked','resolve_blocker','submit_internal_review','approve_internally','request_partner_correction','send_to_client','record_client_acceptance','complete_delivery'];
     if(!allowedVerbs.includes(verb)) throw new Error('Unsupported delivery action.');
     const updates=transitionFor(item,verb);
     const {error}=await supabase.from('project_delivery_items').update(updates).eq('organisation_id',organisationId).eq('id',itemId);
