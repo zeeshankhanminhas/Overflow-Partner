@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import OperatingStatePanel from '@/components/workspace/OperatingStatePanel';
+import { ContextDrawer, ProductDisclosure } from '@/components/workspace/InteractionPrimitives';
 import type { OperatingPresentation } from '@/lib/presentation/operatingState';
 
 type RecordWorkspaceProps = {
@@ -30,13 +31,14 @@ function Slot({ id, title, children, className = '' }: { id?: string; title: str
 
 function Disclosure({ id, title, description, children }: { id?: string; title: string; description?: string; children?: ReactNode }) {
   if (!children) return null;
-  return <details id={id} className="record-workspace__disclosure">
-    <summary>
-      <span><strong>{title}</strong>{description ? <small>{description}</small> : null}</span>
-      <i aria-hidden="true">+</i>
-    </summary>
-    <div className="record-workspace__disclosure-body">{children}</div>
-  </details>;
+  return <ProductDisclosure summary={<span><strong>{title}</strong>{description ? <small style={{display:'block'}}>{description}</small> : null}</span>} className="record-workspace__disclosure">
+    <div id={id}>{children}</div>
+  </ProductDisclosure>;
+}
+
+function ContextButton({ title, description, children }: { title: string; description?: string; children?: ReactNode }) {
+  if (!children) return null;
+  return <ContextDrawer title={title} description={description} triggerLabel={title} triggerTone="secondary">{children}</ContextDrawer>;
 }
 
 export default function RecordWorkspace({
@@ -57,8 +59,8 @@ export default function RecordWorkspace({
   className = '',
 }: RecordWorkspaceProps) {
   const hasDecisionDetails = Boolean(nextAction || summary || readiness);
-  const hasCurrentWork = Boolean(activities || communications);
-  const hasSecondaryContext = Boolean(stateStrip || history || olderDocuments || metadata || audit);
+  const hasCurrentWork = Boolean(activities);
+  const hasSecondaryContext = Boolean(stateStrip || communications || history || olderDocuments || metadata || audit);
 
   return <section className={`record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
@@ -82,33 +84,31 @@ export default function RecordWorkspace({
     {hasCurrentWork ? <section className="record-workspace__group" aria-labelledby="record-current-stage-work">
       <div className="record-workspace__group-heading">
         <p id="record-current-stage-work">Current work</p>
-        <span>Live work and external updates only</span>
+        <span>Only the sustained work for the current operating state</span>
       </div>
-      <div className="record-workspace__primary-work">
-        {activities ? <Slot id="record-activities" title="Current position" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
-        {communications ? <Disclosure id="record-communications" title="Messages" description="Open correspondence only when you need it">{communications}</Disclosure> : null}
-      </div>
+      <Slot id="record-activities" title="Working area" className="record-workspace__slot--primary-work">{activities}</Slot>
     </section> : null}
 
     {evidence ? <section className="record-workspace__group record-workspace__group--evidence" aria-labelledby="record-controlled-evidence">
       <div className="record-workspace__group-heading">
         <p id="record-controlled-evidence">Evidence needed now</p>
-        <span>Only evidence relevant to the current operating decision</span>
+        <span>Only evidence necessary for the current decision remains on the page</span>
       </div>
       <Slot id="record-documents" title="Current evidence" className="record-workspace__slot--evidence">{evidence}</Slot>
     </section> : null}
 
     {hasSecondaryContext ? <section className="record-workspace__group record-workspace__group--secondary" aria-labelledby="record-secondary-context">
       <div className="record-workspace__group-heading">
-        <p id="record-secondary-context">Details, history & audit</p>
-        <span>Supporting context stays available without competing with current work</span>
+        <p id="record-secondary-context">Context</p>
+        <span>Open supporting context without leaving the current operating surface</span>
       </div>
-      <div className="record-workspace__secondary-stack">
-        {presentation ? <Disclosure id="record-state" title="Lifecycle progress" description="Orientation only; the operating state above remains authoritative">{stateStrip}</Disclosure> : null}
-        <Disclosure id="record-history" title="History" description="Previous record events">{history}</Disclosure>
-        <Disclosure id="record-older-documents" title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
-        <Disclosure id="record-metadata" title="Technical details" description="Internal references for audit or support">{metadata}</Disclosure>
-        <Disclosure id="record-audit" title="Audit trail" description="Governance and change history">{audit}</Disclosure>
+      <div className="record-workspace__context-actions">
+        {presentation ? <ContextButton title="Lifecycle" description="Orientation only; the operating state on the page remains authoritative.">{stateStrip}</ContextButton> : null}
+        <ContextButton title="Messages" description="Related correspondence and contact context.">{communications}</ContextButton>
+        <ContextButton title="History" description="Previous record events and completed changes.">{history}</ContextButton>
+        <ContextButton title="Older documents" description="Controlled documents outside the current decision set.">{olderDocuments}</ContextButton>
+        <ContextButton title="Details" description="Supporting record detail that is not needed for the current decision.">{metadata}</ContextButton>
+        <ContextButton title="Audit" description="Governance and change evidence.">{audit}</ContextButton>
       </div>
     </section> : null}
   </section>;
