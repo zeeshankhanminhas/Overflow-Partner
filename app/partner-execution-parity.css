@@ -1,0 +1,51 @@
+/* External Partner Execution parity layer. Scoped to the controlled execution
+   page so the public marketing site remains untouched. */
+
+main.min-h-screen.bg-\[\#f5f4ef\]{
+  --pe-ink:#151515;
+  --pe-paper:#f3f2ed;
+  --pe-surface:#f8f7f3;
+  --pe-line:rgba(21,21,21,.14);
+  --pe-muted:#66645f;
+  --pe-accent:#d9572f;
+  background:var(--pe-paper)!important;
+}
+main.min-h-screen.bg-\[\#f5f4ef\]>.mx-auto{max-width:1180px!important}
+main.min-h-screen.bg-\[\#f5f4ef\] header{padding-top:24px!important;border-top:2px solid var(--pe-ink)!important}
+main.min-h-screen.bg-\[\#f5f4ef\] header h1{max-width:760px;font-weight:600!important;letter-spacing:-.045em!important}
+main.min-h-screen.bg-\[\#f5f4ef\] header>div:last-child{border-left-color:var(--pe-line)!important}
+main.min-h-screen.bg-\[\#f5f4ef\] header+section{gap:0!important;border-color:var(--pe-line)!important}
+main.min-h-screen.bg-\[\#f5f4ef\] header+section>div{min-height:78px;padding:15px 18px;border-right:1px solid var(--pe-line)}
+main.min-h-screen.bg-\[\#f5f4ef\] header+section>div:last-child{border-right:0}
+main.min-h-screen.bg-\[\#f5f4ef\] header+section p:first-child{font-size:9px!important;letter-spacing:.1em!important}
+main.min-h-screen.bg-\[\#f5f4ef\] header+section p:last-child{font-size:14px}
+main.min-h-screen.bg-\[\#f5f4ef\] button,
+main.min-h-screen.bg-\[\#f5f4ef\] label:has(input[type='file']){border-radius:0!important;box-shadow:none!important;transform:none!important;transition:background-color .16s ease,color .16s ease,border-color .16s ease}
+main.min-h-screen.bg-\[\#f5f4ef\] button:hover{transform:none!important;box-shadow:none!important}
+main.min-h-screen.bg-\[\#f5f4ef\] input:not([type='checkbox']):not([type='radio']),
+main.min-h-screen.bg-\[\#f5f4ef\] select,
+main.min-h-screen.bg-\[\#f5f4ef\] textarea{border-radius:0!important;box-shadow:none!important}
+main.min-h-screen.bg-\[\#f5f4ef\] input:focus,
+main.min-h-screen.bg-\[\#f5f4ef\] select:focus,
+main.min-h-screen.bg-\[\#f5f4ef\] textarea:focus{box-shadow:0 1px 0 var(--pe-ink)!important}
+main.min-h-screen.bg-\[\#f5f4ef\] aside{padding-right:12px}
+main.min-h-screen.bg-\[\#f5f4ef\] aside>section{background:transparent}
+main.min-h-screen.bg-\[\#f5f4ef\] aside button{min-height:44px}
+main.min-h-screen.bg-\[\#f5f4ef\] form>section{border-top-color:var(--pe-line)!important}
+main.min-h-screen.bg-\[\#f5f4ef\] form>section>div:first-child h2{max-width:680px}
+main.min-h-screen.bg-\[\#f5f4ef\] form button[type='submit']{min-height:48px;letter-spacing:.06em}
+main.min-h-screen.bg-\[\#f5f4ef\] [role='status']{border-left-color:var(--pe-accent)!important;background:rgba(217,87,47,.045)!important}
+
+@media(max-width:1023px){
+  main.min-h-screen.bg-\[\#f5f4ef\] header>div:last-child{border-left:0!important;border-top:1px solid var(--pe-line);padding-top:20px}
+  main.min-h-screen.bg-\[\#f5f4ef\] aside{padding-right:0}
+}
+@media(max-width:767px){
+  main.min-h-screen.bg-\[\#f5f4ef\]{padding:28px 18px 56px!important}
+  main.min-h-screen.bg-\[\#f5f4ef\] header{padding-top:18px!important}
+  main.min-h-screen.bg-\[\#f5f4ef\] header h1{font-size:36px!important;line-height:1!important}
+  main.min-h-screen.bg-\[\#f5f4ef\] header+section{grid-template-columns:1fr 1fr!important}
+  main.min-h-screen.bg-\[\#f5f4ef\] header+section>div{min-height:70px;border-bottom:1px solid var(--pe-line)}
+  main.min-h-screen.bg-\[\#f5f4ef\] header+section>div:nth-child(2n){border-right:0}
+  main.min-h-screen.bg-\[\#f5f4ef\] header+section>div:nth-last-child(-n+2){border-bottom:0}
+}
