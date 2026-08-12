@@ -5,7 +5,7 @@ import { listClientQuotes } from '@/lib/repositories/workflow';
 import { listLeads } from '@/lib/repositories/leads';
 import { createProjectFormAction } from '../workflow-actions';
 import { normaliseProjectStage } from '@/lib/projects/stages';
-import { resolveProjectStartPaymentGate } from '@/lib/finance/startPayment';
+import { resolveProjectStartPaymentGates } from '@/lib/finance/startPayment';
 import { resolveProjectPresentation, type OperatingPresentation } from '@/lib/presentation/operatingState';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
@@ -87,7 +87,9 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const now=Date.now();
   for(const d of deliveryRows.data||[]){const key=String((d as any).project_id);const current=deliveryMap.get(key)||{open:0,blocked:0,overdue:0};if(!['complete','cancelled'].includes(String((d as any).status)))current.open++;if(String((d as any).status)==='blocked')current.blocked++;if((d as any).due_date&&!['complete','cancelled'].includes(String((d as any).status))&&new Date(String((d as any).due_date)).getTime()<now)current.overdue++;deliveryMap.set(key,current)}
 
-  const enriched=await Promise.all(baseRows.map(async row=>{
+  const mobilisationIds=baseRows.filter(row=>normaliseProjectStage(row.project_stage)==='mobilisation').map(row=>row.id);
+  const paymentGates=await resolveProjectStartPaymentGates(supabase,organisationId,mobilisationIds);
+  const enriched=baseRows.map(row=>{
     const detail:any=detailMap.get(row.id)||{};
     const stage=normaliseProjectStage(row.project_stage);
     const tasks=taskMap.get(row.id)||{open:0,blocked:0};
@@ -98,7 +100,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
     const currentDelivery=submissionMap.get(row.id);
     const openExceptions=exceptionMap.get(row.id)||0;
     const clientReview=clientOutcomeMap.get(row.id);
-    const finance=stage==='mobilisation'?await resolveProjectStartPaymentGate(supabase,organisationId,row.id):{authorised:true,required:0,received:0,currency:'GBP',reason:'Start-payment gate already passed.'};
+    const finance=stage==='mobilisation'?paymentGates.get(row.id)!:{authorised:true,required:0,received:0,currency:'GBP',reason:'Start-payment gate already passed.'};
     const overdue=Boolean(row.due_date&&new Date(row.due_date).getTime()<now&&!['closed','completed','cancelled'].includes(String(row.project_status)));
     const paymentWaiting=stage==='mobilisation'&&!finance.authorised;
     const trueBlockers=[
@@ -135,7 +137,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
     }:basePresentation;
     const attention=overdue||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0||openExceptions>0||presentation.tone==='blocked'||presentation.tone==='critical';
     return {...row,stage,detail,tasks,delivery,finance,paymentWaiting,overdue,attention,presentation,assignment,partner};
-  }));
+  });
 
   let filtered=enriched;
   const weekFromNow=now+7*24*60*60*1000;
