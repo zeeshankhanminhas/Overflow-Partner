@@ -27,6 +27,7 @@ function useOverlay(open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
+    const trigger = triggerRef.current;
     document.body.style.overflow = 'hidden';
     const panel = panelRef.current;
     const focusable = panel?.querySelector<HTMLElement>(
@@ -60,7 +61,7 @@ function useOverlay(open: boolean, close: () => void) {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', onKeyDown);
-      requestAnimationFrame(() => triggerRef.current?.focus());
+      requestAnimationFrame(() => trigger?.focus());
     };
   }, [open, close]);
 
