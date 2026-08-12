@@ -5,8 +5,8 @@ import { listClientQuotes } from '@/lib/repositories/workflow';
 import { listLeads } from '@/lib/repositories/leads';
 import { createProjectFormAction } from '../workflow-actions';
 import { normaliseProjectStage } from '@/lib/projects/stages';
-import { resolveFinancialGate } from '@/lib/finance/state';
-import { resolveProjectPresentation } from '@/lib/presentation/operatingState';
+import { resolveProjectStartPaymentGate } from '@/lib/finance/startPayment';
+import { resolveProjectPresentation, type OperatingPresentation } from '@/lib/presentation/operatingState';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
@@ -83,12 +83,12 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
     const currentDelivery=submissionMap.get(row.id);
     const openExceptions=exceptionMap.get(row.id)||0;
     const clientReview=clientOutcomeMap.get(row.id);
-    let finance={authorised:true,displayState:'Not required',reason:''};
-    if(stage==='mobilisation'){const result=await supabase.rpc('op_project_financial_gate',{p_project_id:row.id});finance=resolveFinancialGate(result.data)}
+    const finance=stage==='mobilisation'?await resolveProjectStartPaymentGate(supabase,organisationId,row.id):{authorised:true,required:0,received:0,currency:'GBP',reason:'Start-payment gate already passed.'};
     const overdue=Boolean(row.due_date&&new Date(row.due_date).getTime()<now&&!['closed','completed','cancelled'].includes(String(row.project_status)));
+    const paymentWaiting=stage==='mobilisation'&&!finance.authorised;
     const trueBlockers=[
       ...(overdue?['Project due date is overdue.']:[]),
-      ...(!finance.authorised?['Commercial release is not authorised.']:[]),
+      ...(paymentWaiting?[`Client start payment is outstanding · required ${money(finance.required,finance.currency)} · received ${money(finance.received,finance.currency)}.`]:[]),
       ...(tasks.blocked>0?[`${tasks.blocked} task${tasks.blocked===1?' is':'s are'} blocked.`]:[]),
       ...(delivery.blocked>0?[`${delivery.blocked} Delivery Control item${delivery.blocked===1?' is':'s are'} blocked.`]:[]),
       ...(delivery.overdue>0?[`${delivery.overdue} Delivery Control item${delivery.overdue===1?' is':'s are'} overdue.`]:[]),
@@ -104,10 +104,21 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
       stage==='client_review'?Boolean(clientReview?.outcome):
       stage==='closed'?false:false
     );
-    const presentation=resolveProjectPresentation({
-      stage,ready,readinessReasons:trueBlockers,partnerControlled:Boolean(assignment),partnerName:partner?.company_name||'Execution Partner',executionState:assignment?.execution_state,executionCycle:Number(assignment?.execution_cycle||1),commencementConfirmed:commencement,currentCycleDeliverySubmitted:Boolean(currentDelivery),deliveryItems:delivery.open,deliveryWorkOpen:delivery.open,openPartnerExceptions:openExceptions,financialAuthorised:finance.authorised,clientOutcome:clientReview?.outcome,
+    const basePresentation=resolveProjectPresentation({
+      stage,ready,readinessReasons:paymentWaiting?trueBlockers.filter(reason=>!reason.startsWith('Client start payment')):trueBlockers,partnerControlled:Boolean(assignment),partnerName:partner?.company_name||'Execution Partner',executionState:assignment?.execution_state,executionCycle:Number(assignment?.execution_cycle||1),commencementConfirmed:commencement,currentCycleDeliverySubmitted:Boolean(currentDelivery),deliveryItems:delivery.open,deliveryWorkOpen:delivery.open,openPartnerExceptions:openExceptions,financialAuthorised:finance.authorised,clientOutcome:clientReview?.outcome,
     });
-    const attention=overdue||!finance.authorised||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0||openExceptions>0||presentation.tone==='blocked'||presentation.tone==='critical';
+    const presentation:OperatingPresentation=paymentWaiting?{
+      ...basePresentation,
+      state:'Awaiting client payment',
+      headline:'Awaiting client payment',
+      summary:finance.required>0?`Required to start: ${money(finance.required,finance.currency)} · Received: ${money(finance.received,finance.currency)}.`:finance.reason,
+      tone:'waiting',
+      waitingOn:{actor:'client',label:detail?.lead?.company_name||'Client'},
+      nextAction:{label:'Record payment',available:false,kind:'wait',reason:'Execution remains locked until qualifying client money is received and cleared.'},
+      blockers:[],
+      primaryActions:[],
+    }:basePresentation;
+    const attention=overdue||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0||openExceptions>0||presentation.tone==='blocked'||presentation.tone==='critical';
     return {...row,stage,detail,tasks,delivery,finance,overdue,attention,presentation,assignment,partner};
   }));
 
