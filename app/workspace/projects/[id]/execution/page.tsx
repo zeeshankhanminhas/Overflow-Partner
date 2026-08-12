@@ -2,15 +2,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
-import { generateExecutionLinkAction, resolveExecutionExceptionAction, saveExecutionAssignmentAction } from './actions';
+import { generateExecutionLinkAction, releasePartnerExecutionAction, resolveExecutionExceptionAction } from './actions';
 
 function formatDate(value?: string | null) {
   if (!value) return 'Not set';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-function stateLabel(value?: string | null) { return String(value || 'not_released').replaceAll('_',' ').replace(/\b\w/g, (char) => char.toUpperCase()); }
-const metricValueStyle={fontSize:'clamp(1.45rem, 2.2vw, 2.2rem)',lineHeight:1.08,overflowWrap:'normal' as const,wordBreak:'normal' as const,hyphens:'none' as const};
+function stateLabel(value?: string | null) { return String(value || '').replaceAll('_',' ').replace(/\b\w/g, (char) => char.toUpperCase()); }
 
 export default async function PartnerExecutionControlPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
@@ -22,10 +21,10 @@ export default async function PartnerExecutionControlPage({ params, searchParams
 
   const [assignmentResult,documentsResult]=await Promise.all([
     supabase.from('project_execution_assignments').select('*').eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
-    supabase.from('documents').select('id,title,reference,status,revision_code,document_type').eq('organisation_id',organisationId).eq('project_id',id).in('document_type',['scope-of-work','statement-of-work']).in('status',['approved','issued','published']).eq('is_current_revision',true).order('created_at',{ascending:false}),
+    supabase.from('documents').select('id,title,reference,status,revision_code,document_type,is_current_revision,created_at').eq('organisation_id',organisationId).eq('project_id',id).in('document_type',['scope-of-work','statement-of-work']).in('status',['approved','issued','published']).order('created_at',{ascending:false}),
   ]);
   if(assignmentResult.error)throw new Error(assignmentResult.error.message);if(documentsResult.error)throw new Error(documentsResult.error.message);
-  const assignment=assignmentResult.data;const documents=documentsResult.data||[];
+  const assignment=assignmentResult.data;const documents=documentsResult.data||[];const currentScopes=documents.filter(doc=>doc.is_current_revision);
 
   let commercialPartnerId='';
   if(project.quote_id){
@@ -50,49 +49,65 @@ export default async function PartnerExecutionControlPage({ params, searchParams
     session=sessionResult.data;commencement=commencementResult.data;progress=progressResult.data||[];exceptions=exceptionResult.data||[];submissions=submissionResult.data||[];
   }
 
-  const latestProgress=progress[0];const openExceptions=exceptions.filter(item=>['open','acknowledged'].includes(item.status));const commencementPending=Boolean(assignment&&!commencement&&project.project_stage==='ready_for_execution');
+  const latestProgress=progress[0];
+  const openExceptions=exceptions.filter(item=>['open','acknowledged'].includes(item.status));
   const partnerMismatch=Boolean(assignment&&commercialPartnerId&&assignment.partner_id!==commercialPartnerId);
   const noCommercialPartner=!commercialPartnerId||!commercialPartner;
   const sessionUsable=Boolean(session&&!['expired','revoked'].includes(String(session.status))&&new Date(session.expires_at).getTime()>Date.now());
   const baseUrl=process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app';
   const currentExecutionLink=sessionUsable?`${baseUrl}/execution/${createExecutionSessionToken(session.id)}`:null;
+  const assignedScope=assignment?documents.find(doc=>doc.id===assignment.scope_document_id):null;
+  const releaseScope=currentScopes.length===1?currentScopes[0]:null;
+  const partnerName=commercialPartner?.company_name||'Execution Partner';
+  const readyForRelease=!noCommercialPartner&&!partnerMismatch&&commercialPartner?.status==='approved'&&commercialPartner?.nda_signed&&Boolean(commercialPartner?.email)&&Boolean(releaseScope);
 
-  return <section className="stack" style={{gap:24,maxWidth:1180}}>
-    <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href={`/workspace/projects/${id}`} className="project-os-back">← Project 360</Link><p className="eyebrow" style={{marginTop:18}}>Partner execution · Controlled delivery</p><h1 style={{marginTop:8}}>{project.title}</h1><p className="lede">Configure the controlled release, give the Execution Partner access, then wait for the Partner to formally confirm commencement. Configuration or opening the workspace does not count as commencement.</p></div><span className={`status-pill ${commencementPending||partnerMismatch||noCommercialPartner?'attention':'success'}`}>{partnerMismatch?'Partner lineage mismatch':noCommercialPartner?'Commercial Partner missing':commencementPending?'Waiting for Partner commencement':'Controlled Partner execution'}</span></div>
+  const state=partnerMismatch?'Release basis needs attention':noCommercialPartner?'Commercial Partner missing':!assignment||!sessionUsable?'Ready to release':!commencement?'Waiting for Partner commencement':'Partner execution';
+  const tone=partnerMismatch||noCommercialPartner?'attention':commencement?'success':'neutral';
+
+  return <section className="stack" style={{gap:24,maxWidth:1040}}>
+    <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
+      <div><Link href={`/workspace/projects/${id}`} className="project-os-back">← Project 360</Link><p className="eyebrow" style={{marginTop:18}}>Partner execution</p><h1 style={{marginTop:8}}>{project.title}</h1><p className="lede">Release the approved work to the Execution Partner, then follow only the Partner update, exceptions and delivery that need your attention.</p></div>
+      <span className={`status-pill ${tone}`}>{state}</span>
+    </div>
 
     {query.success?<div className="card" style={{borderLeft:'3px solid var(--op-success)'}}><strong>{query.success}</strong></div>:null}
     {query.error?<div className="card" style={{borderLeft:'3px solid var(--op-danger)'}}><strong>{query.error}</strong></div>:null}
-    {query.execution_link?<div className="card stack" style={{gap:10}}><p className="eyebrow">Secure Partner link</p><strong>Partner workspace ready.</strong><input readOnly value={query.execution_link}/><small>This active link remains available below while the session is valid. You do not need to rotate it just to reopen the Partner workspace.</small></div>:null}
-    {commencementPending?<div className="card" style={{borderLeft:'3px solid var(--op-accent)'}}><strong>Release is configured, but execution has not started yet.</strong><p>The Project blocker clears only when the Execution Partner opens the workspace and submits <b>Confirm commencement</b>. An issued or opened Partner link is not commencement evidence.</p></div>:null}
-    {partnerMismatch?<div className="card" style={{borderLeft:'3px solid var(--op-danger)'}}><strong>Execution assignment does not match the accepted commercial Partner.</strong><p>Do not release further work until the lineage is corrected. Normal Partner replacement is intentionally blocked.</p></div>:null}
-    {noCommercialPartner?<div className="card" style={{borderLeft:'3px solid var(--op-danger)'}}><strong>Commercial Partner lineage is missing.</strong><p>Project execution cannot be configured until the accepted quotation resolves to governed Partner pricing.</p></div>:null}
 
-    <div className="metric-grid"><article className="metric"><span>Project stage</span><strong style={metricValueStyle}>{stateLabel(project.project_stage)}</strong></article><article className="metric"><span>Partner release</span><strong style={metricValueStyle}>{sessionUsable?stateLabel(session.status):assignment?'Configured':'Not configured'}</strong></article><article className="metric"><span>Commencement</span><strong style={metricValueStyle}>{commencement?'Confirmed':'Awaiting'}</strong></article><article className="metric"><span>Open Partner exceptions</span><strong style={metricValueStyle}>{openExceptions.length}</strong></article></div>
-
-    <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-      <article className="card stack" style={{gap:20}}>
-        <div><p className="eyebrow">Execution assignment</p><h2>{assignment?'Controlled Partner assignment':'Configure Partner execution'}</h2><p>The accepted commercial Partner is the authorised execution party. The release must identify the current controlled Scope of Work or Statement of Work.</p></div>
-        <form action={saveExecutionAssignmentAction} className="stack" style={{gap:16}}>
-          <input type="hidden" name="project_id" value={id}/>
-          <label>Execution Partner<select name="partner_id" required defaultValue={commercialPartnerId||''}><option value={commercialPartnerId||''}>{commercialPartner?.company_name||'Commercial Partner unavailable'}</option></select><small>Inherited from the accepted commercial position. No alternative Partner can be selected here.</small></label>
-          <div className="grid gap-4 md:grid-cols-2"><label>Partner contact name<input name="partner_contact_name" defaultValue={assignment?.partner_contact_name||commercialPartner?.contact_name||''}/></label><label>Partner contact email<input name="partner_contact_email" type="email" required defaultValue={assignment?.partner_contact_email||commercialPartner?.email||''}/></label></div>
-          <label>Controlled execution scope<select name="scope_document_id" required defaultValue={assignment?.scope_document_id||''}><option value="" disabled>Select approved controlled scope</option>{documents.map(doc=><option key={doc.id} value={doc.id}>{doc.reference} · {doc.title} · {String(doc.status).replaceAll('_',' ')}</option>)}</select><small>Only current approved/issued Scope of Work or Statement of Work records are eligible.</small></label>
-          <div className="grid gap-4 md:grid-cols-3"><label>Planned start<input name="planned_start_date" type="date" defaultValue={assignment?.planned_start_date||project.start_date||''}/></label><label>Committed due<input name="committed_due_date" type="date" defaultValue={assignment?.committed_due_date||project.due_date||''}/></label><label>Reporting cadence<select name="reporting_cadence" defaultValue={assignment?.reporting_cadence||'milestone'}><option value="milestone">Milestone only</option><option value="daily">Daily</option><option value="every_2_business_days">Every 2 business days</option><option value="weekly">Weekly</option><option value="on_change">On change / exception</option></select></label></div>
-          <label>Release notes<textarea name="release_notes" rows={4} defaultValue={assignment?.release_notes||''} placeholder="Instructions visible in the controlled execution context."/></label>
-          <button className="button" type="submit" disabled={noCommercialPartner||partnerMismatch||documents.length===0}>{assignment?'Save execution controls':'Create execution assignment'}</button>
-        </form>
-      </article>
-
-      <aside className="card stack" style={{gap:18}}><div><p className="eyebrow">Secure workspace</p><h2>Partner access</h2></div>{assignment?<><dl className="project-os-summary" style={{margin:0}}><div><dt>Partner</dt><dd>{commercialPartner?.company_name||'Not recorded'}</dd></div><div><dt>Recipient</dt><dd>{assignment.partner_contact_email}</dd></div><div><dt>Session</dt><dd>{session?stateLabel(session.status):'Not issued'}</dd></div><div><dt>Last opened</dt><dd>{session?.last_opened_at?formatDate(session.last_opened_at):'Never'}</dd></div></dl>{currentExecutionLink?<><a className="button" href={currentExecutionLink} target="_blank" rel="noreferrer">Open Partner workspace</a><label>Current secure Partner link<input readOnly value={currentExecutionLink}/><small>Select and copy this URL when it needs to be sent to the assigned Partner.</small></label><details className="vp-disclosure"><summary>Replace current Partner link</summary><form action={generateExecutionLinkAction} style={{paddingTop:12}}><input type="hidden" name="project_id" value={id}/><button className="button secondary" type="submit" disabled={partnerMismatch||!assignment.scope_document_id}>Rotate secure execution link</button><small style={{display:'block',marginTop:8}}>Rotation revokes the current link. Use this only when the existing link must be replaced.</small></form></details></>:<form action={generateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit" disabled={partnerMismatch||!assignment.scope_document_id}>Generate secure execution link</button></form>}<small>The secure link exposes only the controlled execution context and lets the assigned Partner submit commencement, progress, exceptions and delivery evidence.</small></>:<p>Create the controlled execution assignment first.</p>}</aside>
-    </div>
-
-    {assignment?<>
-      <article className="card stack" style={{gap:16}}><div><p className="eyebrow">Partner-reported execution</p><h2>Execution intelligence</h2><p>Partner reports remain attributable Partner evidence. Commencement controls entry into execution; routine progress reports do not independently move Project stage.</p></div><div className="grid gap-4 md:grid-cols-4"><div><small>Commencement</small><strong style={{display:'block',marginTop:6}}>{commencement?formatDate(commencement.submitted_at):'Awaiting'}</strong></div><div><small>Latest Partner state</small><strong style={{display:'block',marginTop:6}}>{latestProgress?stateLabel(latestProgress.progress_state):'No update'}</strong></div><div><small>Partner-reported progress</small><strong style={{display:'block',marginTop:6}}>{latestProgress?.percent_complete===null||latestProgress?.percent_complete===undefined?'Not stated':`${latestProgress.percent_complete}%`}</strong></div><div><small>Partner forecast</small><strong style={{display:'block',marginTop:6}}>{formatDate(latestProgress?.forecast_delivery_date||commencement?.forecast_delivery_date)}</strong></div></div>{latestProgress?<div style={{borderTop:'1px solid var(--op-border)',paddingTop:14}}><strong>Latest update · {formatDate(latestProgress.submitted_at)}</strong><p>{latestProgress.work_in_progress}</p></div>:<p>No Partner progress update has been submitted yet.</p>}</article>
-
-      <div className="grid gap-5 md:grid-cols-2">
-        <article className="card stack"><div><p className="eyebrow">Exceptions</p><h2>{openExceptions.length} open</h2></div>{exceptions.length?exceptions.slice(0,5).map(item=><div key={item.id} style={{borderTop:'1px solid var(--op-border)',paddingTop:12}}><strong>{item.title}</strong><p>{stateLabel(item.severity)} · {stateLabel(item.status)} · {formatDate(item.raised_at)}</p>{['open','acknowledged'].includes(item.status)?<form action={resolveExecutionExceptionAction} className="stack" style={{gap:8,marginTop:10}}><input type="hidden" name="project_id" value={id}/><input type="hidden" name="exception_id" value={item.id}/><label>Resolution note<textarea name="resolution_note" rows={2} required placeholder="What resolved the execution blocker?"/></label><button className="button secondary" type="submit">Resolve exception</button></form>:item.resolution_note?<small>Resolution · {item.resolution_note}</small>:null}</div>):<p>No Partner exceptions reported.</p>}</article>
-        <article className="card stack"><div><p className="eyebrow">Delivery submissions</p><h2>{submissions.length} received</h2></div>{submissions.length?submissions.slice(0,5).map(item=><div key={item.id} style={{borderTop:'1px solid var(--op-border)',paddingTop:12}}><strong>{item.revision||`Execution cycle ${item.execution_cycle||1}`}</strong><p>{item.delivery_summary}</p><small>{formatDate(item.submitted_at)} · {stateLabel(item.review_status)}</small></div>):<p>No delivery submission received.</p>}</article>
+    {!assignment||!sessionUsable ? <article className="card stack" style={{gap:18}}>
+      <div><p className="eyebrow">Next action</p><h2>Release to {partnerName}</h2><p>The system inherits the accepted Partner, current controlled scope and Project dates. You do not need to create or manage an assignment record.</p></div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div><small>Execution Partner</small><strong style={{display:'block',marginTop:5}}>{partnerName}</strong>{commercialPartner?<span style={{display:'block',marginTop:4}}>{commercialPartner.status==='approved'&&commercialPartner.nda_signed?'Approved · NDA ready':'Partner readiness incomplete'}</span>:null}</div>
+        <div><small>Controlled scope</small><strong style={{display:'block',marginTop:5}}>{releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:currentScopes.length>1?'Multiple current scopes need resolution':'No current approved scope'}</strong></div>
+        <div><small>Recipient</small><strong style={{display:'block',marginTop:5}}>{commercialPartner?.contact_name||'Partner contact'}{commercialPartner?.email?` · ${commercialPartner.email}`:' · Email required'}</strong></div>
+        <div><small>Due</small><strong style={{display:'block',marginTop:5}}>{formatDate(project.due_date)}</strong></div>
       </div>
-    </>:null}
+      {partnerMismatch?<p className="vp-callout">The existing execution record does not match the accepted commercial Partner. Resolve the lineage before release.</p>:null}
+      {currentScopes.length>1?<p className="vp-callout">More than one current controlled execution scope is available. Resolve the current scope in Documents before release.</p>:null}
+      <form action={releasePartnerExecutionAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit" disabled={!readyForRelease||partnerMismatch}>Release to {partnerName}</button></form>
+    </article> : null}
+
+    {assignment&&sessionUsable ? <article className="card stack" style={{gap:18}}>
+      <div><p className="eyebrow">Current execution</p><h2>{commencement?`${partnerName} is executing Cycle ${assignment.execution_cycle||1}`:`Waiting for ${partnerName} to start`}</h2><p>{commencement?`Commencement confirmed ${formatDate(commencement.submitted_at)}. The next Partner evidence is a progress update or delivery package.`:'Work has been released. The Project will move forward when the Partner confirms commencement from the secure workspace.'}</p></div>
+      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{currentExecutionLink?<a className="button" href={currentExecutionLink} target="_blank" rel="noreferrer">Open Partner workspace</a>:null}<Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Open delivery</Link></div>
+      <details className="vp-disclosure"><summary>Release evidence</summary><div className="grid gap-4 md:grid-cols-2" style={{paddingTop:14}}><div><small>Partner</small><strong style={{display:'block'}}>{partnerName}</strong></div><div><small>Scope</small><strong style={{display:'block'}}>{assignedScope?`${assignedScope.reference} · ${assignedScope.title}`:'Controlled scope recorded'}</strong></div><div><small>Recipient</small><strong style={{display:'block'}}>{assignment.partner_contact_email}</strong></div><div><small>Committed due</small><strong style={{display:'block'}}>{formatDate(assignment.committed_due_date||project.due_date)}</strong></div></div></details>
+      {currentExecutionLink?<details className="vp-disclosure"><summary>Advanced Partner access</summary><div className="stack" style={{gap:12,paddingTop:14}}><label>Current secure Partner link<input readOnly value={currentExecutionLink}/></label><form action={generateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button secondary" type="submit">Replace Partner link</button><small style={{display:'block',marginTop:8}}>Replacing the link revokes the current one. Use this only for an access problem.</small></form></div></details>:null}
+    </article> : null}
+
+    {commencement ? <article className="card stack" style={{gap:14}}>
+      <div><p className="eyebrow">Latest Partner update</p><h2>{latestProgress?stateLabel(latestProgress.progress_state):'No progress update yet'}</h2></div>
+      {latestProgress?<><div className="grid gap-4 md:grid-cols-3"><div><small>Progress</small><strong style={{display:'block',marginTop:5}}>{latestProgress.percent_complete===null||latestProgress.percent_complete===undefined?'Not stated':`${latestProgress.percent_complete}%`}</strong></div><div><small>Forecast</small><strong style={{display:'block',marginTop:5}}>{formatDate(latestProgress.forecast_delivery_date||commencement.forecast_delivery_date)}</strong></div><div><small>Updated</small><strong style={{display:'block',marginTop:5}}>{formatDate(latestProgress.submitted_at)}</strong></div></div>{latestProgress.work_in_progress?<p>{latestProgress.work_in_progress}</p>:null}</>:<p>{partnerName} has confirmed commencement but has not submitted a progress update yet.</p>}
+      {submissions.length===0?<small>No Partner delivery package has been received for the current execution yet.</small>:null}
+    </article> : null}
+
+    {openExceptions.length>0 ? <article className="card stack" style={{gap:16}}>
+      <div><p className="eyebrow">Needs attention</p><h2>{openExceptions.length} Partner exception{openExceptions.length===1?'':'s'}</h2></div>
+      {openExceptions.map(item=><div key={item.id} style={{borderTop:'1px solid var(--op-border)',paddingTop:12}}><strong>{item.title}</strong><p>{stateLabel(item.severity)} · raised {formatDate(item.raised_at)}</p><form action={resolveExecutionExceptionAction} className="stack" style={{gap:8,marginTop:10}}><input type="hidden" name="project_id" value={id}/><input type="hidden" name="exception_id" value={item.id}/><label>Resolution note<textarea name="resolution_note" rows={2} required placeholder="What resolved the execution blocker?"/></label><button className="button secondary" type="submit">Resolve exception</button></form></div>)}
+    </article> : null}
+
+    {submissions.length>0 ? <article className="card stack" style={{gap:14}}>
+      <div><p className="eyebrow">Partner delivery</p><h2>{submissions.length} submission{submissions.length===1?'':'s'} received</h2></div>
+      {submissions.slice(0,5).map(item=><div key={item.id} style={{borderTop:'1px solid var(--op-border)',paddingTop:12}}><strong>{item.revision||`Execution cycle ${item.execution_cycle||1}`}</strong><p>{item.delivery_summary}</p><small>{formatDate(item.submitted_at)} · {stateLabel(item.review_status)}</small></div>)}
+      <Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Review delivery</Link>
+    </article> : null}
   </section>;
 }
