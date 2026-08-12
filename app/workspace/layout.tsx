@@ -62,7 +62,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <section className="midts-main op-main">
       <header className="midts-topbar op-topbar">
         <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href={n.approvals.href}>{n.approvals.label}</Link><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
+        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/></div>
       </header>
       <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
       <main className="midts-content op-content">{children}</main>
