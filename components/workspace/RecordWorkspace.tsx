@@ -56,28 +56,27 @@ export default function RecordWorkspace({
   notices,
   className = '',
 }: RecordWorkspaceProps) {
-  const hasDecisionDetails = Boolean(nextAction || readiness || summary);
+  const hasDecisionDetails = Boolean(nextAction || summary || readiness);
   const hasCurrentWork = Boolean(activities || communications);
-  const hasSecondaryContext = Boolean(history || olderDocuments || metadata || audit);
+  const hasSecondaryContext = Boolean(stateStrip || history || olderDocuments || metadata || audit);
 
   return <section className={`record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
     {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
 
-    {stateStrip ? <section id="record-state" className="record-workspace__state" aria-label="Lifecycle position">{stateStrip}</section> : null}
-
+    {!presentation && stateStrip ? <section id="record-state" className="record-workspace__state" aria-label="Lifecycle position">{stateStrip}</section> : null}
     {presentation ? <OperatingStatePanel presentation={presentation} /> : null}
 
     {hasDecisionDetails ? <section className={`record-workspace__group record-workspace__group--decision ${presentation ? 'record-workspace__group--interpreted' : ''}`} aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
-        <p id="record-decision-area">{presentation ? 'Only what needs your attention' : 'What happens next'}</p>
-        <span>{presentation ? 'Supporting controls appear here only when the current operating state needs them' : 'Your next action and the evidence needed before you can take it'}</span>
+        <p id="record-decision-area">{presentation ? 'Current decision' : 'What happens next'}</p>
+        <span>{presentation ? 'One action or waiting condition, supported only by facts needed now' : 'Your next action and the evidence needed before you can take it'}</span>
       </div>
       <div className="record-workspace__decision-grid">
-        <Slot id="record-next-action" title={presentation ? 'Action' : 'Next action'} className="record-workspace__slot--action">{nextAction}</Slot>
-        <Slot id="record-readiness" title={presentation ? 'Unresolved requirements' : 'Ready to proceed?'} className="record-workspace__slot--readiness">{readiness}</Slot>
-        <Slot id="record-summary" title="Useful context" className="record-workspace__slot--summary">{summary}</Slot>
+        <Slot id="record-next-action" title={presentation ? 'Next' : 'Next action'} className="record-workspace__slot--action">{nextAction}</Slot>
+        <Slot id="record-summary" title={presentation ? 'Decision facts' : 'Useful context'} className="record-workspace__slot--summary">{summary}</Slot>
       </div>
+      {readiness ? <Disclosure id="record-readiness" title="Unresolved requirements" description="Open only when you need the remaining gate detail">{readiness}</Disclosure> : null}
     </section> : null}
 
     {hasCurrentWork ? <section className="record-workspace__group" aria-labelledby="record-current-stage-work">
@@ -101,10 +100,11 @@ export default function RecordWorkspace({
 
     {hasSecondaryContext ? <section className="record-workspace__group record-workspace__group--secondary" aria-labelledby="record-secondary-context">
       <div className="record-workspace__group-heading">
-        <p id="record-secondary-context">History & audit</p>
-        <span>Open only when you need background or traceability</span>
+        <p id="record-secondary-context">Details, history & audit</p>
+        <span>Supporting context stays available without competing with current work</span>
       </div>
       <div className="record-workspace__secondary-stack">
+        {presentation ? <Disclosure id="record-state" title="Lifecycle progress" description="Orientation only; the operating state above remains authoritative">{stateStrip}</Disclosure> : null}
         <Disclosure id="record-history" title="History" description="Previous record events">{history}</Disclosure>
         <Disclosure id="record-older-documents" title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
         <Disclosure id="record-metadata" title="Technical details" description="Internal references for audit or support">{metadata}</Disclosure>
