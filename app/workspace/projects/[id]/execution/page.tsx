@@ -86,18 +86,18 @@ export default async function PartnerExecutionControlPage({ params, searchParams
     </article> : null}
 
     {paymentReady&&(!assignment||!sessionUsable) ? <article className="card stack" style={{gap:18}}>
-      <div><p className="eyebrow">Next action</p><h2>Release to {partnerName}</h2><p>The system inherits the accepted Partner, current controlled scope and Project dates. You do not need to create or manage an assignment record.</p></div>
+      <div><p className="eyebrow">Next action</p><h2>Release to {partnerName}</h2><p>The release basis is inherited from the accepted commercial position, current controlled scope and Project dates.</p></div>
       <div className="grid gap-4 md:grid-cols-2">
         <div><small>Execution Partner</small><strong style={{display:'block',marginTop:5}}>{partnerName}</strong>{commercialPartner?<span style={{display:'block',marginTop:4}}>{commercialPartner.status==='approved'&&commercialPartner.nda_signed?'Approved · NDA ready':'Partner readiness incomplete'}</span>:null}</div>
         <div><small>Controlled scope</small><strong style={{display:'block',marginTop:5}}>{releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:currentScopes.length>1?'Multiple current scopes need resolution':'No current approved scope'}</strong></div>
         <div><small>Recipient</small><strong style={{display:'block',marginTop:5}}>{commercialPartner?.contact_name||'Partner contact'}{commercialPartner?.email?` · ${commercialPartner.email}`:' · Email required'}</strong></div>
         <div><small>Due</small><strong style={{display:'block',marginTop:5}}>{formatDate(project.due_date)}</strong></div>
       </div>
-      {partnerMismatch?<p className="vp-callout">The existing execution record does not match the accepted commercial Partner. Resolve the lineage before release.</p>:null}
+      {partnerMismatch?<p className="vp-callout">Existing release evidence does not match the accepted commercial Partner. Resolve the lineage before release.</p>:null}
       {currentScopes.length>1?<p className="vp-callout">More than one current controlled execution scope is available. Resolve the current scope in Documents before release.</p>:null}
       <ActionDialog
         title={`Release work to ${partnerName}`}
-        description="This creates the governed execution assignment and Partner access underneath one operator action. The client start-payment gate is rechecked server-side before release."
+        description="This records the governed Partner release and creates secure Partner access underneath one operator action. The client start-payment gate is rechecked server-side before release."
         triggerLabel={`Release to ${partnerName}`}
         disabled={!readyForRelease||partnerMismatch}
       >
