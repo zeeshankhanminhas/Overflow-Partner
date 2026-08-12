@@ -1,5 +1,6 @@
 import './globals.css';
 import './opds.css';
+import './partner-execution-parity.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import CookieConsent from '@/components/CookieConsent';

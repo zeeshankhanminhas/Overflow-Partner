@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ProductProvenance } from '@/components/workspace/ProductUI';
 
 type RecordWorkspaceProps = {
   header: ReactNode;
@@ -59,48 +60,54 @@ export default function RecordWorkspace({
     <header id="record-header" className="record-workspace__header">{header}</header>
     {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
 
-    <section id="record-state" className="record-workspace__state" aria-label="Record state">
+    <section id="record-state" className="record-workspace__state" aria-label="Current operating state">
       {stateStrip}
+      <div className="record-workspace__provenance" aria-label="Evidence provenance key">
+        <ProductProvenance source="system" />
+        <ProductProvenance source="op" />
+        <ProductProvenance source="partner" />
+        <ProductProvenance source="client" />
+      </div>
     </section>
 
     <section className="record-workspace__group record-workspace__group--decision" aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
-        <p id="record-decision-area">Decision</p>
-        <span>What needs attention and what to do next</span>
+        <p id="record-decision-area">Operating decision</p>
+        <span>One governed next action, supported by the evidence that permits it</span>
       </div>
       <div className="record-workspace__decision-grid">
-        <Slot id="record-readiness" title="Readiness" className="record-workspace__slot--readiness">{readiness}</Slot>
-        <Slot id="record-next-action" title="Next action" className="record-workspace__slot--action">{nextAction}</Slot>
-        <Slot id="record-summary" title="Summary" className="record-workspace__slot--summary">{summary}</Slot>
+        <Slot id="record-next-action" title="Next permitted action" className="record-workspace__slot--action">{nextAction}</Slot>
+        <Slot id="record-readiness" title="Gate readiness" className="record-workspace__slot--readiness">{readiness}</Slot>
+        <Slot id="record-summary" title="Commercial / record summary" className="record-workspace__slot--summary">{summary}</Slot>
       </div>
     </section>
 
     {hasCurrentWork ? <section className="record-workspace__group" aria-labelledby="record-current-stage-work">
       <div className="record-workspace__group-heading">
-        <p id="record-current-stage-work">Current work</p>
-        <span>Work relevant to this stage</span>
+        <p id="record-current-stage-work">Current stage work</p>
+        <span>Live work and external execution intelligence</span>
       </div>
       <div className="record-workspace__primary-work">
-        {activities ? <Slot id="record-activities" title="Activities" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
-        {communications ? <Disclosure id="record-communications" title="Communications" description="Open correspondence when you need it">{communications}</Disclosure> : null}
+        {activities ? <Slot id="record-activities" title="Operating position" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
+        {communications ? <Disclosure id="record-communications" title="Communications" description="Open correspondence only when it is needed for the decision">{communications}</Disclosure> : null}
       </div>
     </section> : null}
 
     {evidence ? <section className="record-workspace__group record-workspace__group--evidence" aria-labelledby="record-controlled-evidence">
       <div className="record-workspace__group-heading">
-        <p id="record-controlled-evidence">Required documents</p>
-        <span>Controlled evidence for this stage</span>
+        <p id="record-controlled-evidence">Controlled evidence</p>
+        <span>Current-stage documents and governed evidence</span>
       </div>
-      <Slot id="record-documents" title="Documents" className="record-workspace__slot--evidence">{evidence}</Slot>
+      <Slot id="record-documents" title="Evidence set" className="record-workspace__slot--evidence">{evidence}</Slot>
     </section> : null}
 
     {hasSecondaryContext ? <section className="record-workspace__group record-workspace__group--secondary" aria-labelledby="record-secondary-context">
       <div className="record-workspace__group-heading">
-        <p id="record-secondary-context">More context</p>
-        <span>Details you can open when needed</span>
+        <p id="record-secondary-context">Audit context</p>
+        <span>Available without competing with the live operating decision</span>
       </div>
       <div className="record-workspace__secondary-stack">
-        <Disclosure id="record-history" title="History" description="Previous record events">{history}</Disclosure>
+        <Disclosure id="record-history" title="History" description="Previous governed record events">{history}</Disclosure>
         <Disclosure id="record-older-documents" title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
         <Disclosure id="record-metadata" title="Metadata" description="Record and system identifiers">{metadata}</Disclosure>
         <Disclosure id="record-audit" title="Audit" description="Governance and change history">{audit}</Disclosure>

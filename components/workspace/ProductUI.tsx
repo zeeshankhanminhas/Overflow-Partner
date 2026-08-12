@@ -2,9 +2,15 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 export type ProductTone = 'neutral' | 'active' | 'waiting' | 'attention' | 'blocked' | 'complete' | 'critical';
+export type ProductProvenanceSource = 'op' | 'partner' | 'system' | 'client';
 
 export function ProductStatus({ children, tone = 'neutral' }: { children: ReactNode; tone?: ProductTone }) {
   return <span className={`product-status product-status--${tone}`} data-tone={tone}>{children}</span>;
+}
+
+export function ProductProvenance({ source, children }: { source: ProductProvenanceSource; children?: ReactNode }) {
+  const label = children || ({ op: 'OP controlled', partner: 'Partner reported', system: 'System gate', client: 'Client evidenced' } as const)[source];
+  return <span className={`product-provenance product-provenance--${source}`} data-provenance={source}><i aria-hidden="true" />{label}</span>;
 }
 
 export function ProductPageHeader({
