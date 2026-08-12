@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { executionSessionIdFromToken } from '@/lib/execution/sessionToken';
 
 const commencementSchema=z.object({action:z.literal('commencement'),execution_lead_name:z.string().trim().min(2).max(200),execution_lead_role:z.string().trim().max(200).optional().default(''),planned_commencement_date:z.string().trim().min(8),forecast_delivery_date:z.string().trim().min(8),scope_reviewed:z.literal(true),inputs_received:z.literal(true),capacity_confirmed:z.literal(true),no_unresolved_blocker:z.literal(true),assumptions:z.string().trim().max(5000).optional().default(''),declaration_checked:z.literal(true),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
 const progressSchema=z.object({action:z.literal('progress'),progress_state:z.enum(['on_track','at_risk','blocked']),percent_complete:z.union([z.coerce.number().min(0).max(100),z.literal('')]).optional(),work_completed:z.string().trim().min(2).max(10000),work_in_progress:z.string().trim().min(2).max(10000),forecast_delivery_date:z.string().trim().optional().default(''),next_update_date:z.string().trim().optional().default(''),notes:z.string().trim().max(5000).optional().default(''),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
@@ -13,7 +14,12 @@ function admin(){const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const key=proces
 const hashToken=(token:string)=>createHash('sha256').update(token).digest('hex');
 
 async function loadSession(token:string){
-  const supabase=admin();const{data:session,error}=await supabase.from('partner_execution_sessions').select('*').eq('token_hash',hashToken(token)).maybeSingle();
+  const supabase=admin();
+  const signedSessionId=executionSessionIdFromToken(token);
+  const sessionQuery=supabase.from('partner_execution_sessions').select('*');
+  const{data:session,error}=signedSessionId
+    ? await sessionQuery.eq('id',signedSessionId).maybeSingle()
+    : await sessionQuery.eq('token_hash',hashToken(token)).maybeSingle();
   if(error||!session)return{supabase,session:null,assignment:null};
   if(new Date(session.expires_at).getTime()<Date.now()&&!['expired','revoked'].includes(session.status)){await supabase.from('partner_execution_sessions').update({status:'expired'}).eq('id',session.id);return{supabase,session:null,assignment:null};}
   if(['expired','revoked'].includes(session.status))return{supabase,session:null,assignment:null};
