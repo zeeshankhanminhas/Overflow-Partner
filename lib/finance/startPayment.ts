@@ -45,7 +45,7 @@ export async function resolveProjectStartPaymentGate(
       .maybeSingle(),
     supabase
       .from('payments')
-      .select('amount,status')
+      .select('amount,status,invoice_id')
       .eq('organisation_id', organisationId)
       .eq('project_id', projectId)
       .eq('status', 'cleared'),
@@ -67,7 +67,28 @@ export async function resolveProjectStartPaymentGate(
     currency = String(quote.currency || 'GBP').trim() || 'GBP';
   }
 
-  const received = (payments || []).reduce((sum, payment) => sum + amount(payment.amount), 0);
+  const invoiceIds = Array.from(new Set((payments || []).map(payment => String(payment.invoice_id || '')).filter(Boolean)));
+  let validInvoiceIds = new Set<string>();
+  if (invoiceIds.length > 0) {
+    const { data: invoices, error: invoicesError } = await supabase
+      .from('invoices')
+      .select('id,status')
+      .eq('organisation_id', organisationId)
+      .eq('project_id', projectId)
+      .in('id', invoiceIds);
+    if (invoicesError) throw new Error(invoicesError.message);
+    validInvoiceIds = new Set(
+      (invoices || [])
+        .filter(invoice => !['draft','cancelled','refunded'].includes(String(invoice.status)))
+        .map(invoice => String(invoice.id)),
+    );
+  }
+
+  // Only cleared money tied to a governed, non-draft Project invoice can unlock execution.
+  const received = (payments || []).reduce(
+    (sum, payment) => validInvoiceIds.has(String(payment.invoice_id || '')) ? sum + amount(payment.amount) : sum,
+    0,
+  );
   const depositPercent = amount(terms?.deposit_percent);
   const explicitRequired = amount(terms?.deposit_required_amount);
   const basis = terms?.authorisation_basis ? String(terms.authorisation_basis) : null;
