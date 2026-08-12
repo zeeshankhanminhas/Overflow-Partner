@@ -8,6 +8,13 @@ import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, Pr
 
 function money(value:number){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(value)}
 function approvalSource(source:string){return source==='acquisition'?'Acquisition':source==='commercial'?'Commercial':source==='document'?'Document control':'Payments'}
+function dependencyOwner(item:{stage:string;title:string;reason:string}){
+  if(item.stage==='partner')return 'Partner';
+  if(item.stage==='quote')return 'Client';
+  const text=`${item.title} ${item.reason}`.toLowerCase();
+  if(text.includes('client')||text.includes('customer')||text.includes('intake'))return 'Client';
+  return 'Internal';
+}
 
 export default async function WorkspacePage() {
   const { supabase, organisationId } = await requireUserContext();
@@ -106,7 +113,7 @@ export default async function WorkspacePage() {
           <ProductSectionHeader eyebrow="Waiting on" title="Dependencies" meta={`${attention.items.length} open`} />
           {dependencies.length ? <ProductRegister>
             {dependencies.map(item=><ProductRegisterRow href={item.href} key={`${item.id}-${item.title}`}>
-              <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{item.stage==='partner'?'Partner':item.stage==='client'?'Client':'Internal'}</ProductStatus>
+              <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{dependencyOwner(item)}</ProductStatus>
               <div><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div>
               <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
               <strong>Open →</strong>
