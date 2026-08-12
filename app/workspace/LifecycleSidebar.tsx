@@ -70,8 +70,8 @@ export default function LifecycleSidebar() {
         ? '/workspace/projects'
         : '';
 
-  const contextLabel = context?.type === 'acquisition' ? 'Prospect' : context?.type === 'case' ? 'Case' : 'Project';
-  const contextListLabel = context?.type === 'acquisition' ? 'All prospects' : context?.type === 'case' ? 'All cases' : 'All projects';
+  const contextLabel = context?.type === 'acquisition' ? 'Enquiry' : context?.type === 'case' ? 'Case' : 'Project';
+  const contextListLabel = context?.type === 'acquisition' ? 'All enquiries' : context?.type === 'case' ? 'All cases' : 'All projects';
 
   return <nav aria-label="Workspace navigation" className="lifecycle-nav">
     <div className="lifecycle-nav__overview">
@@ -88,51 +88,51 @@ export default function LifecycleSidebar() {
         <Link href={contextList}>← {contextListLabel}</Link>
         <Link className={pathname === contextHome ? 'active' : ''} href={contextHome}>Overview</Link>
         {context.type === 'case' ? <>
-          <Link className={pathname.startsWith(`/workspace/communications/lead/${context.id}`) ? 'active' : ''} href={`/workspace/communications/lead/${context.id}`}>Communications</Link>
+          <Link className={pathname.startsWith(`/workspace/communications/lead/${context.id}`) ? 'active' : ''} href={`/workspace/communications/lead/${context.id}`}>Messages</Link>
           <Link className={pathname === '/workspace/documents' && searchParams.get('lead') === context.id ? 'active' : ''} href={`/workspace/documents?lead=${context.id}`}>Documents</Link>
         </> : null}
         {context.type === 'project' ? <>
           <Link className={pathname === `/workspace/projects/${context.id}/delivery` ? 'active' : ''} href={`/workspace/projects/${context.id}/delivery`}>Delivery</Link>
-          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Execution</Link>
+          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Partner execution</Link>
           <Link className={pathname === '/workspace/documents' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
           <Link className={pathname === '/workspace/payments' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/payments?project=${context.id}`}>Payments</Link>
-          <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Communications</Link>
-          <Link className={pathname.startsWith('/workspace/commercial-control') && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/commercial-control?project=${context.id}`}>Commercial control</Link>
+          <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Messages</Link>
+          <Link className={pathname.startsWith('/workspace/commercial-control') && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/commercial-control?project=${context.id}`}>Commercial</Link>
         </> : null}
       </div>
     </section> : null}
 
-    <Area title="Work" description="Demand to delivery" open={pathname.startsWith('/workspace/acquisition') || pathname.startsWith('/workspace/leads') || pathname.startsWith('/workspace/assessments') || pathname.startsWith('/workspace/projects')}>
-      <Link className={pathname.startsWith('/workspace/acquisition') ? 'active' : ''} href="/workspace/acquisition/prospects">Acquisition</Link>
+    <Area title="Work" description="Enquiry to delivery" open={pathname.startsWith('/workspace/acquisition') || pathname.startsWith('/workspace/leads') || pathname.startsWith('/workspace/assessments') || pathname.startsWith('/workspace/projects')}>
+      <Link className={pathname.startsWith('/workspace/acquisition') ? 'active' : ''} href="/workspace/acquisition/prospects">Enquiries</Link>
       <Link className={pathname.startsWith('/workspace/leads') ? 'active' : ''} href="/workspace/leads">Cases</Link>
-      <Link className={pathname.startsWith('/workspace/assessments') ? 'active' : ''} href="/workspace/assessments">Assessments</Link>
+      <Link className={pathname.startsWith('/workspace/assessments') ? 'active' : ''} href="/workspace/assessments">Partner assessments</Link>
       <Link className={pathname.startsWith('/workspace/projects') ? 'active' : ''} href="/workspace/projects">Projects</Link>
     </Area>
 
-    <Area title="Commercial" description="Revenue, cash & supply" open={pathname.startsWith('/workspace/quotes') || pathname.startsWith('/workspace/payments') || pathname.startsWith('/workspace/commercial-control') || pathname.startsWith('/workspace/partners')}>
-      <Link className={pathname.startsWith('/workspace/quotes') ? 'active' : ''} href="/workspace/quotes">Quotes</Link>
+    <Area title="Commercial" description="Quotes, cash & supply" open={pathname.startsWith('/workspace/quotes') || pathname.startsWith('/workspace/payments') || pathname.startsWith('/workspace/commercial-control') || pathname.startsWith('/workspace/partners')}>
+      <Link className={pathname.startsWith('/workspace/quotes') ? 'active' : ''} href="/workspace/quotes">Client quotes</Link>
       <Link className={pathname.startsWith('/workspace/payments') ? 'active' : ''} href="/workspace/payments">Payments</Link>
       <Link className={pathname.startsWith('/workspace/commercial-control') ? 'active' : ''} href="/workspace/commercial-control">Commercial control</Link>
-      <Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Partners</Link>
+      <Link className={pathname.startsWith('/workspace/partners') ? 'active' : ''} href="/workspace/partners">Execution Partners</Link>
     </Area>
 
-    <Area title="Operations" description="Control & exceptions" open={pathname.startsWith('/workspace/exceptions') || pathname.startsWith('/workspace/documents') || pathname.startsWith('/workspace/tasks') || pathname.startsWith('/workspace/communications')}>
-      <Link className={pathname.startsWith('/workspace/exceptions') ? 'active' : ''} href="/workspace/exceptions">Exceptions</Link>
-      <Link className={pathname.startsWith('/workspace/tasks') ? 'active' : ''} href="/workspace/tasks">Tasks</Link>
+    <Area title="Operations" description="Actions, evidence & issues" open={pathname.startsWith('/workspace/exceptions') || pathname.startsWith('/workspace/documents') || pathname.startsWith('/workspace/tasks') || pathname.startsWith('/workspace/communications')}>
+      <Link className={pathname.startsWith('/workspace/exceptions') ? 'active' : ''} href="/workspace/exceptions">Issues</Link>
+      <Link className={pathname.startsWith('/workspace/tasks') ? 'active' : ''} href="/workspace/tasks">Actions</Link>
       <Link className={pathname.startsWith('/workspace/documents') ? 'active' : ''} href="/workspace/documents">Documents</Link>
-      <Link className={pathname.startsWith('/workspace/communications') ? 'active' : ''} href="/workspace/communications">Communications</Link>
+      <Link className={pathname.startsWith('/workspace/communications') ? 'active' : ''} href="/workspace/communications">Messages</Link>
     </Area>
 
     <Area title="Intelligence" description="Performance & assurance" open={pathname.startsWith('/workspace/intelligence') || pathname.startsWith('/workspace/risk') || pathname.startsWith('/workspace/knowledge')}>
-      <Link className={pathname.startsWith('/workspace/intelligence') ? 'active' : ''} href="/workspace/intelligence">Executive</Link>
-      <Link className={pathname.startsWith('/workspace/risk') ? 'active' : ''} href="/workspace/risk">Risk &amp; Compliance</Link>
+      <Link className={pathname.startsWith('/workspace/intelligence') ? 'active' : ''} href="/workspace/intelligence">Executive view</Link>
+      <Link className={pathname.startsWith('/workspace/risk') ? 'active' : ''} href="/workspace/risk">Risk &amp; compliance</Link>
       <Link className={pathname.startsWith('/workspace/knowledge') ? 'active' : ''} href="/workspace/knowledge">Knowledge</Link>
     </Area>
 
     <div className="lifecycle-nav__overview">
       <p className="op-nav-label">Admin</p>
       <Link className={isActive(pathname, '/workspace/search') ? 'active' : ''} href="/workspace/search">Search</Link>
-      <Link className={isActive(pathname, '/workspace/notifications') ? 'active' : ''} href="/workspace/notifications">Attention Centre</Link>
+      <Link className={isActive(pathname, '/workspace/notifications') ? 'active' : ''} href="/workspace/notifications">Attention</Link>
       <Link className={isActive(pathname, '/workspace/settings') ? 'active' : ''} href="/workspace/settings">Settings</Link>
     </div>
   </nav>;
