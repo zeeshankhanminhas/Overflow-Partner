@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useFormStatus } from 'react-dom';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 type TriggerTone = 'primary' | 'secondary' | 'quiet';
@@ -21,7 +22,7 @@ function triggerClass(tone: TriggerTone, extra = '') {
 }
 
 function useOverlay(open: boolean, close: () => void) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ function useOverlay(open: boolean, close: () => void) {
     const focusable = panel?.querySelector<HTMLElement>(
       'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
-    focusable?.focus();
+    (focusable || panel)?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -45,10 +46,14 @@ function useOverlay(open: boolean, close: () => void) {
       const items = Array.from(panel.querySelectorAll<HTMLElement>(
         'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       )).filter(item => item.offsetParent !== null);
-      if (items.length === 0) return;
+      if (items.length === 0) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
       const first = items[0];
       const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -86,7 +91,7 @@ export function ActionDialog({
   return <>
     <button ref={triggerRef} type="button" className={triggerClass(triggerTone, triggerClassName)} disabled={disabled} onClick={() => setOpen(true)}>{triggerLabel}</button>
     {open ? <div className="op-overlay op-dialog-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
-      <div ref={panelRef} className="op-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined}>
+      <div ref={panelRef as React.RefObject<HTMLDivElement>} className="op-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} tabIndex={-1}>
         <header className="op-interaction-header">
           <div><h2 id={titleId}>{title}</h2>{description ? <div id={descriptionId} className="op-interaction-description">{description}</div> : null}</div>
           <button type="button" className="op-interaction-close" onClick={close} aria-label="Close dialog">×</button>
@@ -115,7 +120,7 @@ export function ContextDrawer({
   return <>
     <button ref={triggerRef} type="button" className={triggerClass(triggerTone, triggerClassName)} disabled={disabled} onClick={() => setOpen(true)}>{triggerLabel}</button>
     {open ? <div className="op-overlay op-drawer-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
-      <aside ref={panelRef} className="op-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined}>
+      <aside ref={panelRef as React.RefObject<HTMLElement>} className="op-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} tabIndex={-1}>
         <header className="op-interaction-header">
           <div><h2 id={titleId}>{title}</h2>{description ? <div id={descriptionId} className="op-interaction-description">{description}</div> : null}</div>
           <button type="button" className="op-interaction-close" onClick={close} aria-label="Close panel">×</button>
@@ -124,6 +129,11 @@ export function ContextDrawer({
       </aside>
     </div> : null}
   </>;
+}
+
+export function PendingActionButton({ children, pendingLabel = 'Working…', className = 'button', disabled = false }: { children: ReactNode; pendingLabel?: ReactNode; className?: string; disabled?: boolean }) {
+  const { pending } = useFormStatus();
+  return <button className={className} type="submit" disabled={disabled || pending} aria-disabled={disabled || pending} aria-busy={pending}>{pending ? pendingLabel : children}</button>;
 }
 
 export function ProductDisclosure({ summary, children, className = '' }: { summary: ReactNode; children: ReactNode; className?: string }) {
@@ -147,7 +157,7 @@ export function ActionMenuLink({ href, children }: { href: string; children: Rea
 }
 
 export function InteractionToast({ children, urgent = false }: { children: ReactNode; urgent?: boolean }) {
-  return <div className="op-interaction-toast" role={urgent ? 'alert' : 'status'} aria-live={urgent ? 'assertive' : 'polite'}>{children}</div>;
+  return <div className="op-interaction-toast" role={urgent ? 'alert' : 'status'} aria-live={urgent ? 'assertive' : 'polite'} aria-atomic="true">{children}</div>;
 }
 
 export function WorkingAreaTabs({ items, current }: { items: Array<{ label: string; href: string; key: string }>; current: string }) {
