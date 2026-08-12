@@ -26,18 +26,112 @@ async function audit(supabase:any, organisationId:string, userId:string, project
 }
 
 async function commercialPartnerForProject(supabase:any, organisationId:string, projectId:string) {
-  const { data: project, error: projectError } = await supabase.from('projects').select('id,quote_id,due_date').eq('organisation_id',organisationId).eq('id',projectId).single();
+  const { data: project, error: projectError } = await supabase.from('projects').select('id,quote_id,start_date,due_date').eq('organisation_id',organisationId).eq('id',projectId).single();
   if(projectError||!project) throw new Error(projectError?.message||'Project not found.');
-  if(!project.quote_id) throw new Error('Accepted Quote linkage is required before Partner execution can be configured.');
+  if(!project.quote_id) throw new Error('An accepted Client Quote is required before work can be released to an Execution Partner.');
   const { data: quote, error: quoteError } = await supabase.from('quotes').select('commercial_review_id').eq('organisation_id',organisationId).eq('id',project.quote_id).single();
-  if(quoteError||!quote?.commercial_review_id) throw new Error('Commercial Review linkage is missing from the accepted Quote.');
+  if(quoteError||!quote?.commercial_review_id) throw new Error('The accepted commercial position could not be resolved.');
   const { data: review, error: reviewError } = await supabase.from('commercial_reviews').select('partner_quote_id').eq('organisation_id',organisationId).eq('id',quote.commercial_review_id).single();
   if(reviewError||!review?.partner_quote_id) throw new Error('Governed Partner pricing is missing from the accepted commercial position.');
   const { data: partnerQuote, error: partnerQuoteError } = await supabase.from('partner_quotes').select('partner_id').eq('organisation_id',organisationId).eq('id',review.partner_quote_id).single();
-  if(partnerQuoteError||!partnerQuote?.partner_id) throw new Error('Commercially selected Execution Partner could not be resolved.');
+  if(partnerQuoteError||!partnerQuote?.partner_id) throw new Error('The approved Execution Partner could not be resolved from the accepted commercial position.');
   return { project, partnerId:String(partnerQuote.partner_id) };
 }
 
+async function issueExecutionSession({supabase,organisationId,userId,projectId,assignment}:{supabase:any;organisationId:string;userId:string;projectId:string;assignment:any}) {
+  const placeholderToken=randomBytes(32).toString('base64url');
+  const placeholderHash=createHash('sha256').update(placeholderToken).digest('hex');
+  const due=assignment.committed_due_date?new Date(`${assignment.committed_due_date}T23:59:59Z`):new Date();
+  const minimumExpiry=new Date(Date.now()+90*24*60*60*1000);
+  due.setUTCDate(due.getUTCDate()+30);
+  const expiresAt=due.getTime()>minimumExpiry.getTime()?due:minimumExpiry;
+
+  await supabase.from('partner_execution_sessions').update({status:'revoked'}).eq('organisation_id',organisationId).eq('assignment_id',assignment.id).in('status',['invited','opened','active']);
+  const {data:session,error:sessionError}=await supabase.from('partner_execution_sessions').insert({
+    organisation_id:organisationId,assignment_id:assignment.id,project_id:projectId,partner_id:assignment.partner_id,
+    recipient_email:assignment.partner_contact_email,token_hash:placeholderHash,status:'invited',expires_at:expiresAt.toISOString(),created_by:userId,
+  }).select('id').single();
+  if(sessionError||!session)throw new Error(sessionError?.message||'Partner access could not be created.');
+
+  const signedToken=createExecutionSessionToken(session.id);
+  const signedHash=createHash('sha256').update(signedToken).digest('hex');
+  const {error:tokenError}=await supabase.from('partner_execution_sessions').update({token_hash:signedHash}).eq('id',session.id);
+  if(tokenError)throw new Error(tokenError.message);
+
+  const now=new Date().toISOString();
+  const {error:releaseError}=await supabase.from('project_execution_assignments').update({
+    execution_state:assignment.execution_state==='not_released'?'awaiting_acknowledgement':assignment.execution_state,
+    released_at:now,
+  }).eq('organisation_id',organisationId).eq('id',assignment.id);
+  if(releaseError)throw new Error(releaseError.message);
+
+  await audit(supabase,organisationId,userId,projectId,'partner_execution.secure_link_issued',{
+    assignmentId:assignment.id,sessionId:session.id,recipientEmail:assignment.partner_contact_email,
+    scopeDocumentId:assignment.scope_document_id,expiresAt:expiresAt.toISOString(),canonicalLifecycle:true,reopenableSignedLink:true,
+  });
+
+  const baseUrl=process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app';
+  return `${baseUrl}/execution/${signedToken}`;
+}
+
+/**
+ * Normal operator path.
+ * The UI supplies only the Project. Partner, scope, dates and recipient are derived from governed lineage.
+ * The assignment/session objects remain explicit in the database but are not separate operator jobs.
+ */
+export async function releasePartnerExecutionAction(formData:FormData){
+  const projectId=required(formData,'project_id');
+  let destination=`/workspace/projects/${projectId}/execution`;
+  try{
+    const {supabase,user,profile,organisationId}=await requireUserContext();
+    assertRole(profile.role,[...roles]);
+    const {project,partnerId}=await commercialPartnerForProject(supabase,organisationId,projectId);
+    const [{data:partner,error:partnerError},{data:scopes,error:scopeError},{data:existing,error:existingError}]=await Promise.all([
+      supabase.from('partners').select('id,company_name,contact_name,email,status,nda_signed').eq('organisation_id',organisationId).eq('id',partnerId).single(),
+      supabase.from('documents').select('id,reference,title,document_type,status,created_at').eq('organisation_id',organisationId).eq('project_id',projectId).in('document_type',['scope-of-work','statement-of-work']).in('status',['approved','issued','published']).eq('is_current_revision',true).order('created_at',{ascending:false}),
+      supabase.from('project_execution_assignments').select('*').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle(),
+    ]);
+    if(partnerError||!partner)throw new Error(partnerError?.message||'Execution Partner not found.');
+    if(partner.status!=='approved'||!partner.nda_signed)throw new Error(`${partner.company_name} is not ready for release. Complete Partner approval and NDA evidence first.`);
+    if(!partner.email)throw new Error(`Add a delivery email to ${partner.company_name} before release.`);
+    if(scopeError)throw new Error(scopeError.message);
+    const controlledScopes=scopes||[];
+    if(controlledScopes.length===0)throw new Error('No current approved Scope of Work or Statement of Work is available for this Project.');
+    if(controlledScopes.length>1)throw new Error('More than one current controlled execution scope is available. Resolve the current scope in Document Control before release.');
+    if(existingError)throw new Error(existingError.message);
+    if(existing&&!['not_released','awaiting_acknowledgement'].includes(String(existing.execution_state)))throw new Error('Partner execution has already commenced. The release basis is now locked.');
+
+    const scope=controlledScopes[0];
+    const payload={
+      organisation_id:organisationId,project_id:projectId,partner_id:partnerId,scope_document_id:scope.id,
+      partner_contact_name:partner.contact_name||null,partner_contact_email:String(partner.email).toLowerCase(),
+      planned_start_date:project.start_date||null,committed_due_date:project.due_date||null,
+      reporting_cadence:'milestone',release_notes:null,
+    };
+
+    let assignment:any;
+    if(existing){
+      const {data,error}=await supabase.from('project_execution_assignments').update(payload).eq('organisation_id',organisationId).eq('id',existing.id).select('*').single();
+      if(error||!data)throw new Error(error?.message||'Partner release could not be prepared.');
+      assignment=data;
+      await audit(supabase,organisationId,user.id,projectId,'partner_execution.assignment_updated',{assignmentId:existing.id,partnerId,scopeDocumentId:scope.id,canonicalLifecycle:true,derivedBySystem:true});
+    }else{
+      const {data,error}=await supabase.from('project_execution_assignments').insert({...payload,created_by:user.id}).select('*').single();
+      if(error||!data)throw new Error(error?.message||'Partner release could not be prepared.');
+      assignment=data;
+      await audit(supabase,organisationId,user.id,projectId,'partner_execution.assignment_created',{assignmentId:data.id,partnerId,scopeDocumentId:scope.id,canonicalLifecycle:true,derivedBySystem:true});
+    }
+
+    await issueExecutionSession({supabase,organisationId,userId:user.id,projectId,assignment});
+    refresh(projectId);
+    destination=executionUrl(projectId,{success:`Work released to ${partner.company_name}. Waiting for Partner commencement.`});
+  }catch(error){
+    destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Work could not be released to the Execution Partner.'});
+  }
+  redirect(destination);
+}
+
+// Compatibility/advanced path. Kept for existing callers and exceptional pre-commencement repair.
 export async function saveExecutionAssignmentAction(formData: FormData) {
   const projectId = required(formData, 'project_id');
   let destination = `/workspace/projects/${projectId}/execution`;
@@ -80,8 +174,8 @@ export async function saveExecutionAssignmentAction(formData: FormData) {
       const {data:assignment,error}=await supabase.from('project_execution_assignments').insert(payload).select('id').single();if(error||!assignment)throw new Error(error?.message||'Execution assignment could not be created.');
       await audit(supabase,organisationId,user.id,projectId,'partner_execution.assignment_created',{assignmentId:assignment.id,partnerId,scopeDocumentId,canonicalLifecycle:true});
     }
-    refresh(projectId);destination=executionUrl(projectId,{success:'Controlled Partner execution assignment saved.'});
-  }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Execution assignment could not be saved.'});}
+    refresh(projectId);destination=executionUrl(projectId,{success:'Partner release controls saved.'});
+  }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Partner release controls could not be saved.'});}
   redirect(destination);
 }
 
@@ -92,23 +186,13 @@ export async function generateExecutionLinkAction(formData: FormData) {
     const {data:assignment,error:assignmentError}=await supabase.from('project_execution_assignments')
       .select('id,project_id,partner_id,partner_contact_email,scope_document_id,execution_state,committed_due_date')
       .eq('organisation_id',organisationId).eq('project_id',projectId).single();
-    if(assignmentError||!assignment)throw new Error(assignmentError?.message||'Create the controlled execution assignment first.');
+    if(assignmentError||!assignment)throw new Error(assignmentError?.message||'Release the Project to the Execution Partner first.');
     if(!assignment.scope_document_id)throw new Error('Controlled execution scope is required before Partner release.');
-    if(['closed','cancelled'].includes(String(assignment.execution_state)))throw new Error('This execution assignment is no longer active.');
+    if(['closed','cancelled'].includes(String(assignment.execution_state)))throw new Error('This Partner execution is no longer active.');
 
-    const placeholderToken=randomBytes(32).toString('base64url');const placeholderHash=createHash('sha256').update(placeholderToken).digest('hex');
-    const due=assignment.committed_due_date?new Date(`${assignment.committed_due_date}T23:59:59Z`):new Date();const minimumExpiry=new Date(Date.now()+90*24*60*60*1000);due.setUTCDate(due.getUTCDate()+30);const expiresAt=due.getTime()>minimumExpiry.getTime()?due:minimumExpiry;
-    await supabase.from('partner_execution_sessions').update({status:'revoked'}).eq('organisation_id',organisationId).eq('assignment_id',assignment.id).in('status',['invited','opened','active']);
-    const {data:session,error:sessionError}=await supabase.from('partner_execution_sessions').insert({organisation_id:organisationId,assignment_id:assignment.id,project_id:projectId,partner_id:assignment.partner_id,recipient_email:assignment.partner_contact_email,token_hash:placeholderHash,status:'invited',expires_at:expiresAt.toISOString(),created_by:user.id}).select('id').single();
-    if(sessionError||!session)throw new Error(sessionError?.message||'Secure execution session could not be created.');
-
-    const signedToken=createExecutionSessionToken(session.id);const signedHash=createHash('sha256').update(signedToken).digest('hex');
-    const {error:tokenError}=await supabase.from('partner_execution_sessions').update({token_hash:signedHash}).eq('id',session.id);if(tokenError)throw new Error(tokenError.message);
-    const now=new Date().toISOString();const {error:releaseError}=await supabase.from('project_execution_assignments').update({execution_state:assignment.execution_state==='not_released'?'awaiting_acknowledgement':assignment.execution_state,released_at:now}).eq('organisation_id',organisationId).eq('id',assignment.id);if(releaseError)throw new Error(releaseError.message);
-    await audit(supabase,organisationId,user.id,projectId,'partner_execution.secure_link_issued',{assignmentId:assignment.id,sessionId:session.id,recipientEmail:assignment.partner_contact_email,scopeDocumentId:assignment.scope_document_id,expiresAt:expiresAt.toISOString(),canonicalLifecycle:true,reopenableSignedLink:true});
-    const baseUrl=process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app';const link=`${baseUrl}/execution/${signedToken}`;
-    refresh(projectId);destination=executionUrl(projectId,{success:'Secure Partner Execution link generated.',execution_link:link});
-  }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Execution link could not be generated.'});}
+    const link=await issueExecutionSession({supabase,organisationId,userId:user.id,projectId,assignment});
+    refresh(projectId);destination=executionUrl(projectId,{success:'Partner access link replaced.',execution_link:link});
+  }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Partner access link could not be replaced.'});}
   redirect(destination);
 }
 
