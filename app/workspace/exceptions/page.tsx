@@ -19,23 +19,23 @@ export default async function ExceptionsPage({searchParams}:{searchParams:Search
   const rows=all.filter(item=>(severity==='all'||item.severity===severity)&&(category==='all'||item.category===category));
 
   return <section className="saas-page exception-workspace">
-    <section className="saas-hero"><div className="saas-hero__inner"><div className="saas-hero__copy"><p className="vp-kicker">Exceptions</p><h1>See what is off-track before it becomes a problem.</h1><p className="vp-subtitle">One live queue for overdue, blocked, waiting and failed conditions across delivery, finance, documents and communications.</p></div><Link className="button secondary" href="/workspace/notifications">Notification Centre</Link></div></section>
+    <section className="saas-hero"><div className="saas-hero__inner"><div className="saas-hero__copy"><p className="vp-kicker">Issues</p><h1>See what is genuinely off-plan.</h1><p className="vp-subtitle">One intervention queue for blocked, overdue and failed conditions. Normal Partner, client and review waiting states do not appear here.</p></div><Link className="button secondary" href="/workspace/notifications">Notifications</Link></div></section>
 
-    <section className="saas-metrics" aria-label="Exception summary">
-      <article className="saas-metric"><span>Open exceptions</span><strong>{summary.total}</strong><small>Derived from live business state</small></article>
+    <section className="saas-metrics" aria-label="Issue summary">
+      <article className="saas-metric"><span>Open issues</span><strong>{summary.total}</strong><small>Derived from live business state</small></article>
       <article className="saas-metric"><span>Critical</span><strong>{summary.critical}</strong><small>Immediate intervention</small></article>
       <article className="saas-metric"><span>Overdue</span><strong>{summary.overdue}</strong><small>Past due date</small></article>
       <article className="saas-metric"><span>Blocked</span><strong>{summary.blocked}</strong><small>Cannot progress</small></article>
     </section>
 
     <section className="saas-section">
-      <div className="saas-section__header"><div><p className="vp-label">Focus</p><h2>Operational exception queue</h2></div><span>{rows.length} shown</span></div>
+      <div className="saas-section__header"><div><p className="vp-label">Focus</p><h2>Operational issue queue</h2></div><span>{rows.length} shown</span></div>
       <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12}}>{['all','critical','high','medium','low'].map(value=><Link className={`button ${severity===value?'':'secondary'}`} key={value} href={`/workspace/exceptions?severity=${value}&category=${category}`}>{firstLetter(value)}</Link>)}</div>
       <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:8}}>{['all','delivery','task','finance','document','communication'].map(value=><Link className={`button ${category===value?'':'secondary'}`} key={value} href={`/workspace/exceptions?severity=${severity}&category=${value}`}>{firstLetter(value)}</Link>)}</div>
     </section>
 
     <section className="saas-panel">
-      {rows.length===0?<div className="saas-empty"><strong>No exceptions in this view.</strong><p>When the underlying business condition clears, the exception disappears automatically.</p></div>:<div className="saas-action-list">
+      {rows.length===0?<div className="saas-empty"><strong>No issues in this view.</strong><p>When the underlying off-plan condition clears, the issue disappears automatically.</p></div>:<div className="saas-action-list">
         {rows.map((item,index)=><Link href={item.href} key={item.id} className="saas-action-row">
           <span className="saas-action-row__index">{String(index+1).padStart(2,'0')}</span>
           <div><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}><strong>{item.title}</strong><span className={`document-status document-status--${item.severity==='critical'?'changes_requested':item.severity==='high'?'in_review':'draft'}`}>{firstLetter(item.severity)}</span><span className="vp-row-status">{firstLetter(item.category)}</span></div><p>{item.detail}</p><small>{item.relatedLabel} · Owner: {item.owner}</small></div>
@@ -45,6 +45,6 @@ export default async function ExceptionsPage({searchParams}:{searchParams:Search
       </div>}
     </section>
 
-    <section className="vp-callout"><strong>Exceptions are state-driven.</strong><p>Resolve the underlying invoice, task, deliverable, document or message failure. The exception queue updates from the source record instead of maintaining a second manual status.</p></section>
+    <section className="vp-callout"><strong>Issues are state-driven.</strong><p>Resolve the underlying invoice, task, deliverable, overdue document action or message failure. The queue updates from the source record instead of maintaining a second manual status.</p></section>
   </section>;
 }
