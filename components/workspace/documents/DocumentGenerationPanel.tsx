@@ -32,7 +32,6 @@ type GeneratedDocument = {
   reference: string;
   title: string;
   status: string;
-  version: number;
   created_at: string;
 };
 
@@ -41,6 +40,7 @@ function documentUrl(document: GeneratedDocument, context: Props['context'], rec
   return `/workspace/documents/templates/${document.document_type}?${contextQuery}&document_record=${document.id}`;
 }
 
+/** Canonical normal-path presenter for current controlled-document requirements. */
 export default async function DocumentGenerationPanel({ context, recordId, quoteId, returnTo, stageLabel, items, generationError }: Props) {
   if (!items.length && !generationError) return null;
 
@@ -48,7 +48,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
   const ownershipColumn = context === 'case' ? 'lead_id' : 'project_id';
   const { data } = await supabase
     .from('documents')
-    .select('id,document_type,reference,title,status,version,created_at')
+    .select('id,document_type,reference,title,status,created_at')
     .eq('organisation_id', organisationId)
     .eq(ownershipColumn, recordId)
     .neq('status', 'superseded')
@@ -80,7 +80,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
       <div>
         <p className="vp-label">Documents · {stageLabel}</p>
         <h2 id={`${context}-documents-needed-now`}>Documents needed now</h2>
-        <p className="vp-subtitle">Only controlled-document work that affects the current decision appears here.</p>
+        <p className="vp-subtitle">Only controlled-document work that affects the current decision appears here. Completed and later-stage documents remain in the registry.</p>
       </div>
       <Link href={registryHref} className="button secondary">Open document registry</Link>
     </header>
