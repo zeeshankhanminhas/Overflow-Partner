@@ -1,0 +1,75 @@
+/* Wave 13 — real operating conditions. Loaded after Wave 12 reconciliation. */
+
+/* Keyboard focus is visible across the canonical interaction vocabulary. */
+.workspace :where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:2px solid currentColor!important;
+  outline-offset:3px!important;
+}
+.workspace :where(button,.button,a.button,summary){touch-action:manipulation}
+.workspace :where(button,.button,a.button,.op-working-tabs a,.op-action-menu>summary){min-height:40px}
+.workspace :where(input,select,textarea){min-height:42px}
+.workspace textarea{min-height:88px}
+.workspace label{display:grid;gap:6px}
+.workspace .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.workspace .permission-wait{display:inline-flex;align-items:center;min-height:34px;color:var(--saas-muted);font-size:11px;line-height:1.4}
+
+/* Dialogs and drawers remain fully usable with dynamic mobile browser chrome. */
+.op-overlay{overscroll-behavior:contain}
+.op-dialog,.op-drawer{max-height:calc(100dvh - 24px)}
+.op-drawer{height:100dvh}
+.op-interaction-body{overflow-wrap:anywhere}
+.op-interaction-body :where(input,select,textarea){width:100%;max-width:100%}
+.op-interaction-close{min-width:40px;min-height:40px}
+button[aria-busy='true']{cursor:progress;opacity:.72}
+button[aria-busy='true']::after{content:' ';display:inline-block;width:.72em;height:.72em;margin-left:.55em;border:1px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-.05em;animation:op-pending-spin .7s linear infinite}
+@keyframes op-pending-spin{to{transform:rotate(360deg)}}
+
+/* Registers keep operating truth on narrow screens instead of stacking every desktop field. */
+@media(max-width:760px){
+  .workspace .product-page-header{gap:14px}
+  .workspace .product-page-header__actions{width:100%}
+  .workspace .product-page-header__actions :where(.button,button,details){max-width:100%}
+  .workspace .product-filter-bar{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;scrollbar-width:thin}
+  .workspace .product-filter-bar>.button{flex:0 0 auto}
+  .workspace .product-filter-bar .product-toolbar__group{min-width:min(360px,82vw);margin-left:0!important}
+  .workspace .product-register-row{grid-template-columns:minmax(0,1fr) auto!important;gap:8px 12px!important;padding:13px 0!important}
+  .workspace .product-register-row>div:first-child{grid-column:1/2;min-width:0}
+  .workspace .product-register-row>.product-status{grid-column:2/3;grid-row:1;align-self:start}
+  .workspace .product-register-row>.product-row-actions{grid-column:1/-1;justify-content:flex-start}
+  .workspace .product-register-row>div:not(:first-child):not(.product-row-actions){grid-column:1/-1}
+  .workspace .product-register-row>span:empty{display:none!important}
+  .workspace .product-register-row p,.workspace .product-register-row small{max-width:100%;overflow-wrap:anywhere}
+  .project-portfolio-row{grid-template-columns:minmax(0,1fr) auto!important;gap:8px 12px!important}
+  .project-portfolio-row>[data-label='Project']{grid-column:1/-1!important}
+  .project-portfolio-row>[data-label='Operating state']{grid-column:1/-1!important}
+  .project-portfolio-row>[data-label='Owner'],
+  .project-portfolio-row>[data-label='Value'],
+  .project-portfolio-row>[data-label='Delivery']{display:none!important}
+  .project-portfolio-row>[data-label='Due'],
+  .project-portfolio-row>[data-label='Waiting on']{grid-column:auto!important}
+  .project-portfolio-row>[data-label='What happens next']{grid-column:1/-1!important;padding-top:8px;border-top:1px solid var(--saas-line)}
+  .op-working-tabs{margin-inline:-4px;padding-inline:4px;scroll-padding-inline:8px}
+  .op-working-tabs a{min-width:max-content}
+  .op-overlay{padding:0;align-items:flex-end}
+  .op-dialog,.op-drawer{width:100%;height:auto;max-height:92dvh;border-left:0;border-right:0;border-bottom:0}
+  .op-dialog{border-radius:0}
+  .op-drawer{height:min(92dvh,100%)}
+  .op-interaction-header{position:sticky;top:0;z-index:2;background:var(--op-surface,#fff)}
+  .record-workspace__decision-grid{display:grid!important;grid-template-columns:1fr!important}
+}
+
+@media(max-width:480px){
+  .workspace .product-metrics{grid-template-columns:1fr 1fr!important}
+  .workspace .product-metric{min-height:66px!important;padding:10px!important}
+  .workspace .product-metric small{display:none}
+  .workspace .product-filter-bar .product-toolbar__group{min-width:88vw}
+  .workspace .product-page-header h1{font-size:clamp(1.55rem,9vw,2rem)}
+  .op-interaction-header{padding:16px}
+  .op-interaction-body{padding:16px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .workspace *,
+  .workspace *::before,
+  .workspace *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
