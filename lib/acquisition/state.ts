@@ -1,9 +1,9 @@
 export const acquisitionStages = [
-  'Prospect',
-  'Customer intake',
-  'Internal review',
-  'Partner review',
-  'Partner response',
+  'Enquiry',
+  'Customer scope',
+  'Internal check',
+  'Partner assessment',
+  'Partner decision',
   'Go / No-Go',
   'Case created',
 ] as const;
@@ -67,82 +67,82 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
   const partnerApproved = ['approved','approved_with_conditions'].includes(String(input.partnerDecision || ''));
 
   let stageIndex = 0;
-  let currentState = 'Prospect captured';
-  let nextAction = 'Create technical intake';
-  let nextReason = 'Customer technical evidence is required before the opportunity can progress.';
+  let currentState = 'New enquiry';
+  let nextAction = 'Send technical intake';
+  let nextReason = 'We need the customer’s technical scope before this enquiry can move forward.';
   let actionKey: AcquisitionActionKey = 'create_intake';
   let waitingExternally = false;
 
   if (input.hasSession && !submitted && !converted) {
     stageIndex = 1;
-    currentState = 'Awaiting customer technical intake';
-    nextAction = 'Wait for customer submission';
-    nextReason = 'The secure Step 2 intake is with the customer. No internal decision is required yet.';
+    currentState = 'Waiting for customer';
+    nextAction = 'Wait for customer scope';
+    nextReason = 'The secure technical intake is with the customer. No internal action is needed yet.';
     actionKey = 'wait_customer';
     waitingExternally = true;
   }
 
   if (submitted && !input.hasPartnerRequest && !converted && !closed) {
     stageIndex = 2;
-    currentState = qualified ? 'Partner gate required before Case creation' : 'Customer intake received';
-    nextAction = 'Request governed partner review';
+    currentState = qualified ? 'Partner assessment still required' : 'Customer scope received';
+    nextAction = 'Send Partner assessment';
     nextReason = qualified
-      ? 'This Prospect carries a legacy qualified flag, but the new lifecycle does not trust that flag. A real partner response, pricing and Go / No-Go approval are still required.'
-      : 'The Step 2 evidence is complete enough to send a controlled technical and pricing request to an approved partner.';
+      ? 'This enquiry has an older qualified flag, but Partner feasibility, price and Go / No-Go evidence are still required.'
+      : 'The customer scope is ready for feasibility, capacity and price assessment by an approved Execution Partner.';
     actionKey = 'request_partner';
   }
 
   if (input.hasPartnerRequest && ['draft','invited','opened','in_progress'].includes(partnerStatus) && !converted) {
     stageIndex = 3;
-    currentState = partnerStatus === 'opened' || partnerStatus === 'in_progress' ? 'Partner review in progress' : 'Awaiting partner response';
-    nextAction = 'Wait for partner response';
-    nextReason = 'The controlled review pack is with the execution partner. Feasibility and partner pricing must come from the partner before Case 360 can exist.';
+    currentState = partnerStatus === 'opened' || partnerStatus === 'in_progress' ? 'Partner is assessing' : 'Waiting for Partner';
+    nextAction = 'Wait for Partner';
+    nextReason = 'The Execution Partner is assessing feasibility, capacity and price. No internal decision is due yet.';
     actionKey = 'wait_partner';
     waitingExternally = true;
   }
 
   if (input.hasPartnerResponse && partnerStatus === 'submitted' && !input.partnerDecision && !converted) {
     stageIndex = 4;
-    currentState = 'Partner response received';
-    nextAction = 'Review and record Go / No-Go';
+    currentState = 'Partner assessment received';
+    nextAction = 'Record Go / No-Go';
     nextReason = input.hasPartnerPricing
-      ? 'Partner feasibility, delivery position and pricing are ready for your governed approval decision.'
-      : 'The partner response is present but required pricing is missing. Approval must remain blocked.';
+      ? 'Partner feasibility, delivery position and price are ready for your decision.'
+      : 'The Partner assessment is present, but the required Partner price is missing.';
     actionKey = 'review_partner_response';
   }
 
   if (input.partnerDecision === 'clarification_required' && !converted) {
     stageIndex = 5;
-    currentState = 'Partner clarification required';
-    nextAction = 'Resolve partner clarification';
-    nextReason = 'The opportunity remains in Acquisition until the requested clarification is answered and approved.';
+    currentState = 'More Partner information needed';
+    nextAction = 'Resolve Partner clarification';
+    nextReason = 'This enquiry stays in Acquisition until the requested information is received and reviewed.';
     actionKey = 'resolve_clarification';
     waitingExternally = true;
   }
 
   if (partnerApproved && !converted && !closed) {
     stageIndex = 5;
-    currentState = 'Approved for Case creation';
-    nextAction = 'Create governed Case 360';
-    nextReason = 'A real partner response, partner pricing and internal Go / No-Go approval are complete. Case 360 may now own the opportunity.';
+    currentState = 'Ready to create Case';
+    nextAction = 'Create Case 360';
+    nextReason = 'Partner assessment, Partner price and Go / No-Go approval are complete. Case 360 can now take over.';
     actionKey = 'create_case';
   }
 
   if (closed) {
     stageIndex = 5;
-    currentState = 'Opportunity closed';
+    currentState = 'Enquiry closed';
     nextAction = 'No further action';
-    nextReason = 'The governed Go / No-Go decision closed this opportunity in Acquisition.';
+    nextReason = 'The Go / No-Go decision closed this enquiry.';
     actionKey = 'closed';
   }
 
   if (converted) {
     stageIndex = 6;
-    currentState = 'Converted to Case 360';
-    nextAction = 'Continue in Case 360';
+    currentState = 'Case 360 created';
+    nextAction = 'Open Case 360';
     nextReason = input.convertedCaseId
-      ? 'Acquisition is complete. Case 360 now owns the commercial conversion workflow.'
-      : 'Acquisition is complete, but the converted Case reference needs to be resolved.';
+      ? 'Acquisition is complete. Case 360 now owns scope formalisation and the commercial offer.'
+      : 'Acquisition is complete, but the Case reference needs to be resolved.';
     actionKey = 'open_case';
   }
 

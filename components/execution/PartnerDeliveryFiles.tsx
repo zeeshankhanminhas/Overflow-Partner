@@ -14,11 +14,11 @@ export default function PartnerDeliveryFiles({token,onStateChange}:{token:string
 
   const load=useCallback(async()=>{
     const response=await fetch(`/api/execution/${token}/files`,{cache:'no-store'});const body=await response.json();
-    if(!response.ok)throw new Error(body.message||'Unable to load engineering delivery files.');
+    if(!response.ok)throw new Error(body.message||'Unable to load delivery files.');
     const nextFiles=(body.files||[]) as DeliveryFile[];const nextLocked=Boolean(body.locked);const nextCycle=Number(body.execution_cycle||1);
     setFiles(nextFiles);setLocked(nextLocked);setCycle(nextCycle);onStateChange?.({count:nextFiles.length,locked:nextLocked,cycle:nextCycle});setLoading(false);
   },[token,onStateChange]);
-  useEffect(()=>{load().catch(error=>{setMessage(error instanceof Error?error.message:'Unable to load engineering delivery files.');setLoading(false);});},[load]);
+  useEffect(()=>{load().catch(error=>{setMessage(error instanceof Error?error.message:'Unable to load delivery files.');setLoading(false);});},[load]);
 
   async function prepare(file:File):Promise<PreparedUpload>{
     const response=await fetch(`/api/execution/${token}/files`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'prepare',filename:file.name,size:file.size,mimeType:file.type||'application/octet-stream'})});
@@ -34,28 +34,28 @@ export default function PartnerDeliveryFiles({token,onStateChange}:{token:string
       if(file.size>25*1024*1024){lastError=`${file.name} is larger than 25 MB.`;continue;}
       try{const prepared=await prepare(file);const supabase=createClient();const{error}=await supabase.storage.from(prepared.bucket).uploadToSignedUrl(prepared.path,prepared.token,file,{contentType:file.type||'application/octet-stream'});if(error)throw error;const registered=await finalize(prepared);setFiles(current=>{const next=[...current,registered];onStateChange?.({count:next.length,locked:false,cycle});return next;});uploaded+=1;}catch(error){lastError=error instanceof Error?error.message:`Unable to upload ${file.name}.`;}
     }
-    setMessage(lastError||`${uploaded} engineering output file${uploaded===1?'':'s'} uploaded securely.`);setBusy(false);if(inputRef.current)inputRef.current.value='';
+    setMessage(lastError||`${uploaded} file${uploaded===1?'':'s'} uploaded securely.`);setBusy(false);if(inputRef.current)inputRef.current.value='';
   }
   async function removeFile(file:DeliveryFile){
     setBusy(true);setMessage('');try{const response=await fetch(`/api/execution/${token}/files`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileId:file.id})});const body=await response.json();if(!response.ok)throw new Error(body.message||'Unable to remove the file.');setFiles(current=>{const next=current.filter(item=>item.id!==file.id);onStateChange?.({count:next.length,locked:false,cycle});return next;});setMessage(`${file.original_filename} removed.`);}catch(error){setMessage(error instanceof Error?error.message:'Unable to remove the file.');}setBusy(false);
   }
 
   const totalBytes=files.reduce((sum,file)=>sum+Number(file.size_bytes||0),0);
-  const packageState=locked?'Submitted · evidence locked':files.length?'Draft package · ready to submit':'Draft package · files required';
+  const packageState=locked?'Submitted · locked':files.length?'Ready to submit':'Files required';
 
-  return <section className="grid gap-5 border-y border-black/10 py-6" aria-label={`Engineering delivery package, execution cycle ${cycle}`}>
-    <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">Controlled delivery package</p><h3 className="text-xl font-semibold tracking-[-0.02em]">Execution cycle {String(cycle).padStart(2,'0')}</h3><p className="max-w-2xl text-sm leading-6 text-neutral-600">Attach the actual drawings, CAD/CAM outputs, models, programmes, BOMs or controlled output pack included in this delivery. The package is immutable after submission.</p></div>
+  return <section className="grid gap-5 border-y border-black/10 py-6" aria-label={`Delivery files, cycle ${cycle}`}>
+    <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">Delivery files</p><h3 className="text-xl font-semibold tracking-[-0.02em]">Cycle {String(cycle).padStart(2,'0')}</h3><p className="max-w-2xl text-sm leading-6 text-neutral-600">Add the drawings, CAD/CAM files, models, programmes, BOMs or output pack included in this delivery. Once you submit the delivery, these files become locked evidence.</p></div>
 
     <div className="grid grid-cols-2 border-y border-black/10 sm:grid-cols-4">
       <div className="border-b border-r border-black/10 py-4 pr-4 sm:border-b-0"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-500">Cycle</p><strong className="mt-1 block text-sm">{String(cycle).padStart(2,'0')}</strong></div>
       <div className="border-b border-black/10 py-4 pl-4 sm:border-b-0 sm:border-r"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-500">Files</p><strong className="mt-1 block text-sm">{files.length}</strong></div>
-      <div className="border-r border-black/10 py-4 pr-4 sm:pl-4"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-500">Payload</p><strong className="mt-1 block text-sm">{fileSize(totalBytes)}</strong></div>
-      <div className="py-4 pl-4"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-500">Package state</p><strong className="mt-1 block text-sm">{packageState}</strong></div>
+      <div className="border-r border-black/10 py-4 pr-4 sm:pl-4"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-500">Size</p><strong className="mt-1 block text-sm">{fileSize(totalBytes)}</strong></div>
+      <div className="py-4 pl-4"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-500">Status</p><strong className="mt-1 block text-sm">{packageState}</strong></div>
     </div>
 
-    {!locked?<div><label className={`inline-flex min-h-11 items-center border border-black/30 px-5 py-2.5 text-sm font-medium transition ${busy?'cursor-not-allowed opacity-50':'cursor-pointer hover:bg-black hover:text-white'}`}>{busy?'Uploading securely…':files.length?'Add engineering output files':'Choose engineering output files'}<input ref={inputRef} className="sr-only" type="file" multiple accept={ACCEPT} onChange={uploadSelected} disabled={busy}/></label></div>:<div className="border-l-2 border-black pl-4 text-sm leading-6 text-neutral-600"><strong className="block text-black">Submitted evidence</strong>This execution-cycle package is locked. Files cannot be replaced or removed after the Partner declaration is submitted.</div>}
+    {!locked?<div><label className={`inline-flex min-h-11 items-center border border-black/30 px-5 py-2.5 text-sm font-medium transition ${busy?'cursor-not-allowed opacity-50':'cursor-pointer hover:bg-black hover:text-white'}`}>{busy?'Uploading…':files.length?'Add more files':'Add delivery files'}<input ref={inputRef} className="sr-only" type="file" multiple accept={ACCEPT} onChange={uploadSelected} disabled={busy}/></label></div>:<div className="border-l-2 border-black pl-4 text-sm leading-6 text-neutral-600"><strong className="block text-black">Delivery submitted</strong>These files are locked to this delivery cycle and can no longer be changed.</div>}
 
-    {loading?<p className="text-sm text-neutral-500">Loading controlled delivery package…</p>:files.length?<div className="grid border-t border-black/10">{files.map((file,index)=><div key={file.id} className="grid gap-3 border-b border-black/10 py-4 sm:grid-cols-[42px_1fr_auto] sm:items-center"><span className="text-xs font-medium tabular-nums text-neutral-400">{String(index+1).padStart(2,'0')}</span><div className="min-w-0"><p className="truncate text-sm font-medium">{file.original_filename}</p><p className="mt-1 text-xs text-neutral-500">{fileSize(Number(file.size_bytes||0))} · {file.submission_id?'Locked to submitted delivery':'Staged in current cycle'}</p></div>{!locked&&!file.submission_id?<button type="button" className="text-left text-xs font-medium uppercase tracking-[0.08em] text-neutral-600 hover:text-black sm:text-right" onClick={()=>removeFile(file)} disabled={busy}>Remove</button>:<span className="text-xs text-neutral-500">{locked?'Locked':'Staged'}</span>}</div>)}</div>:<div className="border-l-2 border-orange-500 pl-4 text-sm leading-6 text-neutral-600">No engineering output files are attached. The delivery declaration cannot be submitted until at least one file is staged.</div>}
+    {loading?<p className="text-sm text-neutral-500">Loading files…</p>:files.length?<div className="grid border-t border-black/10">{files.map((file,index)=><div key={file.id} className="grid gap-3 border-b border-black/10 py-4 sm:grid-cols-[42px_1fr_auto] sm:items-center"><span className="text-xs font-medium tabular-nums text-neutral-400">{String(index+1).padStart(2,'0')}</span><div className="min-w-0"><p className="truncate text-sm font-medium">{file.original_filename}</p><p className="mt-1 text-xs text-neutral-500">{fileSize(Number(file.size_bytes||0))} · {file.submission_id?'Submitted':'Ready to submit'}</p></div>{!locked&&!file.submission_id?<button type="button" className="text-left text-xs font-medium uppercase tracking-[0.08em] text-neutral-600 hover:text-black sm:text-right" onClick={()=>removeFile(file)} disabled={busy}>Remove</button>:<span className="text-xs text-neutral-500">{locked?'Locked':'Ready'}</span>}</div>)}</div>:<div className="border-l-2 border-orange-500 pl-4 text-sm leading-6 text-neutral-600">Add at least one delivery file before submitting.</div>}
     {message?<p className="text-sm leading-6 text-neutral-600" role="status">{message}</p>:null}
   </section>;
 }

@@ -24,9 +24,9 @@ export default async function WorkspacePage() {
     const clarification=row.status==='clarification_required';
     return {
       id:`partner-${row.id}`,
-      title:internal?'Partner response ready for review':clarification?'Partner clarification needed':'Waiting on Partner response',
-      company:row.prospect?.company_name||'Acquisition prospect',
-      reason:internal?'Technical and pricing response is ready for an internal decision':clarification?'Clarification is holding up the next step':`${row.partner?.company_name||'Execution Partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,
+      title:internal?'Partner assessment ready':clarification?'Partner needs clarification':'Waiting for Partner',
+      company:row.prospect?.company_name||'Enquiry',
+      reason:internal?'Feasibility and price are ready for Go / No-Go':clarification?'More information is holding up the next step':`${row.partner?.company_name||'Execution Partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,
       waitingSince:row.submitted_at||row.sent_at||row.created_at,
       priority:internal?'high':'normal',
       href:`/workspace/acquisition/${row.prospect_id}${internal?'#approval-decision':''}`,
@@ -43,51 +43,51 @@ export default async function WorkspacePage() {
   return <section className="vp-page">
     <ProductPageHeader
       eyebrow="Mission Control"
-      title="Operating position"
-      description="One view of the next governed decision, external dependencies and work that has moved outside plan."
-      actions={<><Link className="button" href="/workspace/acquisition">Open acquisition</Link><Link className="button secondary" href="/workspace/exceptions">Open exceptions</Link></>}
+      title="What needs attention"
+      description="See the next action, who you are waiting on and anything that has moved off-plan."
+      actions={<><Link className="button" href="/workspace/acquisition">Open enquiries</Link><Link className="button secondary" href="/workspace/exceptions">Open issues</Link></>}
     />
 
-    <section className="operating-brief" aria-label="Current operating brief">
+    <section className="operating-brief" aria-label="Current operating position">
       <div className="operating-brief__primary">
-        <small>Next controlled decision</small>
+        <small>Next action</small>
         {nextDecision ? <>
           <h2>{nextDecision.title}</h2>
           <p><strong>{nextDecision.company}</strong> · {nextDecision.reason}</p>
-          <p style={{marginTop:6}}>Waiting {formatWaitingMinutes(nextDecision.waitingMinutes)} · {nextDecision.priority==='high'?'Priority attention':'Normal priority'}</p>
-          <Link href={nextDecision.href}>Open decision →</Link>
+          <p style={{marginTop:6}}>Waiting {formatWaitingMinutes(nextDecision.waitingMinutes)} · {nextDecision.priority==='high'?'Priority':'Normal priority'}</p>
+          <Link href={nextDecision.href}>Open →</Link>
         </> : <>
-          <h2>No governed decision is waiting.</h2>
-          <p>The operating queue is clear. New actions will surface here when an internal decision, Partner response or client outcome becomes due.</p>
+          <h2>Nothing needs a decision right now.</h2>
+          <p>The queue is clear. The next action will appear here when an internal decision, Partner response or client outcome is due.</p>
         </>}
       </div>
-      <div className="operating-brief__signals" aria-label="Control signals">
-        <div className="operating-brief__signal"><small>Internal decision</small><strong>{attention.waitingOnInternal}</strong></div>
+      <div className="operating-brief__signals" aria-label="Waiting on">
+        <div className="operating-brief__signal"><small>Your team</small><strong>{attention.waitingOnInternal}</strong></div>
         <div className="operating-brief__signal"><small>Execution Partner</small><strong>{attention.waitingOnPartner}</strong></div>
-        <div className="operating-brief__signal"><small>Client decision</small><strong>{attention.waitingOnClient}</strong></div>
+        <div className="operating-brief__signal"><small>Client</small><strong>{attention.waitingOnClient}</strong></div>
         <div className="operating-brief__signal"><small>Off-plan</small><strong>{exceptionSummary.total}</strong></div>
       </div>
     </section>
 
-    <ProductMetrics label="Operating control summary">
-      <ProductMetric label="Business decisions" value={attention.items.length} detail="Waiting on a person or external response" tone={attention.items.length?'attention':'complete'} />
-      <ProductMetric label="Operational exceptions" value={exceptionSummary.total} detail={`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`} tone={exceptionSummary.total?'attention':'complete'} />
-      <ProductMetric label="Overdue / blocked" value={exceptionSummary.overdue + exceptionSummary.blocked} detail="Conditions already outside plan" tone={exceptionSummary.overdue + exceptionSummary.blocked?'blocked':'complete'} />
+    <ProductMetrics label="Operations summary">
+      <ProductMetric label="Decisions waiting" value={attention.items.length} detail="Needs a person or external response" tone={attention.items.length?'attention':'complete'} />
+      <ProductMetric label="Issues" value={exceptionSummary.total} detail={`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`} tone={exceptionSummary.total?'attention':'complete'} />
+      <ProductMetric label="Overdue / blocked" value={exceptionSummary.overdue + exceptionSummary.blocked} detail="Already outside plan" tone={exceptionSummary.overdue + exceptionSummary.blocked?'blocked':'complete'} />
       <ProductMetric label="Active projects" value={dashboard.activeProjects} detail="Current delivery workload" tone={dashboard.activeProjects?'active':'neutral'} />
     </ProductMetrics>
 
     <div className="product-split">
       <section className="product-stack">
         <section className="product-panel">
-          <ProductSectionHeader eyebrow="Waiting on" title="Dependency position" />
+          <ProductSectionHeader eyebrow="Waiting on" title="Dependencies" />
           <div className="saas-signal-list">
-            <div className="saas-signal"><span>Internal decision</span><strong>{attention.waitingOnInternal}</strong></div>
+            <div className="saas-signal"><span>Your team</span><strong>{attention.waitingOnInternal}</strong></div>
             <div className="saas-signal"><span>Execution Partner</span><strong>{attention.waitingOnPartner}</strong></div>
-            <div className="saas-signal"><span>Client decision</span><strong>{attention.waitingOnClient}</strong></div>
+            <div className="saas-signal"><span>Client</span><strong>{attention.waitingOnClient}</strong></div>
           </div>
         </section>
         <section className="product-panel">
-          <ProductSectionHeader eyebrow="Exception watch" title="Operating health" />
+          <ProductSectionHeader eyebrow="Issues" title="Operating health" />
           <div className="saas-signal-list">
             <div className="saas-signal"><span>Critical</span><strong>{exceptionSummary.critical}</strong></div>
             <div className="saas-signal"><span>Overdue</span><strong>{exceptionSummary.overdue}</strong></div>
@@ -98,7 +98,7 @@ export default async function WorkspacePage() {
 
       <section className="product-stack">
         <section>
-          <ProductSectionHeader eyebrow="Priority queue" title="Governed decisions" meta={`${attention.items.length} open`} />
+          <ProductSectionHeader eyebrow="Priority queue" title="Decisions waiting" meta={`${attention.items.length} open`} />
           {businessActions.length ? <ProductRegister>
             {businessActions.map((item,index)=><ProductRegisterRow href={item.href} key={`${item.id}-${item.title}`}>
               <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{String(index+1).padStart(2,'0')}</ProductStatus>
@@ -106,11 +106,11 @@ export default async function WorkspacePage() {
               <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
               <strong>Open →</strong>
             </ProductRegisterRow>)}
-          </ProductRegister> : <ProductEmptyState title="No business decisions need attention" description="The queue will repopulate when a governed decision or external response is due." />}
+          </ProductRegister> : <ProductEmptyState title="No decisions waiting" description="The queue will repopulate when a decision or external response is due." />}
         </section>
 
         <section>
-          <ProductSectionHeader eyebrow="Exception queue" title="Off-track work" meta={<Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link>} />
+          <ProductSectionHeader eyebrow="Issues" title="Off-plan work" meta={<Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link>} />
           {exceptionActions.length ? <ProductRegister>
             {exceptionActions.map(item=><ProductRegisterRow href={item.href} key={item.id}>
               <ProductStatus tone={item.severity==='critical'?'critical':item.severity==='high'?'blocked':'attention'}>{item.severity}</ProductStatus>
@@ -118,7 +118,7 @@ export default async function WorkspacePage() {
               <div><small>Owner</small><strong style={{display:'block',marginTop:3}}>{item.owner}</strong></div>
               <strong>Open →</strong>
             </ProductRegisterRow>)}
-          </ProductRegister> : <ProductEmptyState title="No operational exceptions" description="Delivery, finance and task controls are currently within plan." />}
+          </ProductRegister> : <ProductEmptyState title="No issues" description="Delivery, finance and actions are currently within plan." />}
         </section>
       </section>
     </div>
