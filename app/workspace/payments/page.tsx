@@ -17,6 +17,7 @@ function paymentViewHref(view:string,selectedProject:string){const params=new UR
 export default async function PaymentsPage({searchParams}:{searchParams?:Promise<Record<string,string|string[]|undefined>>}){
   const params=searchParams?await searchParams:{};
   const selectedProject=first(params.project);
+  const requestedAction=first(params.action);
   const view=first(params.view)||'open';
   const {supabase,organisationId}=await requireUserContext();
 
@@ -56,6 +57,7 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
   const partnerOutstanding=sum(payableStates,item=>item.state.balance);
   const payableApprovals=payableStates.filter(item=>item.presentation.approval?.status==='ready').length;
   const selected=selectedProject?projectMap.get(selectedProject):null;
+  const focusedClientPayment=requestedAction==='record-payment'&&selectedProject?invoiceStates.find(({state})=>state.canRecordPayment):null;
 
   const invoiceMap=new Map(invoices.map(item=>[item.id,item]));
   const payableMap=new Map(payables.map(item=>[item.id,item]));
@@ -77,6 +79,8 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
     {params.updated?<ProductNotice title="Payment recorded" tone="complete"><p>{String(first(params.updated))}</p></ProductNotice>:null}
     {params.error?<ProductNotice title="Payment could not be recorded" tone="blocked"><p>{operatorErrorMessage(String(first(params.error)))}</p></ProductNotice>:null}
     {paymentsResult.error||partnerPaymentsResult.error?<ProductNotice title="Payment history is unavailable" tone="attention"><p>{operatorErrorMessage(String(paymentsResult.error?.message||partnerPaymentsResult.error?.message||''))}</p></ProductNotice>:null}
+
+    {focusedClientPayment?<div className="payments-owned-action"><ActionDialog title={`Record payment · ${focusedClientPayment.invoice.invoice_number}`} description="Payments owns settlement capture. Record only money that has actually been received/cleared." triggerLabel="Record payment" defaultOpen><form action={recordClientPaymentFromLedgerAction} className="stack"><input type="hidden" name="invoice_id" value={focusedClientPayment.invoice.id}/><input type="hidden" name="project_id" value={focusedClientPayment.invoice.project_id}/><label>Amount received<input name="amount" type="number" step="0.01" min="0.01" max={focusedClientPayment.state.balance||undefined} required defaultValue={focusedClientPayment.state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Settlement reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record cleared payment</button></form></ActionDialog></div>:requestedAction==='record-payment'?<ProductNotice title="No payment can be recorded yet" tone="waiting"><p>This Project has no eligible issued client invoice with an outstanding balance. Commercial control owns invoice creation/authority.</p></ProductNotice>:null}
 
     <ProductMetrics label="Settlement position">
       <ProductMetric label="Client received" value={money(collected)} detail="Recorded cleared client settlement" tone="complete" />
