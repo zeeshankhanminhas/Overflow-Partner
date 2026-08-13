@@ -9,7 +9,7 @@ export function ProductStatus({ children, tone = 'neutral' }: { children: ReactN
 }
 
 export function ProductProvenance({ source, children }: { source: ProductProvenanceSource; children?: ReactNode }) {
-  const label = children || ({ op: 'OP controlled', partner: 'Partner reported', system: 'System calculated', client: 'Client evidenced' } as const)[source];
+  const label = children || ({ op: 'Overflow Partner', partner: 'Partner reported', system: 'System calculated', client: 'Client confirmed' } as const)[source];
   return <span className={`product-provenance product-provenance--${source}`} data-provenance={source}><i aria-hidden="true" />{label}</span>;
 }
 
