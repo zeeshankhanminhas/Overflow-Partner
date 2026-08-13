@@ -47,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ documentId: s
 
   return <section>
     <div className="opds-print-hidden" style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
-      <div><p className="opds-eyebrow">Controlled document</p><h1>{doc.title}</h1></div>
+      <div><p className="opds-eyebrow">Document</p><h1>{doc.title}</h1></div>
       <div style={{ display: 'flex', gap: 10 }}><WorkflowStatus status={doc.status}/><Link className="button secondary" href="/workspace/documents">Back</Link></div>
     </div>
 
@@ -59,10 +59,10 @@ export default async function Page({ params }: { params: Promise<{ documentId: s
       title={doc.title}
       footer={<><span>Created {dateTime(doc.created_at)}</span><span className="opds-reference">Document ID {doc.id}</span></>}
     >
-      <p className="lede">This controlled record is linked to the Overflow Partner operating workflow. Its reference, revision, status and relationships are governed by OPDS.</p>
+      <p className="lede">This record shows the current document status, revision, signature and approval evidence.</p>
 
       <section style={{ marginTop: 40, borderTop: '1px solid var(--opds-line)', paddingTop: 24 }}>
-        <p className="opds-eyebrow">Document authorisation</p>
+        <p className="opds-eyebrow">Sign-off</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', border: '1px solid var(--opds-line)', marginTop: 14 }}>
           <div style={{ padding: 20, borderRight: '1px solid var(--opds-line)' }}>
             <small style={{ display: 'block', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--opds-subtle)' }}>Electronic signature</small>
@@ -81,18 +81,18 @@ export default async function Page({ params }: { params: Promise<{ documentId: s
               <span style={{ display: 'block', marginTop: 5 }}>{text(approval.approver_role)}</span>
               <small style={{ display: 'block', marginTop: 14, color: 'var(--opds-muted)' }}>Approved {dateTime(approval.approved_at || approvalEvent?.created_at)}</small>
               <small style={{ display: 'block', marginTop: 4, color: 'var(--opds-muted)' }}>{text(approval.approver_email)}</small>
-            </> : <p style={{ marginTop: 18, color: 'var(--opds-muted)' }}>Awaiting authorised approval.</p>}
+            </> : <p style={{ marginTop: 18, color: 'var(--opds-muted)' }}>Awaiting approval.</p>}
           </div>
         </div>
 
         {signature ? <p style={{ marginTop: 14, fontSize: 12, lineHeight: 1.6, color: 'var(--opds-muted)' }}>
-          Electronic-signature declaration: {text(signature.declaration)}
+          Signature declaration: {text(signature.declaration)}
         </p> : null}
       </section>
 
       <div style={{ marginTop: 40, borderTop: '1px solid var(--opds-line)', paddingTop: 24 }}>
-        <p className="opds-eyebrow">Document control</p>
-        <p>The electronic signature and approval evidence shown above are included when this document is printed or saved as PDF.</p>
+        <p className="opds-eyebrow">Record details</p>
+        <p>The signature and approval evidence shown above is included when this document is printed or saved as PDF.</p>
       </div>
     </OpdsDocumentFrame>
   </section>;
