@@ -15,6 +15,8 @@ type OverlayProps = {
   triggerTone?: TriggerTone;
   triggerClassName?: string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 function triggerClass(tone: TriggerTone, extra = '') {
@@ -74,6 +76,16 @@ function useOverlay(open: boolean, close: () => void) {
   return { panelRef, triggerRef };
 }
 
+function useControllableOpen(defaultOpen: boolean, controlledOpen?: boolean, onOpenChange?: (open: boolean) => void) {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+  return [open, setOpen] as const;
+}
+
 export function ActionDialog({
   title,
   description,
@@ -83,8 +95,10 @@ export function ActionDialog({
   triggerTone = 'primary',
   triggerClassName = '',
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
 }: OverlayProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useControllableOpen(defaultOpen, controlledOpen, onOpenChange);
   const titleId = useId();
   const descriptionId = useId();
   const close = () => setOpen(false);
@@ -113,8 +127,10 @@ export function ContextDrawer({
   triggerTone = 'secondary',
   triggerClassName = '',
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
 }: OverlayProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useControllableOpen(defaultOpen, controlledOpen, onOpenChange);
   const titleId = useId();
   const descriptionId = useId();
   const close = () => setOpen(false);
