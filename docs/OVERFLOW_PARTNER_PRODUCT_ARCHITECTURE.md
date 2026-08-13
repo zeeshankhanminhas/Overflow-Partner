@@ -1,81 +1,135 @@
 # Overflow Partner — Product Architecture
 
-This document is the canonical workspace information architecture and UI composition contract for the commercial SaaS product. The route inventory below is aligned with the production Next.js route manifest.
+This document is the canonical workspace information architecture and UI composition contract for the commercial SaaS product. The route inventory is broader than permanent navigation: routes exist for primary work, contextual work, utilities, compatibility and governed external experiences.
 
 ## Product model
 
 Overflow Partner is organised around four operating levels:
 
 1. **Portfolio** — triage work across many records.
-2. **Record** — make decisions on one Prospect, Case or Project.
-3. **Specialist control** — documents, payments, delivery, communications, tasks and assurance.
-4. **Management** — exceptions, intelligence and cross-business search.
+2. **Record** — make decisions on one Enquiry, Case or Project.
+3. **Specialist control** — documents, payments, commercial control, delivery, actions and assurance.
+4. **Management / utility** — executive signals, search, notification delivery and administration.
 
-A page must not duplicate a specialist module inside an Overview. Overview surfaces show only the summary and the next action, then link to the specialist control surface.
+A page must not duplicate a specialist module inside an Overview. Overview surfaces show only the summary and next action, then link to the owning specialist or record surface.
 
-## Canonical navigation and workspace route map
+## Navigation placement
+
+Every workspace destination is classified in `lib/presentation/navigationContract.ts` as:
+
+- **Primary** — persistent operating destination.
+- **Contextual** — reached from the record/lifecycle that owns it.
+- **Utility** — supporting search, delivery-health or administration access.
+
+The desktop rail intentionally exposes fewer destinations than the complete route map.
+
+### Permanent desktop rail
+
+**Home**
+- Mission Control
+- Approvals
+
+**Operate**
+- Enquiries
+- Cases
+- Projects
+
+**Control**
+- Client quotes
+- Payments
+- Commercial control
+- Issues
+- Actions
+
+**Reference**
+- Documents
+- Execution Partners
+- Executive view
+- Risk & compliance
+- Knowledge
+
+**System**
+- Settings
+
+Search is provided through the command palette. Notifications are a top-bar utility. Partner Assessments and Messages are contextual/quick-access surfaces rather than competing permanent workflows.
+
+## Canonical workspace route map
 
 ### Home
 - `/workspace` — Mission Control
+- `/workspace/approvals` — authority decision queue
 
-### Work
-- `/workspace/acquisition/prospects` — Prospect register
+### Operate
+- `/workspace/acquisition/prospects` — Enquiry register
 - `/workspace/acquisition` — Acquisition overview
-- `/workspace/acquisition/intake` — Internal technical-intake register
-- `/workspace/acquisition/[id]` — Prospect operating record
+- `/workspace/acquisition/intake` — internal Technical Intake register
+- `/workspace/acquisition/[id]` — Enquiry operating record
+- `/workspace/assessments` — contextual Acquisition Partner Assessment queue
 - `/workspace/leads` — Case register (technical route remains `leads`; UI language is **Case**)
 - `/workspace/leads/[id]` — Case 360
-- `/workspace/assessments` — Assessment operating queue
 - `/workspace/projects` — Project portfolio
 - `/workspace/projects/[id]` — Project 360
 - `/workspace/projects/[id]/delivery` — Project Delivery Control
+- `/workspace/projects/[id]/execution` — Project Execution Partner control
 
-### Commercial
-- `/workspace/quotes` — Controlled client quote register
-- `/workspace/payments` — Receivables, payables and cash movement
-- `/workspace/commercial-control` — Financial authorisation and commercial ledger controls
-- `/workspace/commercial-control/invoices/[id]` — Controlled invoice detail
-- `/workspace/partners` — Execution partner network
+### Commercial / control
+- `/workspace/quotes` — controlled client quote register
+- `/workspace/payments` — receivables, payables and cash movement
+- `/workspace/commercial-control` — financial authorisation and commercial ledger control
+- `/workspace/commercial-control/invoices/[id]` — controlled invoice detail
+- `/workspace/partners` — Execution Partner network
+- `/workspace/exceptions` — operational exception register
+- `/workspace/tasks` — cross-record action queue
 
-### Operations
-- `/workspace/exceptions` — Derived operational exception register
-- `/workspace/tasks` — Cross-record task queue
-- `/workspace/documents` — Controlled document register
-- `/workspace/documents/[documentId]` — Direct controlled document detail / authorisation evidence
-- `/workspace/documents/templates/[document]` — Controlled document template/viewer/review
-- `/workspace/communications` — Communication register
-- `/workspace/communications/[entityType]/[entityId]` — Case or Project communication timeline
+### Evidence / reference
+- `/workspace/documents` — controlled document registry
+- `/workspace/documents/[documentId]` — controlled document detail / authorisation evidence
+- `/workspace/documents/templates/[document]` — controlled document template/viewer/review
+- `/workspace/communications` — contextual cross-record correspondence register
+- `/workspace/communications/[entityType]/[entityId]` — Case or Project message timeline
+- `/workspace/intelligence` — management / executive view
+- `/workspace/risk` — Risk & compliance
+- `/workspace/knowledge` — governed knowledge
 
-### Intelligence
-- `/workspace/intelligence` — Management / Executive BI
-- `/workspace/risk` — Risk & Compliance
-- `/workspace/knowledge` — Enterprise knowledge
-
-### Admin / shared data
-- `/workspace/search` — Enterprise search
-- `/workspace/notifications` — Attention Centre and message-delivery status
-- `/workspace/settings` — Workspace administration
-- `/workspace/settings/developer-data` — Developer-only test cleanup where permitted
-- `/workspace/companies` — Master company register
-- `/workspace/companies/[companyId]` — Company 360 / relationship context
-- `/workspace/contacts` — Master contact register
-- `/workspace/users` — Current organisation membership and roles
-- `/workspace/activity` — Cross-workspace audit register
+### Utility / administration
+- `/workspace/search` — full workspace search surface; the command palette is the normal fast entry
+- `/workspace/notifications` — automated-message delivery health
+- `/workspace/settings` — workspace administration
+- `/workspace/settings/developer-data` — developer-only test cleanup where permitted
+- `/workspace/companies` — master company register
+- `/workspace/companies/[companyId]` — company relationship context
+- `/workspace/contacts` — master contact register
+- `/workspace/users` — organisation membership and roles
+- `/workspace/activity` — cross-workspace audit register
 
 ### Internal product-governance surface
-- `/workspace/opds` — Overflow Partner Engineering Design System reference. This is not a day-to-day operator navigation destination; it governs visual, language and controlled-reference conventions.
+- `/workspace/opds` — Overflow Partner Engineering Design System reference. This is not a day-to-day operator navigation destination.
 
 ### Compatibility routes retained intentionally
-These URLs remain so old bookmarks do not fail, but they no longer create parallel operating surfaces:
+These URLs remain so old bookmarks do not fail, but they do not create parallel operating surfaces:
 - `/workspace/commercial-reviews` → canonical Case `commercial-review` queue
 - `/workspace/partner-quotes` → canonical Case `partner-pricing` queue
 - `/workspace/orchestration` → canonical Cases register
+
+## Ownership boundaries
+
+- **Enquiry** owns qualification, Technical Intake collection and pre-Case Partner Assessment.
+- **Case 360** owns technical/commercial governance before delivery commitment.
+- **Client Quote** is a controlled offer; quote history does not become a parallel Case workflow.
+- **Project 360** owns accepted delivery and closeout.
+- **Documents** are workflow evidence; the Documents route is a controlled registry only.
+- **Messages** are correspondence; they do not contain activity/audit events.
+- **Issues** are genuinely off-plan work requiring intervention.
+- **Notifications** are delivery-engine health only: queued, sent, failed or cancelled automated messages.
+- **Commercial control** owns project financial authorisation; it is not a lifecycle stage.
+- **Pipeline Orchestration** is implementation logic, not a user workflow.
 
 ## Adjacent public and API routes
 
 ### Secure external experiences
 - `/intake/[token]` — customer technical intake
-- `/partner-review/[token]` — execution-partner review
+- `/partner-review/[token]` — Execution Partner review
+- `/execution/[token]` — controlled Execution Partner delivery experience
 - `/invoice/[token]` — externally accessible controlled invoice view
 - `/login` — workspace authentication
 
@@ -84,6 +138,8 @@ These URLs remain so old bookmarks do not fail, but they no longer create parall
 - `/api/intake/[token]`
 - `/api/intake/[token]/files`
 - `/api/partner-review/[token]`
+- `/api/execution/[token]`
+- `/api/execution/[token]/files`
 - `/api/notifications/process`
 - `/api/workspace/search`
 - `/api/workspace/lifecycle-context`
@@ -102,12 +158,12 @@ Every operating record follows this order:
 
 1. **Record header** — customer, title, reference, owner, due date, current state.
 2. **Lifecycle strip** — where the record sits, visually secondary to the decision.
-3. **Decision** — readiness and the next permitted action from one canonical state model.
-4. **Current work** — only the work relevant to the current stage.
-5. **Controlled evidence** — summary of required documents; detailed control belongs in Documents.
+3. **Decision** — readiness and next permitted action from one canonical state model.
+4. **Current work** — only work relevant to the current stage.
+5. **Controlled evidence** — summary of required evidence; detailed registry/control belongs in Documents.
 6. **More context** — history, metadata and audit collapsed by default.
 
-No record may show a green Ready state while any server-enforced transition gate is blocked.
+No record may show a Ready state while a server-enforced transition gate is blocked.
 
 ## Register composition
 
@@ -120,11 +176,11 @@ Portfolio/register pages use one learned pattern:
 - Pagination when required
 - Empty state with one useful next action
 
-At 20–100+ records the register is the primary operating surface. Individual 360 pages are opened only when action is required.
+At 20–100+ records the register is the primary scanning surface. Individual 360 pages are opened when action or evidence review is required.
 
 ## Semantic product states
 
-All modules map their domain statuses into the same visual semantics:
+All modules map domain statuses into the same visual semantics:
 
 - `neutral` — informational / historical
 - `active` — currently in work
@@ -143,9 +199,9 @@ A successful mutation must:
 1. show an in-progress control state;
 2. save through the canonical server action;
 3. return explicit success or error feedback;
-4. automatically reconcile the current Server Component data;
+4. reconcile current Server Component data;
 5. preserve record context, filters and intended focus;
-6. never require a manual browser refresh to make adjacent cards agree.
+6. never require a manual browser refresh to make adjacent surfaces agree.
 
 ## Desktop behaviour
 
@@ -153,20 +209,21 @@ Desktop favours scan density:
 
 - fixed navigation rail;
 - 1200–1320px operating canvas;
-- compact 40px controls;
+- compact controls;
 - dense registers and sticky table headers;
 - limited card usage;
-- details remain in dedicated specialist modules.
+- record context appears only while a record is being operated.
 
 ## Mobile behaviour
 
 Mobile is not stacked desktop:
 
 - sticky compact product header;
-- five primary destinations: Home, Acquire, Cases, Projects, Finance;
+- five persistent destinations: **Home, Enquiries, Cases, Projects, Finance**;
+- Finance opens Payments;
 - 44px touch targets;
-- portfolio tables become project cards rather than horizontally compressed columns;
-- metrics collapse to 2 columns and then 1 where needed;
+- portfolio tables become cards rather than horizontally compressed columns;
+- metrics collapse responsively;
 - lifecycle strips scroll horizontally;
 - secondary context stays collapsed;
 - actions remain near the decision they affect.
@@ -175,16 +232,17 @@ Mobile is not stacked desktop:
 
 Preferred product language:
 
-- **Prospect**, not lead, before qualification.
-- **Case**, not Lead 360, after qualification and before Project ownership.
-- **Project**, after accepted commercial work becomes delivery-owned.
-- **Assessment**, for technical / partner assessment queues.
-- **Commercial control**, for authorisation and financial controls.
-- **Payments**, for receivables, payables and cash movement.
-- **Attention Centre**, for operational exceptions plus notification delivery.
-- **Mission Control**, for the home operating dashboard.
+- **Enquiry / Prospect** before qualification.
+- **Case** after qualification and before Project ownership.
+- **Project** after accepted commercial work becomes delivery-owned.
+- **Partner Assessment** for Execution Partner feasibility/capacity/price review.
+- **Commercial control** for authorisation and project financial controls.
+- **Payments** for receivables, payables and cash movement.
+- **Issues** for operational exceptions.
+- **Notifications** for automated-message delivery health.
+- **Mission Control** for the home operating brief.
 
-Technical database and route names such as `leads` can remain for backwards compatibility but must not leak into operator-facing language.
+Technical database and route names such as `leads` may remain for compatibility but must not leak into operator-facing language.
 
 ## Visual contract
 
@@ -202,4 +260,4 @@ The UI should feel like a premium engineering operating system:
 
 ## Productisation rule
 
-New feature work must use the shared `ProductUI` primitives and the final commercial SaaS stylesheet before introducing a new page-specific visual system.
+New feature work must use the shared `ProductUI` primitives and the final commercial SaaS stylesheet before introducing a page-specific visual system. New routes do not earn permanent navigation by existing; placement must be justified in the navigation contract.
