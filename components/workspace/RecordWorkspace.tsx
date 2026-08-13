@@ -59,6 +59,7 @@ export default function RecordWorkspace({
 }: RecordWorkspaceProps) {
   const hasCurrentWork = Boolean(activities || communications);
   const hasSecondaryContext = Boolean(history || olderDocuments || metadata || audit);
+  const waitingOnly = Boolean(presentation?.nextAction.kind === 'wait');
 
   return <section className={`record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
@@ -78,12 +79,12 @@ export default function RecordWorkspace({
 
     <section className={`record-workspace__group record-workspace__group--decision ${presentation ? 'record-workspace__group--interpreted' : ''}`} aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
-        <p id="record-decision-area">{presentation ? 'Working details' : 'What happens next'}</p>
-        <span>{presentation ? 'Use these controls and checks only when the operating state above calls for them' : 'Your next action and the evidence needed before you can take it'}</span>
+        <p id="record-decision-area">{presentation ? 'Current checks' : 'What happens next'}</p>
+        <span>{presentation ? 'Only the checks relevant to the current stage' : 'Your next action and the evidence needed before you can take it'}</span>
       </div>
-      <div className="record-workspace__decision-grid">
-        <Slot id="record-next-action" title={presentation ? 'Action controls' : 'Next action'} className="record-workspace__slot--action">{nextAction}</Slot>
-        <Slot id="record-readiness" title={presentation ? 'Readiness details' : 'Ready to proceed?'} className="record-workspace__slot--readiness">{readiness}</Slot>
+      <div className={`record-workspace__decision-grid ${waitingOnly ? 'record-workspace__decision-grid--waiting' : ''}`}>
+        {waitingOnly ? null : <Slot id="record-next-action" title={presentation ? 'Next step' : 'Next action'} className="record-workspace__slot--action">{nextAction}</Slot>}
+        <Slot id="record-readiness" title={presentation ? 'Requirements' : 'Ready to proceed?'} className="record-workspace__slot--readiness">{readiness}</Slot>
         <Slot id="record-summary" title="Key details" className="record-workspace__slot--summary">{summary}</Slot>
       </div>
     </section>
@@ -91,10 +92,10 @@ export default function RecordWorkspace({
     {hasCurrentWork ? <section className="record-workspace__group" aria-labelledby="record-current-stage-work">
       <div className="record-workspace__group-heading">
         <p id="record-current-stage-work">Current work</p>
-        <span>Live activity and external updates</span>
+        <span>Live work and external updates</span>
       </div>
       <div className="record-workspace__primary-work">
-        {activities ? <Slot id="record-activities" title="Current position" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
+        {activities ? <Slot id="record-activities" title="Live work" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
         {communications ? <Disclosure id="record-communications" title="Messages" description="Open correspondence only when you need it">{communications}</Disclosure> : null}
       </div>
     </section> : null}
