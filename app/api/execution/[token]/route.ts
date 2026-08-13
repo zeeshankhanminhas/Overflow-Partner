@@ -52,6 +52,7 @@ export async function POST(request:Request,context:{params:Promise<{token:string
   try{
     const{token}=await context.params;const payload=submissionSchema.parse(await request.json());const{supabase,session,assignment}=await loadSession(token);if(!session||!assignment)return NextResponse.json({message:'This Partner Execution link is invalid, expired or revoked.'},{status:404});
     const{data:project,error:projectError}=await supabase.from('projects').select('id,project_stage').eq('id',assignment.project_id).single();if(projectError||!project)throw projectError||new Error('Project not found.');
+    const cycleComplete=assignment.execution_state==='delivery_submitted';
 
     if(payload.action==='commencement'){
       const{data:existing}=await supabase.from('partner_commencement_declarations').select('id').eq('assignment_id',assignment.id).maybeSingle();if(existing)return NextResponse.json({message:'A commencement declaration is already recorded for this execution assignment.'},{status:409});
@@ -61,6 +62,7 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     }
 
     if(payload.action==='progress'){
+      if(cycleComplete)return NextResponse.json({message:'This execution cycle is complete. Final delivery has been submitted and is awaiting Overflow Partner review.'},{status:409});
       const{data:commencement}=await supabase.from('partner_commencement_declarations').select('id').eq('assignment_id',assignment.id).maybeSingle();if(!commencement)return NextResponse.json({message:'Commencement must be declared before progress can be reported.'},{status:409});
       if(!['in_progress','partner_correction'].includes(String(project.project_stage)))return NextResponse.json({message:'Progress can be reported only during active execution or correction.'},{status:409});
       const{data,error}=await supabase.from('partner_progress_updates').insert({organisation_id:assignment.organisation_id,assignment_id:assignment.id,project_id:assignment.project_id,partner_id:assignment.partner_id,progress_state:payload.progress_state,percent_complete:payload.percent_complete===''||payload.percent_complete===undefined?null:payload.percent_complete,work_completed:payload.work_completed,work_in_progress:payload.work_in_progress,forecast_delivery_date:payload.forecast_delivery_date||null,next_update_date:payload.next_update_date||null,notes:payload.notes||null,submitted_by_name:payload.submitted_by_name,submitted_by_role:payload.submitted_by_role||null}).select('id,submitted_at').single();if(error)throw error;
@@ -68,13 +70,15 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     }
 
     if(payload.action==='exception'){
+      if(cycleComplete)return NextResponse.json({message:'This execution cycle is complete. Final delivery has been submitted and is awaiting Overflow Partner review.'},{status:409});
       if(!['ready_for_execution','in_progress','partner_correction'].includes(String(project.project_stage)))return NextResponse.json({message:'Execution exceptions can be raised only while release, execution or correction is active.'},{status:409});
       const{data,error}=await supabase.from('partner_execution_exceptions').insert({organisation_id:assignment.organisation_id,assignment_id:assignment.id,project_id:assignment.project_id,partner_id:assignment.partner_id,severity:payload.severity,title:payload.title,description:payload.description,delivery_impact:payload.delivery_impact||null,required_from:payload.required_from,status:'open',submitted_by_name:payload.submitted_by_name,submitted_by_role:payload.submitted_by_role||null}).select('id,raised_at').single();if(error)throw error;
       await supabase.from('project_execution_assignments').update({execution_state:'blocked'}).eq('id',assignment.id);await audit(supabase,assignment,'partner_execution.exception_raised',{exceptionId:data.id,raisedAt:data.raised_at,severity:payload.severity,title:payload.title,requiredFrom:payload.required_from});refreshProject(assignment.project_id);return NextResponse.json({success:true,message:'Execution exception raised and surfaced to Overflow Partner.'});
     }
 
+    if(cycleComplete)return NextResponse.json({message:'Final engineering delivery has already been submitted for this execution cycle. It is awaiting Overflow Partner review.'},{status:409});
     const{data,error}=await supabase.rpc('op_record_partner_delivery_submission',{p_assignment_id:assignment.id,p_session_id:session.id,p_revision:payload.revision||'',p_delivery_summary:payload.delivery_summary,p_deliverables_manifest:payload.deliverables_manifest,p_submitted_by_name:payload.submitted_by_name,p_submitted_by_role:payload.submitted_by_role||''});if(error)throw error;
     refreshProject(assignment.project_id);
-    return NextResponse.json({success:true,execution_cycle:data?.executionCycle||assignment.execution_cycle||1,file_count:data?.fileCount||0,message:`Engineering delivery submitted with ${data?.fileCount||0} attached output file${Number(data?.fileCount||0)===1?'':'s'} for Overflow Partner internal review.`});
+    return NextResponse.json({success:true,execution_cycle:data?.executionCycle||assignment.execution_cycle||1,file_count:data?.fileCount||0,execution_state:'delivery_submitted',message:`Final engineering delivery submitted with ${data?.fileCount||0} attached output file${Number(data?.fileCount||0)===1?'':'s'}. Partner execution is complete for this cycle and is awaiting Overflow Partner internal review.`});
   }catch(error){if(error instanceof z.ZodError)return NextResponse.json({message:error.issues[0]?.message||'Please check the execution update.'},{status:400});console.error('Partner execution submission failed',error);return NextResponse.json({message:error instanceof Error?error.message:'Unable to record this Partner Execution update.'},{status:500});}
 }
