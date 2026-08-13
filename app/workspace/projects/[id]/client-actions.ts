@@ -20,8 +20,8 @@ export async function recordClientTransmittalAction(formData:FormData){
     });
     if(error)throw new Error(error.message);refresh(projectId);
     const reference=String(data?.transmittal?.transmittal_reference||'');
-    destination=projectUrl(projectId,{advanced:'issued_to_client',updated:reference?`Client transmittal ${reference} recorded.`:'Controlled client transmittal recorded.',focus:'record-next-action'});
-  }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client transmittal could not be recorded.',focus:'record-next-action'});}
+    destination=projectUrl(projectId,{advanced:'issued_to_client',updated:reference?`Client delivery ${reference} recorded.`:'Client delivery recorded.',focus:'record-next-action'});
+  }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client delivery could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }
 
@@ -35,7 +35,7 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
     });
     if(error)throw new Error(error.message);refresh(projectId);
     const projectStage=String(data?.projectStage||'client_review');
-    destination=projectUrl(projectId,{updated:`Client Review outcome recorded: ${outcome.replaceAll('_',' ')}.`,...(projectStage==='partner_correction'?{advanced:'partner_correction'}:{}),focus:'record-next-action'});
-  }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client Review outcome could not be recorded.',focus:'record-next-action'});}
+    destination=projectUrl(projectId,{updated:`Client outcome recorded: ${outcome.replaceAll('_',' ')}.`,...(projectStage==='partner_correction'?{advanced:'partner_correction'}:{}),focus:'record-next-action'});
+  }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client outcome could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }
