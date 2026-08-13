@@ -128,8 +128,21 @@
   gap: 12px;
 }
 
+.record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid--waiting {
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr);
+  grid-template-areas: 'readiness summary';
+}
+
 .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__slot {
   min-height: 0;
+}
+
+.project-os-page .project-os-progress-footer p {
+  display: none;
+}
+
+.project-os-page .operating-work-summary > div:first-child {
+  display: none;
 }
 
 .governed-action.is-waiting {
@@ -188,11 +201,15 @@
     border-left: 0;
     border-top: 1px solid var(--op-line, rgba(127,127,127,.24));
   }
-  .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid {
+  .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid,
+  .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid--waiting {
     grid-template-columns: 1fr 1fr;
   }
   .record-workspace--interpreted .record-workspace__slot--summary {
     grid-column: 1 / -1;
+  }
+  .record-workspace--interpreted .record-workspace__decision-grid--waiting .record-workspace__slot--summary {
+    grid-column: auto;
   }
   .approvals-register .product-register-row {
     grid-template-columns: minmax(110px,.6fr) minmax(220px,1.8fr) minmax(90px,.7fr) auto;
@@ -214,10 +231,13 @@
   .operating-state h2 {
     font-size: 1.45rem;
   }
-  .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid {
+  .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid,
+  .record-workspace--interpreted .record-workspace__group--interpreted .record-workspace__decision-grid--waiting {
     grid-template-columns: 1fr;
+    grid-template-areas: none;
   }
-  .record-workspace--interpreted .record-workspace__slot--summary {
+  .record-workspace--interpreted .record-workspace__slot--summary,
+  .record-workspace--interpreted .record-workspace__decision-grid--waiting .record-workspace__slot--summary {
     grid-column: auto;
   }
   .approval-principle {
