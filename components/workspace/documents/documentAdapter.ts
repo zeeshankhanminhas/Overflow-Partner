@@ -73,6 +73,9 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     fact('Contact', lead.contact_name), fact('Owner', lead.owner_id), fact('Priority', lead.priority),
   ];
   let facts: DocumentAdapterFact[] = common;
+  const startPercent = number(quote?.start_payment_percent ?? commercial?.start_payment_percent);
+  const startAmount = number(quote?.total) * startPercent / 100;
+  const paymentTermsDays = quote?.payment_terms_days ?? commercial?.payment_terms_days;
 
   switch (slug) {
     case 'partner-technical-assessment-report':
@@ -88,6 +91,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
       facts = [...common,
         fact('Partner cost', money(commercial?.cost_price, quote?.currency)), fact('Client price', money(commercial?.client_price, quote?.currency)),
         fact('Margin amount', money(commercial?.margin_amount, quote?.currency)), fact('Margin', commercial?.margin_percent !== undefined ? `${number(commercial.margin_percent).toFixed(1)}%` : null),
+        fact('Start payment', startPercent > 0 ? `${startPercent}%` : null), fact('Payment terms', paymentTermsDays !== null && paymentTermsDays !== undefined ? `${number(paymentTermsDays)} days` : null),
         fact('Approval state', commercial?.status), fact('Approved at', date(commercial?.approved_at)),
       ]; break;
     case 'client-quote':
@@ -96,6 +100,8 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
       facts = [...common,
         fact('Quote number', quote?.quote_number), fact('Revision', quote?.revision), fact('Subtotal', money(quote?.subtotal, quote?.currency)),
         fact('VAT', money(quote?.vat, quote?.currency)), fact('Total', money(quote?.total, quote?.currency)),
+        fact('Required start payment', startPercent > 0 ? `${money(startAmount, quote?.currency)} · ${startPercent}%` : null),
+        fact('Payment terms', paymentTermsDays !== null && paymentTermsDays !== undefined ? `${number(paymentTermsDays)} days` : null),
         fact('Valid until', date(quote?.valid_until)), fact('Quote status', quote?.status),
       ]; break;
     case 'scope-of-work':
@@ -132,6 +138,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
   const warnings: string[] = [];
   if (!intake && ['scope-of-work','statement-of-work','client-requirements','requirement-sheet','partner-technical-assessment-report'].includes(slug)) warnings.push('No technical intake is linked to this case.');
   if (!quote && ['client-quote','quote','proposal','invoice'].includes(slug)) warnings.push('No client quote is linked to this case.');
+  if (quote && ['client-quote','quote','proposal'].includes(slug) && number(quote.total)>0 && startPercent<=0) warnings.push('Positive-value Client Quote is missing its governed start-payment term.');
   if (!project && ['handover-pack','completion-report','invoice'].includes(slug)) warnings.push('No delivery project is linked to this case.');
 
   return {

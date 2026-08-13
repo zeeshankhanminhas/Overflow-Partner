@@ -1,43 +1,38 @@
-import { requireUserContext } from '@/lib/auth/context';
+import Link from 'next/link';
+import { hasRole, requireUserContext } from '@/lib/auth/context';
 import { listPartners } from '@/lib/repositories/workflow';
 import { createPartnerFormAction } from '../workflow-actions';
+import { approvePartnerAction, suspendPartnerAction } from './actions';
 import { workspaceLabel } from '@/lib/presentation/vocabulary';
-import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
+import { ActionDialog, PendingActionButton } from '@/components/workspace/InteractionPrimitives';
+import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 function tone(status:string):ProductTone{if(status==='approved')return 'complete';if(status==='suspended')return 'blocked';if(status==='prospective')return 'waiting';return 'neutral'}
+type View='all'|'approved'|'prospective'|'suspended';
+const partnerAuthorityRoles=['owner','admin','commercial'] as const;
 
 export default async function PartnersPage({ searchParams }: { searchParams?: Promise<Record<string,string|undefined>> }) {
-  const params=searchParams?await searchParams:{};
-  const {supabase,organisationId}=await requireUserContext();
+  const params=searchParams?await searchParams:{};const q=String(params.q||'').trim();const requested=String(params.view||'all');const view=(['all','approved','prospective','suspended'].includes(requested)?requested:'all') as View;
+  const {supabase,organisationId,profile}=await requireUserContext();
+  const canManageAuthority=hasRole(profile.role,partnerAuthorityRoles);
   const partners=await listPartners(supabase,organisationId);
   const approved=partners.filter(p=>p.status==='approved').length;
   const ndaReady=partners.filter(p=>p.nda_signed).length;
-  const needsNda=partners.filter(p=>p.status==='approved'&&!p.nda_signed).length;
+  let visible=partners;if(view!=='all')visible=visible.filter(p=>p.status===view);if(q){const needle=q.toLowerCase();visible=visible.filter(p=>[p.company_name,p.country,p.services,p.contact_name,p.email].some(value=>String(value||'').toLowerCase().includes(needle)));}
+  const href=(nextView:View)=>{const search=new URLSearchParams();if(nextView!=='all')search.set('view',nextView);if(q)search.set('q',q);const suffix=search.toString();return `/workspace/partners${suffix?`?${suffix}`:''}`;};
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Commercial · Partners" title="Execution partner network" description="Manage partner readiness, NDA status and delivery capability from one controlled directory. Assignment remains attached to the Prospect or Case that needs the work." actions={<details><summary className="button">Add partner</summary><div className="vp-toolbar-panel"><form action={createPartnerFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><input className={input} name="company_name" placeholder="Company name" required/><input className={input} name="country" placeholder="Country"/><input className={input} name="contact_name" placeholder="Contact name"/><input className={input} name="email" type="email" placeholder="Email"/><input className={input} name="phone" placeholder="Phone"/><select className={input} name="status" defaultValue="prospective"><option value="prospective">Prospective</option><option value="approved">Approved</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select><select className={input} name="nda_signed" defaultValue="false"><option value="false">NDA not signed</option><option value="true">NDA signed</option></select><input className={input} name="rating" type="number" min="0" max="5" step="0.1" placeholder="Rating"/></div><textarea className={input} name="services" required rows={3} placeholder="Capabilities and services"/><textarea className={input} name="notes" rows={3} placeholder="Notes"/><button className="button">Add partner</button></form></div></details>} />
-
-    {params.created?<ProductNotice title="Partner added" tone="complete"><p>The partner is now available for governed review and assignment.</p></ProductNotice>:null}
-    {params.error?<ProductNotice title="Partner could not be added" tone="blocked"><p>Review the partner details and try again.</p></ProductNotice>:null}
-
-    <ProductMetrics label="Partner network summary">
-      <ProductMetric label="Network" value={partners.length} detail="Execution partners on record" />
-      <ProductMetric label="Approved" value={approved} detail="Available for governed assignment" tone={approved?'complete':'neutral'} />
-      <ProductMetric label="NDA ready" value={ndaReady} detail="Partners with signed confidentiality control" />
-      <ProductMetric label="Approved / NDA missing" value={needsNda} detail="Readiness gap requiring attention" tone={needsNda?'attention':'complete'} />
-    </ProductMetrics>
-
+    <ProductPageHeader eyebrow="Commercial · Partners" title="Execution partner network" description="Maintain Partner identity and selection-relevant capability here. Approval and suspension are explicit authority actions; NDA and performance remain governed evidence." actions={<ActionDialog title="Add execution partner" triggerLabel="Add partner" description="Create the Partner identity and capability record. New Partners always start as Prospective."><form action={createPartnerFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><label>Company name<input className={input} name="company_name" required/></label><label>Country<input className={input} name="country"/></label><label>Contact name<input className={input} name="contact_name"/></label><label>Email<input className={input} name="email" type="email"/></label><label>Phone<input className={input} name="phone"/></label></div><label>Capabilities and services<textarea className={input} name="services" required rows={3}/></label><label>Optional context<textarea className={input} name="notes" rows={3}/></label><PendingActionButton pendingLabel="Adding partner…">Add prospective partner</PendingActionButton></form></ActionDialog>} />
+    {params.created?<ProductNotice title="Partner added" tone="complete"><p>The Partner starts as Prospective. Approval is a separate authority decision after the relevant evidence is available.</p></ProductNotice>:null}{params.updated?<ProductNotice title="Partner authority updated" tone="complete"><p>{params.updated}</p></ProductNotice>:null}{params.error?<ProductNotice title="Partner action could not be completed" tone="blocked"><p>{params.error}</p></ProductNotice>:null}
+    <ProductMetrics label="Partner network summary"><ProductMetric label="Network" value={partners.length} detail="Execution partners on record" /><ProductMetric label="Approved" value={approved} detail="Currently approved for governed selection" tone={approved?'complete':'neutral'} /><ProductMetric label="NDA ready" value={ndaReady} detail="Signed confidentiality evidence on record" /></ProductMetrics>
+    <ProductFilterBar>
+      {(['all','approved','prospective','suspended'] as View[]).map(key=><Link key={key} className={`button ${view===key?'':'secondary'}`} href={href(key)}>{key==='all'?'All Partners':workspaceLabel(key)}</Link>)}
+      <form method="get" className="product-toolbar__group" style={{marginLeft:'auto',flex:'1 1 280px',justifyContent:'flex-end'}}>{view!=='all'?<input type="hidden" name="view" value={view}/>:null}<label className="sr-only" htmlFor="partner-search">Search Partner or capability</label><input id="partner-search" name="q" type="search" defaultValue={q} placeholder="Search Partner or capability"/><button className="button secondary">Search</button>{q?<Link className="button secondary" href={href(view).split('?')[0]+(view!=='all'?`?view=${view}`:'')}>Clear</Link>:null}</form>
+    </ProductFilterBar>
     <section>
-      <ProductSectionHeader eyebrow="Partner register" title="Execution partners" meta="Use partner performance in Executive Intelligence when comparing response reliability." />
-      {partners.length===0?<ProductEmptyState title="No execution partners yet" description="Add a partner to make them available for technical review and delivery assignment." />:<ProductRegister>
-        {partners.map(p=><ProductRegisterRow key={p.id}>
-          <div><strong>{p.company_name}</strong><p>{p.services||'Capabilities not recorded'}{p.country?` · ${p.country}`:''}</p></div>
-          <ProductStatus tone={tone(p.status)}>{workspaceLabel(p.status)}</ProductStatus>
-          <div><small>Commercial readiness</small><strong style={{display:'block',marginTop:3}}>{p.nda_signed?'NDA ready':'NDA required'}</strong></div>
-          <div><small>Rating</small><strong style={{display:'block',marginTop:3}}>{p.rating!==null?`${p.rating}/5`:'Not rated'}</strong></div>
-        </ProductRegisterRow>)}
-      </ProductRegister>}
+      <ProductSectionHeader eyebrow="Partner register" title={`${visible.length} execution partner${visible.length===1?'':'s'}`} meta="Capability, authority and current readiness only. Performance is shown only where evidence exists." />
+      {visible.length===0?<ProductEmptyState title="No Partners match this view" description="Change the filter or search term to broaden the register." />:<ProductRegister>{visible.map(p=><ProductRegisterRow key={p.id}><div><strong>{p.company_name}</strong><p>{p.services||'Capabilities not recorded'}{p.country?` · ${p.country}`:''}</p></div><ProductStatus tone={tone(p.status)}>{workspaceLabel(p.status)}</ProductStatus><div><small>Readiness</small><strong style={{display:'block',marginTop:3}}>{p.nda_signed?'NDA evidence complete':'NDA evidence pending'}</strong>{p.rating!==null?<small style={{display:'block',marginTop:4}}>Performance evidence · {p.rating}/5</small>:null}</div><div className="product-row-actions">{canManageAuthority&&p.status!=='approved'?<ActionDialog title={p.status==='suspended'?'Restore Partner approval':'Approve Partner'} triggerLabel={p.status==='suspended'?'Restore approval':'Approve'} triggerTone="secondary" description="This is an explicit commercial authority action. It changes Partner availability for governed selection."><form action={approvePartnerAction} className="stack"><input type="hidden" name="partner_id" value={p.id}/><p><strong>{p.company_name}</strong></p><p>Confirm that the available Partner evidence supports approval.</p><PendingActionButton pendingLabel="Approving…">Confirm approval</PendingActionButton></form></ActionDialog>:null}{canManageAuthority&&p.status==='approved'?<ActionDialog title="Suspend Partner" triggerLabel="Suspend" triggerTone="secondary" description="Suspension removes the Partner from normal governed selection without deleting their history or evidence."><form action={suspendPartnerAction} className="stack"><input type="hidden" name="partner_id" value={p.id}/><p><strong>{p.company_name}</strong></p><label>Reason<textarea name="reason" rows={3} required aria-describedby={`suspend-help-${p.id}`}/></label><small id={`suspend-help-${p.id}`}>Record the business reason for removing this Partner from governed selection.</small><PendingActionButton pendingLabel="Suspending…">Confirm suspension</PendingActionButton></form></ActionDialog>:null}{!canManageAuthority&&p.status==='prospective'?<span className="permission-wait" role="status">Awaiting commercial authority</span>:null}</div></ProductRegisterRow>)}</ProductRegister>}
     </section>
   </section>;
 }

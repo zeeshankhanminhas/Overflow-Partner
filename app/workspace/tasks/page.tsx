@@ -1,46 +1,37 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { listTasks } from '@/lib/repositories/workflow';
-import { createTaskFormAction } from '../workflow-actions';
-import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
+import { actOnTaskAction } from './actions';
+import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
-const input='border border-black/15 bg-white px-3 py-2 text-black';
 function tone(status:string):ProductTone{if(status==='completed')return 'complete';if(status==='blocked')return 'blocked';if(status==='in_progress')return 'active';if(status==='open')return 'waiting';return 'neutral'}
+function stateLabel(status:string){if(status==='open')return 'Ready to start';if(status==='in_progress')return 'In progress';if(status==='blocked')return 'Blocked';if(status==='completed')return 'Completed';return status.replaceAll('_',' ')}
 function hrefFor(task:any){if(task.entity_type==='project')return `/workspace/projects/${task.entity_id}`;if(task.entity_type==='lead')return `/workspace/leads/${task.entity_id}`;return undefined}
 function due(value:unknown){if(!value)return 'No due date';const date=new Date(String(value));return Number.isNaN(date.getTime())?String(value):date.toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+function TaskAction({taskId,action,label,primary=false}:{taskId:string;action:'start'|'complete'|'block';label:string;primary?:boolean}){return <form action={actOnTaskAction}><input type="hidden" name="task_id" value={taskId}/><input type="hidden" name="task_action" value={action}/><button className={`button${primary?'':' secondary'}`} type="submit">{label}</button></form>}
+type View='all'|'mine'|'due_week'|'blocked';
+const viewMeta:Record<View,{label:string;description:string}>={all:{label:'All active',description:'Every active internal action.'},mine:{label:'My work',description:'Active actions assigned to you.'},due_week:{label:'Due this week',description:'Active actions due within the next seven days.'},blocked:{label:'Blocked',description:'Actions that cannot progress without intervention.'}};
 
 export default async function Page({searchParams}:{searchParams?:Promise<Record<string,string|undefined>>}){
-  const params=searchParams?await searchParams:{};
-  const {supabase,organisationId}=await requireUserContext();
+  const params=searchParams?await searchParams:{};const requested=String(params.view||'all');const view=(Object.keys(viewMeta).includes(requested)?requested:'all') as View;
+  const {supabase,organisationId,user}=await requireUserContext();
   const tasks=await listTasks(supabase,organisationId);
-  const open=tasks.filter(t=>t.status==='open').length;
-  const inProgress=tasks.filter(t=>t.status==='in_progress').length;
-  const blocked=tasks.filter(t=>t.status==='blocked').length;
-  const active=tasks.filter(t=>!['completed','cancelled'].includes(t.status));
+  const open=tasks.filter(t=>t.status==='open').length;const inProgress=tasks.filter(t=>t.status==='in_progress').length;const blocked=tasks.filter(t=>t.status==='blocked').length;const active=tasks.filter(t=>!['completed','cancelled'].includes(t.status));
+  const now=Date.now();const weekFromNow=now+7*24*60*60*1000;
+  let visible=active;
+  if(view==='mine')visible=visible.filter((task:any)=>String(task.assigned_to||'')===user.id);
+  if(view==='due_week')visible=visible.filter((task:any)=>{if(!task.due_at)return false;const at=new Date(String(task.due_at)).getTime();return at>=now&&at<=weekFromNow;});
+  if(view==='blocked')visible=visible.filter((task:any)=>task.status==='blocked');
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Operations · Tasks" title="Task queue" description="A compact operating queue for work that needs a named action outside the main lifecycle transition. Record-specific delivery work remains in its Project." actions={<details><summary className="button secondary">Exceptional task</summary><div className="vp-toolbar-panel"><form action={createTaskFormAction} className="stack"><p style={{margin:0,color:'var(--saas-muted)',fontSize:11}}>Use this only when a task cannot be created from its source record.</p><div className="grid gap-4 md:grid-cols-2"><input className={input} name="entity_type" placeholder="Record type, e.g. project" required/><input className={input} name="entity_id" placeholder="Record ID" required/><input className={input} name="title" placeholder="What needs to be done?" required/><input className={input} name="due_at" type="datetime-local"/><select className={input} name="priority" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select><select className={input} name="status" defaultValue="open"><option value="open">Open</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Complete</option><option value="cancelled">Cancelled</option></select></div><textarea className={input} name="description" rows={3} placeholder="Context or instructions"/><button className="button">Create exceptional task</button></form></div></details>} />
-
+    <ProductPageHeader eyebrow="Operations · Tasks" title="Task queue" description="Work items are created from the record that owns the work. The queue presents the next business action instead of exposing task-state editing." />
     {params.created?<ProductNotice title="Task created" tone="complete"><p>The task is now visible in the operating queue.</p></ProductNotice>:null}
     {params.error?<ProductNotice title="Task could not be created" tone="blocked"><p>{params.error}</p></ProductNotice>:null}
-
-    <ProductMetrics label="Task workload">
-      <ProductMetric label="Open" value={open} detail="Not yet started" tone={open?'waiting':'neutral'} />
-      <ProductMetric label="In progress" value={inProgress} detail="Actively being worked" tone={inProgress?'active':'neutral'} />
-      <ProductMetric label="Blocked" value={blocked} detail="Cannot progress" tone={blocked?'blocked':'complete'} />
-      <ProductMetric label="Active workload" value={active.length} detail="Excludes completed and cancelled tasks" />
-    </ProductMetrics>
-
+    <ProductMetrics label="Task workload"><ProductMetric label="Ready to start" value={open} detail="Not yet started" tone={open?'waiting':'neutral'} /><ProductMetric label="In progress" value={inProgress} detail="Actively being worked" tone={inProgress?'active':'neutral'} /><ProductMetric label="Blocked" value={blocked} detail="Cannot progress" tone={blocked?'blocked':'complete'} /><ProductMetric label="Active workload" value={active.length} detail="Excludes completed and cancelled tasks" /></ProductMetrics>
+    <ProductFilterBar>{(Object.keys(viewMeta) as View[]).map(key=><Link key={key} className={`button ${view===key?'':'secondary'}`} href={key==='all'?'/workspace/tasks':`/workspace/tasks?view=${key}`}>{viewMeta[key].label}</Link>)}</ProductFilterBar>
     <section>
-      <ProductSectionHeader eyebrow="Operating register" title="Active tasks" actions={<Link href="/workspace/exceptions">Open exceptions →</Link>} />
-      {active.length===0?<ProductEmptyState title="No active tasks" description="Tasks created from records will appear here when they need operator action." />:<ProductRegister>
-        {active.map((task:any)=><ProductRegisterRow key={task.id} href={hrefFor(task)}>
-          <div><strong>{task.title}</strong><p>{String(task.entity_type||'record').replaceAll('_',' ')} · {String(task.priority||'normal').replaceAll('_',' ')} priority</p></div>
-          <ProductStatus tone={tone(task.status)}>{String(task.status).replaceAll('_',' ')}</ProductStatus>
-          <div><small>Due</small><strong style={{display:'block',marginTop:3}}>{due(task.due_at)}</strong></div>
-          <strong>{hrefFor(task)?'Open record →':'Unlinked'}</strong>
-        </ProductRegisterRow>)}
-      </ProductRegister>}
+      <ProductSectionHeader eyebrow="Operating register" title={`${visible.length} active task${visible.length===1?'':'s'}`} meta={viewMeta[view].description} actions={<Link href="/workspace/exceptions">Open issues →</Link>} />
+      {visible.length===0?<ProductEmptyState title="No tasks in this view" description="The register updates automatically as source-record work changes." />:<ProductRegister>{visible.map((task:any)=>{const href=hrefFor(task);return <ProductRegisterRow key={task.id}><div><strong>{task.title}</strong><p>{String(task.priority||'normal').replaceAll('_',' ')} priority{href?' · Source record available':''}</p></div><ProductStatus tone={tone(task.status)}>{stateLabel(task.status)}</ProductStatus><div><small>Due</small><strong style={{display:'block',marginTop:3}}>{due(task.due_at)}</strong></div><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>{task.status==='open'?<><TaskAction taskId={task.id} action="start" label="Start" primary/><TaskAction taskId={task.id} action="block" label="Block"/></>:null}{task.status==='in_progress'?<><TaskAction taskId={task.id} action="complete" label="Complete" primary/><TaskAction taskId={task.id} action="block" label="Block"/></>:null}{task.status==='blocked'?<><TaskAction taskId={task.id} action="start" label="Resume" primary/><TaskAction taskId={task.id} action="complete" label="Complete"/></>:null}{href?<Link className="button secondary" href={href}>Open record</Link>:null}</div></ProductRegisterRow>})}</ProductRegister>}
     </section>
   </section>;
 }

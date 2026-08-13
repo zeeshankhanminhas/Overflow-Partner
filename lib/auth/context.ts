@@ -23,6 +23,10 @@ export async function requireUserContext() {
   return { supabase, user, profile, organisationId: profile.organisation_id };
 }
 
+export function hasRole(role: AppRole, allowed: readonly AppRole[]) {
+  return allowed.includes(role);
+}
+
 export function assertRole(role: AppRole, allowed: AppRole[]) {
-  if (!allowed.includes(role)) throw new Error('You do not have permission to perform this action.');
+  if (!hasRole(role, allowed)) throw new Error('You do not have permission to perform this action.');
 }

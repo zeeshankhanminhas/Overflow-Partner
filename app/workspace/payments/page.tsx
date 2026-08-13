@@ -4,6 +4,7 @@ import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { resolveInvoiceState, resolvePayableState } from '@/lib/finance/state';
 import { resolvePayablePresentation } from '@/lib/presentation/operatingState';
 import { recordClientPaymentFromLedgerAction, recordPartnerPaymentFromLedgerAction } from './actions';
+import { ActionDialog } from '@/components/workspace/InteractionPrimitives';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 function money(value:unknown,currency='GBP'){const amount=Number(value||0);try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(amount)}catch{return `${currency} ${amount.toFixed(2)}`}}
@@ -16,6 +17,7 @@ function paymentViewHref(view:string,selectedProject:string){const params=new UR
 export default async function PaymentsPage({searchParams}:{searchParams?:Promise<Record<string,string|string[]|undefined>>}){
   const params=searchParams?await searchParams:{};
   const selectedProject=first(params.project);
+  const requestedAction=first(params.action);
   const view=first(params.view)||'open';
   const {supabase,organisationId}=await requireUserContext();
 
@@ -48,17 +50,14 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
   const visibleInvoices=invoiceStates.filter(({state})=>view==='all'||(view==='overdue'?state.overdue:view==='settled'?state.settled:!state.settled));
   const visiblePayables=payableStates.filter(({state})=>view==='all'||(view==='overdue'?false:view==='settled'?state.settled:!state.settled));
 
-  const invoiced=sum(invoices,item=>Number(item.total||0));
   const collected=sum(invoices,item=>Number(item.amount_paid||0));
   const receivable=sum(invoiceStates,item=>item.state.balance);
   const overdue=sum(invoiceStates.filter(item=>item.state.overdue),item=>item.state.balance);
-  const partnerCommitted=sum(payables,item=>Number(item.total||0));
   const partnerPaid=sum(payables,item=>Number(item.amount_paid||0));
   const partnerOutstanding=sum(payableStates,item=>item.state.balance);
   const payableApprovals=payableStates.filter(item=>item.presentation.approval?.status==='ready').length;
-  const forecastMargin=invoiced-partnerCommitted;
-  const cashPosition=collected-partnerPaid;
   const selected=selectedProject?projectMap.get(selectedProject):null;
+  const focusedClientPayment=requestedAction==='record-payment'&&selectedProject?invoiceStates.find(({state})=>state.canRecordPayment):null;
 
   const invoiceMap=new Map(invoices.map(item=>[item.id,item]));
   const payableMap=new Map(payables.map(item=>[item.id,item]));
@@ -69,9 +68,9 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
 
   return <section className="vp-page payments-workspace">
     <ProductPageHeader
-      eyebrow="Commercial · Payments"
+      eyebrow="Settlement · Payments"
       title="Payments"
-      description="Track client receivables, Partner liabilities, approvals and cash movement from the same project ledger."
+      description="Record actual client money received and actual Partner money paid. Commercial authority remains in Commercial control."
       backHref={selectedProject?`/workspace/projects/${selectedProject}`:undefined}
       backLabel="Back to Project 360"
       actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{payableApprovals?` · ${payableApprovals}`:''}</Link><Link className="button secondary" href={selectedProject?`/workspace/commercial-control?project=${selectedProject}`:'/workspace/commercial-control'}>Commercial control</Link></>}
@@ -81,11 +80,13 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
     {params.error?<ProductNotice title="Payment could not be recorded" tone="blocked"><p>{operatorErrorMessage(String(first(params.error)))}</p></ProductNotice>:null}
     {paymentsResult.error||partnerPaymentsResult.error?<ProductNotice title="Payment history is unavailable" tone="attention"><p>{operatorErrorMessage(String(paymentsResult.error?.message||partnerPaymentsResult.error?.message||''))}</p></ProductNotice>:null}
 
-    <ProductMetrics label="Commercial ledger summary">
+    {focusedClientPayment?<div className="payments-owned-action"><ActionDialog title={`Record payment · ${focusedClientPayment.invoice.invoice_number}`} description="Payments owns settlement capture. Record only money that has actually been received/cleared." triggerLabel="Record payment" defaultOpen><form action={recordClientPaymentFromLedgerAction} className="stack"><input type="hidden" name="invoice_id" value={focusedClientPayment.invoice.id}/><input type="hidden" name="project_id" value={focusedClientPayment.invoice.project_id}/><label>Amount received<input name="amount" type="number" step="0.01" min="0.01" max={focusedClientPayment.state.balance||undefined} required defaultValue={focusedClientPayment.state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Settlement reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record cleared payment</button></form></ActionDialog></div>:requestedAction==='record-payment'?<ProductNotice title="No payment can be recorded yet" tone="waiting"><p>This Project has no eligible issued client invoice with an outstanding balance. Commercial control owns invoice creation/authority.</p></ProductNotice>:null}
+
+    <ProductMetrics label="Settlement position">
+      <ProductMetric label="Client received" value={money(collected)} detail="Recorded cleared client settlement" tone="complete" />
       <ProductMetric label="Outstanding receivables" value={money(receivable)} detail={`${money(overdue)} overdue`} tone={overdue?'blocked':receivable?'waiting':'complete'} />
-      <ProductMetric label="Partner liabilities" value={money(partnerOutstanding)} detail={`${payableApprovals} approval${payableApprovals===1?'':'s'} ready`} tone={payableApprovals?'waiting':partnerOutstanding?'active':'complete'} />
-      <ProductMetric label="Forecast margin" value={money(forecastMargin)} detail="Invoiced less Partner commitments" tone={forecastMargin<0?'attention':'neutral'} />
-      <ProductMetric label="Cash position" value={money(cashPosition)} detail="Collected less Partner payments" tone={cashPosition<0?'attention':'neutral'} />
+      <ProductMetric label="Partner paid" value={money(partnerPaid)} detail="Recorded Partner settlement" tone="complete" />
+      <ProductMetric label="Partner outstanding" value={money(partnerOutstanding)} detail={`${payableApprovals} commercial approval${payableApprovals===1?'':'s'} ready`} tone={partnerOutstanding?'waiting':'complete'} />
     </ProductMetrics>
 
     <section className="product-panel">
@@ -108,7 +109,7 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
             <div><strong>{invoice.invoice_number}</strong><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div>
             <ProductStatus tone={invoiceTone(state)}>{state.overdue?'Overdue':state.settled?'Settled':state.canRecordPayment?'Awaiting payment':'Working'}</ProductStatus>
             <div><strong>{money(state.balance,invoice.currency)} due</strong><small style={{display:'block'}}>{money(invoice.amount_paid,invoice.currency)} of {money(invoice.total,invoice.currency)} received</small></div>
-            <div className="product-row-actions"><Link className="button secondary" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><form action={recordClientPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="invoice_id" value={invoice.id}/><input type="hidden" name="project_id" value={invoice.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record client payment</button></form></details>:null}</div>
+            <div className="product-row-actions"><Link className="button secondary" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}{state.canRecordPayment?<ActionDialog title={`Record payment · ${invoice.invoice_number}`} description="Record actual cleared client settlement against this invoice." triggerLabel="Record payment"><form action={recordClientPaymentFromLedgerAction} className="stack"><input type="hidden" name="invoice_id" value={invoice.id}/><input type="hidden" name="project_id" value={invoice.project_id}/><label>Amount received<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Settlement reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record cleared payment</button></form></ActionDialog>:null}</div>
           </ProductRegisterRow>})}
         </ProductRegister>}
       </section>
@@ -120,15 +121,15 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
             <div><strong>{payable.payable_number}</strong><p>{partner?.company_name||'Partner'} · {project?.project_number||'Project'}</p><small>{payable.invoice_reference||'No Partner invoice reference'} · due {date(payable.due_date)}</small></div>
             <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
             <div><strong>{money(state.balance,payable.currency)} due</strong><small style={{display:'block'}}>{presentation.nextAction.label}</small></div>
-            <div className="product-row-actions">{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}<Link className="button secondary" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>{presentation.approval?.status==='ready'?'Review approval':'Commercial'}</Link>{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><form action={recordPartnerPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record Partner payment</button></form></details>:null}{state.approvalBlockedReason?<small>{presentation.summary}</small>:null}</div>
+            <div className="product-row-actions">{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}<Link className="button secondary" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>{presentation.approval?.status==='ready'?'Review approval':'Commercial'}</Link>{state.canRecordPayment?<ActionDialog title={`Record Partner payment · ${payable.payable_number}`} description="Record actual settlement after the Partner liability has been commercially authorised." triggerLabel="Record payment"><form action={recordPartnerPaymentFromLedgerAction} className="stack"><input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/><label>Amount paid<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Settlement reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record Partner settlement</button></form></ActionDialog>:null}{state.approvalBlockedReason?<small>{presentation.summary}</small>:null}</div>
           </ProductRegisterRow>})}
         </ProductRegister>}
       </section>
     </div>
 
     <section>
-      <ProductSectionHeader eyebrow="Cash movement" title="Recent payments" meta={`${payments.length} received · ${partnerPayments.length} paid`} />
-      {movementRows.length===0?<ProductEmptyState title="No payment movements recorded" description="Recorded client and Partner payments will appear here in chronological order." />:<ProductRegister>
+      <ProductSectionHeader eyebrow="Settlement history" title="Recent payments" meta={`${payments.length} received · ${partnerPayments.length} paid`} />
+      {movementRows.length===0?<ProductEmptyState title="No payment movements recorded" description="Recorded client and Partner settlements will appear here in chronological order." />:<ProductRegister>
         {movementRows.map(row=><ProductRegisterRow key={row.id}>
           <div><strong>{row.direction==='in'?'Client payment':'Partner payment'}</strong><p>{row.direction==='in'?(row.record?.invoice_number||'Invoice'):(row.record?.payable_number||'Payable')} · {row.project?.project_number||'Project'}</p></div>
           <ProductStatus tone={row.direction==='in'?'complete':'active'}>{row.direction==='in'?'Money in':'Money out'}</ProductStatus>
