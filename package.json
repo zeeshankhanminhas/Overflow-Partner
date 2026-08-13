@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && next build",
+    "build": "npm run lint && npm run typecheck && npm run phase3:check && next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "phase3:check": "node scripts/phase3-launch-check.mjs",
+    "phase3:smoke": "node scripts/phase3-launch-check.mjs --smoke"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
