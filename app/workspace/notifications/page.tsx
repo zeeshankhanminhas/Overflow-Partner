@@ -28,13 +28,14 @@ function relatedHref(entityType:string|null,entityId:string|null){if(!entityId)r
 
 export default async function NotificationsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const { supabase, organisationId } = await requireUserContext();
+  const { supabase } = await requireUserContext();
   const status = params.status || 'all';
   const category = params.category || 'all';
-  let query = supabase.from('notification_outbox').select('id,event_key,category,recipient_email,recipient_name,subject,entity_type,entity_id,status,scheduled_for,attempts,max_attempts,last_error,sent_at,created_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(150);
-  if (status !== 'all') query = query.eq('status', status);
-  if (category !== 'all') query = query.eq('category', category);
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc('op_list_notification_delivery', {
+    p_status: status === 'all' ? null : status,
+    p_category: category === 'all' ? null : category,
+    p_limit: 150,
+  });
   if (error) throw new Error(`Notification delivery could not be loaded: ${error.message}`);
   const rows=data||[];
   const sent=rows.filter(row=>row.status==='sent').length;
