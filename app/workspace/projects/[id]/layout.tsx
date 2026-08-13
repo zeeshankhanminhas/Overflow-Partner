@@ -10,7 +10,7 @@ export default async function ProjectLayout({children,params}:{children:ReactNod
       <Link className="button secondary" href={`/workspace/projects/${id}/execution`}>Execution</Link>
       <Link className="button secondary" href={`/workspace/documents?project=${id}`}>Documents</Link>
       <Link className="button secondary" href={`/workspace/payments?project=${id}`}>Payments</Link>
-      <Link className="button secondary" href={`/workspace/communications/project/${id}`}>Communications</Link>
+      <Link className="button secondary" href={`/workspace/communications/project/${id}`}>Messages</Link>
     </nav>
     {children}
   </>;
