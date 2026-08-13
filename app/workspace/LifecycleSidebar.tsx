@@ -23,7 +23,7 @@ function recordContext(pathname: string, searchParams: URLSearchParams): RecordC
   const commsMatch = pathname.match(/^\/workspace\/communications\/(lead|project)\/([^/]+)/);
   if (commsMatch) return { type: commsMatch[1] === 'lead' ? 'case' : 'project', id: commsMatch[2] };
 
-  if (pathname === '/workspace/documents') {
+  if (pathname.startsWith('/workspace/documents')) {
     const project = searchParams.get('project');
     if (project) return { type: 'project', id: project };
     const lead = searchParams.get('lead');
@@ -43,11 +43,11 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function Area({ title, description, open, children }: { title: string; description: string; open?: boolean; children: React.ReactNode }) {
-  return <details className="lifecycle-utility" open={open}>
-    <summary><span>{title}</span><small>{description}</small><b aria-hidden="true">›</b></summary>
-    <div>{children}</div>
-  </details>;
+function NavSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="lifecycle-nav__overview">
+    <p className="op-nav-label">{title}</p>
+    {children}
+  </section>;
 }
 
 export default function LifecycleSidebar() {
@@ -76,11 +76,10 @@ export default function LifecycleSidebar() {
   const contextListLabel = context?.type === 'acquisition' ? 'All enquiries' : context?.type === 'case' ? 'All cases' : 'All projects';
 
   return <nav aria-label="Workspace navigation" className="lifecycle-nav">
-    <div className="lifecycle-nav__overview">
-      <p className="op-nav-label">Home</p>
+    <NavSection title="Home">
       <Link className={pathname === n.missionControl.href ? 'active' : ''} href={n.missionControl.href}>{n.missionControl.label}</Link>
-      <Link className={pathname.startsWith(n.approvals.href) ? 'active' : ''} href={n.approvals.href}>{n.approvals.label}</Link>
-    </div>
+      <Link className={isActive(pathname, n.approvals.href) ? 'active' : ''} href={n.approvals.href}>{n.approvals.label}</Link>
+    </NavSection>
 
     {context ? <section className="lifecycle-context">
       <div className="lifecycle-context__heading">
@@ -92,12 +91,12 @@ export default function LifecycleSidebar() {
         <Link className={pathname === contextHome ? 'active' : ''} href={contextHome}>Overview</Link>
         {context.type === 'case' ? <>
           <Link className={pathname.startsWith(`/workspace/communications/lead/${context.id}`) ? 'active' : ''} href={`/workspace/communications/lead/${context.id}`}>Messages</Link>
-          <Link className={pathname === '/workspace/documents' && searchParams.get('lead') === context.id ? 'active' : ''} href={`/workspace/documents?lead=${context.id}`}>Documents</Link>
+          <Link className={pathname.startsWith('/workspace/documents') && searchParams.get('lead') === context.id ? 'active' : ''} href={`/workspace/documents?lead=${context.id}`}>Documents</Link>
         </> : null}
         {context.type === 'project' ? <>
           <Link className={pathname === `/workspace/projects/${context.id}/delivery` ? 'active' : ''} href={`/workspace/projects/${context.id}/delivery`}>Delivery</Link>
-          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Partner execution</Link>
-          <Link className={pathname === '/workspace/documents' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
+          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Execution</Link>
+          <Link className={pathname.startsWith('/workspace/documents') && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
           <Link className={pathname === '/workspace/payments' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/payments?project=${context.id}`}>Payments</Link>
           <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Messages</Link>
           <Link className={pathname.startsWith('/workspace/commercial-control') && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/commercial-control?project=${context.id}`}>Commercial</Link>
@@ -105,38 +104,30 @@ export default function LifecycleSidebar() {
       </div>
     </section> : null}
 
-    <Area title="Work" description="Enquiry to delivery" open={pathname.startsWith('/workspace/acquisition') || pathname.startsWith('/workspace/leads') || pathname.startsWith(n.assessments.href) || pathname.startsWith(n.projects.href)}>
-      <Link className={pathname.startsWith('/workspace/acquisition') ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
+    <NavSection title="Operate">
+      <Link className={pathname.startsWith('/workspace/acquisition') || pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
       <Link className={pathname.startsWith(n.cases.href) ? 'active' : ''} href={n.cases.href}>{n.cases.label}</Link>
-      <Link className={pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.assessments.href}>{n.assessments.label}</Link>
       <Link className={pathname.startsWith(n.projects.href) ? 'active' : ''} href={n.projects.href}>{n.projects.label}</Link>
-    </Area>
+    </NavSection>
 
-    <Area title="Commercial" description="Quotes, cash & supply" open={pathname.startsWith(n.quotes.href) || pathname.startsWith(n.payments.href) || pathname.startsWith(n.commercialControl.href) || pathname.startsWith(n.partners.href)}>
-      <Link className={pathname.startsWith(n.quotes.href) ? 'active' : ''} href={n.quotes.href}>{n.quotes.label}</Link>
-      <Link className={pathname.startsWith(n.payments.href) ? 'active' : ''} href={n.payments.href}>{n.payments.label}</Link>
-      <Link className={pathname.startsWith(n.commercialControl.href) ? 'active' : ''} href={n.commercialControl.href}>{n.commercialControl.label}</Link>
-      <Link className={pathname.startsWith(n.partners.href) ? 'active' : ''} href={n.partners.href}>{n.partners.label}</Link>
-    </Area>
+    <NavSection title="Control">
+      <Link className={isActive(pathname, n.quotes.href) ? 'active' : ''} href={n.quotes.href}>{n.quotes.label}</Link>
+      <Link className={isActive(pathname, n.payments.href) ? 'active' : ''} href={n.payments.href}>{n.payments.label}</Link>
+      <Link className={isActive(pathname, n.commercialControl.href) ? 'active' : ''} href={n.commercialControl.href}>{n.commercialControl.label}</Link>
+      <Link className={isActive(pathname, n.issues.href) ? 'active' : ''} href={n.issues.href}>{n.issues.label}</Link>
+      <Link className={isActive(pathname, n.actions.href) ? 'active' : ''} href={n.actions.href}>{n.actions.label}</Link>
+    </NavSection>
 
-    <Area title="Operations" description="Actions, evidence & issues" open={pathname.startsWith(n.issues.href) || pathname.startsWith(n.documents.href) || pathname.startsWith(n.actions.href) || pathname.startsWith(n.messages.href)}>
-      <Link className={pathname.startsWith(n.issues.href) ? 'active' : ''} href={n.issues.href}>{n.issues.label}</Link>
-      <Link className={pathname.startsWith(n.actions.href) ? 'active' : ''} href={n.actions.href}>{n.actions.label}</Link>
-      <Link className={pathname.startsWith(n.documents.href) ? 'active' : ''} href={n.documents.href}>{n.documents.label}</Link>
-      <Link className={pathname.startsWith(n.messages.href) ? 'active' : ''} href={n.messages.href}>{n.messages.label}</Link>
-    </Area>
+    <NavSection title="Reference">
+      <Link className={isActive(pathname, n.documents.href) ? 'active' : ''} href={n.documents.href}>{n.documents.label}</Link>
+      <Link className={isActive(pathname, n.partners.href) ? 'active' : ''} href={n.partners.href}>{n.partners.label}</Link>
+      <Link className={isActive(pathname, n.executive.href) ? 'active' : ''} href={n.executive.href}>{n.executive.label}</Link>
+      <Link className={isActive(pathname, n.risk.href) ? 'active' : ''} href={n.risk.href}>{n.risk.label}</Link>
+      <Link className={isActive(pathname, n.knowledge.href) ? 'active' : ''} href={n.knowledge.href}>{n.knowledge.label}</Link>
+    </NavSection>
 
-    <Area title="Intelligence" description="Performance & assurance" open={pathname.startsWith(n.executive.href) || pathname.startsWith(n.risk.href) || pathname.startsWith(n.knowledge.href)}>
-      <Link className={pathname.startsWith(n.executive.href) ? 'active' : ''} href={n.executive.href}>{n.executive.label}</Link>
-      <Link className={pathname.startsWith(n.risk.href) ? 'active' : ''} href={n.risk.href}>{n.risk.label}</Link>
-      <Link className={pathname.startsWith(n.knowledge.href) ? 'active' : ''} href={n.knowledge.href}>{n.knowledge.label}</Link>
-    </Area>
-
-    <div className="lifecycle-nav__overview">
-      <p className="op-nav-label">Admin</p>
-      <Link className={isActive(pathname, n.search.href) ? 'active' : ''} href={n.search.href}>{n.search.label}</Link>
-      <Link className={isActive(pathname, n.notifications.href) ? 'active' : ''} href={n.notifications.href}>{n.notifications.label}</Link>
+    <NavSection title="System">
       <Link className={isActive(pathname, n.settings.href) ? 'active' : ''} href={n.settings.href}>{n.settings.label}</Link>
-    </div>
+    </NavSection>
   </nav>;
 }
