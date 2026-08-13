@@ -91,7 +91,7 @@ export default function RecordWorkspace({
     {hasCurrentWork ? <section className="record-workspace__group" aria-labelledby="record-current-stage-work">
       <div className="record-workspace__group-heading">
         <p id="record-current-stage-work">Current work</p>
-        <span>Live delivery activity and external updates</span>
+        <span>Live activity and external updates</span>
       </div>
       <div className="record-workspace__primary-work">
         {activities ? <Slot id="record-activities" title="Current position" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
