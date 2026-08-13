@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { ActionDialog } from '@/components/workspace/InteractionPrimitives';
 import {
   approveControlledDocumentAction,
   archiveControlledDocumentAction,
@@ -13,7 +14,7 @@ import {
   submitControlledDocumentForReviewAction,
 } from '@/app/workspace/documents/review-actions';
 
-type ActionMode = 'sign' | 'changes' | null;
+type ActionMode = 'submit' | 'sign' | 'changes' | 'approve' | 'issue' | 'archive' | null;
 
 function reveal(target: HTMLElement | null, focus = true) {
   if (!target) return;
@@ -87,17 +88,6 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     } catch { /* fall back to document registry */ }
   }, [documentRecordId]);
 
-  useEffect(() => {
-    if (!actionMode) return;
-    const id = actionMode === 'sign' ? 'document-sign-action' : 'document-change-action';
-    const firstField = actionMode === 'sign' ? 'document-signer-name' : 'document-change-reason';
-    const timer = window.setTimeout(() => {
-      reveal(document.getElementById(id), false);
-      window.setTimeout(() => document.getElementById(firstField)?.focus({ preventScroll: true }), 340);
-    }, 30);
-    return () => window.clearTimeout(timer);
-  }, [actionMode]);
-
   const normalizedStatus = currentStatus.toLowerCase();
   const hasRecord = Boolean(documentRecordId);
   const canSubmitForReview = ['draft', 'changes_requested'].includes(normalizedStatus);
@@ -111,11 +101,6 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   function scrollToId(id: string, delay = 40) {
     window.setTimeout(() => reveal(document.getElementById(id)), delay);
-  }
-
-  function openAction(mode: Exclude<ActionMode, null>) {
-    setDecision('');
-    setActionMode(mode);
   }
 
   function requireRecord() {
@@ -181,16 +166,16 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
   async function submitSignature() {
     setDecision('');
     if (!requireRecord() || !documentRecordId) return;
-    if (!signerName.trim()) { setDecision('Enter the signer name before applying the electronic signature.'); scrollToId('document-signer-name'); return; }
-    if (!signerRole.trim()) { setDecision('Enter the signer role before applying the electronic signature.'); scrollToId('document-signer-role'); return; }
-    if (!declarationAccepted) { setDecision('Accept the electronic-signature declaration before continuing.'); scrollToId('document-signature-declaration'); return; }
+    if (!signerName.trim()) { setDecision('Enter the signer name before applying the electronic signature.'); return; }
+    if (!signerRole.trim()) { setDecision('Enter the signer role before applying the electronic signature.'); return; }
+    if (!declarationAccepted) { setDecision('Accept the electronic-signature declaration before continuing.'); return; }
     await runAction('Applying electronic signature…', () => signControlledDocumentAction(documentRecordId, signerName, signerRole, declarationAccepted), () => scrollToSignatureEvidence());
   }
 
   async function submitChangeRequest() {
     setDecision('');
     if (!requireRecord() || !documentRecordId) return;
-    if (!changeReason.trim()) { setDecision('Describe the required changes before submitting the request.'); scrollToId('document-change-reason'); return; }
+    if (!changeReason.trim()) { setDecision('Describe the required changes before submitting the request.'); return; }
     await runAction('Recording change request…', () => requestDocumentChangesAction(documentRecordId, changeReason), () => scrollToId('document-review-feedback', 120));
     setChangeReason('');
   }
@@ -216,6 +201,8 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     });
   }
 
+  const setDialog=(mode:Exclude<ActionMode,null>)=>(open:boolean)=>setActionMode(open?mode:null);
+
   return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
     <header className="document-review-header print:hidden">
       <Link aria-label={backLabel} title={backLabel} className="button secondary" href={backHref}>←</Link>
@@ -233,33 +220,23 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
         : 'Open this document from Case 360 or Project 360 to activate document actions.')}
     </section>
 
-    {actionMode === 'sign' && <section id="document-sign-action" className="card stack print:hidden" aria-label="Electronic signature">
-      <div><p className="eyebrow">Electronic signature</p><h2>Sign document</h2></div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <label className="field">Signer name<input id="document-signer-name" value={signerName} onChange={(event) => setSignerName(event.target.value)} autoComplete="name" /></label>
-        <label className="field">Signer role<input id="document-signer-role" value={signerRole} onChange={(event) => setSignerRole(event.target.value)} placeholder="Engineering reviewer" /></label>
-      </div>
-      <label id="document-signature-declaration" className="flex items-start gap-3 text-sm"><input className="mt-1" type="checkbox" checked={declarationAccepted} onChange={(event) => setDeclarationAccepted(event.target.checked)} /><span>I have reviewed this document and intend this action to constitute my electronic signature.</span></label>
-      <div className="flex flex-wrap gap-2"><button className="button" disabled={isPending} onClick={submitSignature} type="button">{isPending ? 'Signing…' : 'Apply e-signature'}</button><button className="button secondary" disabled={isPending} onClick={() => setActionMode(null)} type="button">Cancel</button></div>
-    </section>}
-
-    {actionMode === 'changes' && <section id="document-change-action" className="card stack print:hidden" aria-label="Request document changes">
-      <div><p className="eyebrow">Document review</p><h2>Request changes</h2></div>
-      <label className="field">Required changes<textarea id="document-change-reason" rows={4} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Describe what needs to change before resubmission." /></label>
-      <div className="flex flex-wrap gap-2"><button className="button" disabled={isPending} onClick={submitChangeRequest} type="button">{isPending ? 'Recording…' : 'Submit change request'}</button><button className="button secondary" disabled={isPending} onClick={() => setActionMode(null)} type="button">Cancel</button></div>
-    </section>}
-
     <div className="mobile-document-mode">{mobileReview}</div>
     <div className="document-review-flow desktop-document-mode">{children}</div>
 
     <div className="document-review-actions print:hidden"><div>
       <button onClick={() => window.print()} type="button">Print / Save PDF</button>
-      {canSubmitForReview ? <button disabled={isPending || !hasRecord} onClick={submitForReview} type="button">{isPending ? 'Submitting…' : 'Submit for Review'}</button> : null}
-      {canRequestChanges ? <button disabled={isPending || !hasRecord} onClick={() => openAction('changes')} type="button">Request Changes</button> : null}
-      {canSign ? <button disabled={isPending || !hasRecord} onClick={() => openAction('sign')} type="button">E-Sign</button> : null}
-      {canApprove ? <button disabled={isPending || !hasRecord} onClick={approveDocument} type="button">Approve</button> : null}
-      {canIssue ? <button disabled={isPending || !hasRecord} onClick={issueDocument} type="button">Issue</button> : null}
-      {canArchive ? <button disabled={isPending || !hasRecord} onClick={archiveDocument} type="button">Archive</button> : null}
+
+      {canSubmitForReview ? <ActionDialog title="Submit for controlled review" description="This moves the current controlled revision into the governed review state. The document remains the same authoritative record." triggerLabel="Submit for Review" disabled={isPending||!hasRecord} open={actionMode==='submit'} onOpenChange={setDialog('submit')}><div className="stack"><p>Submit this revision for controlled review?</p><button className="button" disabled={isPending} onClick={submitForReview} type="button">{isPending?'Submitting…':'Submit for Review'}</button></div></ActionDialog> : null}
+
+      {canRequestChanges ? <ActionDialog title="Request document changes" description="Describe what must change before this controlled revision can continue." triggerLabel="Request Changes" disabled={isPending||!hasRecord} open={actionMode==='changes'} onOpenChange={setDialog('changes')}><div className="stack"><label className="field">Required changes<textarea rows={4} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Describe what needs to change before resubmission." /></label>{decision&&actionMode==='changes'?<p aria-live="polite">{decision}</p>:null}<button className="button" disabled={isPending} onClick={submitChangeRequest} type="button">{isPending?'Recording…':'Submit change request'}</button></div></ActionDialog> : null}
+
+      {canSign ? <ActionDialog title="Sign controlled document" description="Apply your electronic signature to the exact controlled revision currently under review." triggerLabel="E-Sign" disabled={isPending||!hasRecord} open={actionMode==='sign'} onOpenChange={setDialog('sign')}><div className="stack"><div className="grid gap-4 md:grid-cols-2"><label className="field">Signer name<input value={signerName} onChange={(event) => setSignerName(event.target.value)} autoComplete="name" /></label><label className="field">Signer role<input value={signerRole} onChange={(event) => setSignerRole(event.target.value)} placeholder="Engineering reviewer" /></label></div><label className="flex items-start gap-3 text-sm"><input className="mt-1" type="checkbox" checked={declarationAccepted} onChange={(event) => setDeclarationAccepted(event.target.checked)} /><span>I have reviewed this document and intend this action to constitute my electronic signature.</span></label>{decision&&actionMode==='sign'?<p aria-live="polite">{decision}</p>:null}<button className="button" disabled={isPending} onClick={submitSignature} type="button">{isPending?'Signing…':'Apply e-signature'}</button></div></ActionDialog> : null}
+
+      {canApprove ? <ActionDialog title="Approve controlled document" description="Record the authorised approval of this signed controlled revision." triggerLabel="Approve" disabled={isPending||!hasRecord} open={actionMode==='approve'} onOpenChange={setDialog('approve')}><div className="stack"><p>Approval will become governed evidence on this document and its owning workflow.</p><button className="button" disabled={isPending} onClick={approveDocument} type="button">{isPending?'Approving…':'Approve document'}</button></div></ActionDialog> : null}
+
+      {canIssue ? <ActionDialog title="Issue controlled document" description="Issue the approved controlled revision. The issued state becomes authoritative evidence for downstream workflow gates." triggerLabel="Issue" disabled={isPending||!hasRecord} open={actionMode==='issue'} onOpenChange={setDialog('issue')}><div className="stack"><p>Issue this approved revision now?</p><button className="button" disabled={isPending} onClick={issueDocument} type="button">{isPending?'Issuing…':'Issue document'}</button></div></ActionDialog> : null}
+
+      {canArchive ? <ActionDialog title="Archive controlled document" description="Archive this issued revision when it is no longer the active controlled record. Issued evidence remains in audit." triggerLabel="Archive" disabled={isPending||!hasRecord} open={actionMode==='archive'} onOpenChange={setDialog('archive')}><div className="stack"><p>Archive this controlled revision?</p><button className="button" disabled={isPending} onClick={archiveDocument} type="button">{isPending?'Archiving…':'Archive document'}</button></div></ActionDialog> : null}
     </div></div>
   </div>;
 }
