@@ -85,7 +85,7 @@ export default function LifecycleSidebar() {
     {context ? <section className="lifecycle-context">
       <div className="lifecycle-context__heading">
         <div><p className="op-nav-label">Current record</p><strong>{contextLabel}</strong></div>
-        <span>Working context</span>
+        <span>In focus</span>
       </div>
       <div className="lifecycle-context__links">
         <Link href={contextList}>← {contextListLabel}</Link>
@@ -96,7 +96,7 @@ export default function LifecycleSidebar() {
         </> : null}
         {context.type === 'project' ? <>
           <Link className={pathname === `/workspace/projects/${context.id}/delivery` ? 'active' : ''} href={`/workspace/projects/${context.id}/delivery`}>Delivery</Link>
-          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Partner execution</Link>
+          <Link className={pathname === `/workspace/projects/${context.id}/execution` ? 'active' : ''} href={`/workspace/projects/${context.id}/execution`}>Partner work</Link>
           <Link className={pathname === '/workspace/documents' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/documents?project=${context.id}`}>Documents</Link>
           <Link className={pathname === '/workspace/payments' && searchParams.get('project') === context.id ? 'active' : ''} href={`/workspace/payments?project=${context.id}`}>Payments</Link>
           <Link className={pathname.startsWith(`/workspace/communications/project/${context.id}`) ? 'active' : ''} href={`/workspace/communications/project/${context.id}`}>Messages</Link>
@@ -112,7 +112,7 @@ export default function LifecycleSidebar() {
       <Link className={pathname.startsWith(n.projects.href) ? 'active' : ''} href={n.projects.href}>{n.projects.label}</Link>
     </Area>
 
-    <Area title="Commercial" description="Quotes, cash & supply" open={pathname.startsWith(n.quotes.href) || pathname.startsWith(n.payments.href) || pathname.startsWith(n.commercialControl.href) || pathname.startsWith(n.partners.href)}>
+    <Area title="Commercial" description="Quotes, payments & partners" open={pathname.startsWith(n.quotes.href) || pathname.startsWith(n.payments.href) || pathname.startsWith(n.commercialControl.href) || pathname.startsWith(n.partners.href)}>
       <Link className={pathname.startsWith(n.quotes.href) ? 'active' : ''} href={n.quotes.href}>{n.quotes.label}</Link>
       <Link className={pathname.startsWith(n.payments.href) ? 'active' : ''} href={n.payments.href}>{n.payments.label}</Link>
       <Link className={pathname.startsWith(n.commercialControl.href) ? 'active' : ''} href={n.commercialControl.href}>{n.commercialControl.label}</Link>
@@ -126,7 +126,7 @@ export default function LifecycleSidebar() {
       <Link className={pathname.startsWith(n.messages.href) ? 'active' : ''} href={n.messages.href}>{n.messages.label}</Link>
     </Area>
 
-    <Area title="Intelligence" description="Performance & assurance" open={pathname.startsWith(n.executive.href) || pathname.startsWith(n.risk.href) || pathname.startsWith(n.knowledge.href)}>
+    <Area title="Intelligence" description="Performance & risk" open={pathname.startsWith(n.executive.href) || pathname.startsWith(n.risk.href) || pathname.startsWith(n.knowledge.href)}>
       <Link className={pathname.startsWith(n.executive.href) ? 'active' : ''} href={n.executive.href}>{n.executive.label}</Link>
       <Link className={pathname.startsWith(n.risk.href) ? 'active' : ''} href={n.risk.href}>{n.risk.label}</Link>
       <Link className={pathname.startsWith(n.knowledge.href) ? 'active' : ''} href={n.knowledge.href}>{n.knowledge.label}</Link>
