@@ -58,7 +58,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     sourceLabel: 'Template preview',
     reference: `OP-${slug.replaceAll('-', '/').toUpperCase()}-001`,
     revision: 'A', issueState: 'Preview only', subject: 'No live case selected', facts: [],
-    warnings: ['Open this template with a case, quote or project context to populate live controlled data.'],
+    warnings: ['Open this template with a case, quote or project context to populate live data.'],
   };
 
   const intake = await maybeOne(supabase, 'technical_intakes', input.organisationId, { lead_id: String(lead.id) });
@@ -68,16 +68,23 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
   const { count: documentCount } = await supabase.from('documents').select('id', { count: 'exact', head: true }).eq('organisation_id', input.organisationId).eq('lead_id', String(lead.id));
 
   const referenceBase = text(lead.case_reference || lead.reference || lead.id).slice(0, 36);
-  const common = [
-    fact('Case reference', referenceBase), fact('Client', lead.company_name), fact('Project', lead.title || lead.project_type),
-    fact('Contact', lead.contact_name), fact('Owner', lead.owner_id), fact('Priority', lead.priority),
+  const clientCommon = [
+    fact('Case reference', referenceBase),
+    fact('Client', lead.company_name),
+    fact('Project', lead.title || lead.project_type),
+    fact('Contact', lead.contact_name),
   ];
-  let facts: DocumentAdapterFact[] = common;
+  const internalCommon = [
+    ...clientCommon,
+    fact('Owner', lead.owner_id),
+    fact('Priority', lead.priority),
+  ];
+  let facts: DocumentAdapterFact[] = internalCommon;
 
   switch (slug) {
     case 'partner-technical-assessment-report':
     case 'technical-review':
-      facts = [...common,
+      facts = [...internalCommon,
         fact('Feasibility', response?.feasibility), fact('Confidence', response?.confidence_percent !== undefined ? `${response.confidence_percent}%` : null),
         fact('Capacity', response?.capacity_status), fact('Estimated hours', response?.estimated_engineering_hours),
         fact('Lead time', response?.estimated_lead_time_days !== undefined ? `${response.estimated_lead_time_days} days` : null),
@@ -85,24 +92,28 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
       ]; break;
     case 'commercial-approval':
     case 'commercial-qualification-record':
-      facts = [...common,
+      facts = [...internalCommon,
         fact('Partner cost', money(commercial?.cost_price, quote?.currency)), fact('Client price', money(commercial?.client_price, quote?.currency)),
         fact('Margin amount', money(commercial?.margin_amount, quote?.currency)), fact('Margin', commercial?.margin_percent !== undefined ? `${number(commercial.margin_percent).toFixed(1)}%` : null),
         fact('Approval state', commercial?.status), fact('Approved at', date(commercial?.approved_at)),
       ]; break;
     case 'client-quote':
     case 'quote':
+      facts = [...clientCommon,
+        fact('Quote number', quote?.quote_number), fact('Revision', quote?.revision), fact('Quote status', quote?.status), fact('Issued date', date(quote?.issued_at)),
+        fact('Valid until', date(quote?.valid_until)), fact('Scope', intake?.description), fact('Deliverables', intake?.deliverables), fact('Required date', date(intake?.deadline)),
+        fact('Subtotal', money(quote?.subtotal, quote?.currency)), fact('VAT', money(quote?.vat, quote?.currency)), fact('Total', money(quote?.total, quote?.currency)), fact('Currency', quote?.currency),
+      ]; break;
     case 'proposal':
-      facts = [...common,
-        fact('Quote number', quote?.quote_number), fact('Revision', quote?.revision), fact('Subtotal', money(quote?.subtotal, quote?.currency)),
-        fact('VAT', money(quote?.vat, quote?.currency)), fact('Total', money(quote?.total, quote?.currency)),
-        fact('Valid until', date(quote?.valid_until)), fact('Quote status', quote?.status),
+      facts = [...clientCommon,
+        fact('Project type', intake?.project_type || lead.project_type), fact('Discipline', intake?.discipline), fact('Scope', intake?.description),
+        fact('Deliverables', intake?.deliverables), fact('Required date', date(intake?.deadline)), fact('Special requirements', intake?.special_requirements),
       ]; break;
     case 'scope-of-work':
     case 'statement-of-work':
     case 'client-requirements':
     case 'requirement-sheet':
-      facts = [...common,
+      facts = [...clientCommon,
         fact('Project type', intake?.project_type || lead.project_type), fact('Discipline', intake?.discipline), fact('Scope', intake?.description),
         fact('Deliverables', intake?.deliverables), fact('Required date', date(intake?.deadline)), fact('Special requirements', intake?.special_requirements),
       ]; break;
@@ -113,25 +124,33 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
         fact('Scope', intake?.description), fact('Deliverables', intake?.deliverables), fact('Response due', date(reviewRequest?.response_due_at)),
         fact('Review status', reviewRequest?.status), fact('Controlled documents', documentCount ?? 0)]; break;
     case 'handover-pack':
+      facts = [...internalCommon,
+        fact('Project number', project?.project_number), fact('Delivery stage', project?.project_stage || project?.status),
+        fact('Start date', date(project?.start_date)), fact('Due date', date(project?.due_date)), fact('Controlled documents', documentCount ?? 0),
+        fact('Accepted value', money(quote?.total, quote?.currency)),
+      ]; break;
     case 'completion-report':
-      facts = [...common,
+      facts = [...clientCommon,
         fact('Project number', project?.project_number), fact('Delivery stage', project?.project_stage || project?.status),
         fact('Start date', date(project?.start_date)), fact('Due date', date(project?.due_date)), fact('Controlled documents', documentCount ?? 0),
         fact('Accepted value', money(quote?.total, quote?.currency)),
       ]; break;
     case 'invoice':
-      facts = [fact('Client', lead.company_name), fact('Project', lead.title || lead.project_type), fact('Project number', project?.project_number),
-        fact('Quote reference', quote?.quote_number), fact('Net amount', money(quote?.subtotal, quote?.currency)), fact('Tax', money(quote?.vat, quote?.currency)),
-        fact('Amount due', money(quote?.total, quote?.currency)), fact('Currency', quote?.currency)]; break;
+      facts = [...clientCommon,
+        fact('Project number', project?.project_number), fact('Quote reference', quote?.quote_number),
+        fact('Net amount', money(quote?.subtotal, quote?.currency)), fact('Tax', money(quote?.vat, quote?.currency)),
+        fact('Amount due', money(quote?.total, quote?.currency)), fact('Currency', quote?.currency),
+        fact('Payment method', 'Bank transfer'), fact('Payment reference', project?.project_number || quote?.quote_number || referenceBase),
+      ]; break;
     case 'document-register':
-      facts = [...common, fact('Controlled documents', documentCount ?? 0), fact('Project number', project?.project_number), fact('Current delivery stage', project?.project_stage || project?.status)]; break;
+      facts = [...internalCommon, fact('Controlled documents', documentCount ?? 0), fact('Project number', project?.project_number), fact('Current delivery stage', project?.project_stage || project?.status)]; break;
     default:
-      facts = [...common, fact('Project type', intake?.project_type || lead.project_type), fact('Discipline', intake?.discipline), fact('Deliverables', intake?.deliverables)];
+      facts = [...internalCommon, fact('Project type', intake?.project_type || lead.project_type), fact('Discipline', intake?.discipline), fact('Deliverables', intake?.deliverables)];
   }
 
   const warnings: string[] = [];
-  if (!intake && ['scope-of-work','statement-of-work','client-requirements','requirement-sheet','partner-technical-assessment-report'].includes(slug)) warnings.push('No technical intake is linked to this case.');
-  if (!quote && ['client-quote','quote','proposal','invoice'].includes(slug)) warnings.push('No client quote is linked to this case.');
+  if (!intake && ['scope-of-work','statement-of-work','client-requirements','requirement-sheet','partner-technical-assessment-report','proposal'].includes(slug)) warnings.push('No technical intake is linked to this case.');
+  if (!quote && ['client-quote','quote','invoice'].includes(slug)) warnings.push('No client quote is linked to this case.');
   if (!project && ['handover-pack','completion-report','invoice'].includes(slug)) warnings.push('No delivery project is linked to this case.');
 
   return {
@@ -139,7 +158,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     sourceLabel: project ? 'Live project record' : quote ? 'Live quote record' : 'Live case record',
     reference: `OP-${slug.replaceAll('-', '/').toUpperCase()}-${referenceBase}`,
     revision: text(quote?.revision, 'A'),
-    issueState: warnings.length ? 'Draft / Missing evidence' : 'Controlled live record',
+    issueState: warnings.length ? 'Draft / Missing information' : 'Ready for review',
     subject: text(lead.title || lead.project_type || lead.company_name),
     facts,
     warnings,
