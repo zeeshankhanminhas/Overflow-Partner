@@ -31,19 +31,19 @@ export default async function AssessmentsPage() {
   const clarification=partner.filter(item=>item.request.status==='clarification_required').length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Partner Assessments" title="Partner Assessments" description="Acquisition-owned Execution Partner feasibility, capacity and price evidence before Case creation. Case technical definition stays in Cases." actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{approvals?` · ${approvals}`:''}</Link><Link className="button secondary" href="/workspace/leads?view=assessment">Case technical work</Link></>} />
+    <ProductPageHeader eyebrow="Work · Partner Assessments" title="Partner Assessments" description="Review Partner capability, capacity, timing and price before an enquiry becomes a Case." actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{approvals?` · ${approvals}`:''}</Link><Link className="button secondary" href="/workspace/leads?view=assessment">Case technical work</Link></>} />
     <ProductMetrics label="Partner assessment workload">
-      <ProductMetric label="Active assessments" value={partner.length} detail="Current Acquisition-owned requests" tone={partner.length?'active':'neutral'} />
-      <ProductMetric label="Waiting on Partner" value={waiting} detail="Normal external dependency" tone={waiting?'waiting':'complete'} />
+      <ProductMetric label="Active assessments" value={partner.length} detail="Current Partner requests" tone={partner.length?'active':'neutral'} />
+      <ProductMetric label="Waiting on Partner" value={waiting} detail="Waiting for a Partner response" tone={waiting?'waiting':'complete'} />
       <ProductMetric label="Clarification needed" value={clarification} detail="Partner needs more information" tone={clarification?'attention':'complete'} />
-      <ProductMetric label="Decisions ready" value={approvals} detail="Go / No-Go authority" tone={approvals?'waiting':'complete'} />
+      <ProductMetric label="Decisions ready" value={approvals} detail="Go / No-Go decisions" tone={approvals?'waiting':'complete'} />
     </ProductMetrics>
 
-    {partner.length===0 ? <ProductEmptyState title="No Partner Assessments are active" description="Assessments appear here when Acquisition releases a technical package to an Execution Partner." action={<Link className="button secondary" href="/workspace/acquisition/prospects">Open Enquiries</Link>} /> : <ProductRegister>
+    {partner.length===0 ? <ProductEmptyState title="No Partner Assessments are active" description="Assessments appear here when an enquiry is sent to a Partner for review." action={<Link className="button secondary" href="/workspace/acquisition/prospects">Open Enquiries</Link>} /> : <ProductRegister>
       {partner.map(({request,presentation})=><ProductRegisterRow key={request.id} href={`/workspace/acquisition/${request.prospect_id}`}>
         <div><strong>{request.prospect?.company_name||'Enquiry'}</strong><p>{request.partner?.company_name||'Execution Partner'}{request.prospect?.contact_name?` · ${request.prospect.contact_name}`:''}</p><small>{presentation.summary}</small></div>
         <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
-        <div><small>{presentation.waitingOn?'Waiting on':'Owner'}</small><strong style={{display:'block',marginTop:3}}>{presentation.waitingOn?.label||'Acquisition'}</strong></div>
+        <div><small>{presentation.waitingOn?'Waiting on':'Owner'}</small><strong style={{display:'block',marginTop:3}}>{presentation.waitingOn?.label||'Overflow Partner'}</strong></div>
         <strong>{presentation.nextAction.label}{presentation.nextAction.available?' →':''}</strong>
       </ProductRegisterRow>)}
     </ProductRegister>}
