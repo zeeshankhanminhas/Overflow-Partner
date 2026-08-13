@@ -3,9 +3,11 @@ import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
 import { resolveProjectStartPaymentGate } from '@/lib/finance/startPayment';
+import type { OperatingPresentation } from '@/lib/presentation/operatingState';
 import { resolveExecutionExceptionAction } from './actions';
 import { guardedGenerateExecutionLinkAction, guardedReleasePartnerExecutionAction } from './guardedActions';
-import { ActionDialog, ContextDrawer, EvidenceRow, ProductDisclosure } from '@/components/workspace/InteractionPrimitives';
+import RecordWorkspace from '@/components/workspace/RecordWorkspace';
+import { ActionDialog, EvidenceRow, ProductDisclosure } from '@/components/workspace/InteractionPrimitives';
 
 function formatDate(value?: string | null) {
   if (!value) return 'Not set';
@@ -66,77 +68,59 @@ export default async function PartnerExecutionControlPage({ params, searchParams
   const partnerName=commercialPartner?.company_name||'Execution Partner';
   const paymentReady=startPaymentGate.authorised;
   const readyForRelease=paymentReady&&project.project_stage==='ready_for_execution'&&!noCommercialPartner&&!partnerMismatch&&commercialPartner?.status==='approved'&&commercialPartner?.nda_signed&&Boolean(commercialPartner?.email)&&Boolean(releaseScope);
+  const recordPaymentHref=`/workspace/payments?project=${id}&action=record-payment`;
 
-  const state=!paymentReady&&!assignment?'Awaiting client payment':partnerMismatch?'Release basis needs attention':noCommercialPartner?'Commercial Partner missing':!assignment||!sessionUsable?'Ready to release':!commencement?'Waiting for Partner commencement':'Partner execution';
-  const tone=partnerMismatch||noCommercialPartner?'attention':!paymentReady&&!assignment?'neutral':commencement?'success':'neutral';
+  const releaseIssues=[
+    ...(noCommercialPartner?['Accepted commercial Execution Partner is missing.']:[]),
+    ...(partnerMismatch?['Existing release evidence does not match the accepted commercial Partner.']:[]),
+    ...(commercialPartner&&!commercialPartner.nda_signed?['Execution Partner NDA readiness is incomplete.']:[]),
+    ...(commercialPartner&&!commercialPartner.email?['Execution Partner recipient email is missing.']:[]),
+    ...(paymentReady&&!releaseScope?[currentScopes.length>1?'Multiple current controlled scopes require resolution.':'Current approved controlled execution scope is missing.']:[]),
+  ];
 
-  return <section className="stack" style={{gap:24,maxWidth:1040}}>
-    <div style={{display:'flex',justifyContent:'space-between',gap:20,alignItems:'flex-start',flexWrap:'wrap'}}>
-      <div><Link href={`/workspace/projects/${id}`} className="project-os-back">← Project 360</Link><p className="eyebrow" style={{marginTop:18}}>Partner execution</p><h1 style={{marginTop:8}}>{project.title}</h1><p className="lede">Release the approved work to the Execution Partner, then follow only the Partner update, exceptions and delivery that need your attention.</p></div>
-      <span className={`status-pill ${tone}`}>{state}</span>
-    </div>
+  let presentation:OperatingPresentation;
+  if(!paymentReady&&!assignment){
+    presentation={state:'Awaiting client payment',headline:'Awaiting client payment',summary:`Required to start: ${money(startPaymentGate.required,startPaymentGate.currency)} · Received: ${money(startPaymentGate.received,startPaymentGate.currency)}.`,tone:'waiting',waitingOn:{actor:'client',label:'Client'},nextAction:{label:'Record payment',available:true,kind:'navigate',href:recordPaymentHref,reason:'Execution remains locked until qualifying client money is received and cleared.'},blockers:[],warnings:[],completed:[],primaryActions:[]};
+  }else if(releaseIssues.length){
+    presentation={state:'Release basis needs attention',headline:'Release basis needs attention',summary:releaseIssues[0],tone:'attention',waitingOn:{actor:'internal',label:'Overflow Partner'},nextAction:{label:'Resolve release basis',available:false,kind:'act',reason:'The governed release basis must match the accepted commercial lineage.'},blockers:releaseIssues,warnings:[],completed:paymentReady?['Start payment received']:[],primaryActions:[]};
+  }else if(!assignment||!sessionUsable){
+    presentation={state:'Ready to release',headline:`Ready to release to ${partnerName}`,summary:'Partner, controlled scope, recipient and Project dates are inherited from governed lineage.',tone:'active',waitingOn:{actor:'internal',label:'Overflow Partner'},nextAction:{label:`Release to ${partnerName}`,available:readyForRelease,kind:'act',reason:'One governed release action creates the underlying assignment and secure Partner access.'},blockers:[],warnings:[],completed:['Start payment received'],primaryActions:[]};
+  }else if(!commencement){
+    presentation={state:'Waiting for Partner commencement',headline:`Waiting for ${partnerName} to start`,summary:'Work has been released. No internal action is required until the Partner confirms commencement.',tone:'waiting',waitingOn:{actor:'partner',label:partnerName},nextAction:{label:'Await Partner commencement',available:false,kind:'wait'},blockers:[],warnings:[],completed:['Partner release recorded'],primaryActions:[]};
+  }else if(openExceptions.length){
+    presentation={state:'Execution exception',headline:'Partner execution needs attention',summary:`${openExceptions.length} Partner exception${openExceptions.length===1?'':'s'} require resolution before progression.`,tone:'attention',waitingOn:{actor:'internal',label:'Overflow Partner'},nextAction:{label:'Resolve Partner exception',available:true,kind:'act'},blockers:openExceptions.map(item=>item.title),warnings:[],completed:['Partner commenced'],primaryActions:[]};
+  }else if(submissions.length){
+    presentation={state:'Partner delivery received',headline:'Partner delivery received',summary:'The current delivery package is available for governed Delivery review.',tone:'active',waitingOn:{actor:'internal',label:'Overflow Partner'},nextAction:{label:'Review delivery',available:true,kind:'review',href:`/workspace/projects/${id}/delivery`},blockers:[],warnings:[],completed:['Partner commenced'],primaryActions:[]};
+  }else{
+    presentation={state:'Partner execution',headline:`${partnerName} is executing Cycle ${assignment?.execution_cycle||1}`,summary:latestProgress?'The latest Partner update is shown below. No internal intervention is required unless work becomes off-plan.':'Execution is active. Await the next governed Partner update or delivery package.',tone:'waiting',waitingOn:{actor:'partner',label:partnerName},nextAction:{label:'Await Partner delivery',available:false,kind:'wait'},blockers:[],warnings:[],completed:['Partner commenced'],primaryActions:[]};
+  }
 
-    {query.success?<div className="card" style={{borderLeft:'3px solid var(--op-success)'}}><strong>{query.success}</strong></div>:null}
-    {query.error?<div className="card" style={{borderLeft:'3px solid var(--op-danger)'}}><strong>{query.error}</strong></div>:null}
+  const header=<div><Link href={`/workspace/projects/${id}`} className="project-os-back">← Project 360</Link><p className="vp-kicker">Execution · {project.project_number}</p><h1>{project.title}</h1></div>;
+  const notices=<>{query.success?<div className="project-os-notice success"><strong>{query.success}</strong></div>:null}{query.error?<div className="project-os-notice error"><strong>{query.error}</strong></div>:null}</>;
 
-    {!paymentReady&&!assignment ? <article className="card stack" style={{gap:14}}>
-      <div><p className="eyebrow">Commercial start gate</p><h2>Awaiting client payment</h2><p>Partner release is unavailable until the required client start payment has actually been received and cleared.</p></div>
-      <div className="grid gap-4 md:grid-cols-2"><EvidenceRow label="Required to start" value={money(startPaymentGate.required,startPaymentGate.currency)} tone="waiting"/><EvidenceRow label="Received" value={money(startPaymentGate.received,startPaymentGate.currency)} /></div>
-      <Link className="button" href={`/workspace/payments?project=${id}`}>Record payment</Link>
-    </article> : null}
+  const releaseAction=<ActionDialog title={`Release work to ${partnerName}`} description="This records the governed Partner release and creates secure Partner access underneath one operator action. The client start-payment gate is rechecked server-side before release." triggerLabel={`Release to ${partnerName}`} disabled={!readyForRelease||partnerMismatch}><div className="stack" style={{gap:16}}><EvidenceRow label="Start payment" value="Received and cleared" tone="complete"/><EvidenceRow label="Execution Partner" value={partnerName}/><EvidenceRow label="Controlled scope" value={releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:'Current approved scope required'}/><EvidenceRow label="Recipient" value={commercialPartner?.email||'Email required'}/><EvidenceRow label="Committed due" value={formatDate(project.due_date)}/><form action={guardedReleasePartnerExecutionAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit">Confirm release</button></form></div></ActionDialog>;
 
-    {paymentReady&&(!assignment||!sessionUsable) ? <article className="card stack" style={{gap:18}}>
-      <div><p className="eyebrow">Next action</p><h2>Release to {partnerName}</h2><p>The release basis is inherited from the accepted commercial position, current controlled scope and Project dates.</p></div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div><small>Execution Partner</small><strong style={{display:'block',marginTop:5}}>{partnerName}</strong>{commercialPartner?<span style={{display:'block',marginTop:4}}>{commercialPartner.status==='approved'&&commercialPartner.nda_signed?'Approved · NDA ready':'Partner readiness incomplete'}</span>:null}</div>
-        <div><small>Controlled scope</small><strong style={{display:'block',marginTop:5}}>{releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:currentScopes.length>1?'Multiple current scopes need resolution':'No current approved scope'}</strong></div>
-        <div><small>Recipient</small><strong style={{display:'block',marginTop:5}}>{commercialPartner?.contact_name||'Partner contact'}{commercialPartner?.email?` · ${commercialPartner.email}`:' · Email required'}</strong></div>
-        <div><small>Due</small><strong style={{display:'block',marginTop:5}}>{formatDate(project.due_date)}</strong></div>
-      </div>
-      {partnerMismatch?<p className="vp-callout">Existing release evidence does not match the accepted commercial Partner. Resolve the lineage before release.</p>:null}
-      {currentScopes.length>1?<p className="vp-callout">More than one current controlled execution scope is available. Resolve the current scope in Documents before release.</p>:null}
-      <ActionDialog
-        title={`Release work to ${partnerName}`}
-        description="This records the governed Partner release and creates secure Partner access underneath one operator action. The client start-payment gate is rechecked server-side before release."
-        triggerLabel={`Release to ${partnerName}`}
-        disabled={!readyForRelease||partnerMismatch}
-      >
-        <div className="stack" style={{gap:16}}>
-          <EvidenceRow label="Start payment" value="Received and cleared" tone="complete" />
-          <EvidenceRow label="Execution Partner" value={partnerName} />
-          <EvidenceRow label="Controlled scope" value={releaseScope?`${releaseScope.reference} · ${releaseScope.title}`:'Current approved scope required'} />
-          <EvidenceRow label="Recipient" value={commercialPartner?.email||'Email required'} />
-          <EvidenceRow label="Committed due" value={formatDate(project.due_date)} />
-          <form action={guardedReleasePartnerExecutionAction}><input type="hidden" name="project_id" value={id}/><button className="button" type="submit">Confirm release</button></form>
-        </div>
-      </ActionDialog>
-    </article> : null}
+  const firstException=openExceptions[0];
+  let nextAction:React.ReactNode;
+  if(!paymentReady&&!assignment)nextAction=<Link className="button" href={recordPaymentHref}>Record payment</Link>;
+  else if(releaseIssues.length)nextAction=<Link className="button secondary" href={releaseScope?`/workspace/projects/${id}`:`/workspace/documents?project=${id}`}>Resolve release basis</Link>;
+  else if(!assignment||!sessionUsable)nextAction=releaseAction;
+  else if(!commencement)nextAction=<p style={{color:'var(--op-muted)'}}>No internal action is required. The Partner owns the next move.</p>;
+  else if(firstException)nextAction=<ActionDialog title={`Resolve exception · ${firstException.title}`} description="Record the governed resolution evidence. The exception remains in audit after completion." triggerLabel="Resolve Partner exception"><form action={resolveExecutionExceptionAction} className="stack"><input type="hidden" name="project_id" value={id}/><input type="hidden" name="exception_id" value={firstException.id}/><label>Resolution note<textarea name="resolution_note" rows={3} required placeholder="What resolved the execution blocker?"/></label><button className="button" type="submit">Resolve exception</button></form></ActionDialog>;
+  else if(submissions.length)nextAction=<Link className="button" href={`/workspace/projects/${id}/delivery`}>Review delivery</Link>;
+  else nextAction=<p style={{color:'var(--op-muted)'}}>Execution is progressing with the Partner. No intervention is required.</p>;
 
-    {assignment&&sessionUsable ? <article className="card stack" style={{gap:18}}>
-      <div><p className="eyebrow">Current execution</p><h2>{commencement?`${partnerName} is executing Cycle ${assignment.execution_cycle||1}`:`Waiting for ${partnerName} to start`}</h2><p>{commencement?`Commencement confirmed ${formatDate(commencement.submitted_at)}. The next Partner evidence is a progress update or delivery package.`:'Work has been released. The Project will move forward when the Partner confirms commencement from the secure workspace.'}</p></div>
-      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{currentExecutionLink?<a className="button" href={currentExecutionLink} target="_blank" rel="noreferrer">Open Partner workspace</a>:null}{currentExecutionLink?<ContextDrawer title="Advanced Partner access" description="Security and access controls are exceptional context, not permanent Project controls." triggerLabel="Advanced Partner access"><div className="stack" style={{gap:16}}><EvidenceRow label="Recipient" value={assignment.partner_contact_email}/><EvidenceRow label="Access status" value="Active secure workspace" tone="complete" meta={`Expires ${formatDate(session.expires_at)}`}/><label>Current secure Partner link<input readOnly value={currentExecutionLink}/></label><form action={guardedGenerateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button secondary" type="submit">Replace Partner link</button><small style={{display:'block',marginTop:8}}>Replacing the link revokes the current one. Use this only for an access problem.</small></form></div></ContextDrawer>:null}</div>
-      <ProductDisclosure summary="Release evidence">
-        <EvidenceRow label="Partner" value={partnerName} tone="complete" />
-        <EvidenceRow label="Scope" value={assignedScope?`${assignedScope.reference} · ${assignedScope.title}`:'Controlled scope recorded'} />
-        <EvidenceRow label="Recipient" value={assignment.partner_contact_email} />
-        <EvidenceRow label="Committed due" value={formatDate(assignment.committed_due_date||project.due_date)} />
-      </ProductDisclosure>
-    </article> : null}
+  const summary=<div className="vp-facts"><div className="vp-fact"><small>Execution Partner</small><strong>{partnerName}</strong></div><div className="vp-fact"><small>Controlled scope</small><strong>{assignedScope?assignedScope.reference:releaseScope?.reference||'Awaiting release'}</strong></div><div className="vp-fact"><small>Committed due</small><strong>{formatDate(assignment?.committed_due_date||project.due_date)}</strong></div><div className="vp-fact"><small>Cycle</small><strong>{assignment?.execution_cycle||1}</strong></div></div>;
+  const readiness=releaseIssues.length?<div className="op-evidence-list">{releaseIssues.map(issue=><EvidenceRow key={issue} label="Unresolved" value={issue} tone="attention"/>)}</div>:undefined;
 
-    {latestProgress ? <article className="card stack" style={{gap:14}}>
-      <div><p className="eyebrow">Latest Partner update</p><h2>{stateLabel(latestProgress.progress_state)}</h2></div>
-      <div className="grid gap-4 md:grid-cols-3"><div><small>Progress</small><strong style={{display:'block',marginTop:5}}>{latestProgress.percent_complete===null||latestProgress.percent_complete===undefined?'Not stated':`${latestProgress.percent_complete}%`}</strong></div><div><small>Forecast</small><strong style={{display:'block',marginTop:5}}>{formatDate(latestProgress.forecast_delivery_date||commencement?.forecast_delivery_date)}</strong></div><div><small>Updated</small><strong style={{display:'block',marginTop:5}}>{formatDate(latestProgress.submitted_at)}</strong></div></div>{latestProgress.work_in_progress?<p>{latestProgress.work_in_progress}</p>:null}
-    </article> : null}
+  const activities=commencement?<div className="stack" style={{gap:14}}>{latestProgress?<div><div className="vp-facts"><div className="vp-fact"><small>Partner state</small><strong>{stateLabel(latestProgress.progress_state)}</strong></div><div className="vp-fact"><small>Progress</small><strong>{latestProgress.percent_complete===null||latestProgress.percent_complete===undefined?'Partner reported':`${latestProgress.percent_complete}%`}</strong></div><div className="vp-fact"><small>Forecast</small><strong>{formatDate(latestProgress.forecast_delivery_date||commencement.forecast_delivery_date)}</strong></div><div className="vp-fact"><small>Updated</small><strong>{formatDate(latestProgress.submitted_at)}</strong></div></div>{latestProgress.work_in_progress?<p>{latestProgress.work_in_progress}</p>:null}</div>:<p style={{color:'var(--op-muted)'}}>Partner commencement is recorded. No progress update has been submitted yet.</p>}{openExceptions.length>0?<div className="stack" style={{gap:10}}>{openExceptions.map(item=><div className="project-os-check-row" key={item.id}><div><strong>{item.title}</strong><small>{stateLabel(item.severity)} · raised {formatDate(item.raised_at)}</small></div><ActionDialog title={`Resolve exception · ${item.title}`} description="Record the governed resolution evidence; do not change the raw exception status directly." triggerLabel="Resolve" triggerTone="secondary"><form action={resolveExecutionExceptionAction} className="stack"><input type="hidden" name="project_id" value={id}/><input type="hidden" name="exception_id" value={item.id}/><label>Resolution note<textarea name="resolution_note" rows={3} required placeholder="What resolved the execution blocker?"/></label><button className="button" type="submit">Resolve exception</button></form></ActionDialog></div>)}</div>:null}</div>:undefined;
 
-    {openExceptions.length>0 ? <article className="card stack" style={{gap:16}}>
-      <div><p className="eyebrow">Needs attention</p><h2>{openExceptions.length} Partner exception{openExceptions.length===1?'':'s'}</h2></div>
-      {openExceptions.map(item=><div key={item.id} style={{borderTop:'1px solid var(--op-border)',paddingTop:12}}><strong>{item.title}</strong><p>{stateLabel(item.severity)} · raised {formatDate(item.raised_at)}</p><form action={resolveExecutionExceptionAction} className="stack" style={{gap:8,marginTop:10}}><input type="hidden" name="project_id" value={id}/><input type="hidden" name="exception_id" value={item.id}/><label>Resolution note<textarea name="resolution_note" rows={2} required placeholder="What resolved the execution blocker?"/></label><button className="button secondary" type="submit">Resolve exception</button></form></div>)}
-    </article> : null}
+  const latestSubmission=submissions[0];
+  const evidence=latestSubmission?<div className="stack" style={{gap:12}}><EvidenceRow label="Current Partner delivery" value={latestSubmission.revision||`Execution cycle ${latestSubmission.execution_cycle||1}`} meta={`${formatDate(latestSubmission.submitted_at)} · ${stateLabel(latestSubmission.review_status)}`} tone="complete"/>{latestSubmission.delivery_summary?<p>{latestSubmission.delivery_summary}</p>:null}<Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Open Delivery review</Link></div>:undefined;
 
-    {submissions.length>0 ? <article className="card stack" style={{gap:14}}>
-      <div><p className="eyebrow">Partner delivery</p><h2>{submissions.length} submission{submissions.length===1?'':'s'} received</h2></div>
-      {submissions.slice(0,5).map(item=><div key={item.id} style={{borderTop:'1px solid var(--op-border)',paddingTop:12}}><strong>{item.revision||`Execution cycle ${item.execution_cycle||1}`}</strong><p>{item.delivery_summary}</p><small>{formatDate(item.submitted_at)} · {stateLabel(item.review_status)}</small></div>)}
-      <Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Review delivery</Link>
-    </article> : null}
-  </section>;
+  const history=<div className="stack" style={{gap:12}}>{progress.slice(1,6).map(item=><div className="project-os-history-row" key={item.id}><span>→</span><div><strong>{stateLabel(item.progress_state)}</strong><small>{formatDate(item.submitted_at)}</small></div></div>)}{submissions.slice(1,6).map(item=><div className="project-os-history-row" key={item.id}><span>→</span><div><strong>{item.revision||`Delivery cycle ${item.execution_cycle||1}`}</strong><small>{formatDate(item.submitted_at)} · {stateLabel(item.review_status)}</small></div></div>)}{progress.length<=1&&submissions.length<=1?<p>No older execution evidence.</p>:null}</div>;
+
+  const metadata=<div className="stack" style={{gap:14}}>{assignment?<div className="op-evidence-list"><EvidenceRow label="Partner release" value={partnerName} tone="complete"/><EvidenceRow label="Scope" value={assignedScope?`${assignedScope.reference} · ${assignedScope.title}`:'Controlled scope recorded'}/><EvidenceRow label="Recipient" value={assignment.partner_contact_email}/><EvidenceRow label="Committed due" value={formatDate(assignment.committed_due_date||project.due_date)}/></div>:null}{currentExecutionLink?<ProductDisclosure summary="Advanced Partner access"><div className="stack" style={{gap:12}}><EvidenceRow label="Access status" value="Active secure workspace" tone="complete" meta={`Expires ${formatDate(session.expires_at)}`}/><EvidenceRow label="Recipient" value={assignment?.partner_contact_email}/><label>Current secure Partner link<input readOnly value={currentExecutionLink}/></label><a className="button secondary" href={currentExecutionLink} target="_blank" rel="noreferrer">Open Partner workspace</a><form action={guardedGenerateExecutionLinkAction}><input type="hidden" name="project_id" value={id}/><button className="button secondary" type="submit">Replace Partner link</button><small style={{display:'block',marginTop:8}}>Replacing the link revokes the current one. Use this only for an access problem.</small></form></div></ProductDisclosure>:null}</div>;
+
+  return <RecordWorkspace header={header} notices={notices} presentation={presentation} readiness={readiness} nextAction={nextAction} summary={summary} activities={activities} evidence={evidence} history={history} metadata={metadata}/>;
 }
