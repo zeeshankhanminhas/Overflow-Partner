@@ -234,4 +234,25 @@
   .approvals-register .product-register-row > div:empty {
     display: none !important;
   }
+
+  .project-os-page .project-os-progress-scroll {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+  .project-os-page .project-os-progress {
+    min-width: 1080px !important;
+    grid-template-columns: repeat(10, minmax(96px, 1fr)) !important;
+  }
+  .project-os-page .project-os-progress li,
+  .project-os-page .project-os-progress li.complete,
+  .project-os-page .project-os-progress li:nth-child(n+5) {
+    display: grid !important;
+    scroll-snap-align: start;
+  }
+  .project-os-page .project-os-progress li:before,
+  .project-os-page .project-os-progress li:after {
+    display: block !important;
+  }
 }
