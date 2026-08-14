@@ -4,6 +4,8 @@ Status: **Frozen baseline**
 
 This document is the source of truth for workspace information architecture and interaction design. Feature implementation must conform to it. Do not invent a new page composition during implementation; amend this constitution deliberately first if the product model genuinely changes.
 
+Interaction-depth details are normative in `docs/WORKSPACE_INTERACTION_ARCHITECTURE.md`.
+
 ## Governing SaaS principles
 
 1. **Outcome-based structure** — group surfaces around user jobs, not database tables.
@@ -44,6 +46,24 @@ A page must belong to one family. Do not mix the composition rules of multiple f
 - **Main work area:** one primary business object or one clearly bounded control/register purpose.
 - **Contextual links:** preserve originating Case, Project or financial context across modules.
 
+### Interaction grammar
+
+The workspace follows one global rule:
+
+> **Navigate to choose work. Stay in context to do work.**
+
+Use the canonical interaction type by operator intent:
+
+- **Page** — change operating area or primary business object.
+- **Drawer** — inspect supporting context without leaving the current job.
+- **Decision Dialog** — make one bounded decision with one business outcome.
+- **Work Window** — perform substantial work while remaining anchored to the owning record/register.
+- **Disclosure** — reveal only short, low-frequency local detail.
+
+Maximum interaction depth is one active layer above the primary page. Do not stack drawer → modal → dialog → viewer.
+
+Do not move record identity, current state, current owner/waiting-on actor, current blockers, next action or current evidence into secondary surfaces merely to make a page shorter.
+
 ### Navigation taxonomy
 
 - Overview
@@ -82,20 +102,22 @@ Every governed record follows this hierarchy:
    - Owner
 2. **Stage / state strip**
    - Where this record sits
-3. **Decision**
+3. **Context actions**
+   - Messages
+   - History
+   - Older evidence
+   - Metadata
+   - Audit
+   - Open as drawers when needed; do not consume the main work surface
+4. **Decision**
    - Readiness
    - Next permitted action
    - Record summary
-4. **Current work**
+5. **Current work**
    - Work relevant to the current governed state
    - Do not show unrelated forms merely because data exists
-5. **Controlled evidence**
+6. **Controlled evidence**
    - Evidence relevant to progression now
-6. **More context** — collapsed by default
-   - History
-   - Older documents
-   - Metadata
-   - Audit
 
 Above the fold should answer:
 
@@ -116,13 +138,20 @@ A row shows only information needed to identify and prioritise the record: refer
 
 Registers must not contain full record workflows or large embedded forms.
 
+Where basic prioritisation requires more context, use:
+
+`Register row → Inspect drawer → deliberate Open of authoritative record`
+
+Do not force navigation merely to answer what state the record is in, who owns the next move, why it is blocked or what basic evidence/financial position exists.
+
 ## Control / Overview composition
 
 1. Header and business question
 2. Key signals
 3. Attention queue / exceptions
 4. Relevant trend or distribution
-5. Drill-through to the underlying register or record
+5. Inspect context where useful
+6. Drill-through to the underlying register or record when action is required
 
 Control surfaces explain and direct. They do not absorb the detailed workflow of every object they report on.
 
@@ -178,12 +207,15 @@ Contextually visible:
 - current evidence
 - current activities
 
-Collapsed / secondary:
+Drawer / secondary context:
+- messages not required for the current decision
 - older evidence
 - long history
 - metadata
 - audit
-- advanced configuration
+
+Work Window:
+- substantial review or data-entry work that would otherwise create a routine child-page journey
 
 Availability of information does not imply permanent visibility.
 
@@ -198,15 +230,17 @@ Every card or panel has one job only:
 - History
 - Intelligence
 
-If a component performs several of these jobs, split it or move secondary information behind disclosure.
+If a component performs several of these jobs, split it or move secondary information behind the correct interaction surface.
+
+Do not create domain-specific popup primitives such as `ProjectDrawer` or `PaymentsModal`. Put domain content inside the canonical `WorkspaceDrawer`, `DecisionDialog` or `WorkWindow`.
 
 ## Feedback and continuity
 
 Every governed action follows:
 
-Action → validate → execute → refresh truth → show local confirmation → focus changed object → explain new state → expose next permitted action.
+Action → validate → execute → refresh truth → close successful bounded interaction → show local confirmation → focus changed object → explain new state → expose next permitted action.
 
-Failures must explain why, focus the offending state/field where possible and provide recovery guidance.
+Failures must explain why, keep the relevant interaction available for correction, focus the offending state/field where possible and provide recovery guidance.
 
 ## Mobile constitution
 
@@ -221,7 +255,7 @@ Priority order:
 6. Evidence
 7. More context
 
-Desktop-only secondary detail should remain collapsed on mobile. Sticky actions must not obscure the content they affect.
+Desktop Drawer / Dialog / Work Window geometry becomes an appropriate full-screen mobile surface while preserving the same semantic interaction type. Sticky actions must not obscure the content they affect.
 
 ## Stability rule: 80% compliance
 
@@ -234,6 +268,8 @@ During stabilisation:
 - no duplicate routes
 - no new component pattern where an approved shared pattern exists
 
+Interaction compression is not permission to change business ownership, lifecycle authority, payment logic or document governance.
+
 ## Review test for every change
 
 Before merging a workspace change, answer:
@@ -244,9 +280,10 @@ Before merging a workspace change, answer:
 4. What is the next permitted action?
 5. What must remain visible?
 6. What should be disclosed only when needed?
-7. Does this duplicate another operating surface?
-8. Does navigation preserve the user’s context?
-9. Will this remain understandable with 100x more records?
-10. Does this comply with the frozen composition family?
+7. Is this a Page, Drawer, Decision Dialog, Work Window or Disclosure — and why?
+8. Does this duplicate another operating surface?
+9. Does navigation preserve the user’s context?
+10. Will this remain understandable with 100x more records?
+11. Does this comply with the frozen composition family and `WORKSPACE_INTERACTION_ARCHITECTURE.md`?
 
 If those questions cannot be answered cleanly, stop and resolve the IA before implementing the UI.
