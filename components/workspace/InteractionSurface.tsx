@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 type InteractionKind = 'drawer' | 'dialog' | 'window';
 
@@ -15,6 +15,7 @@ type InteractionSurfaceProps = {
   triggerClassName?: string;
   triggerAriaLabel?: string;
   disabled?: boolean;
+  defaultOpen?: boolean;
 };
 
 function InteractionSurface({
@@ -28,6 +29,7 @@ function InteractionSurface({
   triggerClassName = 'button secondary',
   triggerAriaLabel,
   disabled = false,
+  defaultOpen = false,
 }: InteractionSurfaceProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -42,6 +44,10 @@ function InteractionSurface({
   function close() {
     dialogRef.current?.close();
   }
+
+  useEffect(() => {
+    if (defaultOpen) open();
+  }, [defaultOpen]);
 
   return <>
     <button
