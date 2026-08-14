@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PartnerDeliveryFiles from '@/components/execution/PartnerDeliveryFiles';
 import { deliveryHealthLabel, deliverySubmissionLabel, partnerWorkPresentation } from '@/lib/presentation/projectJourney';
@@ -25,6 +25,7 @@ const quietButton='min-h-11 border border-black/20 px-5 py-2.5 text-sm font-medi
 const primaryButton='min-h-11 bg-black px-5 py-2.5 text-sm font-medium text-white disabled:bg-neutral-400';
 function pretty(value?:unknown){return String(value||'not recorded').replaceAll('_',' ').replace(/\b\w/g,char=>char.toUpperCase());}
 function date(value?:unknown){if(!value)return'Not set';const d=new Date(String(value));return Number.isNaN(d.getTime())?String(value):d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function partnerMessage(value?:unknown){return String(value||'').replace(/current execution cycle/gi,'current delivery').replace(/execution cycle/gi,'delivery').replace(/current cycle/gi,'current delivery').replace(/correction cycle/gi,'requested changes').replace(/Cycle\s*\d+/gi,'delivery');}
 
 function Fact({label:factLabel,value}:{label:string;value:ReactNode}){
   return <div className="border-t border-black/10 pt-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500">{factLabel}</p><div className="mt-2 text-sm font-medium text-neutral-900">{value}</div></div>;
@@ -46,7 +47,7 @@ export default function PartnerExecutionWorkspace(){
   const{token}=useParams<{token:string}>();
   const[state,setState]=useState<ExecutionState>({});const[loading,setLoading]=useState(true);const[submitting,setSubmitting]=useState(false);const[message,setMessage]=useState('');const[mode,setMode]=useState<Mode>(null);const[deliveryFiles,setDeliveryFiles]=useState<DeliveryFileState>({count:0,locked:false,cycle:1});
   const load=useCallback(async()=>{const response=await fetch(`/api/execution/${token}`,{cache:'no-store'});const body=await response.json();setState(body);setLoading(false);},[token]);
-  useEffect(()=>{load().catch(()=>{setState({message:'Unable to load this Partner Execution workspace.'});setLoading(false);});},[load]);
+  useEffect(()=>{load().catch(()=>{setState({message:'Unable to load this Partner workspace.'});setLoading(false);});},[load]);
 
   async function submit(event:FormEvent<HTMLFormElement>,action:'commencement'|'progress'|'exception'|'delivery'){
     event.preventDefault();setMessage('');
@@ -56,13 +57,13 @@ export default function PartnerExecutionWorkspace(){
     if(action==='commencement'){payload.scope_reviewed=data.get('scope_reviewed')==='true';payload.inputs_received=data.get('inputs_received')==='true';payload.capacity_confirmed=data.get('capacity_confirmed')==='true';payload.no_unresolved_blocker=data.get('no_unresolved_blocker')==='true';payload.declaration_checked=data.get('declaration_checked')==='true';}
     if(action==='delivery')payload.declaration_checked=data.get('declaration_checked')==='true';
     try{
-      const response=await fetch(`/api/execution/${token}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const body=await response.json();setMessage(body.message||(response.ok?'Update recorded.':'Unable to record update.'));
+      const response=await fetch(`/api/execution/${token}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const body=await response.json();setMessage(partnerMessage(body.message||(response.ok?'Update recorded.':'Unable to record update.')));
       if(response.ok){form.reset();setMode(null);await load();}
     }finally{setSubmitting(false);}
   }
 
   if(loading)return <main className="min-h-screen bg-[#f5f4ef] px-6 py-16 text-[#151515]"><div className="mx-auto max-w-6xl animate-pulse"><div className="h-3 w-36 bg-black/10"/><div className="mt-8 h-12 w-3/5 bg-black/10"/><div className="mt-14 grid gap-5 md:grid-cols-3"><div className="h-28 bg-black/5"/><div className="h-28 bg-black/5"/><div className="h-28 bg-black/5"/></div></div></main>;
-  if(!state.execution||!state.project)return <main className="min-h-screen bg-[#f5f4ef] px-6 py-20 text-[#151515]"><div className="mx-auto max-w-5xl border-t border-black/10 pt-10"><p className="text-xs uppercase tracking-[0.12em] text-neutral-500">Overflow Partner</p><h1 className="mt-4 text-4xl font-semibold">Execution workspace unavailable</h1><p className="mt-5 text-neutral-600">{state.message}</p></div></main>;
+  if(!state.execution||!state.project)return <main className="min-h-screen bg-[#f5f4ef] px-6 py-20 text-[#151515]"><div className="mx-auto max-w-5xl border-t border-black/10 pt-10"><p className="text-xs uppercase tracking-[0.12em] text-neutral-500">Overflow Partner</p><h1 className="mt-4 text-4xl font-semibold">Partner workspace unavailable</h1><p className="mt-5 text-neutral-600">{partnerMessage(state.message)}</p></div></main>;
 
   const commenced=Boolean(state.commencement);const updates=state.progress_updates||[];const exceptions=state.exceptions||[];const submissions=state.delivery_submissions||[];const openExceptions=exceptions.filter(item=>['open','acknowledged'].includes(String(item.status)));const latest=updates[0];const deliverySubmitted=state.execution.execution_state==='delivery_submitted';const canReport=['in_progress','partner_correction'].includes(String(state.project.project_stage))&&!deliverySubmitted;const canRaisePreCommencement=state.project.project_stage==='ready_for_execution';
   const partnerView=partnerWorkPresentation({stage:state.project.project_stage,executionState:state.execution.execution_state,commenced,deliverySubmitted,openExceptions:openExceptions.length,partnerName:state.partner?.company_name});
@@ -71,11 +72,11 @@ export default function PartnerExecutionWorkspace(){
   const journeyIndex=!commenced?0:deliverySubmitted?2:1;
   const latestHealth=deliveryHealthLabel(latest?.progress_state);
   const latestPercent=latest?.percent_complete===null||latest?.percent_complete===undefined?null:Number(latest.percent_complete);
-  const timeline=useMemo(()=>[
+  const timeline=[
     ...updates.map(item=>({kind:'Progress update',at:item.submitted_at,title:deliveryHealthLabel(item.progress_state),detail:String(item.work_in_progress||'')})),
     ...exceptions.map(item=>({kind:'Exception',at:item.raised_at,title:String(item.title||''),detail:`${pretty(item.severity)} · ${String(item.description||'')}`})),
     ...submissions.map(item=>({kind:Number(item.execution_cycle||1)>1?'Revised engineering delivery':'Final engineering delivery',at:item.submitted_at,title:deliverySubmissionLabel(item.execution_cycle,item.revision),detail:String(item.delivery_summary||'')})),
-  ].sort((a,b)=>new Date(String(b.at)).getTime()-new Date(String(a.at)).getTime()),[updates,exceptions,submissions]);
+  ].sort((a,b)=>new Date(String(b.at)).getTime()-new Date(String(a.at)).getTime());
 
   return <main className="min-h-screen bg-[#f5f4ef] text-[#171717]">
     <div className="mx-auto max-w-[1380px] px-5 py-7 md:px-8 lg:px-12 lg:py-10">
@@ -117,7 +118,7 @@ export default function PartnerExecutionWorkspace(){
 
         <aside className="grid content-start gap-7 lg:sticky lg:top-8 lg:self-start">
           <section className="border-t-2 border-black pt-5"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Controlled basis</p><h2 className="mt-2 text-xl font-semibold">Work only to this release.</h2>
-            {state.controlled_scope?<><Fact label="Controlled scope" value={<><span>{state.controlled_scope.reference}</span><span className="mt-1 block font-normal text-neutral-500">{state.controlled_scope.title}{state.controlled_scope.revision_code?` · ${state.controlled_scope.revision_code}`:''}</span></>}/><Fact label="Scope status" value={pretty(state.controlled_scope.status)}/></>:<div className="mt-5 border-l-2 border-orange-500 pl-4 text-sm leading-6 text-neutral-600">No controlled execution scope is linked. Do not commence execution.</div>}
+            {state.controlled_scope?<><Fact label="Controlled scope" value={<><span>{state.controlled_scope.reference}</span><span className="mt-1 block font-normal text-neutral-500">{state.controlled_scope.title}{state.controlled_scope.revision_code?` · ${state.controlled_scope.revision_code}`:''}</span></>}/><Fact label="Scope status" value={pretty(state.controlled_scope.status)}/></>:<div className="mt-5 border-l-2 border-orange-500 pl-4 text-sm leading-6 text-neutral-600">No controlled execution scope is linked. Do not commence work.</div>}
             <Fact label="Reporting" value={deliverySubmitted?'No further update due':pretty(state.execution.reporting_cadence)}/>
             {state.execution.release_notes?<Fact label="Release instructions" value={<p className="whitespace-pre-wrap font-normal leading-6">{state.execution.release_notes}</p>}/>:null}
           </section>
