@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { getOperationalExceptions, summariseExceptions, type ExceptionCategory, type ExceptionSeverity } from '@/lib/operations/exceptions';
+import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export default async function ExceptionsPage({searchParams}:{searchParams:Search
   const rows=all.filter(item=>(severity==='all'||item.severity===severity)&&(category==='all'||item.category===category));
 
   return <section className="saas-page exception-workspace">
-    <section className="saas-hero"><div className="saas-hero__inner"><div className="saas-hero__copy"><p className="vp-kicker">Issues</p><h1>See what is genuinely off-plan.</h1><p className="vp-subtitle">One intervention queue for blocked, overdue and failed conditions. Normal Partner, client and review waiting states do not appear here.</p></div><Link className="button secondary" href="/workspace/notifications">Notifications</Link></div></section>
+    <section className="saas-hero"><div className="saas-hero__inner"><div className="saas-hero__copy"><p className="vp-kicker">Issues</p><h1>See what is genuinely off-plan.</h1><p className="vp-subtitle">Inspect the problem and its source without leaving the intervention queue. Open the authoritative record only when you are ready to resolve the underlying condition.</p></div><Link className="button secondary" href="/workspace/notifications">Notifications</Link></div></section>
 
     <section className="saas-metrics" aria-label="Issue summary">
       <article className="saas-metric"><span>Open issues</span><strong>{summary.total}</strong><small>Derived from live business state</small></article>
@@ -36,12 +37,25 @@ export default async function ExceptionsPage({searchParams}:{searchParams:Search
 
     <section className="saas-panel">
       {rows.length===0?<div className="saas-empty"><strong>No issues in this view.</strong><p>When the underlying off-plan condition clears, the issue disappears automatically.</p></div>:<div className="saas-action-list">
-        {rows.map((item,index)=><Link href={item.href} key={item.id} className="saas-action-row">
+        {rows.map((item,index)=><div key={item.id} className="saas-action-row">
           <span className="saas-action-row__index">{String(index+1).padStart(2,'0')}</span>
           <div><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}><strong>{item.title}</strong><span className={`document-status document-status--${item.severity==='critical'?'changes_requested':item.severity==='high'?'in_review':'draft'}`}>{firstLetter(item.severity)}</span><span className="vp-row-status">{firstLetter(item.category)}</span></div><p>{item.detail}</p><small>{item.relatedLabel} · Owner: {item.owner}</small></div>
           <div><small>Open for</small><strong style={{display:'block',marginTop:4}}>{formatAge(item.ageMinutes)}</strong>{item.dueAt?<small style={{display:'block',marginTop:4}}>Due {new Date(item.dueAt).toLocaleDateString('en-GB')}</small>:null}</div>
-          <span aria-hidden="true">→</span>
-        </Link>)}
+          <ContextActions label={`Actions for ${item.title}`}>
+            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Operational issue" title={item.title} description={item.detail} footer={<Link className="button" href={item.href}>Open source record</Link>}>
+              <InteractionFacts>
+                <InteractionFact label="Severity">{firstLetter(item.severity)}</InteractionFact>
+                <InteractionFact label="Category">{firstLetter(item.category)}</InteractionFact>
+                <InteractionFact label="Owner">{item.owner}</InteractionFact>
+                <InteractionFact label="Open for">{formatAge(item.ageMinutes)}</InteractionFact>
+                <InteractionFact label="Related record">{item.relatedLabel}</InteractionFact>
+                <InteractionFact label="Due">{item.dueAt?new Date(item.dueAt).toLocaleDateString('en-GB'):'Not date-driven'}</InteractionFact>
+              </InteractionFacts>
+              <div className="product-notice product-notice--attention"><strong>Resolve the source condition</strong><div>{item.detail}</div></div>
+            </WorkspaceDrawer>
+            <Link className="button secondary" href={item.href}>Open</Link>
+          </ContextActions>
+        </div>)}
       </div>}
     </section>
 
