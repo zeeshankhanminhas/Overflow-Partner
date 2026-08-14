@@ -1,0 +1,28 @@
+name: Navigation Performance Validation
+
+on:
+  push:
+    branches:
+      - sprint/nav-perf-live-final
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Phase 3 checks
+        run: npm run phase3:check
+      - name: Production build
+        run: npx next build
