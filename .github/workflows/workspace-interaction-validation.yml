@@ -1,0 +1,21 @@
+name: Workspace Interaction Validation
+
+on:
+  push:
+    branches:
+      - sprint/workspace-interaction-architecture
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build validation
+        run: npm run build
