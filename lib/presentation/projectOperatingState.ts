@@ -4,6 +4,8 @@ import { projectPhaseForStage, projectPhaseMeta } from '@/lib/presentation/proje
 function simpleCopy(value?: string) {
   if (!value) return value;
   return value
+    .replace(/Cycle\s*\d+\s+delivery received/gi, 'Partner delivery received')
+    .replace(/Cycle\s*\d+\s+is ready for internal review/gi, 'Partner delivery is ready for internal review')
     .replace(/Cycle\s*\d+/gi, 'Partner delivery')
     .replace(/current-cycle/gi, 'current')
     .replace(/execution cycle/gi, 'Partner work')
@@ -23,7 +25,7 @@ export function resolveProjectJourneyPresentation(input: ProjectPresentationInpu
 
   let headline = simpleCopy(base.headline) || base.headline;
   let summary = simpleCopy(base.summary) || base.summary;
-  let state = phase;
+  const state = phase;
 
   if (input.stage === 'in_progress' && !input.currentCycleDeliverySubmitted && Number(input.openPartnerExceptions || 0) === 0) {
     headline = `${partner} has the work`;
