@@ -3,6 +3,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { listProspects } from '@/lib/repositories/prospects';
 import { resolveAcquisitionState } from '@/lib/acquisition/state';
 import { resolveAcquisitionPresentation } from '@/lib/presentation/operatingState';
+import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 export default async function ProspectRegisterPage(){
@@ -33,12 +34,12 @@ export default async function ProspectRegisterPage(){
   const rows=prospects.map(item=>{
     const session=sessionMap.get(String(item.id));const request=requestMap.get(String(item.id));const decision=request?decisionMap.get(String(request.id)):null;
     const acquisition=resolveAcquisitionState({prospectStatus:item.status,hasSession:Boolean(session),sessionStatus:session?.status,hasSubmission:Boolean(session&&submissionSet.has(String(session.id))),convertedCaseId:String((item as any).converted_lead_id||''),hasPartnerRequest:Boolean(request),partnerRequestStatus:request?.status,hasPartnerResponse:Boolean(request&&responseSet.has(String(request.id))),partnerDecision:decision?.decision,hasPartnerPricing:Boolean(request&&priceSet.has(String(request.id)))});
-    return {item,presentation:resolveAcquisitionPresentation(acquisition)};
+    return {item,presentation:resolveAcquisitionPresentation(acquisition),session,request};
   });
   const waiting=rows.filter(row=>row.presentation.tone==='waiting').length;const decisions=rows.filter(row=>row.presentation.approval?.required).length;const active=rows.filter(row=>!['complete','neutral'].includes(row.presentation.tone)).length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Acquisition" title="Enquiries" description="Each enquiry shows the same operating state as its detail page: who owns the next move, what happens next and whether an authority decision is due." actions={<Link className="button secondary" href="/workspace/acquisition">Acquisition overview</Link>} />
+    <ProductPageHeader eyebrow="Work · Acquisition" title="Enquiries" description="Choose an enquiry from the register. Inspect its operating position in a drawer first; open the full Enquiry only when you need to perform work." actions={<Link className="button secondary" href="/workspace/acquisition">Acquisition overview</Link>} />
     <ProductMetrics label="Enquiry summary">
       <ProductMetric label="Active work" value={active} detail="Internal work or evidence in progress" tone={active?'active':'neutral'} />
       <ProductMetric label="Waiting" value={waiting} detail="Client or Partner owns the next move" tone={waiting?'waiting':'complete'} />
@@ -48,11 +49,24 @@ export default async function ProspectRegisterPage(){
     <section>
       <ProductSectionHeader eyebrow="Enquiry register" title="Active opportunities" />
       {rows.length===0?<ProductEmptyState title="No active enquiries" description="Capture an enquiry in Acquisition to start the governed intake workflow." action={<Link className="button secondary" href="/workspace/acquisition#manual-prospect">Add enquiry</Link>} />:<ProductRegister>
-        {rows.map(({item,presentation})=><ProductRegisterRow href={`/workspace/acquisition/${item.id}`} key={item.id}>
+        {rows.map(({item,presentation,session,request})=><ProductRegisterRow key={item.id}>
           <div><strong>{item.company_name}</strong><p>{item.contact_name||'Contact not recorded'} · {item.source}</p><small>{presentation.summary}</small></div>
           <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
           <div><small>{presentation.waitingOn?'Waiting on':'Owner'}</small><strong style={{display:'block',marginTop:3}}>{presentation.waitingOn?.label||'Overflow Partner'}</strong></div>
-          <strong>{presentation.nextAction.label}{presentation.nextAction.available?' →':''}</strong>
+          <ContextActions label={`Actions for ${item.company_name}`}>
+            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Enquiry" title={item.company_name} description={presentation.summary} footer={<Link className="button" href={`/workspace/acquisition/${item.id}`}>Open Enquiry</Link>}>
+              <InteractionFacts>
+                <InteractionFact label="Operating state">{presentation.state}</InteractionFact>
+                <InteractionFact label="Owner / waiting on">{presentation.waitingOn?.label||'Overflow Partner'}</InteractionFact>
+                <InteractionFact label="Next action">{presentation.nextAction.label}</InteractionFact>
+                <InteractionFact label="Source">{item.source}</InteractionFact>
+                <InteractionFact label="Technical intake">{session?String(session.status).replaceAll('_',' '):'Not started'}</InteractionFact>
+                <InteractionFact label="Partner assessment">{request?String(request.status).replaceAll('_',' '):'Not started'}</InteractionFact>
+              </InteractionFacts>
+              <p className="interaction-summary__lead">{presentation.nextAction.reason||presentation.summary}</p>
+            </WorkspaceDrawer>
+            <Link className="button secondary" href={`/workspace/acquisition/${item.id}`}>Open</Link>
+          </ContextActions>
         </ProductRegisterRow>)}
       </ProductRegister>}
     </section>
