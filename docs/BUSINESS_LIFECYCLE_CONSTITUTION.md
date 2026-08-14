@@ -14,6 +14,7 @@
 6. **External declarations remain attributable.** Partner-reported and client-reported evidence must remain distinguishable from Overflow Partner-verified evidence.
 7. **One readiness authority.** `op_project_stage_readiness(project_id)` is the canonical Project stage-exit gate. Stage-transition RPCs must not implement competing readiness logic.
 8. **No silent bypasses.** A direct database/API call must be subject to the same invariant as the UI.
+9. **Technical revision identity stays technical.** Internal execution/revision counters may be used to bind evidence to the correct submission, but normal operator and Partner UI must describe the business event: original delivery, changes requested, revised delivery and review.
 
 ## Canonical lifecycle gates
 
@@ -30,8 +31,8 @@
 | **G09 Client acceptance evidenced** | Case 360 | Written acceptance is recorded | Quote Acceptance Record (signed quote / PO / email / portal / other written evidence) | Existing issued Client Quote remains authoritative | Create Project 360 |
 | **G10 Project mobilisation complete** | Project 360 | Project created from accepted quote | Project + accepted quote + selected partner lineage | Inherited Scope of Work approved; Statement of Work approved; mobilisation/financial controls complete | Authorise execution |
 | **G11 Partner execution released and commenced** | Project 360 / Execution Partner | OP releases controlled execution assignment; partner declares commencement | Project Execution Assignment + Partner Commencement Declaration | Execution assignment must link approved controlled scope | Project becomes In Progress |
-| **G12 Governed execution** | Project 360 / Execution Partner | Partner works, reports progress/exceptions and submits final current-cycle delivery | Progress Updates, Execution Exceptions, Delivery Control Items, current-cycle Partner Delivery Submission **plus attached engineering output files** | Deliverables may link controlled documents; open exceptions, unresolved required delivery items or a file-less Partner submission block progression | Close Partner execution cycle and submit for Internal Review |
-| **G13 Internal review and controlled client issue** | Project 360 | OP verifies current-cycle submission | Current-cycle Partner Delivery Submission review outcome + internal review evidence | Technical Review / Document Register as required; issued client package | Record client transmittal |
+| **G12 Governed execution** | Project 360 / Execution Partner | Partner works, reports delivery health/progress/exceptions and submits engineering delivery | Progress Updates, Execution Exceptions, Delivery Control Items, Partner Delivery Submission **plus attached engineering output files** | Deliverables may link controlled documents; open exceptions, unresolved required delivery items or a file-less Partner submission block progression | Hand delivery back to Overflow Partner for Internal Review |
+| **G13 Internal review and controlled client issue** | Project 360 | OP verifies the submitted Partner delivery; if changes are needed the work returns to the Partner and a revised delivery returns directly to OP review | Partner Delivery Submission review outcome + internal review evidence + revision-linked evidence | Technical Review / Document Register as required; issued client package | Approve for client issue or request Partner changes |
 | **G14 Client review, completion and closure** | Project 360 | Client outcome recorded, closeout evidence complete, finance reconciled | Client Transmittal + Client Review Outcome + closeout audit | Completion Report / Handover evidence; issued Invoice where applicable | Close Project |
 
 ## Mandatory branch rules
@@ -68,19 +69,39 @@
 - Execution Partner assignment must match the partner behind the accepted commercial review unless an explicit governed partner-change process is later introduced.
 - Partner release requires an approved controlled Scope of Work linked to the execution assignment.
 - Partner Commencement Declaration is the event that moves a partner-executed project from `ready_for_execution` to `in_progress`.
-- Progress Updates do not move Project stage.
-- Open Execution Exceptions block progression.
+- Progress Updates do not move Project stage. `on_track`, `at_risk` and `blocked` are **delivery health**, not lifecycle stages.
+- Open Execution Exceptions block progression and keep the Partner assignment visibly blocked until the last open exception is resolved.
 - Delivery Control items participate in readiness whenever they exist; they are not a parallel decorative tracker.
-- Partner Delivery Submissions are revision/cycle aware. A prior submission cannot satisfy a correction cycle.
-- Every Partner Delivery Submission must attach at least one actual engineering output file in the private Partner Delivery store. A text manifest alone cannot satisfy the `In progress → Internal Review` gate.
-- Submission metadata and its current-cycle engineering files are committed as one governed transaction and become immutable after submission.
-- A successful current-cycle Partner Delivery Submission closes that Partner execution cycle by setting the assignment to `delivery_submitted`. While that state is active, no further Partner progress, exception or delivery submissions are permitted for the same cycle; Overflow Partner owns the next Internal Review decision.
-- A governed correction route opens a new execution cycle and returns the assignment to `executing`, at which point Partner reporting and final delivery are available again for the new cycle.
-- Internal Review acceptance applies only to the current execution cycle.
+- Partner Delivery Submissions are internally revision-aware. A prior delivery cannot satisfy a later requested-change submission, but the internal revision/cycle identifier is not normal business UI language.
+- Every Partner Delivery Submission must attach at least one actual engineering output file in the private Partner Delivery store. A text manifest alone cannot satisfy the Partner-work → OP-review gate.
+- Submission metadata and its revision-linked engineering files are committed as one governed transaction and become immutable after submission.
+- A successful Partner Delivery Submission hands responsibility back to Overflow Partner by setting the assignment to `delivery_submitted`. While that state is active, no further Partner progress, exception or delivery submissions are permitted until changes are formally requested.
+- If Internal Review or Client Review requires changes, the UI presents **Changes requested → Partner work → Revised delivery → OP review**. The underlying implementation may increment its revision identity, but there is no separate operator step called “Return to Partner execution”.
+- A revised Partner delivery must include the current revision's engineering output evidence and returns directly to Internal Review once the governed readiness gate is satisfied.
+- Internal Review acceptance applies only to the current revision of the Partner delivery.
 - Client issue requires a transmittal record identifying recipient, method, time and controlled package.
-- Client Review requires an explicit outcome. `changes_requested` routes back through correction; accepted outcomes permit Completion.
+- Client Review requires an explicit outcome. `changes_requested` routes back through Partner work; accepted outcomes permit Completion.
 - Closure requires no open execution exceptions, no unresolved delivery-control items/tasks, final issued closeout evidence, and no outstanding client receivables or partner payables.
 - For a positive-value Project, closeout additionally requires client invoices whose recorded total covers the accepted Client Quote, an issued current controlled `invoice` document, and Execution Partner payables whose recorded total covers the accepted Partner cost with payable evidence confirmed. An empty or under-recorded finance ledger is not a valid closeout state.
+
+## Operator presentation contract
+
+The governed database stage model remains detailed, but the normal operator orientation is intentionally compressed to five phases:
+
+1. **Setup & release**
+2. **Partner work**
+3. **OP review**
+4. **Client review**
+5. **Closeout**
+
+Project 360 must make the **current phase, current responsibility and next permitted action** more prominent than the underlying database stage name. Correction/revision loops must not be represented as a false linear progress history.
+
+The external Partner workspace is narrower still. It should normally present:
+
+- **Ready to start → Working → Delivery submitted**, or
+- **Changes requested → Working → Revised delivery submitted**.
+
+The Partner does not need the internal ten-stage Project lifecycle or technical execution-cycle number to perform their work.
 
 ## Controlled document naming
 
