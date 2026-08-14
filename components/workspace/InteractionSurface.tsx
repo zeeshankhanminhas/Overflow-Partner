@@ -49,6 +49,14 @@ function InteractionSurface({
     if (defaultOpen) open();
   }, [defaultOpen]);
 
+  useEffect(() => {
+    const onComplete = () => {
+      if (dialogRef.current?.open) close();
+    };
+    window.addEventListener('workspace-interaction-complete', onComplete);
+    return () => window.removeEventListener('workspace-interaction-complete', onComplete);
+  }, []);
+
   return <>
     <button
       type="button"
