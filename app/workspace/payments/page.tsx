@@ -4,6 +4,7 @@ import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
 import { resolveInvoiceState, resolvePayableState } from '@/lib/finance/state';
 import { resolvePayablePresentation } from '@/lib/presentation/operatingState';
 import { recordClientPaymentFromLedgerAction, recordPartnerPaymentFromLedgerAction } from './actions';
+import PendingActionForm from '@/components/workspace/PendingActionForm';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 function money(value:unknown,currency='GBP'){const amount=Number(value||0);try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(amount)}catch{return `${currency} ${amount.toFixed(2)}`}}
@@ -19,123 +20,45 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
   const view=first(params.view)||'open';
   const {supabase,organisationId}=await requireUserContext();
 
-  const [projectsResult,invoicesResult,payablesResult,paymentsResult,partnerPaymentsResult,leadsResult,partnersResult]=await Promise.all([
+  let invoicesQuery=supabase.from('invoices').select('id,project_id,lead_id,invoice_number,invoice_type,status,total,amount_paid,currency,due_date,issued_at,created_at').eq('organisation_id',organisationId).order('created_at',{ascending:false}).limit(500);
+  let payablesQuery=supabase.from('partner_payables').select('id,project_id,partner_id,payable_number,invoice_reference,status,total,amount_paid,currency,due_date,evidence_confirmed,created_at').eq('organisation_id',organisationId).order('created_at',{ascending:false}).limit(500);
+  let paymentsQuery=supabase.from('payments').select('id,invoice_id,project_id,amount,currency,payment_method,status,reference,paid_at,created_at').eq('organisation_id',organisationId).order('paid_at',{ascending:false}).limit(250);
+  let partnerPaymentsQuery=supabase.from('partner_payments').select('id,payable_id,project_id,amount,currency,payment_method,status,reference,paid_at,created_at').eq('organisation_id',organisationId).order('paid_at',{ascending:false}).limit(250);
+  if(selectedProject){invoicesQuery=invoicesQuery.eq('project_id',selectedProject);payablesQuery=payablesQuery.eq('project_id',selectedProject);paymentsQuery=paymentsQuery.eq('project_id',selectedProject);partnerPaymentsQuery=partnerPaymentsQuery.eq('project_id',selectedProject);}
+
+  const [projectsResult,invoicesResult,payablesResult,paymentsResult,partnerPaymentsResult]=await Promise.all([
     supabase.from('projects').select('id,project_number,title,status,project_stage,lead_id').eq('organisation_id',organisationId).order('created_at',{ascending:false}).limit(200),
-    supabase.from('invoices').select('id,project_id,lead_id,invoice_number,invoice_type,status,total,amount_paid,currency,due_date,issued_at,created_at').eq('organisation_id',organisationId).order('created_at',{ascending:false}).limit(500),
-    supabase.from('partner_payables').select('id,project_id,partner_id,payable_number,invoice_reference,status,total,amount_paid,currency,due_date,evidence_confirmed,created_at').eq('organisation_id',organisationId).order('created_at',{ascending:false}).limit(500),
-    supabase.from('payments').select('id,invoice_id,project_id,amount,currency,payment_method,status,reference,paid_at,created_at').eq('organisation_id',organisationId).order('paid_at',{ascending:false}).limit(250),
-    supabase.from('partner_payments').select('id,payable_id,project_id,amount,currency,payment_method,status,reference,paid_at,created_at').eq('organisation_id',organisationId).order('paid_at',{ascending:false}).limit(250),
-    supabase.from('leads').select('id,company_name').eq('organisation_id',organisationId).limit(500),
-    supabase.from('partners').select('id,company_name').eq('organisation_id',organisationId).limit(500),
+    invoicesQuery,payablesQuery,paymentsQuery,partnerPaymentsQuery,
   ]);
 
-  const projects=projectsResult.data||[];
-  const projectMap=new Map((projects as any[]).map(item=>[item.id,item]));
-  const leadMap=new Map((leadsResult.data||[]).map((item:any)=>[item.id,item]));
-  const partnerMap=new Map((partnersResult.data||[]).map((item:any)=>[item.id,item]));
-
-  const allInvoices=(invoicesResult.data||[]) as any[];
-  const allPayables=(payablesResult.data||[]) as any[];
-  const allPayments=(paymentsResult.data||[]) as any[];
-  const allPartnerPayments=(partnerPaymentsResult.data||[]) as any[];
-  const invoices=selectedProject?allInvoices.filter(item=>item.project_id===selectedProject):allInvoices;
-  const payables=selectedProject?allPayables.filter(item=>item.project_id===selectedProject):allPayables;
-  const payments=selectedProject?allPayments.filter(item=>item.project_id===selectedProject):allPayments;
-  const partnerPayments=selectedProject?allPartnerPayments.filter(item=>item.project_id===selectedProject):allPartnerPayments;
+  const projects=projectsResult.data||[];const projectMap=new Map((projects as any[]).map(item=>[item.id,item]));
+  const invoices=(invoicesResult.data||[]) as any[];const payables=(payablesResult.data||[]) as any[];const payments=(paymentsResult.data||[]) as any[];const partnerPayments=(partnerPaymentsResult.data||[]) as any[];
+  const leadIds=[...new Set(invoices.map(item=>String(item.lead_id||'')).filter(Boolean))];const partnerIds=[...new Set(payables.map(item=>String(item.partner_id||'')).filter(Boolean))];
+  const [leadsResult,partnersResult]=await Promise.all([
+    leadIds.length?supabase.from('leads').select('id,company_name').eq('organisation_id',organisationId).in('id',leadIds):Promise.resolve({data:[] as any[]}),
+    partnerIds.length?supabase.from('partners').select('id,company_name').eq('organisation_id',organisationId).in('id',partnerIds):Promise.resolve({data:[] as any[]}),
+  ]);
+  const leadMap=new Map((leadsResult.data||[]).map((item:any)=>[item.id,item]));const partnerMap=new Map((partnersResult.data||[]).map((item:any)=>[item.id,item]));
 
   const invoiceStates=invoices.map(invoice=>({invoice,state:resolveInvoiceState(invoice)}));
   const payableStates=payables.map(payable=>{const state=resolvePayableState(payable);return {payable,state,presentation:resolvePayablePresentation({status:state.status,canApprove:state.canApprove,approvalBlockedReason:state.approvalBlockedReason,settled:state.settled,balance:state.balance})}});
   const visibleInvoices=invoiceStates.filter(({state})=>view==='all'||(view==='overdue'?state.overdue:view==='settled'?state.settled:!state.settled));
   const visiblePayables=payableStates.filter(({state})=>view==='all'||(view==='overdue'?false:view==='settled'?state.settled:!state.settled));
 
-  const invoiced=sum(invoices,item=>Number(item.total||0));
-  const collected=sum(invoices,item=>Number(item.amount_paid||0));
-  const receivable=sum(invoiceStates,item=>item.state.balance);
-  const overdue=sum(invoiceStates.filter(item=>item.state.overdue),item=>item.state.balance);
-  const partnerCommitted=sum(payables,item=>Number(item.total||0));
-  const partnerPaid=sum(payables,item=>Number(item.amount_paid||0));
-  const partnerOutstanding=sum(payableStates,item=>item.state.balance);
-  const payableApprovals=payableStates.filter(item=>item.presentation.approval?.status==='ready').length;
-  const forecastMargin=invoiced-partnerCommitted;
-  const cashPosition=collected-partnerPaid;
-  const selected=selectedProject?projectMap.get(selectedProject):null;
-
-  const invoiceMap=new Map(invoices.map(item=>[item.id,item]));
-  const payableMap=new Map(payables.map(item=>[item.id,item]));
-  const movementRows=[
-    ...payments.map(payment=>({id:`client-${payment.id}`,direction:'in' as const,amount:Number(payment.amount||0),currency:String(payment.currency||'GBP'),paid_at:payment.paid_at,method:payment.payment_method,reference:payment.reference,record:invoiceMap.get(payment.invoice_id),project:projectMap.get(payment.project_id)})),
-    ...partnerPayments.map(payment=>({id:`partner-${payment.id}`,direction:'out' as const,amount:Number(payment.amount||0),currency:String(payment.currency||'GBP'),paid_at:payment.paid_at,method:payment.payment_method,reference:payment.reference,record:payableMap.get(payment.payable_id),project:projectMap.get(payment.project_id)})),
-  ].sort((a,b)=>new Date(String(b.paid_at||0)).getTime()-new Date(String(a.paid_at||0)).getTime()).slice(0,40);
+  const invoiced=sum(invoices,item=>Number(item.total||0));const collected=sum(invoices,item=>Number(item.amount_paid||0));const receivable=sum(invoiceStates,item=>item.state.balance);const overdue=sum(invoiceStates.filter(item=>item.state.overdue),item=>item.state.balance);const partnerCommitted=sum(payables,item=>Number(item.total||0));const partnerPaid=sum(payables,item=>Number(item.amount_paid||0));const partnerOutstanding=sum(payableStates,item=>item.state.balance);const payableApprovals=payableStates.filter(item=>item.presentation.approval?.status==='ready').length;const forecastMargin=invoiced-partnerCommitted;const cashPosition=collected-partnerPaid;const selected=selectedProject?projectMap.get(selectedProject):null;
+  const invoiceMap=new Map(invoices.map(item=>[item.id,item]));const payableMap=new Map(payables.map(item=>[item.id,item]));
+  const movementRows=[...payments.map(payment=>({id:`client-${payment.id}`,direction:'in' as const,amount:Number(payment.amount||0),currency:String(payment.currency||'GBP'),paid_at:payment.paid_at,method:payment.payment_method,reference:payment.reference,record:invoiceMap.get(payment.invoice_id),project:projectMap.get(payment.project_id)})),...partnerPayments.map(payment=>({id:`partner-${payment.id}`,direction:'out' as const,amount:Number(payment.amount||0),currency:String(payment.currency||'GBP'),paid_at:payment.paid_at,method:payment.payment_method,reference:payment.reference,record:payableMap.get(payment.payable_id),project:projectMap.get(payment.project_id)}))].sort((a,b)=>new Date(String(b.paid_at||0)).getTime()-new Date(String(a.paid_at||0)).getTime()).slice(0,40);
 
   return <section className="vp-page payments-workspace">
-    <ProductPageHeader
-      eyebrow="Commercial · Payments"
-      title="Payments"
-      description="Track client receivables, Partner liabilities, approvals and cash movement from the same project ledger."
-      backHref={selectedProject?`/workspace/projects/${selectedProject}`:undefined}
-      backLabel="Back to Project 360"
-      actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{payableApprovals?` · ${payableApprovals}`:''}</Link><Link className="button secondary" href={selectedProject?`/workspace/commercial-control?project=${selectedProject}`:'/workspace/commercial-control'}>Commercial control</Link></>}
-    />
-
-    {params.updated?<ProductNotice title="Payment recorded" tone="complete"><p>{String(first(params.updated))}</p></ProductNotice>:null}
-    {params.error?<ProductNotice title="Payment could not be recorded" tone="blocked"><p>{operatorErrorMessage(String(first(params.error)))}</p></ProductNotice>:null}
-    {paymentsResult.error||partnerPaymentsResult.error?<ProductNotice title="Payment history is unavailable" tone="attention"><p>{operatorErrorMessage(String(paymentsResult.error?.message||partnerPaymentsResult.error?.message||''))}</p></ProductNotice>:null}
-
-    <ProductMetrics label="Commercial ledger summary">
-      <ProductMetric label="Outstanding receivables" value={money(receivable)} detail={`${money(overdue)} overdue`} tone={overdue?'blocked':receivable?'waiting':'complete'} />
-      <ProductMetric label="Partner liabilities" value={money(partnerOutstanding)} detail={`${payableApprovals} approval${payableApprovals===1?'':'s'} ready`} tone={payableApprovals?'waiting':partnerOutstanding?'active':'complete'} />
-      <ProductMetric label="Forecast margin" value={money(forecastMargin)} detail="Invoiced less Partner commitments" tone={forecastMargin<0?'attention':'neutral'} />
-      <ProductMetric label="Cash position" value={money(cashPosition)} detail="Collected less Partner payments" tone={cashPosition<0?'attention':'neutral'} />
-    </ProductMetrics>
-
-    <section className="product-panel">
-      <ProductSectionHeader eyebrow="Ledger scope" title={selected?`${(selected as any).project_number} · ${(selected as any).title}`:'All projects'} />
-      <form method="get" className="product-toolbar__group">
-        <select name="project" defaultValue={selectedProject}><option value="">All projects</option>{(projects as any[]).map(project=><option key={project.id} value={project.id}>{project.project_number} · {project.title}</option>)}</select>
-        <input type="hidden" name="view" value={view}/><button className="button secondary">Apply scope</button>
-      </form>
-    </section>
-
-    <ProductFilterBar>
-      {['open','overdue','settled','all'].map(item=><Link key={item} className={`button ${view===item?'':'secondary'}`} href={paymentViewHref(item,selectedProject)}>{item[0].toUpperCase()+item.slice(1)}</Link>)}
-    </ProductFilterBar>
-
+    <ProductPageHeader eyebrow="Commercial · Payments" title="Payments" description="Track client receivables, Partner liabilities, approvals and cash movement from the same project ledger." backHref={selectedProject?`/workspace/projects/${selectedProject}`:undefined} backLabel="Back to Project 360" actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{payableApprovals?` · ${payableApprovals}`:''}</Link><Link className="button secondary" href={selectedProject?`/workspace/commercial-control?project=${selectedProject}`:'/workspace/commercial-control'}>Commercial control</Link></>} />
+    {params.updated?<ProductNotice title="Payment recorded" tone="complete"><p>{String(first(params.updated))}</p></ProductNotice>:null}{params.error?<ProductNotice title="Payment could not be recorded" tone="blocked"><p>{operatorErrorMessage(String(first(params.error)))}</p></ProductNotice>:null}{paymentsResult.error||partnerPaymentsResult.error?<ProductNotice title="Payment history is unavailable" tone="attention"><p>{operatorErrorMessage(String(paymentsResult.error?.message||partnerPaymentsResult.error?.message||''))}</p></ProductNotice>:null}
+    <ProductMetrics label="Commercial ledger summary"><ProductMetric label="Outstanding receivables" value={money(receivable)} detail={`${money(overdue)} overdue`} tone={overdue?'blocked':receivable?'waiting':'complete'} /><ProductMetric label="Partner liabilities" value={money(partnerOutstanding)} detail={`${payableApprovals} approval${payableApprovals===1?'':'s'} ready`} tone={payableApprovals?'waiting':partnerOutstanding?'active':'complete'} /><ProductMetric label="Forecast margin" value={money(forecastMargin)} detail="Invoiced less Partner commitments" tone={forecastMargin<0?'attention':'neutral'} /><ProductMetric label="Cash position" value={money(cashPosition)} detail="Collected less Partner payments" tone={cashPosition<0?'attention':'neutral'} /></ProductMetrics>
+    <section className="product-panel"><ProductSectionHeader eyebrow="Ledger scope" title={selected?`${(selected as any).project_number} · ${(selected as any).title}`:'All projects'} /><form method="get" className="product-toolbar__group"><select name="project" defaultValue={selectedProject}><option value="">All projects</option>{(projects as any[]).map(project=><option key={project.id} value={project.id}>{project.project_number} · {project.title}</option>)}</select><input type="hidden" name="view" value={view}/><button className="button secondary">Apply scope</button></form></section>
+    <ProductFilterBar>{['open','overdue','settled','all'].map(item=><Link key={item} className={`button ${view===item?'':'secondary'}`} href={paymentViewHref(item,selectedProject)}>{item[0].toUpperCase()+item.slice(1)}</Link>)}</ProductFilterBar>
     <div className="product-split payments-ledgers">
-      <section className="product-panel" id="receivables">
-        <ProductSectionHeader eyebrow="Money in" title="Client receivables" meta={`${visibleInvoices.length} record${visibleInvoices.length===1?'':'s'}`} />
-        {visibleInvoices.length===0?<ProductEmptyState title="No client invoices in this view" description="Change the filter or create an invoice from Commercial control." />:<ProductRegister>
-          {visibleInvoices.map(({invoice,state})=>{const project=projectMap.get(invoice.project_id) as any;const client=leadMap.get(invoice.lead_id) as any;return <ProductRegisterRow id={`invoice-${invoice.id}`} key={invoice.id}>
-            <div><strong>{invoice.invoice_number}</strong><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div>
-            <ProductStatus tone={invoiceTone(state)}>{state.overdue?'Overdue':state.settled?'Settled':state.canRecordPayment?'Awaiting payment':'Working'}</ProductStatus>
-            <div><strong>{money(state.balance,invoice.currency)} due</strong><small style={{display:'block'}}>{money(invoice.amount_paid,invoice.currency)} of {money(invoice.total,invoice.currency)} received</small></div>
-            <div className="product-row-actions"><Link className="button secondary" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><form action={recordClientPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="invoice_id" value={invoice.id}/><input type="hidden" name="project_id" value={invoice.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record client payment</button></form></details>:null}</div>
-          </ProductRegisterRow>})}
-        </ProductRegister>}
-      </section>
-
-      <section className="product-panel" id="payables">
-        <ProductSectionHeader eyebrow="Money out" title="Partner payables" meta={`${visiblePayables.length} record${visiblePayables.length===1?'':'s'}`} />
-        {visiblePayables.length===0?<ProductEmptyState title="No Partner payables in this view" description="Change the filter or record a Partner liability from Commercial control." />:<ProductRegister>
-          {visiblePayables.map(({payable,state,presentation})=>{const project=projectMap.get(payable.project_id) as any;const partner=partnerMap.get(payable.partner_id) as any;return <ProductRegisterRow id={`payable-${payable.id}`} key={payable.id}>
-            <div><strong>{payable.payable_number}</strong><p>{partner?.company_name||'Partner'} · {project?.project_number||'Project'}</p><small>{payable.invoice_reference||'No Partner invoice reference'} · due {date(payable.due_date)}</small></div>
-            <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
-            <div><strong>{money(state.balance,payable.currency)} due</strong><small style={{display:'block'}}>{presentation.nextAction.label}</small></div>
-            <div className="product-row-actions">{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}<Link className="button secondary" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>{presentation.approval?.status==='ready'?'Review approval':'Commercial'}</Link>{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><form action={recordPartnerPaymentFromLedgerAction} className="stack" style={{paddingTop:12}}><input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record Partner payment</button></form></details>:null}{state.approvalBlockedReason?<small>{presentation.summary}</small>:null}</div>
-          </ProductRegisterRow>})}
-        </ProductRegister>}
-      </section>
+      <section className="product-panel" id="receivables"><ProductSectionHeader eyebrow="Money in" title="Client receivables" meta={`${visibleInvoices.length} record${visibleInvoices.length===1?'':'s'}`} />{visibleInvoices.length===0?<ProductEmptyState title="No client invoices in this view" description="Change the filter or create an invoice from Commercial control." />:<ProductRegister>{visibleInvoices.map(({invoice,state})=>{const project=projectMap.get(invoice.project_id) as any;const client=leadMap.get(invoice.lead_id) as any;return <ProductRegisterRow id={`invoice-${invoice.id}`} key={invoice.id}><div><strong>{invoice.invoice_number}</strong><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div><ProductStatus tone={invoiceTone(state)}>{state.overdue?'Overdue':state.settled?'Settled':state.canRecordPayment?'Awaiting payment':'Working'}</ProductStatus><div><strong>{money(state.balance,invoice.currency)} due</strong><small style={{display:'block'}}>{money(invoice.amount_paid,invoice.currency)} of {money(invoice.total,invoice.currency)} received</small></div><div className="product-row-actions"><Link className="button secondary" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><PendingActionForm action={recordClientPaymentFromLedgerAction} className="stack"><input type="hidden" name="invoice_id" value={invoice.id}/><input type="hidden" name="project_id" value={invoice.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record client payment</button></PendingActionForm></details>:null}</div></ProductRegisterRow>})}</ProductRegister>}</section>
+      <section className="product-panel" id="payables"><ProductSectionHeader eyebrow="Money out" title="Partner payables" meta={`${visiblePayables.length} record${visiblePayables.length===1?'':'s'}`} />{visiblePayables.length===0?<ProductEmptyState title="No Partner payables in this view" description="Change the filter or record a Partner liability from Commercial control." />:<ProductRegister>{visiblePayables.map(({payable,state,presentation})=>{const project=projectMap.get(payable.project_id) as any;const partner=partnerMap.get(payable.partner_id) as any;return <ProductRegisterRow id={`payable-${payable.id}`} key={payable.id}><div><strong>{payable.payable_number}</strong><p>{partner?.company_name||'Partner'} · {project?.project_number||'Project'}</p><small>{payable.invoice_reference||'No Partner invoice reference'} · due {date(payable.due_date)}</small></div><ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus><div><strong>{money(state.balance,payable.currency)} due</strong><small style={{display:'block'}}>{presentation.nextAction.label}</small></div><div className="product-row-actions">{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project</Link>:null}<Link className="button secondary" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>{presentation.approval?.status==='ready'?'Review approval':'Commercial'}</Link>{state.canRecordPayment?<details className="vp-disclosure"><summary>Record payment</summary><PendingActionForm action={recordPartnerPaymentFromLedgerAction} className="stack"><input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/><label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label><label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label><label>Reference<input name="reference" placeholder="Bank or payment reference"/></label><button className="button">Record Partner payment</button></PendingActionForm></details>:null}{state.approvalBlockedReason?<small>{presentation.summary}</small>:null}</div></ProductRegisterRow>})}</ProductRegister>}</section>
     </div>
-
-    <section>
-      <ProductSectionHeader eyebrow="Cash movement" title="Recent payments" meta={`${payments.length} received · ${partnerPayments.length} paid`} />
-      {movementRows.length===0?<ProductEmptyState title="No payment movements recorded" description="Recorded client and Partner payments will appear here in chronological order." />:<ProductRegister>
-        {movementRows.map(row=><ProductRegisterRow key={row.id}>
-          <div><strong>{row.direction==='in'?'Client payment':'Partner payment'}</strong><p>{row.direction==='in'?(row.record?.invoice_number||'Invoice'):(row.record?.payable_number||'Payable')} · {row.project?.project_number||'Project'}</p></div>
-          <ProductStatus tone={row.direction==='in'?'complete':'active'}>{row.direction==='in'?'Money in':'Money out'}</ProductStatus>
-          <div><strong>{row.direction==='in'?'+':'−'}{money(row.amount,row.currency)}</strong><small style={{display:'block'}}>{date(row.paid_at)} · {String(row.method||'').replaceAll('_',' ')}</small></div>
-          <small>{row.reference||'No reference'}</small>
-        </ProductRegisterRow>)}
-      </ProductRegister>}
-    </section>
+    <section><ProductSectionHeader eyebrow="Cash movement" title="Recent payments" meta={`${payments.length} received · ${partnerPayments.length} paid`} />{movementRows.length===0?<ProductEmptyState title="No payment movements recorded" description="Recorded client and Partner payments will appear here in chronological order." />:<ProductRegister>{movementRows.map(row=><ProductRegisterRow key={row.id}><div><strong>{row.direction==='in'?'Client payment':'Partner payment'}</strong><p>{row.direction==='in'?(row.record?.invoice_number||'Invoice'):(row.record?.payable_number||'Payable')} · {row.project?.project_number||'Project'}</p></div><ProductStatus tone={row.direction==='in'?'complete':'active'}>{row.direction==='in'?'Money in':'Money out'}</ProductStatus><div><strong>{row.direction==='in'?'+':'−'}{money(row.amount,row.currency)}</strong><small style={{display:'block'}}>{date(row.paid_at)} · {String(row.method||'').replaceAll('_',' ')}</small></div><small>{row.reference||'No reference'}</small></ProductRegisterRow>)}</ProductRegister>}</section>
   </section>;
 }
