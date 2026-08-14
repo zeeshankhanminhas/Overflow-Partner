@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
+import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 export const dynamic='force-dynamic';
@@ -15,7 +16,7 @@ export default async function CommunicationsPage(){
   const rows=data||[];const sent=rows.filter(row=>row.status==='sent').length;const scheduled=rows.filter(row=>['pending','processing'].includes(row.status)).length;const failed=rows.filter(row=>row.status==='failed').length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Operations · Messages" title="Messages" description="Business correspondence sent or scheduled by governed workflows. Audit events stay in History & Audit; delivery diagnostics stay in Notifications." actions={<Link className="button secondary" href="/workspace/notifications">Notification delivery</Link>} />
+    <ProductPageHeader eyebrow="Operations · Messages" title="Messages" description="Business correspondence stays a contextual surface: inspect a message in place, then open the owning message history only when you need the full thread." actions={<Link className="button secondary" href="/workspace/notifications">Notification delivery</Link>} />
     <ProductMetrics label="Message summary">
       <ProductMetric label="Sent" value={sent} detail="Delivered business messages" tone={sent?'complete':'neutral'} />
       <ProductMetric label="Scheduled" value={scheduled} detail="Pending or processing" tone={scheduled?'waiting':'neutral'} />
@@ -25,11 +26,24 @@ export default async function CommunicationsPage(){
     <section>
       <ProductSectionHeader eyebrow="Correspondence" title="Recent messages" />
       {rows.length===0?<ProductEmptyState title="No messages yet" description="Business correspondence created by governed workflows will appear here." />:<ProductRegister>
-        {rows.map(row=>{const href=messageHref(row.entity_type,row.entity_id);return <ProductRegisterRow href={href} key={row.id}>
+        {rows.map(row=>{const href=messageHref(row.entity_type,row.entity_id);return <ProductRegisterRow key={row.id}>
           <div><strong>{row.subject}</strong><p>Outbound · {row.recipient_name||row.recipient_email}</p></div>
           <ProductStatus tone={tone(row.status)}>{words(row.status)}</ProductStatus>
           <div><small>{row.sent_at?'Sent':'Scheduled'}</small><strong style={{display:'block',marginTop:3}}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</strong></div>
-          <strong>{href?'Open message history →':'Business message'}</strong>
+          <ContextActions label={`Actions for ${row.subject}`}>
+            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Business message" title={row.subject} description="Correspondence context without leaving the message register." footer={href?<Link className="button" href={href}>Open message history</Link>:undefined}>
+              <InteractionFacts>
+                <InteractionFact label="Status">{words(row.status)}</InteractionFact>
+                <InteractionFact label="Recipient">{row.recipient_name||row.recipient_email}</InteractionFact>
+                <InteractionFact label="Email">{row.recipient_email}</InteractionFact>
+                <InteractionFact label="Category">{words(row.category)}</InteractionFact>
+                <InteractionFact label="Event">{words(row.event_key)}</InteractionFact>
+                <InteractionFact label={row.sent_at?'Sent':'Scheduled'}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</InteractionFact>
+              </InteractionFacts>
+              <p className="interaction-summary__lead">This drawer is correspondence context. Delivery diagnostics still belong to Notifications and governance events still belong to History & Audit.</p>
+            </WorkspaceDrawer>
+            {href?<Link className="button secondary" href={href}>Open</Link>:null}
+          </ContextActions>
         </ProductRegisterRow>})}
       </ProductRegister>}
     </section>
