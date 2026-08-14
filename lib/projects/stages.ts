@@ -34,11 +34,11 @@ export const projectStageMeta: Record<ProjectStage, { label: string; objective: 
     action: 'Approve for client release',
   },
   partner_correction: {
-    label: 'Partner correction',
-    objective: 'The Execution Partner is correcting findings from internal review.',
-    completion: 'A revised Partner delivery is ready for review.',
-    next: 'in_progress',
-    action: 'Return to Partner execution',
+    label: 'Changes requested',
+    objective: 'The Execution Partner is making the requested corrections.',
+    completion: 'A revised Partner delivery has been submitted for review.',
+    next: 'internal_review',
+    action: 'Review revised Partner delivery',
   },
   ready_for_client_issue: {
     label: 'Ready to send',
