@@ -1,0 +1,3 @@
+'use client';
+import { useTransition } from 'react';
+export default function PendingActionForm({action,children,className}:{action:(data:FormData)=>Promise<void>;children:React.ReactNode;className?:string}){const[pending,startTransition]=useTransition();return <form className={className} aria-busy={pending} onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);startTransition(async()=>{await action(data);});}}><fieldset disabled={pending} style={{border:0,padding:0,margin:0,minInlineSize:0,display:'contents'}}>{children}</fieldset>{pending?<small role="status">Updating…</small>:null}</form>}
