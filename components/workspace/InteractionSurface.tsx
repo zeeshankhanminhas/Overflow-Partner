@@ -46,12 +46,13 @@ function InteractionSurface({
   }
 
   useEffect(() => {
-    if (defaultOpen) open();
+    const dialog = dialogRef.current;
+    if (defaultOpen && dialog && !dialog.open) dialog.showModal();
   }, [defaultOpen]);
 
   useEffect(() => {
     const onComplete = () => {
-      if (dialogRef.current?.open) close();
+      if (dialogRef.current?.open) dialogRef.current.close();
     };
     window.addEventListener('workspace-interaction-complete', onComplete);
     return () => window.removeEventListener('workspace-interaction-complete', onComplete);
