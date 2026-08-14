@@ -7,6 +7,7 @@ import { createProjectFormAction } from '../workflow-actions';
 import { normaliseProjectStage } from '@/lib/projects/stages';
 import { resolveFinancialGate } from '@/lib/finance/state';
 import { resolveProjectPresentation } from '@/lib/presentation/operatingState';
+import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
@@ -15,6 +16,7 @@ type View='all'|'attention'|'mobilisation'|'delivery'|'client_review'|'closeout'
 type QueueRow={id:string;project_number:string;title:string;project_status:string;project_stage:string;start_date:string|null;due_date:string|null;created_at:string;total_count:number|string};
 const viewMeta:Record<View,{label:string;description:string}>={all:{label:'All active',description:'Every current project.'},attention:{label:'Needs attention',description:'Projects with a real blocker, overdue date or unresolved exception.'},mobilisation:{label:'Mobilisation',description:'Accepted work not yet in execution.'},delivery:{label:'In delivery',description:'Projects in Partner execution and technical review.'},client_review:{label:'Client review',description:'Projects in client issue or review.'},closeout:{label:'Closeout',description:'Completion-stage work waiting for closure.'},closed:{label:'Closed',description:'Completed historical project records.'}};
 function href(view:View,page=1,q=''){const p=new URLSearchParams();if(view!=='all')p.set('view',view);if(page>1)p.set('page',String(page));if(q)p.set('q',q);const s=p.toString();return `/workspace/projects${s?`?${s}`:''}`}
+function exceptionHref(view:View,page:number,q:string){const target=new URL(href(view,page,q),'https://overflow-partner.local');target.searchParams.set('exception','1');return `${target.pathname}${target.search}`}
 function formatDate(value:string|null){if(!value)return 'Not set';const d=new Date(value);return Number.isNaN(d.getTime())?value:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function money(value:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency,maximumFractionDigits:0}).format(Number(value||0))}catch{return `${currency} ${Number(value||0).toFixed(0)}`}}
 
@@ -24,16 +26,14 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const requested=String(params.view||'all');
   const view=(Object.keys(viewMeta).includes(requested)?requested:'all') as View;
   const q=String(params.q||'').trim();
+  const exceptional=String(params.exception||'')==='1';
   const requestedPage=Number.parseInt(String(params.page||'1'),10);
   const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;
   const {supabase,organisationId}=await requireUserContext();
 
-  const [{data,error},quotes,leads]=await Promise.all([
-    supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0}),
-    listClientQuotes(supabase,organisationId),
-    listLeads(supabase,organisationId),
-  ]);
+  const {data,error}=await supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0});
   if(error)throw new Error(`Project queue could not be loaded: ${error.message}`);
+  const [quotes,leads]=exceptional?await Promise.all([listClientQuotes(supabase,organisationId),listLeads(supabase,organisationId)]):[[],[]];
   const baseRows=(data||[]) as QueueRow[];
   const ids=baseRows.map(r=>r.id);
 
@@ -108,7 +108,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
       stage,ready,readinessReasons:trueBlockers,partnerControlled:Boolean(assignment),partnerName:partner?.company_name||'Execution Partner',executionState:assignment?.execution_state,executionCycle:Number(assignment?.execution_cycle||1),commencementConfirmed:commencement,currentCycleDeliverySubmitted:Boolean(currentDelivery),deliveryItems:delivery.open,deliveryWorkOpen:delivery.open,openPartnerExceptions:openExceptions,financialAuthorised:finance.authorised,clientOutcome:clientReview?.outcome,
     });
     const attention=overdue||!finance.authorised||tasks.blocked>0||delivery.blocked>0||delivery.overdue>0||openExceptions>0||presentation.tone==='blocked'||presentation.tone==='critical';
-    return {...row,stage,detail,tasks,delivery,finance,overdue,attention,presentation,assignment,partner};
+    return {...row,stage,detail,tasks,delivery,finance,overdue,attention,presentation,assignment,partner,currentDelivery,openExceptions};
   }));
 
   let filtered=enriched;
@@ -119,8 +119,21 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const total=filtered.length;const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));const pageRows=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
   const attentionCount=enriched.filter(p=>p.attention).length;const waitingCount=enriched.filter(p=>p.presentation.tone==='waiting').length;const deliveryCount=enriched.filter(p=>['in_progress','internal_review','partner_correction','ready_for_client_issue','issued_to_client','client_review'].includes(p.stage)).length;const closeoutCount=enriched.filter(p=>p.stage==='completion').length;
 
+  const exceptionalEntry=exceptional?<WorkWindow defaultOpen triggerLabel="Administrative exception" triggerClassName="button secondary" eyebrow="Administrative exception" title="Create Project directly" description="Use only when the governed Case → accepted Quote → Project handoff cannot be used.">
+    <form action={createProjectFormAction} className="stack">
+      <div className="grid gap-4 md:grid-cols-2">
+        <select className={input} name="lead_id" required><option value="">Select Case</option>{leads.map(l=><option key={l.id} value={l.id}>{l.title||l.company_name}</option>)}</select>
+        <select className={input} name="quote_id"><option value="">No linked quote</option>{quotes.map(qt=><option key={qt.id} value={qt.id}>{qt.quote_number} · {qt.status}</option>)}</select>
+        <input className={input} name="project_number" placeholder="OP-PRJ-0001" required/>
+        <input className={input} name="title" placeholder="Project title" required/>
+      </div>
+      <textarea className={input} name="notes" rows={3} placeholder="Reason" required/>
+      <button className="button">Create exceptional Project</button>
+    </form>
+  </WorkWindow>:<Link className="button secondary" href={exceptionHref(view,page,q)}>Administrative exception</Link>;
+
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Every row uses the same operating-state interpretation as Project 360: real blockers are attention; normal Partner or client waits stay waiting." actions={<details><summary className="button secondary">Administrative exception</summary><div className="vp-toolbar-panel"><form action={createProjectFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><select className={input} name="lead_id" required><option value="">Select Case</option>{leads.map(l=><option key={l.id} value={l.id}>{l.title||l.company_name}</option>)}</select><select className={input} name="quote_id"><option value="">No linked quote</option>{quotes.map(qt=><option key={qt.id} value={qt.id}>{qt.quote_number} · {qt.status}</option>)}</select><input className={input} name="project_number" placeholder="OP-PRJ-0001" required/><input className={input} name="title" placeholder="Project title" required/></div><textarea className={input} name="notes" rows={3} placeholder="Reason" required/><button className="button">Create exceptional project</button></form></div></details>} />
+    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Choose a Project from the portfolio. Inspect the operating position in place, then open Project 360 only when you need to perform record-level work." actions={exceptionalEntry} />
 
     <ProductMetrics label="Project portfolio summary">
       <ProductMetric label="Active portfolio" value={enriched.filter(p=>p.stage!=='closed').length} detail="Current project-owned work" />
@@ -138,16 +151,37 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
       <ProductSectionHeader eyebrow="Operating register" title={`${total} project${total===1?'':'s'}`} meta={viewMeta[view].description} />
       {pageRows.length===0?<ProductEmptyState title="No projects match this view" description="Change the portfolio filter or clear search to broaden the register." />:<div className="project-portfolio-register">
         <div className="project-portfolio-head" aria-hidden="true"><span>Project</span><span>Operating state</span><span>Owner</span><span>Due</span><span>Value</span><span>Delivery</span><span>Waiting on</span><span>What happens next</span></div>
-        {pageRows.map((p:any)=><Link className={`project-portfolio-row ${p.attention?'project-portfolio-row--attention':''}`} href={`/workspace/projects/${p.id}`} key={p.id}>
+        {pageRows.map((p:any)=><div className={`project-portfolio-row ${p.attention?'project-portfolio-row--attention':''}`} key={p.id}>
           <div data-label="Project"><strong>{p.project_number}</strong><span>{p.title}</span><small>{p.detail?.lead?.company_name||'Client not recorded'}</small></div>
           <div data-label="Operating state"><ProductStatus tone={p.presentation.tone}>{p.presentation.state}</ProductStatus><small>{p.attention?'Needs attention':p.presentation.tone==='waiting'?'On plan · waiting':'On plan'}</small></div>
           <div data-label="Owner"><strong>{p.detail?.project_manager?.full_name||'Unassigned'}</strong></div>
           <div data-label="Due"><strong>{formatDate(p.due_date)}</strong>{p.overdue?<small>Overdue</small>:null}</div>
           <div data-label="Value"><strong>{money(p.detail?.quote?.total,p.detail?.quote?.currency||'GBP')}</strong></div>
-          <div data-label="Delivery"><strong>{p.delivery.open} open</strong>{p.delivery.blocked||p.delivery.overdue?<small>{p.delivery.blocked} blocked · {p.delivery.overdue} overdue</small>:<small>{p.assignment?`Cycle ${p.assignment.execution_cycle||1}`:'Internal'}</small>}</div>
+          <div data-label="Delivery"><strong>{p.delivery.open} open</strong>{p.delivery.blocked||p.delivery.overdue?<small>{p.delivery.blocked} blocked · {p.delivery.overdue} overdue</small>:<small>{p.assignment?(p.currentDelivery?'Partner delivery received':'Partner work'):'Internal'}</small>}</div>
           <div data-label="Waiting on"><strong>{p.presentation.waitingOn?.label||'—'}</strong></div>
-          <div data-label="What happens next"><strong>{p.presentation.nextAction.label}{p.presentation.nextAction.available?' →':''}</strong></div>
-        </Link>)}
+          <div data-label="What happens next">
+            <strong>{p.presentation.nextAction.label}{p.presentation.nextAction.available?' →':''}</strong>
+            <ContextActions label={`Actions for ${p.project_number}`}>
+              <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Project" title={`${p.project_number} · ${p.title}`} description={p.presentation.summary} footer={<Link className="button" href={`/workspace/projects/${p.id}`}>Open Project 360</Link>}>
+                <InteractionFacts>
+                  <InteractionFact label="Operating state">{p.presentation.state}</InteractionFact>
+                  <InteractionFact label="Client">{p.detail?.lead?.company_name||'Not recorded'}</InteractionFact>
+                  <InteractionFact label="Owner">{p.detail?.project_manager?.full_name||'Unassigned'}</InteractionFact>
+                  <InteractionFact label="Due">{formatDate(p.due_date)}</InteractionFact>
+                  <InteractionFact label="Value">{money(p.detail?.quote?.total,p.detail?.quote?.currency||'GBP')}</InteractionFact>
+                  <InteractionFact label="Execution Partner">{p.partner?.company_name||'Not assigned'}</InteractionFact>
+                  <InteractionFact label="Delivery control">{p.delivery.open} open · {p.delivery.blocked} blocked</InteractionFact>
+                  <InteractionFact label="Partner exceptions">{p.openExceptions}</InteractionFact>
+                  <InteractionFact label="Financial gate">{p.finance.displayState}</InteractionFact>
+                  <InteractionFact label="Waiting on">{p.presentation.waitingOn?.label||'Overflow Partner'}</InteractionFact>
+                  <InteractionFact label="Next action">{p.presentation.nextAction.label}</InteractionFact>
+                </InteractionFacts>
+                {p.attention?<div className="product-notice product-notice--attention"><strong>Needs attention</strong><div>{p.presentation.blockers?.[0]||p.finance.reason||'Review the Project operating state.'}</div></div>:<p className="interaction-summary__lead">{p.presentation.summary}</p>}
+              </WorkspaceDrawer>
+              <Link className="button secondary" href={`/workspace/projects/${p.id}`}>Open</Link>
+            </ContextActions>
+          </div>
+        </div>)}
       </div>}
       {totalPages>1?<nav className="vp-pagination" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginTop:16}}>{page>1?<Link className="button secondary" href={href(view,page-1,q)}>← Previous</Link>:<span/>}<span style={{color:'var(--saas-muted)',fontSize:11}}>Page {page} of {totalPages}</span>{page<totalPages?<Link className="button secondary" href={href(view,page+1,q)}>Next →</Link>:<span/>}</nav>:null}
     </section>
