@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import ProjectRealtimeRefresh from '@/components/workspace/ProjectRealtimeRefresh';
 
 export default async function ProjectLayout({children,params}:{children:ReactNode;params:Promise<{id:string}>}){
   const {id}=await params;
   return <>
+    <ProjectRealtimeRefresh projectId={id}/>
     <nav aria-label="Project 360 navigation" style={{display:'flex',gap:6,overflowX:'auto',padding:'0 0 12px',marginBottom:4,scrollbarWidth:'thin'}}>
       <Link className="button secondary" href={`/workspace/projects/${id}`}>Overview</Link>
       <Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Delivery</Link>
