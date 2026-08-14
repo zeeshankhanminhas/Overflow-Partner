@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { getApprovalQueue, summariseApprovalQueue } from '@/lib/presentation/approvals';
+import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 function money(value:number,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(value)}catch{return `${currency} ${value.toFixed(2)}`}}
@@ -18,7 +19,7 @@ export default async function ApprovalsPage(){
     <ProductPageHeader
       eyebrow="Authority · Decisions"
       title="Approvals"
-      description="One place for decisions that require explicit authority. The underlying record remains the source of truth."
+      description="One place for decisions that require explicit authority. Inspect the evidence here; the owning record remains the source of truth."
       actions={<Link className="button secondary" href="/workspace">Mission Control</Link>}
     />
 
@@ -31,19 +32,32 @@ export default async function ApprovalsPage(){
 
     <section className="approval-principle" aria-label="Approval operating rule">
       <strong>Approvals do not create a second workflow.</strong>
-      <p>Each decision is completed in its authoritative Case, document, commercial or payment record. This queue only tells authorised operators what needs a decision now.</p>
+      <p>Inspect the decision and evidence without leaving this queue. Open the authoritative Case, document, commercial or payment record only when you are ready to perform the decision.</p>
     </section>
 
     <section>
       <ProductSectionHeader eyebrow="Decision queue" title="Ready for approval" meta={`${ready.length} ready`} />
       {ready.length?<ProductRegister className="approvals-register">
-        {ready.map(item=><ProductRegisterRow href={item.href} key={item.id}>
+        {ready.map(item=><ProductRegisterRow key={item.id}>
           <ProductStatus tone="waiting">{item.type}</ProductStatus>
           <div><strong>{item.title}</strong><p>{item.recordLabel}</p><small>{item.reason}</small></div>
           <div><small>Source</small><strong style={{display:'block',marginTop:3}}>{sourceLabel(item.source)}</strong></div>
           <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{age(item.createdAt)}</strong></div>
           <div>{item.value!==undefined?<><small>Value</small><strong style={{display:'block',marginTop:3}}>{money(item.value,item.currency)}</strong></>:null}</div>
-          <strong>Review →</strong>
+          <ContextActions label={`Approval actions for ${item.title}`}>
+            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Ready for approval" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open authoritative record</Link>}>
+              <InteractionFacts>
+                <InteractionFact label="Decision">{item.type}</InteractionFact>
+                <InteractionFact label="Record">{item.recordLabel}</InteractionFact>
+                <InteractionFact label="Source">{sourceLabel(item.source)}</InteractionFact>
+                <InteractionFact label="Waiting">{age(item.createdAt)}</InteractionFact>
+                <InteractionFact label="Value">{item.value!==undefined?money(item.value,item.currency):'Not value-based'}</InteractionFact>
+                <InteractionFact label="Readiness">Evidence complete</InteractionFact>
+              </InteractionFacts>
+              <p className="interaction-summary__lead">The drawer is review context only. The actual governed decision stays on the owning record so there is still one source of truth.</p>
+            </WorkspaceDrawer>
+            <Link className="button secondary" href={item.href}>Open</Link>
+          </ContextActions>
         </ProductRegisterRow>)}
       </ProductRegister>:<ProductEmptyState title="No approvals waiting" description="Authority decisions will appear here only when their underlying evidence is ready." />}
     </section>
@@ -51,13 +65,24 @@ export default async function ApprovalsPage(){
     {blocked.length?<section>
       <ProductSectionHeader eyebrow="Not ready" title="Blocked approvals" meta={`${blocked.length} blocked`} />
       <ProductRegister className="approvals-register approvals-register--blocked">
-        {blocked.map(item=><ProductRegisterRow href={item.href} key={item.id}>
+        {blocked.map(item=><ProductRegisterRow key={item.id}>
           <ProductStatus tone="attention">Evidence needed</ProductStatus>
           <div><strong>{item.title}</strong><p>{item.recordLabel}</p><small>{item.reason}</small></div>
           <div><small>Approval</small><strong style={{display:'block',marginTop:3}}>{item.type}</strong></div>
           <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{age(item.createdAt)}</strong></div>
           <div />
-          <strong>Resolve →</strong>
+          <ContextActions label={`Blocked approval actions for ${item.title}`}>
+            <WorkspaceDrawer triggerLabel="Why blocked?" eyebrow="Approval blocked" title={item.title} description="Inspect the missing evidence without leaving the approval queue." footer={<Link className="button" href={item.href}>Open source record</Link>}>
+              <InteractionFacts>
+                <InteractionFact label="Decision">{item.type}</InteractionFact>
+                <InteractionFact label="Record">{item.recordLabel}</InteractionFact>
+                <InteractionFact label="Source">{sourceLabel(item.source)}</InteractionFact>
+                <InteractionFact label="Waiting">{age(item.createdAt)}</InteractionFact>
+              </InteractionFacts>
+              <div className="product-notice product-notice--attention"><strong>Evidence still required</strong><div>{item.reason}</div></div>
+            </WorkspaceDrawer>
+            <Link className="button secondary" href={item.href}>Resolve</Link>
+          </ContextActions>
         </ProductRegisterRow>)}
       </ProductRegister>
     </section>:null}

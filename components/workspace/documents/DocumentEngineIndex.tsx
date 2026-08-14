@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { createDocumentRevisionAction, withdrawControlledDocumentAction } from '@/app/workspace/documents/control-actions';
 import { resolveDocumentPresentation } from '@/lib/presentation/operatingState';
+import { ContextActions, DecisionDialog, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 type RegistryDocument={id:string;document_type:string;reference:string;title:string;status:string;version:number;created_at:string;updated_at:string|null;lead_id:string|null;project_id:string|null;revision_code?:string|null;issue_purpose?:string|null;control_state?:string|null;is_current_revision?:boolean|null;supersedes_document_id?:string|null;superseded_by_document_id?:string|null};
@@ -26,8 +27,15 @@ export default async function DocumentEngineIndex({leadId,projectId}:Props){
   const working=current.filter(document=>!resolveDocumentPresentation(state(document),document.title).approval?.required&&!['approved','issued','published','archived'].includes(document.status)).length;
   const backHref=contextType&&contextId?(contextType==='project'?`/workspace/projects/${contextId}`:`/workspace/leads/${contextId}`):undefined;
 
+  const historicalDrawer=historical.length?<WorkspaceDrawer triggerLabel={`Historical revisions · ${historical.length}`} eyebrow="Document context" title="Historical revisions" description="Superseded and withdrawn evidence is retained for traceability but stays outside the current working set.">
+    <DocumentHistory documents={historical}/>
+  </WorkspaceDrawer>:null;
+  const issueDrawer=issues.length?<WorkspaceDrawer triggerLabel={`Issue history · ${issues.length}`} eyebrow="Document context" title="Controlled release history" description="Previous controlled releases and recipients. Current document state remains on the main register.">
+    <IssueHistory issues={issues} documents={documents}/>
+  </WorkspaceDrawer>:null;
+
   return <section className="vp-page document-registry">
-    <ProductPageHeader eyebrow="Operations · Document control" title={contextType?'Controlled documents':'Document register'} description={contextType?'Current revisions, approvals, controlled issues and historical revisions attached to this operating record.':'The current revision of every controlled document, its approval state, issue history and superseded lineage in one register.'} backHref={backHref} backLabel={contextType==='project'?'Back to Project':'Back to Case'} actions={<>{contextType?<Link className="button secondary" href="/workspace/documents">Global register</Link>:null}<Link className="button secondary" href="/workspace/approvals">Approvals</Link></>}/>
+    <ProductPageHeader eyebrow="Operations · Document control" title={contextType?'Controlled documents':'Document register'} description={contextType?'Current revisions and current document decisions attached to this operating record. Historical revisions and release history open as context drawers.':'The current revision of every controlled document stays on the register. Inspect metadata/history in drawers and open the document workspace only when real document work is required.'} backHref={backHref} backLabel={contextType==='project'?'Back to Project':'Back to Case'} actions={<ContextActions label="Document register context">{historicalDrawer}{issueDrawer}{contextType?<Link className="button secondary" href="/workspace/documents">Global register</Link>:null}<Link className="button secondary" href="/workspace/approvals">Approvals</Link></ContextActions>}/>
     <ProductMetrics label="Document control summary">
       <ProductMetric label="Current revisions" value={current.length} detail="Valid working set" />
       <ProductMetric label="Approval needed" value={approvalNeeded} detail="Authorised decision required" tone={approvalNeeded?'waiting':'complete'} />
@@ -39,12 +47,51 @@ export default async function DocumentEngineIndex({leadId,projectId}:Props){
     {!error&&documents.length===0?<ProductEmptyState title={contextType?`No controlled documents for this ${contextType}`:'No controlled documents yet'} description="Documents enter this register automatically when they are created from the operating workflow." action={backHref?<Link className="button" href={backHref}>Return to operating record</Link>:<><Link className="button" href="/workspace/leads">Open Cases</Link> <Link className="button secondary" href="/workspace/projects">Open Projects</Link></>}/>:null}
 
     {current.length?<Register title="Current revisions" description="The revision currently valid for work, approval or issue." documents={current} current/>:null}
-    {historical.length?<details className="vp-disclosure"><summary>Historical revisions · {historical.length}</summary><div style={{paddingTop:14}}><Register title="Revision history" description="Superseded or withdrawn revisions retained for audit and traceability." documents={historical}/></div></details>:null}
 
-    {issues.length?<section className="product-panel"><ProductSectionHeader eyebrow="Issue history" title="Controlled releases" meta={`${issues.length} issue record${issues.length===1?'':'s'}`}/><div className="document-registry__table-scroll"><table><thead><tr><th>Document</th><th>Revision</th><th>Issue</th><th>Purpose</th><th>Recipient</th><th>Issued</th></tr></thead><tbody>{issues.map(issue=>{const doc=documents.find(d=>d.id===issue.document_id);return <tr key={issue.id}><td><strong>{doc?.reference||'Document'}</strong><small>{doc?.title}</small></td><td>{issue.revision_code}</td><td>#{issue.issue_sequence}</td><td>{issue.purpose.replaceAll('_',' ')}</td><td>{issue.recipient_name||issue.recipient_email||'Controlled release'}</td><td>{formatDate(issue.issued_at)}</td></tr>})}</tbody></table></div></section>:null}
+    {(historical.length||issues.length)?<section className="product-panel">
+      <ProductSectionHeader eyebrow="Context" title="Revision & issue history" actions={<ContextActions>{historicalDrawer}{issueDrawer}</ContextActions>} />
+      <p style={{margin:0,color:'var(--saas-muted)',fontSize:12,lineHeight:1.6}}>Historical evidence remains available without turning the current document register into a long audit page.</p>
+    </section>:null}
   </section>;
 }
 
 function Register({title,description,documents,current=false}:{title:string;description:string;documents:RegistryDocument[];current?:boolean}){
-  return <section className="product-panel document-registry__table-wrap"><ProductSectionHeader eyebrow="Document register" title={title} meta={`${documents.length} document${documents.length===1?'':'s'}`}/><p style={{margin:'-4px 0 12px',color:'var(--saas-muted)',fontSize:11}}>{description}</p><div className="document-registry__table-scroll"><table><thead><tr><th>Document number</th><th>Document</th><th>Revision</th><th>Operating state</th><th>Purpose</th><th>Updated</th><th>Actions</th></tr></thead><tbody>{documents.map(document=>{const presentation=resolveDocumentPresentation(state(document),document.title);return <tr id={`document-${document.id}`} key={document.id}><td><strong>{document.reference}</strong></td><td><span>{document.title}</span><small>{canonicalDocumentSlug(document.document_type).replaceAll('-',' ')}</small></td><td><strong>{revision(document)}</strong><small>v{document.version}</small></td><td><ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus><small>{presentation.nextAction.label}</small></td><td>{(document.issue_purpose||'internal').replaceAll('_',' ')}</td><td>{formatDate(document.updated_at||document.created_at)}</td><td><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href={openUrl(document)}>{presentation.approval?.required?'Review':'Open'}</Link>{current&&['signed','approved','issued','published'].includes(document.status)?<form action={createDocumentRevisionAction}><input type="hidden" name="document_id" value={document.id}/><button className="button secondary" type="submit">New revision</button></form>:null}{current&&['approved','issued','published'].includes(document.status)?<details className="vp-disclosure" style={{minWidth:170}}><summary>Withdraw</summary><form action={withdrawControlledDocumentAction} className="stack" style={{paddingTop:10}}><input type="hidden" name="document_id" value={document.id}/><label>Reason<textarea name="reason" rows={2} required/></label><button className="button secondary" type="submit">Withdraw revision</button></form></details>:null}</div></td></tr>})}</tbody></table></div></section>
+  return <section className="product-panel document-registry__table-wrap"><ProductSectionHeader eyebrow="Document register" title={title} meta={`${documents.length} document${documents.length===1?'':'s'}`}/><p style={{margin:'-4px 0 12px',color:'var(--saas-muted)',fontSize:11}}>{description}</p><div className="document-registry__table-scroll"><table><thead><tr><th>Document number</th><th>Document</th><th>Revision</th><th>Operating state</th><th>Purpose</th><th>Updated</th><th>Actions</th></tr></thead><tbody>{documents.map(document=>{const presentation=resolveDocumentPresentation(state(document),document.title);return <tr id={`document-${document.id}`} key={document.id}>
+    <td><strong>{document.reference}</strong></td>
+    <td><span>{document.title}</span><small>{canonicalDocumentSlug(document.document_type).replaceAll('-',' ')}</small></td>
+    <td><strong>{revision(document)}</strong><small>v{document.version}</small></td>
+    <td><ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus><small>{presentation.nextAction.label}</small></td>
+    <td>{(document.issue_purpose||'internal').replaceAll('_',' ')}</td>
+    <td>{formatDate(document.updated_at||document.created_at)}</td>
+    <td><ContextActions label={`Actions for ${document.reference}`}>
+      <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Controlled document" title={document.title} description={presentation.summary} footer={<Link className="button" href={openUrl(document)}>{presentation.approval?.required?'Open review workspace':'Open document'}</Link>}>
+        <InteractionFacts>
+          <InteractionFact label="Reference">{document.reference}</InteractionFact>
+          <InteractionFact label="Revision">{revision(document)}</InteractionFact>
+          <InteractionFact label="Operating state">{presentation.state}</InteractionFact>
+          <InteractionFact label="Purpose">{(document.issue_purpose||'internal').replaceAll('_',' ')}</InteractionFact>
+          <InteractionFact label="Version">v{document.version}</InteractionFact>
+          <InteractionFact label="Updated">{formatDate(document.updated_at||document.created_at)}</InteractionFact>
+          <InteractionFact label="Next action">{presentation.nextAction.label}</InteractionFact>
+          <InteractionFact label="Current revision">{document.is_current_revision===false?'No':'Yes'}</InteractionFact>
+        </InteractionFacts>
+        <p className="interaction-summary__lead">{presentation.summary}</p>
+      </WorkspaceDrawer>
+      <Link className="button secondary" href={openUrl(document)}>{presentation.approval?.required?'Review':'Open'}</Link>
+      {current&&['signed','approved','issued','published'].includes(document.status)?<DecisionDialog triggerLabel="New revision" eyebrow="Document control" title={`Create new revision · ${document.reference}`} description="This preserves the current revision and creates the next controlled working revision.">
+        <form action={createDocumentRevisionAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><div className="product-notice"><strong>Create next controlled revision?</strong><div>{document.title} · {revision(document)}</div></div><button className="button" type="submit">Create new revision</button></form>
+      </DecisionDialog>:null}
+      {current&&['approved','issued','published'].includes(document.status)?<DecisionDialog triggerLabel="Withdraw" eyebrow="Document control" title={`Withdraw ${document.reference}`} description="Withdrawal preserves the evidence trail and removes this revision from the current valid working set.">
+        <form action={withdrawControlledDocumentAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><label>Reason<textarea name="reason" rows={3} required/></label><button className="button secondary" type="submit">Confirm withdrawal</button></form>
+      </DecisionDialog>:null}
+    </ContextActions></td>
+  </tr>})}</tbody></table></div></section>;
+}
+
+function DocumentHistory({documents}:{documents:RegistryDocument[]}){
+  return <div className="interaction-summary"><p className="interaction-summary__lead">Historical revisions are read-only context. Open a document only if you need its retained evidence.</p><div className="product-register">{documents.map(document=><div className="product-register-row" key={document.id}><div><strong>{document.reference} · {revision(document)}</strong><p>{document.title}</p></div><ProductStatus tone="neutral">{state(document)}</ProductStatus><div><small>Updated</small><strong style={{display:'block',marginTop:3}}>{formatDate(document.updated_at||document.created_at)}</strong></div><Link className="button secondary" href={openUrl(document)}>Open</Link></div>)}</div></div>;
+}
+
+function IssueHistory({issues,documents}:{issues:IssueRecord[];documents:RegistryDocument[]}){
+  return <div className="document-registry__table-scroll"><table><thead><tr><th>Document</th><th>Revision</th><th>Issue</th><th>Purpose</th><th>Recipient</th><th>Issued</th></tr></thead><tbody>{issues.map(issue=>{const doc=documents.find(d=>d.id===issue.document_id);return <tr key={issue.id}><td><strong>{doc?.reference||'Document'}</strong><small>{doc?.title}</small></td><td>{issue.revision_code}</td><td>#{issue.issue_sequence}</td><td>{issue.purpose.replaceAll('_',' ')}</td><td>{issue.recipient_name||issue.recipient_email||'Controlled release'}</td><td>{formatDate(issue.issued_at)}</td></tr>})}</tbody></table></div>;
 }

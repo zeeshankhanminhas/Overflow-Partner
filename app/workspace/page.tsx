@@ -4,6 +4,7 @@ import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 import { formatWaitingMinutes, resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/attention';
 import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/exceptions';
 import { getApprovalQueue, summariseApprovalQueue } from '@/lib/presentation/approvals';
+import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 function money(value:number){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(value)}
@@ -100,11 +101,22 @@ export default async function WorkspacePage() {
         <section>
           <ProductSectionHeader eyebrow="Authority" title="Approvals" meta={<Link href="/workspace/approvals">View all {approvalSummary.total} →</Link>} />
           {readyApprovals.length ? <ProductRegister>
-            {readyApprovals.map(item=><ProductRegisterRow href={item.href} key={item.id}>
+            {readyApprovals.map(item=><ProductRegisterRow key={item.id}>
               <ProductStatus tone="waiting">Approval</ProductStatus>
               <div><strong>{item.type}</strong><p>{item.title} · {item.recordLabel}</p></div>
               <div><small>Source</small><strong style={{display:'block',marginTop:3}}>{approvalSource(item.source)}</strong></div>
-              <strong>Review →</strong>
+              <ContextActions label={`Actions for ${item.title}`}>
+                <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Authority decision" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open authoritative record</Link>}>
+                  <InteractionFacts>
+                    <InteractionFact label="Decision">{item.type}</InteractionFact>
+                    <InteractionFact label="Record">{item.recordLabel}</InteractionFact>
+                    <InteractionFact label="Source">{approvalSource(item.source)}</InteractionFact>
+                    <InteractionFact label="Value">{item.value!==undefined?money(item.value):'Not value-based'}</InteractionFact>
+                  </InteractionFacts>
+                  <p className="interaction-summary__lead">Review the evidence here, then open the owning record only when you are ready to perform the governed decision.</p>
+                </WorkspaceDrawer>
+                <Link className="button secondary" href={item.href}>Open</Link>
+              </ContextActions>
             </ProductRegisterRow>)}
           </ProductRegister> : <ProductEmptyState title="No approvals ready" description="Only evidence-complete authority decisions appear here." />}
         </section>
@@ -112,11 +124,22 @@ export default async function WorkspacePage() {
         <section>
           <ProductSectionHeader eyebrow="Waiting on" title="Dependencies" meta={`${attention.items.length} open`} />
           {dependencies.length ? <ProductRegister>
-            {dependencies.map(item=><ProductRegisterRow href={item.href} key={`${item.id}-${item.title}`}>
+            {dependencies.map(item=><ProductRegisterRow key={`${item.id}-${item.title}`}>
               <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{dependencyOwner(item)}</ProductStatus>
               <div><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div>
               <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
-              <strong>Open →</strong>
+              <ContextActions label={`Actions for ${item.company}`}>
+                <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Dependency" title={item.title} description="Inspect the dependency without losing Mission Control." footer={<Link className="button" href={item.href}>Open owning record</Link>}>
+                  <InteractionFacts>
+                    <InteractionFact label="Record">{item.company}</InteractionFact>
+                    <InteractionFact label="Waiting on">{dependencyOwner(item)}</InteractionFact>
+                    <InteractionFact label="Waiting">{formatWaitingMinutes(item.waitingMinutes)}</InteractionFact>
+                    <InteractionFact label="Priority">{item.priority}</InteractionFact>
+                  </InteractionFacts>
+                  <p className="interaction-summary__lead">{item.reason}</p>
+                </WorkspaceDrawer>
+                <Link className="button secondary" href={item.href}>Open</Link>
+              </ContextActions>
             </ProductRegisterRow>)}
           </ProductRegister> : <ProductEmptyState title="No dependencies waiting" description="External and internal waiting states will appear here without being mislabelled as blockers." />}
         </section>
@@ -135,11 +158,21 @@ export default async function WorkspacePage() {
         <section>
           <ProductSectionHeader eyebrow="Issues" title="Off-plan work" meta={<Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link>} />
           {exceptionActions.length ? <ProductRegister>
-            {exceptionActions.map(item=><ProductRegisterRow href={item.href} key={item.id}>
+            {exceptionActions.map(item=><ProductRegisterRow key={item.id}>
               <ProductStatus tone={item.severity==='critical'?'critical':item.severity==='high'?'blocked':'attention'}>{item.severity}</ProductStatus>
               <div><strong>{item.title}</strong><p>{item.relatedLabel} · {item.detail}</p></div>
               <div><small>Owner</small><strong style={{display:'block',marginTop:3}}>{item.owner}</strong></div>
-              <strong>Open →</strong>
+              <ContextActions label={`Actions for ${item.title}`}>
+                <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Off-plan work" title={item.title} description={item.detail} footer={<Link className="button" href={item.href}>Open source record</Link>}>
+                  <InteractionFacts>
+                    <InteractionFact label="Severity">{item.severity}</InteractionFact>
+                    <InteractionFact label="Category">{item.category}</InteractionFact>
+                    <InteractionFact label="Owner">{item.owner}</InteractionFact>
+                    <InteractionFact label="Related record">{item.relatedLabel}</InteractionFact>
+                  </InteractionFacts>
+                </WorkspaceDrawer>
+                <Link className="button secondary" href={item.href}>Open</Link>
+              </ContextActions>
             </ProductRegisterRow>)}
           </ProductRegister> : <ProductEmptyState title="No issues" description="Delivery, finance and actions are currently within plan." />}
         </section>

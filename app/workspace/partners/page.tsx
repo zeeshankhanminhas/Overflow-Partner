@@ -2,6 +2,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { listPartners } from '@/lib/repositories/workflow';
 import { createPartnerFormAction } from '../workflow-actions';
 import { workspaceLabel } from '@/lib/presentation/vocabulary';
+import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
@@ -15,8 +16,26 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
   const ndaReady=partners.filter(p=>p.nda_signed).length;
   const needsNda=partners.filter(p=>p.status==='approved'&&!p.nda_signed).length;
 
+  const addPartner=<WorkWindow triggerLabel="Add partner" triggerClassName="button" eyebrow="Partner master" title="Add Execution Partner" description="Create the controlled Partner master record without expanding the directory page into a form workspace.">
+    <form action={createPartnerFormAction} className="stack">
+      <div className="grid gap-4 md:grid-cols-2">
+        <input className={input} name="company_name" placeholder="Company name" required/>
+        <input className={input} name="country" placeholder="Country"/>
+        <input className={input} name="contact_name" placeholder="Contact name"/>
+        <input className={input} name="email" type="email" placeholder="Email"/>
+        <input className={input} name="phone" placeholder="Phone"/>
+        <select className={input} name="status" defaultValue="prospective"><option value="prospective">Prospective</option><option value="approved">Approved</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select>
+        <select className={input} name="nda_signed" defaultValue="false"><option value="false">NDA not signed</option><option value="true">NDA signed</option></select>
+        <input className={input} name="rating" type="number" min="0" max="5" step="0.1" placeholder="Rating"/>
+      </div>
+      <textarea className={input} name="services" required rows={3} placeholder="Capabilities and services"/>
+      <textarea className={input} name="notes" rows={3} placeholder="Notes"/>
+      <button className="button">Add partner</button>
+    </form>
+  </WorkWindow>;
+
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Commercial · Partners" title="Execution partner network" description="Manage partner readiness, NDA status and delivery capability from one controlled directory. Assignment remains attached to the Prospect or Case that needs the work." actions={<details><summary className="button">Add partner</summary><div className="vp-toolbar-panel"><form action={createPartnerFormAction} className="stack"><div className="grid gap-4 md:grid-cols-2"><input className={input} name="company_name" placeholder="Company name" required/><input className={input} name="country" placeholder="Country"/><input className={input} name="contact_name" placeholder="Contact name"/><input className={input} name="email" type="email" placeholder="Email"/><input className={input} name="phone" placeholder="Phone"/><select className={input} name="status" defaultValue="prospective"><option value="prospective">Prospective</option><option value="approved">Approved</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select><select className={input} name="nda_signed" defaultValue="false"><option value="false">NDA not signed</option><option value="true">NDA signed</option></select><input className={input} name="rating" type="number" min="0" max="5" step="0.1" placeholder="Rating"/></div><textarea className={input} name="services" required rows={3} placeholder="Capabilities and services"/><textarea className={input} name="notes" rows={3} placeholder="Notes"/><button className="button">Add partner</button></form></div></details>} />
+    <ProductPageHeader eyebrow="Commercial · Partners" title="Execution partner network" description="Choose a Partner from the controlled directory. Inspect readiness and capability without leaving the register; use the focused work window only to create a new Partner record." actions={addPartner} />
 
     {params.created?<ProductNotice title="Partner added" tone="complete"><p>The partner is now available for governed review and assignment.</p></ProductNotice>:null}
     {params.error?<ProductNotice title="Partner could not be added" tone="blocked"><p>Review the partner details and try again.</p></ProductNotice>:null}
@@ -35,7 +54,20 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
           <div><strong>{p.company_name}</strong><p>{p.services||'Capabilities not recorded'}{p.country?` · ${p.country}`:''}</p></div>
           <ProductStatus tone={tone(p.status)}>{workspaceLabel(p.status)}</ProductStatus>
           <div><small>Commercial readiness</small><strong style={{display:'block',marginTop:3}}>{p.nda_signed?'NDA ready':'NDA required'}</strong></div>
-          <div><small>Rating</small><strong style={{display:'block',marginTop:3}}>{p.rating!==null?`${p.rating}/5`:'Not rated'}</strong></div>
+          <ContextActions label={`Actions for ${p.company_name}`}>
+            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Execution Partner" title={p.company_name} description="Partner master data and readiness context." >
+              <InteractionFacts>
+                <InteractionFact label="Status">{workspaceLabel(p.status)}</InteractionFact>
+                <InteractionFact label="NDA">{p.nda_signed?'Signed':'Required'}</InteractionFact>
+                <InteractionFact label="Country">{p.country||'Not recorded'}</InteractionFact>
+                <InteractionFact label="Rating">{p.rating!==null?`${p.rating}/5`:'Not rated'}</InteractionFact>
+                <InteractionFact label="Contact">{p.contact_name||'Not recorded'}</InteractionFact>
+                <InteractionFact label="Email">{p.email||'Not recorded'}</InteractionFact>
+              </InteractionFacts>
+              <p className="interaction-summary__lead">{p.services||'Capabilities have not been recorded yet.'}</p>
+              {p.notes?<div className="product-panel" style={{marginTop:14}}><p className="product-eyebrow">Notes</p><p style={{margin:'6px 0 0',color:'var(--saas-muted)',fontSize:12,lineHeight:1.6}}>{p.notes}</p></div>:null}
+            </WorkspaceDrawer>
+          </ContextActions>
         </ProductRegisterRow>)}
       </ProductRegister>}
     </section>

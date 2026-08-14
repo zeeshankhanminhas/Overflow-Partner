@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ProductProvenance } from '@/components/workspace/ProductUI';
 import OperatingStatePanel from '@/components/workspace/OperatingStatePanel';
+import { ContextActions, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import type { OperatingPresentation } from '@/lib/presentation/operatingState';
 
 type RecordWorkspaceProps = {
@@ -29,17 +30,6 @@ function Slot({ id, title, children, className = '' }: { id?: string; title: str
   </section>;
 }
 
-function Disclosure({ id, title, description, children }: { id?: string; title: string; description?: string; children?: ReactNode }) {
-  if (!children) return null;
-  return <details id={id} className="record-workspace__disclosure">
-    <summary>
-      <span><strong>{title}</strong>{description ? <small>{description}</small> : null}</span>
-      <i aria-hidden="true">+</i>
-    </summary>
-    <div className="record-workspace__disclosure-body">{children}</div>
-  </details>;
-}
-
 export default function RecordWorkspace({
   header,
   stateStrip,
@@ -57,8 +47,8 @@ export default function RecordWorkspace({
   notices,
   className = '',
 }: RecordWorkspaceProps) {
-  const hasCurrentWork = Boolean(activities || communications);
-  const hasSecondaryContext = Boolean(history || olderDocuments || metadata || audit);
+  const hasCurrentWork = Boolean(activities);
+  const hasContext = Boolean(communications || history || olderDocuments || metadata || audit);
   const waitingOnly = Boolean(presentation?.nextAction.kind === 'wait');
 
   return <section className={`record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
@@ -76,6 +66,17 @@ export default function RecordWorkspace({
     </section>
 
     {presentation ? <OperatingStatePanel presentation={presentation} /> : null}
+
+    {hasContext ? <div className="record-workspace__context-bar">
+      <span>Context · inspect without leaving this record</span>
+      <ContextActions>
+        {communications ? <WorkspaceDrawer triggerLabel="Messages" eyebrow="Record context" title="Messages" description="Correspondence attached to this record. Close the drawer to return to the same operating position.">{communications}</WorkspaceDrawer> : null}
+        {history ? <WorkspaceDrawer triggerLabel="History" eyebrow="Record context" title="History" description="Previous business events for this record. Current truth stays on the main surface.">{history}</WorkspaceDrawer> : null}
+        {olderDocuments ? <WorkspaceDrawer triggerLabel="Older documents" eyebrow="Record context" title="Older documents" description="Evidence outside the current working set.">{olderDocuments}</WorkspaceDrawer> : null}
+        {metadata ? <WorkspaceDrawer triggerLabel="Record details" eyebrow="Record context" title="Record details" description="Identifiers, references and supporting metadata.">{metadata}</WorkspaceDrawer> : null}
+        {audit ? <WorkspaceDrawer triggerLabel="Audit" eyebrow="Governance" title="Audit trail" description="Governance and change history. This is traceability, not the current workflow.">{audit}</WorkspaceDrawer> : null}
+      </ContextActions>
+    </div> : null}
 
     <section className={`record-workspace__group record-workspace__group--decision ${presentation ? 'record-workspace__group--interpreted' : ''}`} aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
@@ -95,8 +96,7 @@ export default function RecordWorkspace({
         <span>Live work and external updates</span>
       </div>
       <div className="record-workspace__primary-work">
-        {activities ? <Slot id="record-activities" title="Live work" className="record-workspace__slot--primary-work">{activities}</Slot> : null}
-        {communications ? <Disclosure id="record-communications" title="Messages" description="Open correspondence only when you need it">{communications}</Disclosure> : null}
+        <Slot id="record-activities" title="Live work" className="record-workspace__slot--primary-work">{activities}</Slot>
       </div>
     </section> : null}
 
@@ -106,19 +106,6 @@ export default function RecordWorkspace({
         <span>Documents and recorded evidence supporting the current stage</span>
       </div>
       <Slot id="record-documents" title="Current evidence" className="record-workspace__slot--evidence">{evidence}</Slot>
-    </section> : null}
-
-    {hasSecondaryContext ? <section className="record-workspace__group record-workspace__group--secondary" aria-labelledby="record-secondary-context">
-      <div className="record-workspace__group-heading">
-        <p id="record-secondary-context">History & audit</p>
-        <span>Open this only when you need background or traceability</span>
-      </div>
-      <div className="record-workspace__secondary-stack">
-        <Disclosure id="record-history" title="History" description="Previous record events">{history}</Disclosure>
-        <Disclosure id="record-older-documents" title="Older documents" description="Documents outside the current working set">{olderDocuments}</Disclosure>
-        <Disclosure id="record-metadata" title="Record details" description="IDs and system references">{metadata}</Disclosure>
-        <Disclosure id="record-audit" title="Audit trail" description="Governance and change history">{audit}</Disclosure>
-      </div>
     </section> : null}
   </section>;
 }
