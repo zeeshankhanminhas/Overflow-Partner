@@ -1,3 +1,5 @@
+// Human-facing journey language only. Technical execution/revision counters stay
+// in the evidence model and must not become normal operator or Partner workflow terms.
 export const projectPhaseOrder = ['setup','partner_work','op_review','client_review','closeout'] as const;
 export type ProjectPhase = typeof projectPhaseOrder[number];
 
@@ -64,7 +66,7 @@ export function partnerWorkPresentation(input:{
   if(stage==='in_progress'){
     if(delivered)return {status:'Final delivery submitted',owner:'Overflow Partner',next:'Await OP review',summary:'Partner work is complete for now. Overflow Partner owns the review.'};
     if(openExceptions>0)return {status:'Blocked',owner:'Overflow Partner',next:'Resolve Partner exception',summary:`${openExceptions} open execution ${openExceptions===1?'exception needs':'exceptions need'} resolution.`};
-    return {status:input.commenced?'Working':'Ready to start',owner:input.commenced?partner:partner,next:input.commenced?'Submit final delivery':'Confirm commencement',summary:input.commenced?'Engineering work is with the Execution Partner.':'Work starts when the Partner confirms commencement.'};
+    return {status:input.commenced?'Working':'Ready to start',owner:partner,next:input.commenced?'Submit final delivery':'Confirm commencement',summary:input.commenced?'Engineering work is with the Execution Partner.':'Work starts when the Partner confirms commencement.'};
   }
   if(['internal_review','ready_for_client_issue'].includes(stage))return {status:'Partner delivery complete',owner:'Overflow Partner',next:'Complete OP review',summary:'Partner work is complete unless Overflow Partner requests changes.'};
   if(['issued_to_client','client_review'].includes(stage))return {status:'Partner delivery accepted',owner:'Client',next:'Await client outcome',summary:'The approved delivery has left Partner execution.'};
