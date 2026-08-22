@@ -23,13 +23,12 @@ const deliveryChecks = [
   'Compatible with manufacturing workflows',
 ];
 
-function StepMark({ index }: { index: number }) {
+function StepMark() {
   return (
     <svg className="h-10 w-10 text-current" viewBox="0 0 48 48" fill="none" aria-hidden="true">
       <rect x="8" y="8" width="32" height="32" stroke="currentColor" strokeWidth="1.5" />
       <path d="M15 24h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <path d="M27 18l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="13" y="18" fontSize="8" fill="currentColor">0{index + 1}</text>
     </svg>
   );
 }
@@ -80,7 +79,7 @@ export default function ProofOfWork() {
               {workflow.map(([title, text], index) => (
                 <article key={title} className="card_workflow motion_fade_up border border-white/40 p-5 text-white">
                   <p className="text_label text-sm font-semibold text-white">0{index + 1}</p>
-                  <div className="mt-7"><StepMark index={index} /></div>
+                  <div className="mt-7"><StepMark /></div>
                   <h3 className="heading_card mt-7 text-lg font-semibold text-white">{title}</h3>
                   <p className="text_body mt-4 text-sm leading-6 text-white">{text}</p>
                 </article>
