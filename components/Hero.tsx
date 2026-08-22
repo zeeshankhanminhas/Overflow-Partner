@@ -1,24 +1,28 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 const capabilities = [
   ['01', 'Capacity'],
   ['02', 'CAD / CAM'],
   ['03', 'Controlled delivery'],
 ] as const;
 
+const approvedHeroBase64 = readFileSync(
+  path.join(process.cwd(), 'public', 'overflow-capacity-hero.webp'),
+  'utf8',
+).trim();
+
 function EngineeringField() {
   return (
-    <figure className="relative min-h-[420px] overflow-hidden border border-black/15 bg-[var(--paper)] md:min-h-[560px]">
+    <figure className="relative aspect-[4/3] overflow-hidden border border-black/15 bg-[var(--paper)]">
       <img
-        src="/overflow-capacity-hero.svg"
-        alt="Abstract engineered structure extending into an orange capacity rail"
-        className="absolute inset-0 h-full w-full object-cover object-[48%_50%]"
+        src={`data:image/webp;base64,${approvedHeroBase64}`}
+        alt="Industrial engineering structure with a restrained orange capacity extension"
+        className="absolute inset-0 h-full w-full object-cover"
         loading="eager"
         decoding="async"
         fetchPriority="high"
       />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between border-t border-black/15 bg-[rgba(243,239,230,.88)] px-5 py-3 backdrop-blur-[2px]">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/55">Existing engineering capacity</span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Extended</span>
-      </div>
     </figure>
   );
 }
@@ -57,7 +61,7 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="pb-8 lg:py-8">
+          <div className="pb-8 lg:flex lg:items-center lg:py-8">
             <EngineeringField />
           </div>
         </div>
