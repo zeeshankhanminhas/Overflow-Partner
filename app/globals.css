@@ -6,6 +6,7 @@
   color-scheme: light;
   --background: #ffffff;
   --foreground: #111815;
+  --canvas: #f4f3ee;
   --paper: #f7f7f5;
   --technical: #ecefeb;
   --muted: #4b5651;
@@ -24,7 +25,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
   font-feature-settings: "liga" 1, "kern" 1;
   text-rendering: optimizeLegibility;
   @apply antialiased;
@@ -46,7 +47,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   }
   .motion_button:hover, .button_primary:hover, .button_secondary:hover, .button_menu:hover, button[type="submit"]:hover, button[type="button"]:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgb(0 0 0 / 0.08);
   }
   .motion_button:active, .button_primary:active, .button_secondary:active, .button_menu:active, button[type="submit"]:active, button[type="button"]:active {
     transform: translateY(0);
