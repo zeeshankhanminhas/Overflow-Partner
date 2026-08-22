@@ -11,31 +11,35 @@ const software = ['SolidWorks', 'Fusion 360', 'AutoCAD', 'Inventor', 'STEP', 'IG
 
 export default function Services() {
   return (
-    <section id="services" className="section_services border-t border-black/10 bg-white py-32 text-black md:py-44">
+    <section id="services" className="section_services bg-[var(--canvas)] py-24 text-black md:py-32 lg:py-40">
       <div className="container_large padding_global">
-        <div className="services_wrapper mx-auto max-w-4xl">
-          <div className="services_heading motion_fade_up mx-auto max-w-2xl text-center">
-            <p className="text_eyebrow mb-8 text-sm font-semibold uppercase text-black">Services</p>
-            <h2 className="heading_section text-3xl font-semibold leading-tight md:text-4xl">Focused Support For Engineering Teams Under Delivery Pressure</h2>
+        <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+          <div>
+            <p className="text_eyebrow text-xs font-semibold uppercase tracking-[0.18em] text-black/50">Capabilities</p>
           </div>
-          <div className="grid_services mt-16 grid gap-4 border-y border-black/10 py-4">
-            {services.map((service, index) => (
-              <article key={service.title} className="card_service motion_fade_up grid gap-6 border-b border-black/10 py-8 last:border-b-0 md:grid-cols-[96px_1fr] md:items-start">
-                <p className="text_label text-sm font-medium text-black">0{index + 1}</p>
-                <div>
-                  <h3 className="heading_card text-xl font-semibold md:text-2xl">{service.title}</h3>
-                  <p className="text_body mt-4 max-w-2xl text-base leading-7 text-black md:text-lg">{service.text}</p>
-                </div>
-              </article>
-            ))}
+          <div>
+            <h2 className="heading_section max-w-[16ch] text-[clamp(2.6rem,4.8vw,5rem)] font-medium leading-[0.96] tracking-[-0.04em]">
+              Engineering support where capacity gets tight.
+            </h2>
           </div>
-          <div className="software_strip motion_fade_up mt-12 border-y border-black/10 py-6">
-            <p className="text_eyebrow text-xs font-semibold uppercase text-black">Common File &amp; Software Workflows</p>
-            <div className="grid_software mt-5 grid gap-3 text-xs font-medium uppercase text-black sm:grid-cols-2 md:grid-cols-4">
-              {software.map((item) => (
-                <p key={item} className="text_software border-t border-black/20 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:[&:nth-child(2n+1)]:border-l-0 md:[&:nth-child(2n+1)]:border-l md:[&:nth-child(4n+1)]:border-l-0">{item}</p>
-              ))}
-            </div>
+        </div>
+
+        <div className="mt-20 grid border-t border-black/20 md:grid-cols-2 lg:mt-28 lg:grid-cols-3">
+          {services.map((service, index) => (
+            <article key={service.title} className="group min-h-[280px] border-b border-black/15 p-7 transition-colors hover:bg-white md:border-r md:[&:nth-child(2n)]:border-r-0 lg:[&:nth-child(2n)]:border-r lg:[&:nth-child(3n)]:border-r-0 lg:p-9">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/35">0{index + 1}</p>
+              <div className="mt-20">
+                <h3 className="text-2xl font-medium tracking-[-0.025em] md:text-3xl">{service.title}</h3>
+                <p className="mt-5 max-w-sm text-base leading-7 text-black/60">{service.text}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-14 grid gap-6 border-y border-black/20 py-6 lg:grid-cols-[0.72fr_1.28fr]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/40">Common software &amp; file workflows</p>
+          <div className="flex flex-wrap gap-x-7 gap-y-3 text-xs font-semibold uppercase tracking-[0.08em] text-black/65">
+            {software.map((item) => <span key={item}>{item}</span>)}
           </div>
         </div>
       </div>
