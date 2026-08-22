@@ -6,58 +6,20 @@ const capabilities = [
 
 function EngineeringField() {
   return (
-    <div
-      className="relative min-h-[420px] overflow-hidden border border-black/15 bg-[var(--paper)] md:min-h-[560px]"
-      aria-hidden="true"
-    >
-      <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(to_right,rgba(17,24,21,.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(17,24,21,.12)_1px,transparent_1px)] [background-size:48px_48px]" />
-      <div className="absolute left-[10%] top-[12%] text-[10px] font-semibold uppercase tracking-[0.18em] text-black/55">
-        OP / Capacity Extension
+    <figure className="relative min-h-[420px] overflow-hidden border border-black/15 bg-[var(--paper)] md:min-h-[560px]">
+      <img
+        src="/overflow-capacity-hero.svg"
+        alt="Abstract engineered structure extending into an orange capacity rail"
+        className="absolute inset-0 h-full w-full object-cover object-[48%_50%]"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+      />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between border-t border-black/15 bg-[rgba(243,239,230,.88)] px-5 py-3 backdrop-blur-[2px]">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/55">Existing engineering capacity</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Extended</span>
       </div>
-      <div className="absolute right-[8%] top-[12%] text-[10px] font-semibold uppercase tracking-[0.18em] text-black/55">
-        Controlled Overflow
-      </div>
-
-      <svg
-        className="absolute inset-[8%] h-[84%] w-[84%] text-[var(--ink)]"
-        viewBox="0 0 600 520"
-        fill="none"
-      >
-        <path d="M84 160h168M84 260h168M84 360h168" stroke="currentColor" strokeWidth="2" />
-        <path d="M252 160h220M252 260h168M252 360h250" stroke="currentColor" strokeWidth="2" />
-        <path d="M472 160h72M420 260h124M502 360h42" stroke="var(--accent)" strokeWidth="4" strokeLinecap="square" />
-
-        <circle cx="252" cy="160" r="6" fill="currentColor" />
-        <circle cx="252" cy="260" r="6" fill="currentColor" />
-        <circle cx="252" cy="360" r="6" fill="currentColor" />
-
-        <path d="M108 118v284M96 118h24M96 402h24" stroke="currentColor" opacity=".45" />
-        <path d="M492 118v284M480 118h24M480 402h24" stroke="currentColor" opacity=".45" />
-
-        <text x="126" y="145" fontSize="11" fill="currentColor" opacity=".55">
-          EXISTING TEAM
-        </text>
-        <text x="318" y="145" fontSize="11" fill="currentColor" opacity=".55">
-          OVERFLOW PARTNER
-        </text>
-
-        <path
-          d="M330 246h56M374 238l12 8-12 8"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity=".7"
-        />
-      </svg>
-
-      <div className="absolute bottom-[8%] left-[8%] right-[8%] grid grid-cols-3 border-t border-black/20 pt-4 text-[10px] uppercase tracking-[0.12em] text-black/60">
-        <span>Existing capacity</span>
-        <span>Extended resource</span>
-        <span className="text-right">Release ready</span>
-      </div>
-      <div className="absolute bottom-0 right-0 h-1 w-2/5 bg-[var(--accent)]" />
-    </div>
+    </figure>
   );
 }
 
