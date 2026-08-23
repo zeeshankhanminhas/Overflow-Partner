@@ -1,22 +1,14 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 const capabilities = [
   ['01', 'Capacity'],
   ['02', 'CAD / CAM'],
   ['03', 'Controlled delivery'],
 ] as const;
 
-const partHeroBase64 = readFileSync(
-  path.join(process.cwd(), 'public', 'overflow-part-static.webp'),
-  'utf8',
-).trim();
-
 function EngineeringField() {
   return (
     <figure className="relative aspect-[16/9] overflow-hidden border border-black/15 bg-[#111] lg:aspect-[4/3]">
       <img
-        src={`data:image/webp;base64,${partHeroBase64}`}
+        src="/overflow-mechanical-hero.webp"
         alt="Mechanical CAD gear and shaft assembly"
         className="absolute inset-0 h-full w-full object-cover object-center"
         loading="eager"
