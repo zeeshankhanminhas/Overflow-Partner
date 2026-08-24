@@ -51,7 +51,7 @@ export default function Hero() {
             ))}
           </div>
 
-          <div className="relative z-10 max-w-[610px] pb-10 pt-16 md:pt-20 lg:pb-24 lg:pt-20">
+          <div className="relative z-10 max-w-[610px] pb-8 pt-16 md:pt-20 lg:pb-24 lg:pt-20">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-black/55">The pressure point</p>
             <h1 className="mt-8 max-w-[10.8ch] text-[clamp(3.25rem,5.6vw,5.55rem)] font-medium leading-[0.98] tracking-[-0.052em]">
               Capacity pressure should not become delivery failure.
@@ -74,10 +74,10 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="relative -mx-5 h-[390px] sm:-mx-7 sm:h-[480px] lg:absolute lg:-right-[8%] lg:bottom-4 lg:top-14 lg:mx-0 lg:h-auto lg:w-[66%] xl:-right-[7%] xl:w-[65%]" aria-hidden="true">
+          <div className="relative z-0 -mx-5 mt-4 aspect-[600/523] overflow-hidden sm:-mx-7 lg:absolute lg:-right-[8%] lg:bottom-4 lg:top-14 lg:mx-0 lg:mt-0 lg:h-auto lg:w-[66%] lg:overflow-visible xl:-right-[7%] xl:w-[65%]">
             <img
               src="/overflow-hero-cad-faithful.webp"
-              alt=""
+              alt="Mechanical CAD gear assembly with wireframe geometry"
               className="h-full w-full object-cover object-center lg:object-contain"
               loading="eager"
               decoding="async"
