@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -63,14 +64,29 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
   const [surface, setSurface] = useState<SurfaceState>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const toastSequence = useRef(0);
+  const titleId = useId();
+  const descriptionId = useId();
 
-  const closeSurface = useCallback(() => {
-    dialogRef.current?.close();
-    setSurface(null);
+  const restoreFocus = useCallback(() => {
+    const opener = openerRef.current;
+    openerRef.current = null;
+    if (!opener?.isConnected) return;
+    window.requestAnimationFrame(() => opener.focus({ preventScroll: true }));
   }, []);
 
+  const closeSurface = useCallback(() => {
+    const dialog = dialogRef.current;
+    if (dialog?.open) dialog.close();
+    else {
+      setSurface(null);
+      restoreFocus();
+    }
+  }, [restoreFocus]);
+
   const openSurface = useCallback((kind: SurfaceKind, next: Omit<NonNullable<SurfaceState>, 'kind'>) => {
+    if (!dialogRef.current?.open) openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setSurface({ ...next, kind });
   }, []);
 
@@ -86,6 +102,13 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
     const dialog = dialogRef.current;
     if (!surface || !dialog || dialog.open) return;
     dialog.showModal();
+  }, [surface]);
+
+  useEffect(() => {
+    if (!surface) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
   }, [surface]);
 
   useEffect(() => {
@@ -112,10 +135,21 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
 
   return <WorkspaceInteractionContext.Provider value={value}>
     {children}
-    {surface ? <dialog ref={dialogRef} className={`workspace-overlay workspace-overlay--${surface.kind}`} aria-label={surface.title} onClose={() => setSurface(null)} onClick={(event) => { if (event.target === event.currentTarget) closeSurface(); }}>
+    {surface ? <dialog
+      ref={dialogRef}
+      className={`workspace-overlay workspace-overlay--${surface.kind}`}
+      aria-labelledby={titleId}
+      aria-describedby={surface.description ? descriptionId : undefined}
+      onClose={() => { setSurface(null); restoreFocus(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) closeSurface(); }}
+    >
       <section className="workspace-overlay__frame">
         <header className="workspace-overlay__header">
-          <div>{surface.eyebrow ? <p>{surface.eyebrow}</p> : null}<h2>{surface.title}</h2>{surface.description ? <span>{surface.description}</span> : null}</div>
+          <div>
+            {surface.eyebrow ? <p>{surface.eyebrow}</p> : null}
+            <h2 id={titleId}>{surface.title}</h2>
+            {surface.description ? <span id={descriptionId}>{surface.description}</span> : null}
+          </div>
           <button type="button" className="workspace-overlay__close" onClick={closeSurface} aria-label={`Close ${surface.title}`}>×</button>
         </header>
         <div className="workspace-overlay__body">{surface.content}</div>
@@ -123,7 +157,11 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
       </section>
     </dialog> : null}
     <div className="workspace-toast-stack" aria-live="polite" aria-atomic="false">
-      {toasts.map((toast) => <div key={toast.id} className={`workspace-toast workspace-toast--${toast.tone}`}><div className="workspace-toast__mark" aria-hidden="true">{toast.tone === 'success' ? '✓' : toast.tone === 'error' ? '!' : 'i'}</div><div><strong>{toast.message}</strong>{toast.detail ? <span>{toast.detail}</span> : null}</div><button type="button" onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))} aria-label="Dismiss notification">×</button></div>)}
+      {toasts.map((toast) => <div key={toast.id} role={toast.tone === 'error' ? 'alert' : 'status'} className={`workspace-toast workspace-toast--${toast.tone}`}>
+        <div className="workspace-toast__mark" aria-hidden="true">{toast.tone === 'success' ? '✓' : toast.tone === 'error' ? '!' : 'i'}</div>
+        <div><strong>{toast.message}</strong>{toast.detail ? <span>{toast.detail}</span> : null}</div>
+        <button type="button" onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))} aria-label="Dismiss notification">×</button>
+      </div>)}
     </div>
   </WorkspaceInteractionContext.Provider>;
 }
