@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { primaryNavigation } from '@/lib/presentation/navigationContract';
 
 type SurfaceKind = 'drawer' | 'modal' | 'window';
 type ToastTone = 'success' | 'error' | 'info';
@@ -140,12 +141,13 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
 
 export function WorkspaceShellActions() {
   const { openDrawer, openModal, openWindow, notify, closeSurface } = useWorkspaceInteractions();
+  const n = primaryNavigation;
 
   const quickLinks = <div className="workspace-quick-grid">
-    <Link href="/workspace/enquiries" onClick={closeSurface}><span>Enquiries</span><small>Review incoming requirements</small></Link>
-    <Link href="/workspace/cases" onClick={closeSurface}><span>Cases</span><small>Open commercial work</small></Link>
-    <Link href="/workspace/projects" onClick={closeSurface}><span>Projects</span><small>Control active delivery</small></Link>
-    <Link href="/workspace/payments" onClick={closeSurface}><span>Finance</span><small>Payments and commercial control</small></Link>
+    <Link href={n.enquiries.href} onClick={closeSurface}><span>{n.enquiries.label}</span><small>Review incoming requirements</small></Link>
+    <Link href={n.cases.href} onClick={closeSurface}><span>{n.cases.label}</span><small>Open commercial work</small></Link>
+    <Link href={n.projects.href} onClick={closeSurface}><span>{n.projects.label}</span><small>Control active delivery</small></Link>
+    <Link href={n.payments.href} onClick={closeSurface}><span>Finance</span><small>Payments and commercial control</small></Link>
   </div>;
 
   return <div className="workspace-shell-actions">
@@ -170,7 +172,7 @@ export function WorkspaceShellActions() {
       description: 'Persistent alerts, approvals and exceptions will surface here across the workspace.',
       content: <div className="workspace-notification-drawer">
         <div className="workspace-notification-empty"><span>✓</span><strong>No unresolved alerts loaded</strong><p>The interaction layer is ready to receive workflow notifications from every module.</p></div>
-        <Link href="/workspace/notifications" onClick={closeSurface} className="button secondary">Open full notification centre</Link>
+        <Link href={n.notifications.href} onClick={closeSurface} className="button secondary">Open full notification centre</Link>
       </div>,
     })} aria-label="Open notification centre">♢ <span>Alerts</span></button>
   </div>;
