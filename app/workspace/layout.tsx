@@ -36,6 +36,7 @@ import { primaryNavigation } from '@/lib/presentation/navigationContract';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
+import WorkspaceFlashBridge from '@/components/workspace/WorkspaceFlashBridge';
 import {
   WorkspaceInteractionProvider,
   WorkspaceShellActions,
@@ -54,6 +55,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const n=primaryNavigation;
 
   return <WorkspaceInteractionProvider>
+    <Suspense fallback={null}><WorkspaceFlashBridge /></Suspense>
     <div className="workspace midts-shell op-shell">
       <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
       <aside className="midts-sidebar op-sidebar">
