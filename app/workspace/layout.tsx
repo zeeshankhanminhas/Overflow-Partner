@@ -30,6 +30,7 @@ import './workspace-wave3.css';
 import './workspace-wave4.css';
 import './workspace-wave5.css';
 import './workspace-wave6.css';
+import './workspace-wave7.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -43,6 +44,7 @@ import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
 import WorkspaceFlashBridge from '@/components/workspace/WorkspaceFlashBridge';
 import WorkspaceModuleTools from '@/components/workspace/WorkspaceModuleTools';
+import { WorkspaceActivityTracker } from '@/components/workspace/WorkspaceOperatorCentre';
 import {
   WorkspaceInteractionProvider,
   WorkspaceShellActions,
@@ -98,6 +100,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
 
   return <WorkspaceInteractionProvider>
     <Suspense fallback={null}><WorkspaceFlashBridge /></Suspense>
+    <Suspense fallback={null}><WorkspaceActivityTracker /></Suspense>
     <div className="workspace midts-shell op-shell">
       <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
       <aside className="midts-sidebar op-sidebar">
