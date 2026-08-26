@@ -30,6 +30,7 @@ export default async function ContactsPage({ searchParams }: { searchParams?: Pr
             <InteractionFact label="LinkedIn">{contact.linkedin_url||'Not recorded'}</InteractionFact>
           </InteractionFacts>
           {contact.notes?<div className="workspace-record-note"><small>Notes</small><p>{contact.notes}</p></div>:null}
+          <nav className="workspace-record-context" aria-label={`Related work for ${contact.full_name}`}><small>Relationship context</small><div className="workspace-record-context__links">{contact.company_id?<Link href={`/workspace/companies/${contact.company_id}`}>Company 360<span>→</span></Link>:null}<Link href="/workspace/leads">Cases<span>→</span></Link><Link href="/workspace/acquisition">Enquiries<span>→</span></Link><Link href="/workspace/communications">Messages<span>→</span></Link></div></nav>
         </WorkspaceDrawer>
         {contact.company_id?<Link className="button secondary" href={`/workspace/companies/${contact.company_id}`}>Company</Link>:null}
       </ContextActions>
