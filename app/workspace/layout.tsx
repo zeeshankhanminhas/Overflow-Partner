@@ -28,6 +28,7 @@ import './interaction-surfaces.css';
 import './workspace-interaction-system.css';
 import './workspace-wave3.css';
 import './workspace-wave4.css';
+import './workspace-wave5.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
