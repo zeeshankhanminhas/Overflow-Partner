@@ -37,6 +37,7 @@ import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
 import WorkspaceFlashBridge from '@/components/workspace/WorkspaceFlashBridge';
+import WorkspaceModuleTools from '@/components/workspace/WorkspaceModuleTools';
 import {
   WorkspaceInteractionProvider,
   WorkspaceShellActions,
@@ -70,9 +71,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <section className="midts-main op-main">
         <header className="midts-topbar op-topbar">
           <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceShellActions/><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
+          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceModuleTools/><WorkspaceShellActions/><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
         </header>
-        <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceShellActions/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
+        <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceModuleTools/><WorkspaceShellActions/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
         <main className="midts-content op-content">{children}</main>
       </section>
 
