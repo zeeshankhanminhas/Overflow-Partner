@@ -5,12 +5,13 @@ import { usePathname } from 'next/navigation';
 import { WorkspacePopover } from '@/components/workspace/WorkspacePopover';
 import { useWorkspaceInteractions } from '@/components/workspace/WorkspaceInteractionProvider';
 
+type RelatedLink = { label: string; href: string };
 type ModuleConfig = {
   label: string;
   eyebrow: string;
   purpose: string;
   rule: string;
-  related: { label: string; href: string }[];
+  related: RelatedLink[];
 };
 
 const modules: Array<[RegExp, ModuleConfig]> = [
@@ -39,19 +40,59 @@ function resolveModule(pathname: string): ModuleConfig {
   };
 }
 
+function resolveRecordLinks(pathname: string): RelatedLink[] {
+  const caseMatch = pathname.match(/^\/workspace\/leads\/([^/]+)/);
+  if (caseMatch) {
+    const id = caseMatch[1];
+    return [
+      { label:'Case 360', href:`/workspace/leads/${id}` },
+      { label:'Case documents', href:`/workspace/documents?lead=${id}` },
+      { label:'Approvals', href:'/workspace/approvals' },
+      { label:'Client quotes', href:'/workspace/quotes' },
+    ];
+  }
+
+  const projectMatch = pathname.match(/^\/workspace\/projects\/([^/]+)/);
+  if (projectMatch) {
+    const id = projectMatch[1];
+    return [
+      { label:'Project 360', href:`/workspace/projects/${id}` },
+      { label:'Delivery control', href:`/workspace/projects/${id}/delivery` },
+      { label:'Project documents', href:`/workspace/documents?project=${id}` },
+      { label:'Project finance', href:`/workspace/payments?project=${id}` },
+      { label:'Issues', href:'/workspace/exceptions' },
+    ];
+  }
+
+  const companyMatch = pathname.match(/^\/workspace\/companies\/([^/]+)/);
+  if (companyMatch) {
+    const id = companyMatch[1];
+    return [
+      { label:'Company 360', href:`/workspace/companies/${id}` },
+      { label:'Contacts', href:'/workspace/contacts' },
+      { label:'Cases', href:'/workspace/leads' },
+      { label:'Projects', href:'/workspace/projects' },
+    ];
+  }
+
+  return [];
+}
+
 export default function WorkspaceModuleTools() {
   const pathname = usePathname();
   const module = resolveModule(pathname);
+  const recordLinks = resolveRecordLinks(pathname);
   const { openDrawer, openModal, closeSurface } = useWorkspaceInteractions();
 
   const links = <div className="workspace-module-links">{module.related.map(item => <Link key={item.href} href={item.href} onClick={closeSurface}>{item.label}<span>→</span></Link>)}</div>;
+  const recordContext = recordLinks.length ? <div className="workspace-module-record"><small>Current record</small><div className="workspace-module-record__links">{recordLinks.map(item => <Link key={item.href} href={item.href} onClick={closeSurface}>{item.label}<span>→</span></Link>)}</div></div> : null;
 
   return <div className="workspace-module-tools" aria-label={`${module.label} tools`}>
     <button type="button" className="workspace-module-tool" onClick={() => openDrawer({
       eyebrow: module.eyebrow,
       title: `${module.label} context`,
       description: module.purpose,
-      content: <div className="workspace-module-context"><div className="workspace-module-rule"><small>Operating rule</small><strong>{module.rule}</strong></div><div><small className="workspace-module-section-label">Related work</small>{links}</div></div>,
+      content: <div className="workspace-module-context"><div className="workspace-module-rule"><small>Operating rule</small><strong>{module.rule}</strong></div>{recordContext}<div><small className="workspace-module-section-label">Related work</small>{links}</div></div>,
     })}>Context</button>
 
     <WorkspacePopover label="Module actions" trigger={<span>Actions ···</span>}>
@@ -62,6 +103,7 @@ export default function WorkspaceModuleTools() {
         content: <div className="workspace-module-rule workspace-module-rule--modal"><small>Authority boundary</small><strong>{module.rule}</strong><p>{module.purpose}</p></div>,
         footer: <button type="button" className="button" onClick={closeSurface}>Understood</button>,
       })}>Review operating rule</button>
+      {recordLinks.map(item => <Link key={`record-${item.href}`} href={item.href}>{item.label}</Link>)}
       {module.related.map(item => <Link key={item.href} href={item.href}>{item.label}</Link>)}
     </WorkspacePopover>
   </div>;
