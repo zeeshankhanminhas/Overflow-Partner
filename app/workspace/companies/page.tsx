@@ -26,6 +26,7 @@ export default async function CompaniesPage({searchParams}:{searchParams?:Promis
             <InteractionFact label="Employees">{company.employee_count??'Not recorded'}</InteractionFact>
           </InteractionFacts>
           {company.notes?<div className="workspace-record-note"><small>Notes</small><p>{company.notes}</p></div>:null}
+          <nav className="workspace-record-context" aria-label={`Related work for ${company.name}`}><small>Relationship context</small><div className="workspace-record-context__links"><Link href={`/workspace/companies/${company.id}`}>Company 360<span>→</span></Link><Link href="/workspace/contacts">Contacts<span>→</span></Link><Link href="/workspace/leads">Cases<span>→</span></Link><Link href="/workspace/projects">Projects<span>→</span></Link></div></nav>
         </WorkspaceDrawer>
         <Link className="button secondary" href={`/workspace/companies/${company.id}`}>Open</Link>
       </ContextActions>
