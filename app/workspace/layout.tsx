@@ -31,6 +31,7 @@ import './workspace-wave4.css';
 import './workspace-wave5.css';
 import './workspace-wave6.css';
 import './workspace-wave7.css';
+import './workspace-wave8.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
