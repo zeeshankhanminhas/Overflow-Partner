@@ -27,12 +27,14 @@ import './global-presentation.css';
 import './interaction-surfaces.css';
 import './workspace-interaction-system.css';
 import './workspace-wave3.css';
+import './workspace-wave4.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/app/login/actions';
+import { requireUserContext } from '@/lib/auth/context';
+import { getApprovalQueue } from '@/lib/presentation/approvals';
+import { getOperationalExceptions } from '@/lib/operations/exceptions';
 import { primaryNavigation } from '@/lib/presentation/navigationContract';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
@@ -42,6 +44,7 @@ import WorkspaceModuleTools from '@/components/workspace/WorkspaceModuleTools';
 import {
   WorkspaceInteractionProvider,
   WorkspaceShellActions,
+  type WorkspaceAlert,
 } from '@/components/workspace/WorkspaceInteractionProvider';
 
 export const metadata: Metadata = {
@@ -50,11 +53,46 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+function ageLabel(minutes: number) {
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { supabase, organisationId } = await requireUserContext();
   const n=primaryNavigation;
+
+  const [approvalQueue, exceptionQueue] = await Promise.all([
+    getApprovalQueue(supabase, organisationId),
+    getOperationalExceptions(supabase, organisationId),
+  ]);
+
+  const approvalAlerts: WorkspaceAlert[] = approvalQueue
+    .filter((item) => item.status === 'ready')
+    .slice(0, 5)
+    .map((item) => ({
+      id: `approval-${item.id}`,
+      kind: 'approval',
+      title: item.title,
+      detail: item.reason,
+      href: item.href,
+      meta: `${item.type} · ready for authority`,
+      tone: 'ready',
+    }));
+
+  const exceptionAlerts: WorkspaceAlert[] = exceptionQueue.slice(0, 7).map((item) => ({
+    id: `exception-${item.id}`,
+    kind: 'exception',
+    title: item.title,
+    detail: item.detail,
+    href: item.href,
+    meta: `${item.relatedLabel} · ${item.owner} · ${ageLabel(item.ageMinutes)}`,
+    tone: item.severity,
+  }));
+
+  const alerts = [...approvalAlerts, ...exceptionAlerts].slice(0, 10);
 
   return <WorkspaceInteractionProvider>
     <Suspense fallback={null}><WorkspaceFlashBridge /></Suspense>
@@ -72,9 +110,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <section className="midts-main op-main">
         <header className="midts-topbar op-topbar">
           <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceModuleTools/><WorkspaceShellActions/><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
+          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceModuleTools/><WorkspaceShellActions alerts={alerts}/><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
         </header>
-        <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceModuleTools/><WorkspaceShellActions/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
+        <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceModuleTools/><WorkspaceShellActions alerts={alerts}/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
         <main className="midts-content op-content">{children}</main>
       </section>
 
