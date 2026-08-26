@@ -16,6 +16,16 @@ import { primaryNavigation } from '@/lib/presentation/navigationContract';
 type SurfaceKind = 'drawer' | 'modal' | 'window';
 type ToastTone = 'success' | 'error' | 'info';
 
+export type WorkspaceAlert = {
+  id: string;
+  kind: 'approval' | 'exception';
+  title: string;
+  detail: string;
+  href: string;
+  meta: string;
+  tone: 'critical' | 'high' | 'medium' | 'ready';
+};
+
 type SurfaceState = {
   kind: SurfaceKind;
   title: string;
@@ -139,7 +149,7 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
   </WorkspaceInteractionContext.Provider>;
 }
 
-export function WorkspaceShellActions() {
+export function WorkspaceShellActions({ alerts = [] }: { alerts?: WorkspaceAlert[] }) {
   const { openDrawer, openModal, openWindow, notify, closeSurface } = useWorkspaceInteractions();
   const n = primaryNavigation;
 
@@ -148,6 +158,20 @@ export function WorkspaceShellActions() {
     <Link href={n.cases.href} onClick={closeSurface}><span>{n.cases.label}</span><small>Open commercial work</small></Link>
     <Link href={n.projects.href} onClick={closeSurface}><span>{n.projects.label}</span><small>Control active delivery</small></Link>
     <Link href={n.payments.href} onClick={closeSurface}><span>Finance</span><small>Payments and commercial control</small></Link>
+  </div>;
+
+  const alertContent = <div className="workspace-notification-drawer">
+    {alerts.length ? <div className="workspace-alert-list">
+      {alerts.map((alert) => <Link key={alert.id} href={alert.href} onClick={closeSurface} className={`workspace-alert workspace-alert--${alert.tone}`}>
+        <span className="workspace-alert__mark" aria-hidden="true">{alert.kind === 'approval' ? 'A' : '!'}</span>
+        <span className="workspace-alert__body"><strong>{alert.title}</strong><small>{alert.detail}</small><em>{alert.meta}</em></span>
+        <span className="workspace-alert__open" aria-hidden="true">→</span>
+      </Link>)}
+    </div> : <div className="workspace-notification-empty"><span>✓</span><strong>No unresolved operational alerts</strong><p>Approval and exception queues are currently clear.</p></div>}
+    <div className="workspace-alert-footer">
+      <Link href={n.approvals.href} onClick={closeSurface} className="button secondary">Approvals</Link>
+      <Link href={n.issues.href} onClick={closeSurface} className="button secondary">Issues</Link>
+    </div>
   </div>;
 
   return <div className="workspace-shell-actions">
@@ -167,14 +191,13 @@ export function WorkspaceShellActions() {
     })}>▣ <span>Work centre</span></button>
 
     <button type="button" className="workspace-shell-action workspace-shell-action--bell" onClick={() => openDrawer({
-      eyebrow: 'Notification centre',
-      title: 'Operational notifications',
-      description: 'Persistent alerts, approvals and exceptions will surface here across the workspace.',
-      content: <div className="workspace-notification-drawer">
-        <div className="workspace-notification-empty"><span>✓</span><strong>No unresolved alerts loaded</strong><p>The interaction layer is ready to receive workflow notifications from every module.</p></div>
-        <Link href={n.notifications.href} onClick={closeSurface} className="button secondary">Open full notification centre</Link>
-      </div>,
-    })} aria-label="Open notification centre">♢ <span>Alerts</span></button>
+      eyebrow: 'Operating alerts',
+      title: alerts.length ? `${alerts.length} item${alerts.length === 1 ? '' : 's'} need attention` : 'Operational notifications',
+      description: 'Authority decisions and off-plan exceptions from the live workspace.',
+      content: alertContent,
+    })} aria-label={`Open operating alerts${alerts.length ? `, ${alerts.length} unresolved` : ''}`}>
+      ♢ <span>Alerts</span>{alerts.length ? <b className="workspace-alert-count">{alerts.length > 99 ? '99+' : alerts.length}</b> : null}
+    </button>
   </div>;
 }
 
