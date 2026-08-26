@@ -25,6 +25,7 @@ import './ux-ui-parity.css';
 import './ux-ui-parity-mobile.css';
 import './global-presentation.css';
 import './interaction-surfaces.css';
+import './workspace-interaction-system.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -35,6 +36,10 @@ import { primaryNavigation } from '@/lib/presentation/navigationContract';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
+import {
+  WorkspaceInteractionProvider,
+  WorkspaceShellActions,
+} from '@/components/workspace/WorkspaceInteractionProvider';
 
 export const metadata: Metadata = {
   title: 'Overflow Partner | Operations Workspace',
@@ -48,32 +53,34 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   if (!user) redirect('/login');
   const n=primaryNavigation;
 
-  return <div className="workspace midts-shell op-shell">
-    <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
-    <aside className="midts-sidebar op-sidebar">
-      <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
-      <LifecycleSidebar />
-      <div className="midts-sidebar-footer op-sidebar-footer">
-        <p>Governed delivery</p>
-        <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
-      </div>
-    </aside>
+  return <WorkspaceInteractionProvider>
+    <div className="workspace midts-shell op-shell">
+      <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
+      <aside className="midts-sidebar op-sidebar">
+        <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
+        <LifecycleSidebar />
+        <div className="midts-sidebar-footer op-sidebar-footer">
+          <p>Governed delivery</p>
+          <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
+        </div>
+      </aside>
 
-    <section className="midts-main op-main">
-      <header className="midts-topbar op-topbar">
-        <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-        <div className="midts-topbar-tools op-topbar-tools"><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
-      </header>
-      <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
-      <main className="midts-content op-content">{children}</main>
-    </section>
+      <section className="midts-main op-main">
+        <header className="midts-topbar op-topbar">
+          <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
+          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceShellActions/><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
+        </header>
+        <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceShellActions/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
+        <main className="midts-content op-content">{children}</main>
+      </section>
 
-    <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
-      <Link href={n.missionControl.href}>Home</Link>
-      <Link href={n.enquiries.href}>{n.enquiries.label}</Link>
-      <Link href={n.cases.href}>{n.cases.label}</Link>
-      <Link href={n.projects.href}>{n.projects.label}</Link>
-      <Link href={n.payments.href}>Finance</Link>
-    </nav>
-  </div>;
+      <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
+        <Link href={n.missionControl.href}>Home</Link>
+        <Link href={n.enquiries.href}>{n.enquiries.label}</Link>
+        <Link href={n.cases.href}>{n.cases.label}</Link>
+        <Link href={n.projects.href}>{n.projects.label}</Link>
+        <Link href={n.payments.href}>Finance</Link>
+      </nav>
+    </div>
+  </WorkspaceInteractionProvider>;
 }
