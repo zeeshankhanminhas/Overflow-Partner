@@ -17,8 +17,20 @@ export function WorkspacePopover({ trigger, children, align = 'end', label = 'Co
       const root = rootRef.current;
       if (root?.open && !root.contains(event.target as Node)) root.open = false;
     }
+    function onKeyDown(event: KeyboardEvent) {
+      const root = rootRef.current;
+      if (event.key === 'Escape' && root?.open) {
+        event.preventDefault();
+        root.open = false;
+        root.querySelector<HTMLElement>('summary')?.focus();
+      }
+    }
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
 
   return <details ref={rootRef} className={`workspace-popover workspace-popover--${align}`}>
@@ -37,7 +49,7 @@ export function LockedAction({ label, reason, requirements = [] }: LockedActionP
   return <WorkspacePopover
     align="end"
     label={`Why ${label} is unavailable`}
-    trigger={<span className="workspace-locked-action" role="button" tabIndex={0} aria-disabled="true">{label}<span aria-hidden="true">⌁</span></span>}
+    trigger={<span className="workspace-locked-action" aria-disabled="true">{label}<span aria-hidden="true">⌁</span></span>}
   >
     <div className="workspace-lock-card">
       <small>Action locked</small>
