@@ -23,7 +23,7 @@ export type WorkspaceAlert = {
   detail: string;
   href: string;
   meta: string;
-  tone: 'critical' | 'high' | 'medium' | 'ready';
+  tone: 'critical' | 'high' | 'medium' | 'low' | 'ready';
 };
 
 type SurfaceState = {
