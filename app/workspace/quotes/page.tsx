@@ -3,6 +3,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { listClientQuotes } from '@/lib/repositories/workflow';
 import { resolveQuotePresentation } from '@/lib/presentation/operatingState';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
+import { WorkspaceContextLinks, WorkspaceRecordMenu } from '@/components/workspace/WorkspaceRecordMenu';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 function money(currency: string, amount: number) { return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(Number(amount||0)); }
@@ -40,7 +41,12 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     <section>
       <ProductSectionHeader eyebrow="Quote register" title={`${quotes.length} controlled quote${quotes.length===1?'':'s'}`} />
       {quotes.length===0?<ProductEmptyState title="No Client Quotes yet" description="Complete the technical basis and commercial decision from the relevant Case." action={<Link className="button secondary" href="/workspace/leads?view=commercial-review">Open Cases</Link>} />:<ProductRegister>
-        {quoteRows.map(({quote,presentation})=><ProductRegisterRow key={quote.id} className={selected?.id===quote.id?'is-selected':''}>
+        {quoteRows.map(({quote,presentation})=>{const related=[
+          {label:'Owning Case',href:`/workspace/leads/${quote.lead_id}`,detail:'Authoritative commercial record'},
+          {label:'Case documents',href:`/workspace/documents?lead=${quote.lead_id}`,detail:'Controlled quote evidence'},
+          {label:'Approvals',href:'/workspace/approvals',detail:'Authority queue'},
+          {label:'Payments',href:'/workspace/payments',detail:'Commercial settlement context'},
+        ];return <ProductRegisterRow key={quote.id} className={selected?.id===quote.id?'is-selected':''}>
           <div><strong>{quote.quote_number} · Rev {quote.revision}</strong><p>{quote.lead?.company_name||quote.lead?.title||'Case'} · valid until {quote.valid_until||'not set'}</p><small>{presentation.summary}</small></div>
           <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
           <div><small>Total</small><strong style={{display:'block',marginTop:3}}>{money(quote.currency,quote.total)}</strong></div>
@@ -55,10 +61,12 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
                 <InteractionFact label="Revision">{quote.revision}</InteractionFact>
               </InteractionFacts>
               <p className="interaction-summary__lead">{presentation.nextAction.reason||presentation.summary}</p>
+              <WorkspaceContextLinks links={related}/>
             </WorkspaceDrawer>
             <Link className="button secondary" href={`/workspace/leads/${quote.lead_id}`}>{presentation.nextAction.kind==='wait'?'Context':'Review'}</Link>
+            <WorkspaceRecordMenu label={`More actions for ${quote.quote_number}`} links={related}/>
           </ContextActions>
-        </ProductRegisterRow>)}
+        </ProductRegisterRow>})}
       </ProductRegister>}
     </section>
   </section>;
