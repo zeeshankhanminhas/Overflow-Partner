@@ -80,31 +80,31 @@ function resolveRecordLinks(pathname: string): RelatedLink[] {
 
 export default function WorkspaceModuleTools() {
   const pathname = usePathname();
-  const module = resolveModule(pathname);
+  const moduleConfig = resolveModule(pathname);
   const recordLinks = resolveRecordLinks(pathname);
   const { openDrawer, openModal, closeSurface } = useWorkspaceInteractions();
 
-  const links = <div className="workspace-module-links">{module.related.map(item => <Link key={item.href} href={item.href} onClick={closeSurface}>{item.label}<span>→</span></Link>)}</div>;
+  const links = <div className="workspace-module-links">{moduleConfig.related.map(item => <Link key={item.href} href={item.href} onClick={closeSurface}>{item.label}<span>→</span></Link>)}</div>;
   const recordContext = recordLinks.length ? <div className="workspace-module-record"><small>Current record</small><div className="workspace-module-record__links">{recordLinks.map(item => <Link key={item.href} href={item.href} onClick={closeSurface}>{item.label}<span>→</span></Link>)}</div></div> : null;
 
-  return <div className="workspace-module-tools" aria-label={`${module.label} tools`}>
+  return <div className="workspace-module-tools" aria-label={`${moduleConfig.label} tools`}>
     <button type="button" className="workspace-module-tool" onClick={() => openDrawer({
-      eyebrow: module.eyebrow,
-      title: `${module.label} context`,
-      description: module.purpose,
-      content: <div className="workspace-module-context"><div className="workspace-module-rule"><small>Operating rule</small><strong>{module.rule}</strong></div>{recordContext}<div><small className="workspace-module-section-label">Related work</small>{links}</div></div>,
+      eyebrow: moduleConfig.eyebrow,
+      title: `${moduleConfig.label} context`,
+      description: moduleConfig.purpose,
+      content: <div className="workspace-module-context"><div className="workspace-module-rule"><small>Operating rule</small><strong>{moduleConfig.rule}</strong></div>{recordContext}<div><small className="workspace-module-section-label">Related work</small>{links}</div></div>,
     })}>Context</button>
 
     <WorkspacePopover label="Module actions" trigger={<span>Actions ···</span>}>
       <button type="button" onClick={() => openModal({
-        eyebrow: module.eyebrow,
-        title: `${module.label} operating rule`,
+        eyebrow: moduleConfig.eyebrow,
+        title: `${moduleConfig.label} operating rule`,
         description: 'Use this check before a consequential action or when the current screen feels ambiguous.',
-        content: <div className="workspace-module-rule workspace-module-rule--modal"><small>Authority boundary</small><strong>{module.rule}</strong><p>{module.purpose}</p></div>,
+        content: <div className="workspace-module-rule workspace-module-rule--modal"><small>Authority boundary</small><strong>{moduleConfig.rule}</strong><p>{moduleConfig.purpose}</p></div>,
         footer: <button type="button" className="button" onClick={closeSurface}>Understood</button>,
       })}>Review operating rule</button>
       {recordLinks.map(item => <Link key={`record-${item.href}`} href={item.href}>{item.label}</Link>)}
-      {module.related.map(item => <Link key={item.href} href={item.href}>{item.label}</Link>)}
+      {moduleConfig.related.map(item => <Link key={item.href} href={item.href}>{item.label}</Link>)}
     </WorkspacePopover>
   </div>;
 }
