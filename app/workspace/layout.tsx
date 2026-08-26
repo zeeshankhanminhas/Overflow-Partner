@@ -26,6 +26,7 @@ import './ux-ui-parity-mobile.css';
 import './global-presentation.css';
 import './interaction-surfaces.css';
 import './workspace-interaction-system.css';
+import './workspace-wave3.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
