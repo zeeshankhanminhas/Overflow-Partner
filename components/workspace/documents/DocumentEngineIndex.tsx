@@ -3,6 +3,8 @@ import { requireUserContext } from '@/lib/auth/context';
 import { createDocumentRevisionAction, withdrawControlledDocumentAction } from '@/app/workspace/documents/control-actions';
 import { resolveDocumentPresentation } from '@/lib/presentation/operatingState';
 import { ContextActions, DecisionDialog, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
+import WorkspaceActionButton from '@/components/workspace/WorkspaceActionButton';
+import WorkspaceConsequenceGuard from '@/components/workspace/WorkspaceConsequenceGuard';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 type RegistryDocument={id:string;document_type:string;reference:string;title:string;status:string;version:number;created_at:string;updated_at:string|null;lead_id:string|null;project_id:string|null;revision_code?:string|null;issue_purpose?:string|null;control_state?:string|null;is_current_revision?:boolean|null;supersedes_document_id?:string|null;superseded_by_document_id?:string|null};
@@ -13,6 +15,24 @@ function openUrl(document:RegistryDocument){const context=document.project_id?`p
 function revision(document:RegistryDocument){return document.revision_code||`P${String(Math.max(1,Number(document.version||1))).padStart(2,'0')}`}
 function state(document:RegistryDocument){return document.control_state||document.status.replaceAll('_',' ')}
 function formatDate(value:string){return new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(value))}
+
+function RecordContext({document}:{document:RegistryDocument}){
+  const links=document.project_id?[
+    {label:'Project 360',href:`/workspace/projects/${document.project_id}`},
+    {label:'Delivery control',href:`/workspace/projects/${document.project_id}/delivery`},
+    {label:'Project finance',href:`/workspace/payments?project=${document.project_id}`},
+    {label:'Approvals',href:'/workspace/approvals'},
+  ]:document.lead_id?[
+    {label:'Case 360',href:`/workspace/leads/${document.lead_id}`},
+    {label:'Client quotes',href:'/workspace/quotes'},
+    {label:'Approvals',href:'/workspace/approvals'},
+    {label:'All Case documents',href:`/workspace/documents?lead=${document.lead_id}`},
+  ]:[
+    {label:'Global register',href:'/workspace/documents'},
+    {label:'Approvals',href:'/workspace/approvals'},
+  ];
+  return <nav className="workspace-record-context" aria-label={`Related work for ${document.reference}`}><small>Owning workflow</small><div className="workspace-record-context__links">{links.map(item=><Link key={item.href} href={item.href}>{item.label}<span>→</span></Link>)}</div></nav>;
+}
 
 export default async function DocumentEngineIndex({leadId,projectId}:Props){
   const {supabase,organisationId}=await requireUserContext();
@@ -76,13 +96,14 @@ function Register({title,description,documents,current=false}:{title:string;desc
           <InteractionFact label="Current revision">{document.is_current_revision===false?'No':'Yes'}</InteractionFact>
         </InteractionFacts>
         <p className="interaction-summary__lead">{presentation.summary}</p>
+        <RecordContext document={document}/>
       </WorkspaceDrawer>
       <Link className="button secondary" href={openUrl(document)}>{presentation.approval?.required?'Review':'Open'}</Link>
       {current&&['signed','approved','issued','published'].includes(document.status)?<DecisionDialog triggerLabel="New revision" eyebrow="Document control" title={`Create new revision · ${document.reference}`} description="This preserves the current revision and creates the next controlled working revision.">
-        <form action={createDocumentRevisionAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><div className="product-notice"><strong>Create next controlled revision?</strong><div>{document.title} · {revision(document)}</div></div><button className="button" type="submit">Create new revision</button></form>
+        <form action={createDocumentRevisionAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><div className="product-notice"><strong>Create next controlled revision?</strong><div>{document.title} · {revision(document)} will become historical and the next revision will become the current working copy.</div></div><WorkspaceActionButton pendingLabel="Creating revision…">Create new revision</WorkspaceActionButton></form>
       </DecisionDialog>:null}
       {current&&['approved','issued','published'].includes(document.status)?<DecisionDialog triggerLabel="Withdraw" eyebrow="Document control" title={`Withdraw ${document.reference}`} description="Withdrawal preserves the evidence trail and removes this revision from the current valid working set.">
-        <form action={withdrawControlledDocumentAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><label>Reason<textarea name="reason" rows={3} required/></label><button className="button secondary" type="submit">Confirm withdrawal</button></form>
+        <form action={withdrawControlledDocumentAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><label>Reason<textarea name="reason" rows={3} required/></label><WorkspaceConsequenceGuard actionLabel="Confirm withdrawal" pendingLabel="Withdrawing document…" confirmationLabel={`I understand ${document.reference} will no longer be a current valid revision.`} consequence="This revision will be removed from current controlled use. Existing history and issue evidence remain retained." recovery="If the document is needed again, create a new controlled revision rather than restoring this withdrawn revision." className="button secondary"/></form>
       </DecisionDialog>:null}
     </ContextActions></td>
   </tr>})}</tbody></table></div></section>;

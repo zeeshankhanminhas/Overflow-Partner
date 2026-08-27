@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useWorkspaceInteractions } from './WorkspaceInteractionProvider';
 
 type InteractionKind = 'drawer' | 'dialog' | 'window';
 
@@ -31,69 +32,31 @@ function InteractionSurface({
   disabled = false,
   defaultOpen = false,
 }: InteractionSurfaceProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
+  const { openDrawer, openModal, openWindow } = useWorkspaceInteractions();
 
   function open() {
-    const dialog = dialogRef.current;
-    if (!dialog || dialog.open) return;
-    dialog.showModal();
-  }
-
-  function close() {
-    dialogRef.current?.close();
+    const surface = { title, eyebrow, description, content: children, footer };
+    if (kind === 'drawer') openDrawer(surface);
+    else if (kind === 'window') openWindow(surface);
+    else openModal(surface);
   }
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (defaultOpen && dialog && !dialog.open) dialog.showModal();
+    if (defaultOpen) open();
+    // defaultOpen is intentionally a one-time route/state affordance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultOpen]);
 
-  useEffect(() => {
-    const onComplete = () => {
-      if (dialogRef.current?.open) dialogRef.current.close();
-    };
-    window.addEventListener('workspace-interaction-complete', onComplete);
-    return () => window.removeEventListener('workspace-interaction-complete', onComplete);
-  }, []);
-
-  return <>
-    <button
-      type="button"
-      className={triggerClassName}
-      onClick={open}
-      aria-label={triggerAriaLabel || triggerLabel}
-      disabled={disabled}
-      data-interaction-trigger={kind}
-    >
-      {triggerLabel}
-    </button>
-
-    <dialog
-      ref={dialogRef}
-      className={`interaction-surface interaction-surface--${kind}`}
-      aria-labelledby={titleId}
-      aria-describedby={description ? descriptionId : undefined}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close();
-      }}
-    >
-      <div className="interaction-surface__frame">
-        <header className="interaction-surface__header">
-          <div className="interaction-surface__heading">
-            {eyebrow ? <p>{eyebrow}</p> : null}
-            <h2 id={titleId}>{title}</h2>
-            {description ? <span id={descriptionId}>{description}</span> : null}
-          </div>
-          <button type="button" className="interaction-surface__close" onClick={close} aria-label={`Close ${title}`}>×</button>
-        </header>
-
-        <div className="interaction-surface__body">{children}</div>
-        {footer ? <footer className="interaction-surface__footer">{footer}</footer> : null}
-      </div>
-    </dialog>
-  </>;
+  return <button
+    type="button"
+    className={triggerClassName}
+    onClick={open}
+    aria-label={triggerAriaLabel || triggerLabel}
+    disabled={disabled}
+    data-interaction-trigger={kind}
+  >
+    {triggerLabel}
+  </button>;
 }
 
 export function WorkspaceDrawer(props: Omit<InteractionSurfaceProps, 'kind'>) {

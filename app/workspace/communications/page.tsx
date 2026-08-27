@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
+import { WorkspaceContextLinks, WorkspaceRecordMenu } from '@/components/workspace/WorkspaceRecordMenu';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus, type ProductTone } from '@/components/workspace/ProductUI';
 
 export const dynamic='force-dynamic';
@@ -8,44 +9,12 @@ function formatDate(value:string|null){if(!value)return 'Not scheduled';return n
 function words(value:string){return value.replace(/[._-]+/g,' ').replace(/\b\w/g,letter=>letter.toUpperCase())}
 function tone(status:string):ProductTone{if(status==='sent')return 'complete';if(status==='failed')return 'blocked';if(['pending','processing'].includes(status))return 'waiting';return 'neutral'}
 function messageHref(entityType:string|null,entityId:string|null){if(!entityId)return undefined;if(entityType==='lead')return `/workspace/communications/lead/${entityId}`;if(entityType==='project')return `/workspace/communications/project/${entityId}`;if(entityType==='prospect')return `/workspace/communications/prospect/${entityId}`;if(entityType==='quote')return `/workspace/communications/quote/${entityId}`;if(entityType==='document')return `/workspace/communications/document/${entityId}`;return undefined;}
+function sourceHref(entityType:string|null,entityId:string|null){if(!entityId)return undefined;if(entityType==='lead')return `/workspace/leads/${entityId}`;if(entityType==='project')return `/workspace/projects/${entityId}`;if(entityType==='prospect')return `/workspace/acquisition/${entityId}`;if(entityType==='quote')return '/workspace/quotes';if(entityType==='document')return '/workspace/documents';return undefined}
 
 export default async function CommunicationsPage(){
-  const {supabase,organisationId}=await requireUserContext();
-  const {data,error}=await supabase.from('notification_outbox').select('id,event_key,category,recipient_email,recipient_name,subject,entity_type,entity_id,status,scheduled_for,sent_at,created_at').eq('organisation_id',organisationId).in('category',['transactional','reminder','nurture']).order('created_at',{ascending:false}).limit(150);
-  if(error)throw new Error(`Messages could not be loaded: ${error.message}`);
-  const rows=data||[];const sent=rows.filter(row=>row.status==='sent').length;const scheduled=rows.filter(row=>['pending','processing'].includes(row.status)).length;const failed=rows.filter(row=>row.status==='failed').length;
-
-  return <section className="vp-page">
-    <ProductPageHeader eyebrow="Operations · Messages" title="Messages" description="Business correspondence stays a contextual surface: inspect a message in place, then open the owning message history only when you need the full thread." actions={<Link className="button secondary" href="/workspace/notifications">Notification delivery</Link>} />
-    <ProductMetrics label="Message summary">
-      <ProductMetric label="Sent" value={sent} detail="Delivered business messages" tone={sent?'complete':'neutral'} />
-      <ProductMetric label="Scheduled" value={scheduled} detail="Pending or processing" tone={scheduled?'waiting':'neutral'} />
-      <ProductMetric label="Failed" value={failed} detail="Delivery needs attention" tone={failed?'blocked':'complete'} />
-      <ProductMetric label="Recent messages" value={rows.length} detail="Latest business correspondence" />
-    </ProductMetrics>
-    <section>
-      <ProductSectionHeader eyebrow="Correspondence" title="Recent messages" />
-      {rows.length===0?<ProductEmptyState title="No messages yet" description="Business correspondence created by governed workflows will appear here." />:<ProductRegister>
-        {rows.map(row=>{const href=messageHref(row.entity_type,row.entity_id);return <ProductRegisterRow key={row.id}>
-          <div><strong>{row.subject}</strong><p>Outbound · {row.recipient_name||row.recipient_email}</p></div>
-          <ProductStatus tone={tone(row.status)}>{words(row.status)}</ProductStatus>
-          <div><small>{row.sent_at?'Sent':'Scheduled'}</small><strong style={{display:'block',marginTop:3}}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</strong></div>
-          <ContextActions label={`Actions for ${row.subject}`}>
-            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Business message" title={row.subject} description="Correspondence context without leaving the message register." footer={href?<Link className="button" href={href}>Open message history</Link>:undefined}>
-              <InteractionFacts>
-                <InteractionFact label="Status">{words(row.status)}</InteractionFact>
-                <InteractionFact label="Recipient">{row.recipient_name||row.recipient_email}</InteractionFact>
-                <InteractionFact label="Email">{row.recipient_email}</InteractionFact>
-                <InteractionFact label="Category">{words(row.category)}</InteractionFact>
-                <InteractionFact label="Event">{words(row.event_key)}</InteractionFact>
-                <InteractionFact label={row.sent_at?'Sent':'Scheduled'}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</InteractionFact>
-              </InteractionFacts>
-              <p className="interaction-summary__lead">This drawer is correspondence context. Delivery diagnostics still belong to Notifications and governance events still belong to History & Audit.</p>
-            </WorkspaceDrawer>
-            {href?<Link className="button secondary" href={href}>Open</Link>:null}
-          </ContextActions>
-        </ProductRegisterRow>})}
-      </ProductRegister>}
-    </section>
+  const {supabase,organisationId}=await requireUserContext();const {data,error}=await supabase.from('notification_outbox').select('id,event_key,category,recipient_email,recipient_name,subject,entity_type,entity_id,status,scheduled_for,sent_at,created_at').eq('organisation_id',organisationId).in('category',['transactional','reminder','nurture']).order('created_at',{ascending:false}).limit(150);if(error)throw new Error(`Messages could not be loaded: ${error.message}`);const rows=data||[];const sent=rows.filter(row=>row.status==='sent').length;const scheduled=rows.filter(row=>['pending','processing'].includes(row.status)).length;const failed=rows.filter(row=>row.status==='failed').length;
+  return <section className="vp-page"><ProductPageHeader eyebrow="Operations · Messages" title="Messages" description="Business correspondence stays a contextual surface: inspect a message in place, then open the owning message history only when you need the full thread." actions={<Link className="button secondary" href="/workspace/notifications">Notification delivery</Link>} />
+    <ProductMetrics label="Message summary"><ProductMetric label="Sent" value={sent} detail="Delivered business messages" tone={sent?'complete':'neutral'} /><ProductMetric label="Scheduled" value={scheduled} detail="Pending or processing" tone={scheduled?'waiting':'neutral'} /><ProductMetric label="Failed" value={failed} detail="Delivery needs attention" tone={failed?'blocked':'complete'} /><ProductMetric label="Recent messages" value={rows.length} detail="Latest business correspondence" /></ProductMetrics>
+    <section><ProductSectionHeader eyebrow="Correspondence" title="Recent messages" />{rows.length===0?<ProductEmptyState title="No messages yet" description="Business correspondence created by governed workflows will appear here." />:<ProductRegister>{rows.map(row=>{const href=messageHref(row.entity_type,row.entity_id);const source=sourceHref(row.entity_type,row.entity_id);const related=[...(href?[{label:'Message history',href,detail:'Full correspondence thread'}]:[]),...(source?[{label:'Owning record',href:source,detail:words(row.entity_type||'record')}]:[]),{label:'Notification delivery',href:'/workspace/notifications',detail:'Delivery diagnostics'},{label:'History & audit',href:'/workspace/activity',detail:'Governance event trail'}];return <ProductRegisterRow key={row.id}><div><strong>{row.subject}</strong><p>Outbound · {row.recipient_name||row.recipient_email}</p></div><ProductStatus tone={tone(row.status)}>{words(row.status)}</ProductStatus><div><small>{row.sent_at?'Sent':'Scheduled'}</small><strong style={{display:'block',marginTop:3}}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</strong></div><ContextActions label={`Actions for ${row.subject}`}><WorkspaceDrawer triggerLabel="Inspect" eyebrow="Business message" title={row.subject} description="Correspondence context without leaving the message register." footer={href?<Link className="button" href={href}>Open message history</Link>:undefined}><InteractionFacts><InteractionFact label="Status">{words(row.status)}</InteractionFact><InteractionFact label="Recipient">{row.recipient_name||row.recipient_email}</InteractionFact><InteractionFact label="Email">{row.recipient_email}</InteractionFact><InteractionFact label="Category">{words(row.category)}</InteractionFact><InteractionFact label="Event">{words(row.event_key)}</InteractionFact><InteractionFact label={row.sent_at?'Sent':'Scheduled'}>{formatDate(row.sent_at||row.scheduled_for||row.created_at)}</InteractionFact></InteractionFacts>{row.status==='failed'?<div className="product-notice product-notice--attention"><strong>Delivery needs attention</strong><div>Open Notification delivery to inspect the failed delivery state before retrying or changing the source record.</div></div>:<p className="interaction-summary__lead">This drawer is correspondence context. Delivery diagnostics still belong to Notifications and governance events still belong to History & Audit.</p>}<WorkspaceContextLinks links={related}/></WorkspaceDrawer>{href?<Link className="button secondary" href={href}>Open</Link>:null}<WorkspaceRecordMenu label={`More context for ${row.subject}`} links={related}/></ContextActions></ProductRegisterRow>})}</ProductRegister>}</section>
   </section>;
 }
