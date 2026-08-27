@@ -5,7 +5,6 @@ import { formatWaitingMinutes, resolveBusinessAttention, type AttentionSource } 
 import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/exceptions';
 import { getApprovalQueue, summariseApprovalQueue } from '@/lib/presentation/approvals';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
-import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 function money(value:number){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(value)}
 function approvalSource(source:string){return source==='acquisition'?'Acquisition':source==='commercial'?'Commercial':source==='document'?'Document control':'Payments'}
@@ -30,6 +29,7 @@ export default async function WorkspacePage() {
     getOperationalExceptions(supabase,organisationId),
     getApprovalQueue(supabase,organisationId),
   ]);
+
   const partnerRows=(pendingPartnerResult.data||[]) as any[];
   const prospectIds=new Set(partnerRows.map(row=>String(row.prospect_id)));
   const partnerAttention:AttentionSource[]=partnerRows.map(row=>{
@@ -45,8 +45,9 @@ export default async function WorkspacePage() {
       stage:clarification?'prospect':'partner',
     };
   });
+
   const canonicalBase=dashboard.attention.filter(item=>!prospectIds.has(String(item.id)));
-  const attention = resolveBusinessAttention([...partnerAttention,...canonicalBase]);
+  const attention=resolveBusinessAttention([...partnerAttention,...canonicalBase]);
   const approvalSummary=summariseApprovalQueue(approvals);
   const exceptionSummary=summariseExceptions(operationalExceptions);
   const dependencies=attention.items.slice(0,5);
@@ -54,129 +55,154 @@ export default async function WorkspacePage() {
   const exceptionActions=operationalExceptions.slice(0,5);
   const nextApproval=readyApprovals[0];
   const nextDependency=dependencies[0];
+  const nextIssue=exceptionActions[0];
+  const primaryHref=nextApproval?.href||nextDependency?.href||nextIssue?.href||'/workspace/projects';
+  const primaryLabel=nextApproval?'Review approval':nextDependency?'Open dependency':nextIssue?'Resolve issue':'Open active projects';
+  const currentTitle=nextApproval?.type||nextDependency?.title||nextIssue?.title||'Operating position clear';
+  const currentRecord=nextApproval?.title||nextDependency?.company||nextIssue?.relatedLabel||'No intervention required';
+  const currentReason=nextApproval?.reason||nextDependency?.reason||nextIssue?.detail||'The workspace will surface the next authority decision, dependency or off-plan condition when one becomes active.';
 
-  return <section className="vp-page">
-    <ProductPageHeader
-      eyebrow="Mission Control"
-      title="Operating position"
-      description="Separate authority decisions, external dependencies and off-plan work so the next move is always clear."
-      actions={<><Link className="button" href="/workspace/approvals">Open approvals</Link><Link className="button secondary" href="/workspace/exceptions">Open issues</Link></>}
-    />
+  return <section className="mission-command">
+    <header className="mission-command__header">
+      <div className="mission-command__header-copy">
+        <p className="mission-command__eyebrow">Overview</p>
+        <h1>Operating position</h1>
+        <p className="mission-command__subtitle">The live position across authority decisions, dependencies, delivery and off-plan work.</p>
+      </div>
+      <div className="mission-command__header-actions">
+        <Link className="button secondary" href="/workspace/approvals">Approvals</Link>
+        <Link className="button secondary" href="/workspace/exceptions">Issues</Link>
+      </div>
+    </header>
 
-    <section className="operating-brief" aria-label="Current operating position">
-      <div className="operating-brief__primary">
-        <small>{nextApproval?'Next authority decision':nextDependency?'Next dependency':'Current position'}</small>
-        {nextApproval ? <>
-          <h2>{nextApproval.type}</h2>
-          <p><strong>{nextApproval.title}</strong> · {nextApproval.reason}</p>
-          <p style={{marginTop:6}}>{approvalSource(nextApproval.source)}{nextApproval.value!==undefined?` · ${money(nextApproval.value)}`:''}</p>
-          <Link href={nextApproval.href}>Review →</Link>
-        </> : nextDependency ? <>
-          <h2>{nextDependency.title}</h2>
-          <p><strong>{nextDependency.company}</strong> · {nextDependency.reason}</p>
-          <p style={{marginTop:6}}>Waiting {formatWaitingMinutes(nextDependency.waitingMinutes)}</p>
-          <Link href={nextDependency.href}>Open →</Link>
-        </> : <>
-          <h2>Nothing needs intervention right now.</h2>
-          <p>The workspace will surface the next authority decision, external dependency or off-plan issue when one becomes active.</p>
-        </>}
-      </div>
-      <div className="operating-brief__signals" aria-label="Operating queues">
-        <div className="operating-brief__signal"><small>Approvals</small><strong>{approvalSummary.ready}</strong></div>
-        <div className="operating-brief__signal"><small>External dependencies</small><strong>{attention.waitingOnPartner+attention.waitingOnClient}</strong></div>
-        <div className="operating-brief__signal"><small>Internal actions</small><strong>{attention.waitingOnInternal}</strong></div>
-        <div className="operating-brief__signal"><small>Off-plan</small><strong>{exceptionSummary.total}</strong></div>
-      </div>
+    <section className="mission-command__signals" aria-label="Operating signals">
+      <div className="mission-command__signal"><small>Approvals</small><strong>{approvalSummary.ready}</strong><span>{approvalSummary.blocked} blocked by evidence</span></div>
+      <div className="mission-command__signal"><small>Dependencies</small><strong>{attention.items.length}</strong><span>{attention.waitingOnPartner+attention.waitingOnClient} external</span></div>
+      <div className="mission-command__signal"><small>Issues</small><strong>{exceptionSummary.total}</strong><span>{exceptionSummary.critical} critical · {exceptionSummary.high} high</span></div>
+      <div className="mission-command__signal"><small>Active projects</small><strong>{dashboard.activeProjects}</strong><span>Current delivery workload</span></div>
     </section>
 
-    <ProductMetrics label="Operations summary">
-      <ProductMetric label="Approvals ready" value={approvalSummary.ready} detail={`${approvalSummary.blocked} blocked by evidence`} tone={approvalSummary.ready?'waiting':approvalSummary.blocked?'attention':'complete'} />
-      <ProductMetric label="Dependencies" value={attention.items.length} detail="Internal, Partner or client waiting states" tone={attention.items.length?'active':'complete'} />
-      <ProductMetric label="Issues" value={exceptionSummary.total} detail={`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`} tone={exceptionSummary.total?'attention':'complete'} />
-      <ProductMetric label="Active projects" value={dashboard.activeProjects} detail="Current delivery workload" tone={dashboard.activeProjects?'active':'neutral'} />
-    </ProductMetrics>
-
-    <div className="product-split">
-      <section className="product-stack">
-        <section>
-          <ProductSectionHeader eyebrow="Authority" title="Approvals" meta={<Link href="/workspace/approvals">View all {approvalSummary.total} →</Link>} />
-          {readyApprovals.length ? <ProductRegister>
-            {readyApprovals.map(item=><ProductRegisterRow key={item.id}>
-              <ProductStatus tone="waiting">Approval</ProductStatus>
-              <div><strong>{item.type}</strong><p>{item.title} · {item.recordLabel}</p></div>
-              <div><small>Source</small><strong style={{display:'block',marginTop:3}}>{approvalSource(item.source)}</strong></div>
-              <ContextActions label={`Actions for ${item.title}`}>
-                <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Authority decision" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open authoritative record</Link>}>
-                  <InteractionFacts>
-                    <InteractionFact label="Decision">{item.type}</InteractionFact>
-                    <InteractionFact label="Record">{item.recordLabel}</InteractionFact>
-                    <InteractionFact label="Source">{approvalSource(item.source)}</InteractionFact>
-                    <InteractionFact label="Value">{item.value!==undefined?money(item.value):'Not value-based'}</InteractionFact>
-                  </InteractionFacts>
-                  <p className="interaction-summary__lead">Review the evidence here, then open the owning record only when you are ready to perform the governed decision.</p>
-                </WorkspaceDrawer>
-                <Link className="button secondary" href={item.href}>Open</Link>
-              </ContextActions>
-            </ProductRegisterRow>)}
-          </ProductRegister> : <ProductEmptyState title="No approvals ready" description="Only evidence-complete authority decisions appear here." />}
-        </section>
-
-        <section>
-          <ProductSectionHeader eyebrow="Waiting on" title="Dependencies" meta={`${attention.items.length} open`} />
-          {dependencies.length ? <ProductRegister>
-            {dependencies.map(item=><ProductRegisterRow key={`${item.id}-${item.title}`}>
-              <ProductStatus tone={item.priority==='high'?'attention':'waiting'}>{dependencyOwner(item)}</ProductStatus>
-              <div><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div>
-              <div><small>Waiting</small><strong style={{display:'block',marginTop:3}}>{formatWaitingMinutes(item.waitingMinutes)}</strong></div>
-              <ContextActions label={`Actions for ${item.company}`}>
-                <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Dependency" title={item.title} description="Inspect the dependency without losing Mission Control." footer={<Link className="button" href={item.href}>Open owning record</Link>}>
-                  <InteractionFacts>
-                    <InteractionFact label="Record">{item.company}</InteractionFact>
-                    <InteractionFact label="Waiting on">{dependencyOwner(item)}</InteractionFact>
-                    <InteractionFact label="Waiting">{formatWaitingMinutes(item.waitingMinutes)}</InteractionFact>
-                    <InteractionFact label="Priority">{item.priority}</InteractionFact>
-                  </InteractionFacts>
-                  <p className="interaction-summary__lead">{item.reason}</p>
-                </WorkspaceDrawer>
-                <Link className="button secondary" href={item.href}>Open</Link>
-              </ContextActions>
-            </ProductRegisterRow>)}
-          </ProductRegister> : <ProductEmptyState title="No dependencies waiting" description="External and internal waiting states will appear here without being mislabelled as blockers." />}
-        </section>
-      </section>
-
-      <section className="product-stack">
-        <section className="product-panel">
-          <ProductSectionHeader eyebrow="Waiting on" title="Ownership" />
-          <div className="saas-signal-list">
-            <div className="saas-signal"><span>Your team</span><strong>{attention.waitingOnInternal}</strong></div>
-            <div className="saas-signal"><span>Execution Partner</span><strong>{attention.waitingOnPartner}</strong></div>
-            <div className="saas-signal"><span>Client</span><strong>{attention.waitingOnClient}</strong></div>
+    <div className="mission-command__grid">
+      <main className="mission-command__main">
+        <section className="mission-card">
+          <header className="mission-card__header"><strong>Current Operating Position</strong><small>Live workspace state</small></header>
+          <div className="mission-summary">
+            <div className="mission-summary__cell">
+              <small>Where we are</small>
+              <strong>{currentTitle}</strong>
+              <p>{currentRecord}</p>
+            </div>
+            <div className="mission-summary__cell">
+              <small>What changed</small>
+              <strong>{nextApproval?'Evidence is ready for authority':nextDependency?'A dependency is holding progress':nextIssue?'An off-plan condition is active':'Queues are currently controlled'}</strong>
+              <p>{currentReason}</p>
+            </div>
+            <div className="mission-summary__cell">
+              <small>Requires attention</small>
+              <strong>{nextApproval?'Decision required':nextDependency?`Waiting on ${dependencyOwner(nextDependency)}`:nextIssue?`${nextIssue.severity} ${nextIssue.category}`:'No immediate intervention'}</strong>
+              <p>{nextApproval?.value!==undefined?`${approvalSource(nextApproval.source)} · ${money(nextApproval.value)}`:nextDependency?`Waiting ${formatWaitingMinutes(nextDependency.waitingMinutes)}`:nextIssue?`Owner · ${nextIssue.owner}`:'Continue monitoring live queues.'}</p>
+            </div>
+            <div className="mission-summary__cell">
+              <small>Next permitted action</small>
+              <strong>{primaryLabel}</strong>
+              <p>Open the authoritative record before taking the governed action.</p>
+              <Link href={primaryHref}>Open action →</Link>
+            </div>
           </div>
         </section>
 
-        <section>
-          <ProductSectionHeader eyebrow="Issues" title="Off-plan work" meta={<Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link>} />
-          {exceptionActions.length ? <ProductRegister>
-            {exceptionActions.map(item=><ProductRegisterRow key={item.id}>
-              <ProductStatus tone={item.severity==='critical'?'critical':item.severity==='high'?'blocked':'attention'}>{item.severity}</ProductStatus>
-              <div><strong>{item.title}</strong><p>{item.relatedLabel} · {item.detail}</p></div>
-              <div><small>Owner</small><strong style={{display:'block',marginTop:3}}>{item.owner}</strong></div>
-              <ContextActions label={`Actions for ${item.title}`}>
-                <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Off-plan work" title={item.title} description={item.detail} footer={<Link className="button" href={item.href}>Open source record</Link>}>
-                  <InteractionFacts>
-                    <InteractionFact label="Severity">{item.severity}</InteractionFact>
-                    <InteractionFact label="Category">{item.category}</InteractionFact>
-                    <InteractionFact label="Owner">{item.owner}</InteractionFact>
-                    <InteractionFact label="Related record">{item.relatedLabel}</InteractionFact>
-                  </InteractionFacts>
-                </WorkspaceDrawer>
-                <Link className="button secondary" href={item.href}>Open</Link>
-              </ContextActions>
-            </ProductRegisterRow>)}
-          </ProductRegister> : <ProductEmptyState title="No issues" description="Delivery, finance and actions are currently within plan." />}
+        <section className="mission-card">
+          <header className="mission-card__header"><strong>Approvals</strong><Link href="/workspace/approvals">View all {approvalSummary.total} →</Link></header>
+          {readyApprovals.length?<div className="mission-list">{readyApprovals.map(item=><div className="mission-list__row" key={item.id}>
+            <span className="mission-pill mission-pill--ready">Ready</span>
+            <div><strong>{item.type}</strong><p>{item.title} · {item.recordLabel}</p></div>
+            <span className="mission-list__meta">{approvalSource(item.source)}</span>
+            <ContextActions label={`Actions for ${item.title}`}>
+              <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Authority decision" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open record</Link>}>
+                <InteractionFacts>
+                  <InteractionFact label="Decision">{item.type}</InteractionFact>
+                  <InteractionFact label="Record">{item.recordLabel}</InteractionFact>
+                  <InteractionFact label="Source">{approvalSource(item.source)}</InteractionFact>
+                  <InteractionFact label="Value">{item.value!==undefined?money(item.value):'Not value-based'}</InteractionFact>
+                </InteractionFacts>
+              </WorkspaceDrawer>
+              <Link className="button secondary" href={item.href}>Open</Link>
+            </ContextActions>
+          </div>)}</div>:<div className="mission-compact"><p>No approvals are ready for authority.</p></div>}
         </section>
-      </section>
+
+        <section className="mission-card">
+          <header className="mission-card__header"><strong>Dependencies</strong><small>{attention.items.length} open</small></header>
+          {dependencies.length?<div className="mission-list">{dependencies.map(item=><div className="mission-list__row" key={`${item.id}-${item.title}`}>
+            <span className={`mission-pill ${item.priority==='high'?'mission-pill--attention':''}`}>{dependencyOwner(item)}</span>
+            <div><strong>{item.title}</strong><p>{item.company} · {item.reason}</p></div>
+            <span className="mission-list__meta">{formatWaitingMinutes(item.waitingMinutes)}</span>
+            <ContextActions label={`Actions for ${item.company}`}>
+              <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Dependency" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open record</Link>}>
+                <InteractionFacts>
+                  <InteractionFact label="Record">{item.company}</InteractionFact>
+                  <InteractionFact label="Waiting on">{dependencyOwner(item)}</InteractionFact>
+                  <InteractionFact label="Waiting">{formatWaitingMinutes(item.waitingMinutes)}</InteractionFact>
+                  <InteractionFact label="Priority">{item.priority}</InteractionFact>
+                </InteractionFacts>
+              </WorkspaceDrawer>
+              <Link className="button secondary" href={item.href}>Open</Link>
+            </ContextActions>
+          </div>)}</div>:<div className="mission-compact"><p>No dependencies are waiting.</p></div>}
+        </section>
+      </main>
+
+      <aside className="mission-command__rail" aria-label="Next actions">
+        <section className="mission-card">
+          <header className="mission-card__header"><strong>Next Actions</strong><small>Permitted work</small></header>
+          <div className="mission-actions">
+            <Link className="button" href={primaryHref}>{primaryLabel}</Link>
+            <Link className="button secondary" href="/workspace/approvals">Review approvals</Link>
+            <Link className="button secondary" href="/workspace/exceptions">Open issues</Link>
+            <Link className="button secondary" href="/workspace/projects">Open projects</Link>
+          </div>
+          <div className="mission-actions__label">Other actions</div>
+          <div className="mission-actions">
+            <Link className="mission-actions__link" href="/workspace/documents"><span>Documents</span><span>→</span></Link>
+            <Link className="mission-actions__link" href="/workspace/payments"><span>Finance</span><span>→</span></Link>
+            <Link className="mission-actions__link" href="/workspace/partners"><span>Partners</span><span>→</span></Link>
+          </div>
+        </section>
+
+        <section className="mission-card">
+          <header className="mission-card__header"><strong>Ownership</strong><small>Waiting on</small></header>
+          <div className="mission-ownership">
+            <div className="mission-ownership__row"><span>Your team</span><strong>{attention.waitingOnInternal}</strong></div>
+            <div className="mission-ownership__row"><span>Execution Partner</span><strong>{attention.waitingOnPartner}</strong></div>
+            <div className="mission-ownership__row"><span>Client</span><strong>{attention.waitingOnClient}</strong></div>
+          </div>
+        </section>
+      </aside>
     </div>
+
+    <section className="mission-command__lower">
+      <article className="mission-card">
+        <header className="mission-card__header"><strong>Off-plan work</strong><Link href="/workspace/exceptions">View all {exceptionSummary.total} →</Link></header>
+        <div className="mission-compact">{exceptionActions.length?exceptionActions.slice(0,4).map(item=><div className="mission-compact__line" key={item.id}><span>{item.title}</span><em>{item.severity}</em></div>):<p>No off-plan work.</p>}</div>
+      </article>
+      <article className="mission-card">
+        <header className="mission-card__header"><strong>Queue health</strong><small>Current workload</small></header>
+        <div className="mission-compact">
+          <div className="mission-compact__line"><span>Authority decisions</span><em>{approvalSummary.ready}</em></div>
+          <div className="mission-compact__line"><span>Blocked approvals</span><em>{approvalSummary.blocked}</em></div>
+          <div className="mission-compact__line"><span>Dependencies</span><em>{attention.items.length}</em></div>
+          <div className="mission-compact__line"><span>Active projects</span><em>{dashboard.activeProjects}</em></div>
+        </div>
+      </article>
+      <article className="mission-card">
+        <header className="mission-card__header"><strong>Commercial attention</strong><small>Authority value</small></header>
+        <div className="mission-compact">
+          <div className="mission-compact__line"><span>Value awaiting approval</span><em>{money(approvalSummary.value)}</em></div>
+          <div className="mission-compact__line"><span>Critical issues</span><em>{exceptionSummary.critical}</em></div>
+          <div className="mission-compact__line"><span>High issues</span><em>{exceptionSummary.high}</em></div>
+          <div className="mission-compact__line"><span>External dependencies</span><em>{attention.waitingOnPartner+attention.waitingOnClient}</em></div>
+        </div>
+      </article>
+    </section>
   </section>;
 }
