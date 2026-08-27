@@ -47,7 +47,7 @@ export default function Header() {
           </nav>
 
           <div className="hidden items-center gap-6 md:flex">
-            <Link className="text-[13px] font-medium transition-opacity hover:opacity-55" href="/workspace">
+            <Link className="text-[13px] font-medium transition-opacity hover:opacity-55" href="/login">
               Workspace
             </Link>
             <Link className="inline-flex min-h-12 items-center gap-5 bg-[#101311] px-6 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-85" href="/#contact">
@@ -69,7 +69,7 @@ export default function Header() {
             {links.map((link) => (
               <Link key={link.href} className="border-b border-black/10 py-3" href={link.href} onClick={closeMenu}>{link.label}</Link>
             ))}
-            <Link className="border-b border-black/10 py-3 font-semibold" href="/workspace" onClick={closeMenu}>Workspace</Link>
+            <Link className="border-b border-black/10 py-3 font-semibold" href="/login" onClick={closeMenu}>Workspace</Link>
             <Link className="py-3 font-semibold uppercase" href="/#contact" onClick={closeMenu}>Submit requirement</Link>
           </nav>
         ) : null}
