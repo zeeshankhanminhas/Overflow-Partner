@@ -23,6 +23,16 @@ const labels: Record<string,string> = {
   blocked: 'Blocked',
   delivery_submitted: 'Work submitted',
   mobilisation: 'Preparing project',
+  feasible: 'Feasible',
+  feasible_with_conditions: 'Feasible with conditions',
+  conditionally_feasible: 'Feasible with conditions',
+  not_feasible: 'Not feasible',
+  available: 'Available',
+  limited: 'Limited capacity',
+  limited_capacity: 'Limited capacity',
+  unavailable: 'Unavailable',
+  confirmed: 'Confirmed',
+  pending: 'Pending',
 };
 
 export function commercialStatus(value?: unknown, fallback = 'Not recorded') {
