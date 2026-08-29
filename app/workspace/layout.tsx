@@ -47,7 +47,6 @@ import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
 import WorkspaceFlashBridge from '@/components/workspace/WorkspaceFlashBridge';
-import WorkspaceModuleTools from '@/components/workspace/WorkspaceModuleTools';
 import { WorkspaceActivityTracker } from '@/components/workspace/WorkspaceOperatorCentre';
 import {
   WorkspaceInteractionProvider,
@@ -57,7 +56,7 @@ import {
 
 export const metadata: Metadata = {
   title: 'Overflow Partner | Operations Workspace',
-  description: 'Governed engineering delivery workspace for Overflow Partner.',
+  description: 'Engineering delivery workspace for Overflow Partner.',
   robots: { index: false, follow: false },
 };
 
@@ -86,7 +85,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       title: item.title,
       detail: item.reason,
       href: item.href,
-      meta: `${item.type} · ready for authority`,
+      meta: `${item.type} · ready for approval`,
       tone: 'ready',
     }));
 
@@ -111,26 +110,25 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
         <LifecycleSidebar />
         <div className="midts-sidebar-footer op-sidebar-footer">
-          <p>Governed delivery</p>
           <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
         </div>
       </aside>
 
       <section className="midts-main op-main">
         <header className="midts-topbar op-topbar">
-          <div><p>Overflow Partner</p><strong>Operations workspace</strong></div>
-          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceModuleTools/><WorkspaceShellActions alerts={alerts}/><CommandPalette/><Link href={n.notifications.href}>{n.notifications.label}</Link></div>
+          <div className="op-topbar-spacer" aria-hidden="true" />
+          <div className="midts-topbar-tools op-topbar-tools"><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
         </header>
-        <header className="midts-mobile-header op-mobile-header"><div><span>Operations workspace</span><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceModuleTools/><WorkspaceShellActions alerts={alerts}/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
+        <header className="midts-mobile-header op-mobile-header"><div><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceShellActions alerts={alerts}/><CommandPalette/><form action={signOut}><button className="button secondary" type="submit">Sign out</button></form></div></header>
         <main className="midts-content op-content">{children}</main>
       </section>
 
       <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
         <Link href={n.missionControl.href}>Home</Link>
-        <Link href={n.enquiries.href}>{n.enquiries.label}</Link>
-        <Link href={n.cases.href}>{n.cases.label}</Link>
-        <Link href={n.projects.href}>{n.projects.label}</Link>
-        <Link href={n.payments.href}>Finance</Link>
+        <Link href={n.enquiries.href}>Opportunities</Link>
+        <Link href={n.projects.href}>Projects</Link>
+        <Link href={n.approvals.href}>Approvals</Link>
+        <Link href={n.documents.href}>Documents</Link>
       </nav>
     </div>
   </WorkspaceInteractionProvider>;
