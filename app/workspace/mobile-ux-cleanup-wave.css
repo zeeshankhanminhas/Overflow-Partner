@@ -61,6 +61,165 @@
     line-height: 1.45 !important;
   }
 
+  /* Document register is not a generic table on mobile.
+     Keep only the scan-critical operating signal on the card; full metadata stays in Inspect. */
+  .document-registry__table-wrap {
+    padding-inline: 14px !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll {
+    overflow: visible !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table tbody {
+    gap: 0 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table tr {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto auto auto !important;
+    gap: 7px 12px !important;
+    padding: 15px 0 !important;
+    border: 0 !important;
+    border-top: 1px solid var(--saas-line, rgba(18, 24, 21, .10)) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table tr:first-child {
+    border-top: 0 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td {
+    color: var(--saas-text, var(--op-text, #171b19)) !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(1) {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+    gap: 2px !important;
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(1) strong {
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+    font-weight: 680 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(1) small {
+    display: block !important;
+    margin-top: 2px !important;
+    color: var(--saas-muted, var(--op-subtle, #737a76)) !important;
+    font-size: 11px !important;
+    font-weight: 550 !important;
+    letter-spacing: .01em !important;
+  }
+
+  /* Type and purpose are supporting metadata; keep them in the Inspect drawer. */
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(2),
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(5) {
+    display: none !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(4) {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 7px !important;
+    width: auto !important;
+    color: var(--saas-text, var(--op-text, #171b19)) !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(4) strong {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(4) small {
+    color: var(--saas-muted, var(--op-subtle, #737a76)) !important;
+    font-size: 10px !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(3) {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    width: auto !important;
+    justify-self: end !important;
+    align-self: center !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(3) .product-status {
+    width: max-content !important;
+    max-width: 100% !important;
+    min-height: 24px !important;
+    padding: 3px 7px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(6) {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    margin-top: 2px !important;
+    color: var(--saas-text, var(--op-text, #171b19)) !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(6)::before {
+    content: 'Next · ';
+    color: var(--saas-muted, var(--op-subtle, #737a76)) !important;
+    font-weight: 500 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(6) strong {
+    font-weight: 650 !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(7) {
+    grid-column: 1 !important;
+    grid-row: 4 !important;
+    align-self: center !important;
+    color: var(--saas-muted, var(--op-subtle, #737a76)) !important;
+    font-size: 10px !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(7)::before {
+    content: 'Updated ';
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(8) {
+    grid-column: 2 !important;
+    grid-row: 4 !important;
+    width: auto !important;
+    justify-self: end !important;
+    align-self: center !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(8) .interaction-context-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    width: auto !important;
+  }
+
+  .document-registry__table-wrap .document-registry__table-scroll table td:nth-child(8) .interaction-context-actions > :is(a, button) {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 6px 10px !important;
+    border-radius: 7px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
   /* Product registers already use semantic rows: make every row a mobile work card. */
   .product-register {
     display: grid !important;
