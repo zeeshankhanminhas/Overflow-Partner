@@ -2,8 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { queueInternalLifecycleAlert } from '@/lib/notifications/scenarios';
 
 function recipients() {
-  return String(process.env.OVERFLOW_PARTNER_OPERATIONS_EMAILS || '')
-    .split(',').map((value)=>value.trim().toLowerCase()).filter(Boolean);
+  const configured = process.env.OVERFLOW_PARTNER_OPERATIONS_EMAILS || process.env.OWNER_NOTIFICATION_EMAIL || '';
+  return [...new Set(String(configured).split(',').map((value)=>value.trim().toLowerCase()).filter(Boolean))];
 }
 
 export async function queueOperationsAlert(supabase:SupabaseClient,input:{
