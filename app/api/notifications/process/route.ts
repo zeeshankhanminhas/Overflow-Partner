@@ -34,7 +34,7 @@ async function deliver(row: OutboxRow) {
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL must be configured.');
 
-  const { html, text } = renderNotificationEmail(row);
+  const { html, text } = await renderNotificationEmail(row);
   const replyTo = process.env.RESEND_REPLY_TO_EMAIL;
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
