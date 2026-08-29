@@ -5,13 +5,15 @@ import { listCompanies } from '@/lib/repositories/companies';
 import { listContacts } from '@/lib/repositories/contacts';
 import { resolveAcquisitionState } from '@/lib/acquisition/state';
 import { resolveAcquisitionPresentation } from '@/lib/presentation/operatingState';
-import { ProductStatus } from '@/components/workspace/ProductUI';
+import { SignalStrip, WorkQueue } from '@/components/workspace/OperationalUI';
 
 function dateTime(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not yet';
 }
-function Fact({ label, value }: { label: string; value: React.ReactNode }) {
-  return <div className="vp-fact"><small>{label}</small><strong>{value === null || value === undefined || value === '' ? 'Not specified' : value}</strong></div>;
+function ownerLabel(presentation:any){
+  if(presentation.waitingOn?.actor==='partner')return 'Delivery Partner';
+  if(presentation.waitingOn?.actor==='client')return 'Client';
+  return 'Your team';
 }
 
 export default async function AcquisitionPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
@@ -51,37 +53,38 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     return {prospect,session,presentation:resolveAcquisitionPresentation(state)};
   });
   const approvalCount=rows.filter(row=>row.presentation.approval?.required).length;
+  const queueItems=rows.map(({prospect,session,presentation}:any)=>({
+    id:prospect.id,
+    label:presentation.state,
+    title:prospect.company_name,
+    detail:presentation.summary,
+    owner:ownerLabel(presentation),
+    meta:session?.submitted_at?`Requirements received ${dateTime(session.submitted_at)}`:prospect.requirement_summary||prospect.source,
+    href:`/workspace/acquisition/${prospect.id}`,
+    actionLabel:presentation.nextAction.label,
+    tone:presentation.tone,
+  }));
 
   return <section className="saas-page acquisition-workspace">
     <section className="saas-hero">
       <div className="saas-hero__inner">
-        <div className="saas-hero__copy"><p className="vp-kicker">Acquisition</p><h1>Manage incoming opportunities.</h1><p className="vp-subtitle">Move each enquiry through client intake, Partner Assessment and Go / No-Go without duplicating decisions in Case 360.</p></div>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/prospects">All enquiries</Link><Link className="button secondary" href="/workspace/assessments?view=partner">Partner Assessments</Link><Link className="button secondary" href="/workspace/approvals">Approvals{approvalCount?` · ${approvalCount}`:''}</Link></div>
+        <div className="saas-hero__copy"><p className="vp-kicker">Opportunities</p><h1>Move incoming work forward.</h1><p className="vp-subtitle">See who owns the next step, what is waiting, and which opportunity can move now.</p></div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/prospects">All opportunities</Link><Link className="button secondary" href="/workspace/assessments?view=partner">Delivery reviews</Link><Link className="button secondary" href="/workspace/approvals">Approvals{approvalCount?` · ${approvalCount}`:''}</Link></div>
       </div>
     </section>
 
-    {params.created ? <div className="vp-callout" data-continuity-notice><strong>Enquiry added</strong><p>The new opportunity is ready to work.</p></div> : null}
+    {params.created ? <div className="vp-callout" data-continuity-notice><strong>Opportunity added</strong><p>The new opportunity is ready to work.</p></div> : null}
     {params.error ? <div className="vp-callout" data-continuity-notice><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
 
-    <section className="saas-metrics" aria-label="Acquisition summary">
-      <article className="saas-metric"><span>Waiting on client</span><strong>{waitingResult.count||0}</strong><small>Technical intake invitations still open</small></article>
-      <article className="saas-metric"><span>Intake received</span><strong>{technicalPendingResult.count||0}</strong><small>Client submissions ready for controlled work</small></article>
-      <article className="saas-metric"><span>Approvals</span><strong>{approvalCount}</strong><small>Go / No-Go authority decisions visible here</small></article>
-      <article className="saas-metric"><span>Ready for Case</span><strong>{qualifiedResult.count||0}</strong><small>Governed acquisition complete</small></article>
-    </section>
+    <SignalStrip items={[
+      {label:'Waiting for client',value:waitingResult.count||0,detail:'Requirements requests still open',tone:(waitingResult.count||0)?'waiting':'complete'},
+      {label:'Ready to review',value:technicalPendingResult.count||0,detail:'Client requirements received',tone:(technicalPendingResult.count||0)?'active':'neutral'},
+      {label:'Approvals',value:approvalCount,detail:'Commercial decisions required',tone:approvalCount?'attention':'complete'},
+      {label:'Ready to progress',value:qualifiedResult.count||0,detail:'Opportunity work complete',tone:(qualifiedResult.count||0)?'complete':'neutral'},
+    ]}/>
 
-    <details id="manual-prospect" className="vp-disclosure"><summary>Add enquiry</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating an enquiry. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
+    <details id="manual-prospect" className="vp-disclosure"><summary>Add opportunity</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating an opportunity. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
 
-    <section className="saas-section">
-      <div className="saas-section__header"><div><p className="vp-label">Active opportunities</p><h2>Acquisition queue</h2></div><Link href="/workspace/acquisition/prospects">View all →</Link></div>
-      <div className="vp-list">
-        {rows.length===0 ? <div className="vp-empty">No active acquisition records.</div> : rows.map(({prospect,session,presentation}) => <article className="acquisition-record" key={prospect.id}>
-          <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:18,alignItems:'start'}}><div><h3 style={{margin:0}}>{prospect.company_name}</h3><p style={{margin:'5px 0 0',color:'var(--op-muted)'}}>{[prospect.contact_name, prospect.job_title].filter(Boolean).join(' · ') || 'Contact not added'} · {prospect.source}</p></div><ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus></div>
-          <p style={{margin:'12px 0 0',color:'var(--op-muted)'}}>{presentation.summary}</p>
-          <div className="vp-facts" style={{marginTop:14}}><Fact label={presentation.waitingOn?'Waiting on':'Owner'} value={presentation.waitingOn?.label||'Overflow Partner'}/><Fact label="What happens next" value={presentation.nextAction.label}/><Fact label="Requirement" value={prospect.requirement_summary}/><Fact label="Intake received" value={dateTime(session?.submitted_at)}/></div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:16}}><Link className="button" href={`/workspace/acquisition/${prospect.id}`}>Open enquiry</Link>{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Company</Link>:null}</div>
-        </article>)}
-      </div>
-    </section>
+    <WorkQueue title="Opportunity queue" eyebrow="Active work" items={queueItems} empty="No active opportunities." viewAllHref="/workspace/acquisition/prospects" viewAllLabel="View all opportunities" />
   </section>;
 }
