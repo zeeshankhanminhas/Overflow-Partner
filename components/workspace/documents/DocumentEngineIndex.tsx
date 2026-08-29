@@ -78,14 +78,14 @@ export default async function DocumentEngineIndex({leadId,projectId}:Props){
 
 function Register({title,description,documents,current=false}:{title:string;description:string;documents:RegistryDocument[];current?:boolean}){
   return <section className="product-panel document-registry__table-wrap"><ProductSectionHeader eyebrow="Working register" title={title} meta={`${documents.length} document${documents.length===1?'':'s'}`}/><p style={{margin:'-4px 0 12px',color:'var(--saas-muted)',fontSize:11}}>{description}</p><div className="document-registry__table-scroll"><table><thead><tr><th>Document</th><th>Type</th><th>Status</th><th>Revision</th><th>Purpose</th><th>Next action</th><th>Updated</th><th>Actions</th></tr></thead><tbody>{documents.map(document=>{const presentation=resolveDocumentPresentation(state(document),document.title);return <tr id={`document-${document.id}`} key={document.id}>
-    <td><strong>{document.title}</strong><small>{document.reference}</small></td>
+    <td><Link href={openUrl(document)} aria-label={`Open ${document.title}`} style={{color:'inherit',textDecoration:'none'}}><strong>{document.title}</strong><small>{document.reference}</small><small style={{marginTop:5,color:'var(--saas-accent)',fontWeight:700}}>Open {presentation.approval?.required?'review':'document'} →</small></Link></td>
     <td>{canonicalDocumentSlug(document.document_type).replaceAll('-',' ')}</td>
     <td><ProductStatus tone={presentation.tone}>{commercialCopy(presentation.state)}</ProductStatus></td>
     <td><strong>{revision(document)}</strong><small>v{document.version}</small></td>
     <td>{(document.issue_purpose||'internal').replaceAll('_',' ')}</td>
     <td><strong>{commercialCopy(presentation.nextAction.label)}</strong></td>
     <td>{formatDate(document.updated_at||document.created_at)}</td>
-    <td><ContextActions label={`Actions for ${document.reference}`}>
+    <td><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href={openUrl(document)}>{presentation.approval?.required?'Open review':'Open document'}</Link><ContextActions label={`More actions for ${document.reference}`}>
       <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Document" title={document.title} description={commercialCopy(presentation.summary)} footer={<Link className="button" href={openUrl(document)}>{presentation.approval?.required?'Open review':'Open document'}</Link>}>
         <InteractionFacts>
           <InteractionFact label="Reference">{document.reference}</InteractionFact>
@@ -100,14 +100,13 @@ function Register({title,description,documents,current=false}:{title:string;desc
         <p className="interaction-summary__lead">{commercialCopy(presentation.summary)}</p>
         <RecordContext document={document}/>
       </WorkspaceDrawer>
-      <Link className="button secondary" href={openUrl(document)}>{presentation.approval?.required?'Review':'Open'}</Link>
       {current&&['signed','approved','issued','published'].includes(document.status)?<DecisionDialog triggerLabel="New revision" eyebrow="Document control" title={`Create new revision · ${document.reference}`} description="This preserves the current revision and creates the next working revision.">
         <form action={createDocumentRevisionAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><div className="product-notice"><strong>Create next revision?</strong><div>{document.title} · {revision(document)} will become historical and the next revision will become the current working copy.</div></div><WorkspaceActionButton pendingLabel="Creating revision…">Create new revision</WorkspaceActionButton></form>
       </DecisionDialog>:null}
       {current&&['approved','issued','published'].includes(document.status)?<DecisionDialog triggerLabel="Withdraw" eyebrow="Document control" title={`Withdraw ${document.reference}`} description="Withdrawal preserves the history and removes this revision from the current valid working set.">
         <form action={withdrawControlledDocumentAction} className="stack"><input type="hidden" name="document_id" value={document.id}/><label>Reason<textarea name="reason" rows={3} required/></label><WorkspaceConsequenceGuard actionLabel="Confirm withdrawal" pendingLabel="Withdrawing document…" confirmationLabel={`I understand ${document.reference} will no longer be a current valid revision.`} consequence="This revision will be removed from current use. Existing history and release evidence remain retained." recovery="If the document is needed again, create a new revision rather than restoring the withdrawn revision." className="button secondary"/></form>
       </DecisionDialog>:null}
-    </ContextActions></td>
+    </ContextActions></div></td>
   </tr>})}</tbody></table></div></section>;
 }
 
