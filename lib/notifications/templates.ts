@@ -60,6 +60,25 @@ function copy(template: string, payload: Record<string, unknown>) {
   return variants[template] || { heading:escapeHtml(payload.heading || 'Overflow Partner update'), body:escapeHtml(payload.message || 'There is an update in your Overflow Partner workflow.'), action:escapeHtml(payload.actionLabel || 'Open workspace') };
 }
 
+function contextRows(payload: Record<string, unknown>) {
+  const rows: Array<[string,string]> = [];
+  const add=(label:string,value:unknown)=>{const text=String(value??'').trim();if(text)rows.push([label,escapeHtml(text)]);};
+  add('Company',payload.company);
+  add('Project',payload.project);
+  add('Opportunity',payload.opportunityReference);
+  add('Project reference',payload.projectReference);
+  add('Reference',payload.reference || payload.caseReference);
+  add('Revision',payload.revision);
+  add('Amount',payload.amount);
+  add('Outstanding balance',payload.balance);
+  add('Payment reference',payload.paymentReference);
+  add('Due date',payload.dueDate);
+  add('Valid until',payload.validUntil);
+  add('Completion date',payload.completionDate);
+  add('Review outcome',payload.outcome);
+  return rows;
+}
+
 export function renderNotificationEmail(row: NotificationRow) {
   const payload = row.payload || {};
   const content = copy(row.template_key, payload);
@@ -67,10 +86,7 @@ export function renderNotificationEmail(row: NotificationRow) {
   const recipient = escapeHtml(row.recipient_name || payload.name || 'there');
   const unsubscribeUrl = row.category === 'nurture' ? escapeHtml(payload.unsubscribeUrl || '') : '';
   const preheader = escapeHtml(payload.preheader || content.heading);
-  const reference = escapeHtml(payload.reference || payload.projectReference || payload.opportunityReference || '');
-  const due = escapeHtml(payload.dueDate || payload.validUntil || '');
-  const amount = escapeHtml(payload.amount || '');
-  const context = [reference && `Reference: ${reference}`, due && `Date: ${due}`, amount && `Amount: ${amount}`].filter(Boolean);
+  const context = contextRows(payload);
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="margin:0;background:#f3f1ec;color:#171717;font-family:Arial,Helvetica,sans-serif">
@@ -85,20 +101,20 @@ export function renderNotificationEmail(row: NotificationRow) {
           <p style="margin:0 0 18px;font-size:16px">Hello ${recipient},</p>
           <h1 style="margin:0 0 18px;font-size:29px;line-height:1.15;font-weight:600">${content.heading}</h1>
           <p style="margin:0;font-size:16px;line-height:1.7;color:#45413b">${content.body}</p>
-          ${context.length ? `<div style="margin-top:22px;padding:16px 18px;background:#f7f5f1;border:1px solid #e7e3dc;font-size:13px;line-height:1.8;color:#5d5850">${context.join('<br>')}</div>` : ''}
+          ${context.length ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:22px;background:#f7f5f1;border:1px solid #e7e3dc">${context.map(([label,value])=>`<tr><td style="padding:8px 14px;font-size:12px;color:#777168;width:36%;border-bottom:1px solid #ebe7df">${label}</td><td style="padding:8px 14px;font-size:13px;color:#2b2925;border-bottom:1px solid #ebe7df">${value}</td></tr>`).join('')}</table>` : ''}
         </td></tr>
         <tr><td style="padding:24px 32px 34px">
           <a href="${actionUrl}" style="display:inline-block;background:#171717;color:#fff;text-decoration:none;padding:13px 20px;font-size:14px;font-weight:600">${content.action}</a>
         </td></tr>
         <tr><td style="padding:20px 32px;border-top:1px solid #e7e3dc;font-size:12px;line-height:1.6;color:#777168">
-          This message was generated from an active Overflow Partner workflow. Replies go to the operating team.
+          This message relates to an active Overflow Partner enquiry, opportunity or project. Replies go to the operating team.
           ${unsubscribeUrl ? `<br><a href="${unsubscribeUrl}" style="color:#777168">Unsubscribe from nurture emails</a>` : ''}
         </td></tr>
       </table>
     </td></tr></table>
   </body></html>`;
 
-  const textContext = context.length ? `\n\n${context.map((item)=>String(item).replace(/<[^>]+>/g,'')).join('\n')}` : '';
+  const textContext = context.length ? `\n\n${context.map(([label,value])=>`${label}: ${String(value).replace(/<[^>]+>/g,'')}`).join('\n')}` : '';
   const text = `Hello ${row.recipient_name || payload.name || 'there'},\n\n${content.heading}\n\n${content.body}${textContext}\n\n${content.action}: ${String(payload.actionUrl || process.env.NEXT_PUBLIC_APP_URL || '')}${unsubscribeUrl ? `\n\nUnsubscribe: ${unsubscribeUrl}` : ''}`;
   return { html, text };
 }
