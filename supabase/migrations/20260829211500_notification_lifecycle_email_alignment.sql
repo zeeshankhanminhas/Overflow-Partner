@@ -24,7 +24,8 @@ where n.category = 'nurture'
   );
 
 -- Cancel initial-enquiry nurture that is already obsolete because the prospect
--- has progressed beyond the prospect-owned acquisition stage.
+-- has progressed beyond the prospect-owned acquisition stage. Cast the status
+-- to text so this remains compatible with either text or enum status columns.
 update public.notification_outbox n
 set status = 'cancelled', updated_at = now()
 where n.category = 'nurture'
@@ -34,7 +35,7 @@ where n.category = 'nurture'
     select 1 from public.prospects p
     where p.organisation_id = n.organisation_id
       and p.id = n.entity_id
-      and p.status in ('converted','qualified','disqualified','closed','lost')
+      and p.status::text in ('converted','qualified','disqualified','closed','lost')
   );
 
 commit;
