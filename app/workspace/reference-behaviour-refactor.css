@@ -1,6 +1,37 @@
 /* Behavioural layout layer for the six approved reference surfaces.
    This file does not create new workflow concepts; it recomposes existing source-of-truth data and actions. */
 
+/* Canonical workspace header treatment: light object/page identity, no dark hero bands. */
+.workspace.op-shell .saas-hero,
+.workspace.op-shell .vp-header,
+.workspace.op-shell .project-os-header,
+.workspace.op-shell .record-workspace__header,
+.workspace.op-shell .product-page-header,
+.workspace.op-shell .mission-v2__header,
+.workspace.op-shell .mission-command__header{
+  background:transparent!important;
+  color:var(--op-text)!important;
+  border-color:var(--op-line)!important;
+  box-shadow:none!important;
+}
+.workspace.op-shell .saas-hero *,
+.workspace.op-shell .vp-header *,
+.workspace.op-shell .project-os-header *,
+.workspace.op-shell .record-workspace__header *,
+.workspace.op-shell .product-page-header *{color:inherit}
+.workspace.op-shell .saas-hero p,
+.workspace.op-shell .vp-header p,
+.workspace.op-shell .project-os-header p,
+.workspace.op-shell .record-workspace__header p,
+.workspace.op-shell .product-page-header p{color:var(--op-muted)!important}
+.workspace.op-shell table th{
+  background:#f3f3ef!important;
+  color:#777770!important;
+  border-color:var(--op-line)!important;
+  box-shadow:none!important;
+}
+.workspace.op-shell .op-topbar-spacer{min-width:1px}
+
 /* Opportunity: stage progression + object-first decision context. */
 .workspace.op-shell .opportunity-stage-strip{gap:0!important;position:relative!important;overflow:hidden}
 .workspace.op-shell .opportunity-stage-step{padding:11px 10px!important;border-top-width:1px!important;background:transparent!important;min-width:0}
@@ -45,7 +76,7 @@
 /* Documents: scannable working register with explicit status + next action. */
 .workspace.op-shell .document-reference-workspace .document-registry__table-wrap{overflow:hidden}
 .workspace.op-shell .document-reference-workspace .document-registry__table-scroll table{min-width:1060px}
-.workspace.op-shell .document-reference-workspace .document-registry__table-scroll th{font-size:9px!important;text-transform:uppercase!important;letter-spacing:.07em!important;color:#92928a!important;white-space:nowrap}
+.workspace.op-shell .document-reference-workspace .document-registry__table-scroll th{font-size:9px!important;text-transform:uppercase!important;letter-spacing:.07em!important;color:#777770!important;white-space:nowrap;background:#f3f3ef!important}
 .workspace.op-shell .document-reference-workspace .document-registry__table-scroll td{vertical-align:middle!important}
 .workspace.op-shell .document-reference-workspace .document-registry__table-scroll td>strong{font-size:11px!important}
 .workspace.op-shell .document-reference-workspace .document-registry__table-scroll td>small{display:block;margin-top:3px;font-size:9px!important;color:#96968e!important}
