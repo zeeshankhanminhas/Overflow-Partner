@@ -12,18 +12,19 @@ export type OperatingStateProps={
   status?:string;
   tone?:ProductTone;
   nextAction:string;
-  href:string;
+  href?:string;
+  action?:ReactNode;
   consequence?:string;
 };
 
-export function OperatingState({eyebrow='Priority now',title,record,reason,owner,ownerDetail,status,tone='active',nextAction,href,consequence}:OperatingStateProps){
+export function OperatingState({eyebrow='Priority now',title,record,reason,owner,ownerDetail,status,tone='active',nextAction,href,action,consequence}:OperatingStateProps){
   return <section className="op-ui-state" aria-label="Current operating state">
     <div className="op-ui-state__main">
       <div className="op-ui-state__heading"><div><p className="op-ui-eyebrow">{eyebrow}</p><h2>{title}</h2><p className="op-ui-state__record">{record}</p></div>{status?<ProductStatus tone={tone}>{status}</ProductStatus>:null}</div>
       <p className="op-ui-state__reason">{reason}</p>
       <div className="op-ui-state__facts"><div><small>Owner</small><strong>{owner}</strong>{ownerDetail?<span>{ownerDetail}</span>:null}</div><div><small>Next action</small><strong>{nextAction}</strong>{consequence?<span>{consequence}</span>:null}</div></div>
     </div>
-    <div className="op-ui-state__action"><Link className="button" href={href}>{nextAction}</Link></div>
+    <div className="op-ui-state__action">{action||href?<>{action||<Link className="button" href={href||'#'}>{nextAction}</Link>}</>:null}</div>
   </section>;
 }
 
@@ -48,16 +49,16 @@ export function WorkQueue({title,eyebrow,items,empty='Nothing needs attention.',
       <div className="op-ui-queue__copy"><strong>{item.title}</strong><p>{item.detail}</p></div>
       {item.owner?<div className="op-ui-queue__owner"><small>Owner</small><strong>{item.owner}</strong></div>:null}
       {item.meta?<span className="op-ui-queue__meta">{item.meta}</span>:null}
-      <div className="op-ui-queue__actions">{item.inspect}{<Link className="button secondary" href={item.href}>{item.actionLabel||'Open'}</Link>}</div>
+      <div className="op-ui-queue__actions">{item.inspect}<Link className="button secondary" href={item.href}>{item.actionLabel||'Open'}</Link></div>
     </div>)}</div>:<div className="op-ui-empty">{empty}</div>}
   </section>;
 }
 
-export function NextActionRail({title='Next action',actionLabel,href,reason,owner,deadline,consequence,secondary=[]}:{title?:string;actionLabel:string;href:string;reason:string;owner:string;deadline?:string;consequence?:string;secondary?:Array<{label:string;href:string}>}){
+export function NextActionRail({title='Next action',actionLabel,href,action,reason,owner,deadline,consequence,secondary=[]}:{title?:string;actionLabel:string;href?:string;action?:ReactNode;reason:string;owner:string;deadline?:string;consequence?:string;secondary?:Array<{label:string;href:string}>}){
   return <aside className="op-ui-next" aria-label="Next action">
     <p className="op-ui-eyebrow">{title}</p><h2>{actionLabel}</h2><p>{reason}</p>
     <div className="op-ui-next__facts"><div><small>Owner</small><strong>{owner}</strong></div>{deadline?<div><small>Timing</small><strong>{deadline}</strong></div>:null}{consequence?<div><small>After this</small><strong>{consequence}</strong></div>:null}</div>
-    <Link className="button" href={href}>{actionLabel}</Link>
+    {action||href?<div className="op-ui-next__primary">{action||<Link className="button" href={href||'#'}>{actionLabel}</Link>}</div>:null}
     {secondary.length?<div className="op-ui-next__links">{secondary.map(item=><Link key={item.href} href={item.href}>{item.label}<span>→</span></Link>)}</div>:null}
   </aside>;
 }
