@@ -9,7 +9,9 @@ import { createProspect } from '@/lib/repositories/prospects';
 import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
-import { cancelEntityReminders, queueNotification, scheduleLeadNurture } from '@/lib/notifications/queue';
+import { cancelEntityReminders } from '@/lib/notifications/queue';
+import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
+import { scheduleInitialEnquiryNurture } from '@/lib/notifications/schedules';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
@@ -40,16 +42,16 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
 
     if (parsed.data.email) {
       const actionUrl = siteUrl('/');
-      await queueNotification(supabase, {
-        organisationId, eventKey: 'prospect.received', recipientEmail: parsed.data.email,
-        recipientName: parsed.data.contact_name || null, subject: 'We have received your engineering enquiry',
-        templateKey: 'enquiry_acknowledgement', payload: { name: parsed.data.contact_name, company: parsed.data.company_name, actionUrl },
-        entityType: 'prospect', entityId: prospect.id, idempotencyKey: `prospect:ack:${prospect.id}`,
-      }).catch(() => null);
-      await scheduleLeadNurture(supabase, {
-        organisationId, leadId: prospect.id, email: parsed.data.email, name: parsed.data.contact_name,
-        company: parsed.data.company_name, actionUrl,
-      }).catch(() => 0);
+      await queueLifecycleEmail(supabase, {
+        organisationId, scenario:'enquiry.received', recipientEmail:parsed.data.email,
+        recipientName:parsed.data.contact_name || null, actionUrl,
+        payload:{company:parsed.data.company_name}, entityType:'prospect', entityId:prospect.id,
+        idempotencyKey:`prospect:ack:${prospect.id}`,
+      }).catch(()=>null);
+      await scheduleInitialEnquiryNurture(supabase, {
+        organisationId, prospectId:prospect.id, email:parsed.data.email, name:parsed.data.contact_name,
+        company:parsed.data.company_name, actionUrl,
+      }).catch(()=>0);
     }
 
     revalidatePath('/workspace/acquisition'); revalidatePath(`/workspace/companies/${company.id}`); revalidatePath('/workspace');
@@ -87,11 +89,11 @@ export async function createStep2InvitationFormAction(formData: FormData) {
 
     await cancelEntityReminders(supabase, { organisationId, entityType: 'prospect', entityId: prospectId, categories: ['nurture'] }).catch(() => 0);
     if (prospect.email) {
-      const payload = { name: prospect.contact_name, company: prospect.company_name, dueDate: new Date(expiresAt).toLocaleDateString('en-GB'), actionUrl: url };
-      await queueNotification(supabase,{organisationId,eventKey:'client.intake_requested',recipientEmail:prospect.email,recipientName:prospect.contact_name,subject:'Please complete your secure technical intake',templateKey:'technical_intake_invitation',payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`intake:invite:${session.id}`}).catch(()=>null);
-      await queueNotification(supabase,{organisationId,eventKey:'client.intake_reminder.24h',recipientEmail:prospect.email,recipientName:prospect.contact_name,subject:'A polite reminder about your technical intake',templateKey:'technical_intake_reminder',payload,entityType:'prospect',entityId:prospectId,category:'reminder',scheduledFor:new Date(Date.now()+24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:24h:${session.id}`}).catch(()=>null);
-      await queueNotification(supabase,{organisationId,eventKey:'client.intake_reminder.72h',recipientEmail:prospect.email,recipientName:prospect.contact_name,subject:'Your technical intake remains available',templateKey:'technical_intake_reminder',payload,entityType:'prospect',entityId:prospectId,category:'reminder',scheduledFor:new Date(Date.now()+72*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:72h:${session.id}`}).catch(()=>null);
-      await queueNotification(supabase,{organisationId,eventKey:'client.intake_reminder.expiry',recipientEmail:prospect.email,recipientName:prospect.contact_name,subject:'Technical intake link expiry reminder',templateKey:'technical_intake_reminder',payload,entityType:'prospect',entityId:prospectId,category:'reminder',scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`}).catch(()=>null);
+      const payload={company:prospect.company_name,dueDate:new Date(expiresAt).toLocaleDateString('en-GB')};
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.requested',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`intake:invite:${session.id}`}).catch(()=>null);
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:24h:${session.id}`}).catch(()=>null);
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+72*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:72h:${session.id}`,subject:'Your project requirements form remains available'}).catch(()=>null);
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`,subject:'Project requirements link expiry reminder'}).catch(()=>null);
     }
 
     revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace');
@@ -105,9 +107,6 @@ export async function createStep2InvitationFormAction(formData: FormData) {
   redirect(destination);
 }
 
-// Qualification is owned by the governed Partner Review Go / No-Go decision.
-// Keep the legacy export as an explicit dead-end for stale callers rather than
-// allowing a second qualification path to reappear.
 export async function qualifyProspectFormAction(formData: FormData) {
   const prospectId = String(formData.get('prospect_id') || '');
   const destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
@@ -120,11 +119,7 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const prospectId = String(formData.get('prospect_id') || '');
     if (!prospectId) return { ok: false, error: 'Prospect ID is required.' };
-    const { data: lead, error } = await supabase.rpc('op_convert_prospect', {
-      p_organisation_id: organisationId,
-      p_user_id: user.id,
-      p_prospect_id: prospectId,
-    });
+    const { data: lead, error } = await supabase.rpc('op_convert_prospect', { p_organisation_id:organisationId, p_user_id:user.id, p_prospect_id:prospectId });
     if (error) throw new Error(error.message);
     if (!lead?.id) throw new Error('Case 360 was not returned after conversion.');
     await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);

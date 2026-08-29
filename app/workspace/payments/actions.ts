@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { assertRole, requireUserContext } from '@/lib/auth/context';
-import { cancelEntityReminders, queueNotification } from '@/lib/notifications/queue';
+import { cancelEntityReminders } from '@/lib/notifications/queue';
+import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { assertCanPayPartner } from '@/lib/business/invariants';
 
 const clientPaymentRoles = ['owner','admin','commercial','operator'] as const;
@@ -26,31 +27,12 @@ function money(amount: unknown, currency = 'GBP') {
   catch { return `${currency} ${Number(amount||0).toFixed(2)}`; }
 }
 
-function paymentUrl(params: Record<string,string>) {
-  return `/workspace/payments?${new URLSearchParams(params).toString()}`;
-}
-
-function refresh(projectId?: string) {
-  revalidatePath('/workspace/payments');
-  revalidatePath('/workspace/commercial-control');
-  revalidatePath('/workspace/intelligence');
-  revalidatePath('/workspace');
-  if (projectId) revalidatePath(`/workspace/projects/${projectId}`);
-}
-
-function appUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app').replace(/\/$/,'');
-}
-
-async function audit(supabase:any, organisationId:string, userId:string, entityType:string, entityId:string, eventType:string, eventData:Record<string,unknown>) {
-  await supabase.rpc('op_record_activity',{p_organisation_id:organisationId,p_user_id:userId,p_entity_type:entityType,p_entity_id:entityId,p_event_type:eventType,p_event_data:eventData});
-}
-
-async function clientForLead(supabase:any, organisationId:string, leadId:string|null) {
-  if (!leadId) return null;
-  const {data}=await supabase.from('leads').select('id,company_name,contact_name,contact_email').eq('organisation_id',organisationId).eq('id',leadId).maybeSingle();
-  return data || null;
-}
+function paymentUrl(params: Record<string,string>) { return `/workspace/payments?${new URLSearchParams(params).toString()}`; }
+function refresh(projectId?: string) { revalidatePath('/workspace/payments'); revalidatePath('/workspace/commercial-control'); revalidatePath('/workspace/intelligence'); revalidatePath('/workspace'); if (projectId) revalidatePath(`/workspace/projects/${projectId}`); }
+function appUrl() { return (process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app').replace(/\/$/,''); }
+async function audit(supabase:any, organisationId:string, userId:string, entityType:string, entityId:string, eventType:string, eventData:Record<string,unknown>) { await supabase.rpc('op_record_activity',{p_organisation_id:organisationId,p_user_id:userId,p_entity_type:entityType,p_entity_id:entityId,p_event_type:eventType,p_event_data:eventData}); }
+async function clientForLead(supabase:any, organisationId:string, leadId:string|null) { if (!leadId) return null; const {data}=await supabase.from('leads').select('id,company_name,contact_name,contact_email').eq('organisation_id',organisationId).eq('id',leadId).maybeSingle(); return data || null; }
+async function partnerForId(supabase:any,organisationId:string,partnerId:string|null){if(!partnerId)return null;const {data}=await supabase.from('partners').select('id,company_name,contact_name,email').eq('organisation_id',organisationId).eq('id',partnerId).maybeSingle();return data||null;}
 
 export async function recordClientPaymentFromLedgerAction(formData: FormData) {
   const invoiceId = required(formData,'invoice_id');
@@ -74,7 +56,7 @@ export async function recordClientPaymentFromLedgerAction(formData: FormData) {
     const client=await clientForLead(supabase,organisationId,invoice.lead_id);
     if(client?.contact_email){
       const actionUrl=`${appUrl()}/invoice/${invoice.public_token}`;
-      await queueNotification(supabase,{organisationId,eventKey:'invoice.payment_received',recipientEmail:client.contact_email,recipientName:client.contact_name,subject:`Payment received · ${invoice.invoice_number}`,templateKey:'payment_received',payload:{company:client.company_name,reference:invoice.invoice_number,amount:money(amount,invoice.currency),balance:money(remaining,invoice.currency),actionUrl},entityType:'invoice',entityId:invoice.id,category:'transactional',idempotencyKey:`payment-received:${invoice.id}:${updated?.amount_paid||amount}`});
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'payment.received',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl,payload:{company:client.company_name,reference:invoice.invoice_number,amount:money(amount,invoice.currency),balance:money(remaining,invoice.currency)},entityType:'invoice',entityId:invoice.id,idempotencyKey:`payment-received:${invoice.id}:${updated?.amount_paid||amount}`,subject:`Payment received · ${invoice.invoice_number}`});
     }
     if(remaining<=0) await cancelEntityReminders(supabase,{organisationId,entityType:'invoice',entityId:invoice.id,categories:['reminder']});
     await audit(supabase,organisationId,user.id,'project',invoice.project_id,'client_payment_recorded',{invoiceId,invoiceNumber:invoice.invoice_number,amount,remainingBalance:remaining,invariant:'RECEIVABLE_BALANCE'});
@@ -95,14 +77,17 @@ export async function recordPartnerPaymentFromLedgerAction(formData: FormData) {
     assertRole(profile.role,[...partnerPaymentRoles]);
     const guarded=await assertCanPayPartner(supabase,organisationId,payableId);
     projectId=guarded.project_id;
-    const {data:payable,error:readError}=await supabase.from('partner_payables').select('id,project_id,payable_number,currency,status,total,amount_paid').eq('organisation_id',organisationId).eq('id',payableId).single();
+    const {data:payable,error:readError}=await supabase.from('partner_payables').select('id,project_id,partner_id,payable_number,currency,status,total,amount_paid').eq('organisation_id',organisationId).eq('id',payableId).single();
     if(readError||!payable) throw new Error(readError?.message||'Partner payable not found.');
     const amount=numeric(formData,'amount');
     if(amount<=0) throw new Error('Payment amount must be greater than zero.');
     const remaining=Math.max(0,Number(payable.total||0)-Number(payable.amount_paid||0));
     if(amount>remaining) throw new Error(`Payment exceeds the outstanding partner balance of ${money(remaining,payable.currency)}.`);
-    const {error}=await supabase.from('partner_payments').insert({organisation_id:organisationId,payable_id:payableId,project_id:payable.project_id,amount,currency:payable.currency,payment_method:String(formData.get('payment_method')||'bank_transfer'),status:'cleared',reference:String(formData.get('reference')||'').trim()||null,paid_at:String(formData.get('paid_at')||'')||new Date().toISOString(),recorded_by:user.id});
+    const reference=String(formData.get('reference')||'').trim()||null;
+    const {error}=await supabase.from('partner_payments').insert({organisation_id:organisationId,payable_id:payableId,project_id:payable.project_id,amount,currency:payable.currency,payment_method:String(formData.get('payment_method')||'bank_transfer'),status:'cleared',reference,paid_at:String(formData.get('paid_at')||'')||new Date().toISOString(),recorded_by:user.id});
     if(error) throw new Error(error.message);
+    const partner=await partnerForId(supabase,organisationId,payable.partner_id);
+    if(partner?.email) await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_payment.sent',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:appUrl(),payload:{company:partner.company_name,reference:reference||payable.payable_number,amount:money(amount,payable.currency)},entityType:'project',entityId:payable.project_id,idempotencyKey:`partner-payment:${payableId}:${amount}:${reference||'cleared'}`}).catch(()=>null);
     await audit(supabase,organisationId,user.id,'project',payable.project_id,'partner_payment_recorded',{payableId,payableNumber:payable.payable_number,amount,invariant:'APPROVED_PAYABLE_REQUIRED'});
     refresh(payable.project_id);
     destination=paymentUrl({project:projectId,updated:`Payment recorded against ${payable.payable_number}.`,focus:`payable-${payable.id}`});

@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { queueOperationsAlert } from '@/lib/notifications/internal';
 
 const responseSchema = z.object({
   feasibility: z.enum(['feasible','feasible_with_conditions','more_information_required','not_feasible']),
@@ -71,12 +72,10 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
     if (!review) return NextResponse.json({ message: 'This partner review link is invalid, expired or revoked.' }, { status: 404 });
     const now = new Date().toISOString();
     await supabase.from('partner_review_requests').update({ status: review.status === 'invited' ? 'opened' : review.status, first_opened_at: review.first_opened_at || now, last_opened_at: now, updated_at: now }).eq('id', review.id);
-
     const prospectMode = Boolean(review.prospect_id);
     const entityType = prospectMode ? 'prospect' : 'lead';
     const entityId = prospectMode ? review.prospect_id : review.lead_id;
     if (!review.first_opened_at && entityId) await supabase.from('activity_events').insert({ organisation_id: review.organisation_id, user_id: review.created_by, entity_type: entityType, entity_id: entityId, event_type: 'partner_review_invitation_opened', event_data: { partnerReviewRequestId: review.id } });
-
     const [ownerResult, intakeResult, partnerResult, filesResult, responseResult, revisionResult, quoteResult] = await Promise.all([
       prospectMode
         ? supabase.from('prospects').select('id,company_name,project_type,requirement_summary').eq('id', review.prospect_id).single()
@@ -114,36 +113,21 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     const { supabase, review } = await loadRequest(token);
     if (!review) return NextResponse.json({ message: 'This partner review link is invalid, expired or revoked.' }, { status: 404 });
     if (['submitted','approved','approved_with_conditions','rejected'].includes(review.status)) return NextResponse.json({ message: 'This review response is locked. A formal clarification cycle is required for revision.' }, { status: 409 });
-
     const rpc = review.prospect_id ? 'op_submit_prospect_partner_review_response' : 'op_submit_partner_review_response';
     const { data, error } = await supabase.rpc(rpc, { p_token_hash: hashToken(token), p_payload: payload });
     if (error) throw error;
 
-    if (review.prospect_id) {
-      const { data: creator } = await supabase.from('profiles').select('email,full_name').eq('id', review.created_by).maybeSingle();
-      const recipientEmail = process.env.OWNER_NOTIFICATION_EMAIL || creator?.email;
-      if (recipientEmail) {
-        await supabase.rpc('op_enqueue_notification', {
-          p_organisation_id: review.organisation_id,
-          p_event_key: 'approval.partner_response_required',
-          p_recipient_email: recipientEmail,
-          p_recipient_name: creator?.full_name || 'Overflow Partner',
-          p_subject: 'Approval required — partner response received',
-          p_template_key: 'system_failure',
-          p_payload: {
-            heading: 'Partner response requires your decision',
-            message: 'A technical and commercial partner response has been received. Review feasibility, assumptions, risk and price before Case 360 can be created.',
-            actionLabel: 'Review and approve',
-            actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://overflow-partner.vercel.app'}/workspace/acquisition/${review.prospect_id}`,
-          },
-          p_entity_type: 'prospect',
-          p_entity_id: review.prospect_id,
-          p_category: 'transactional',
-          p_scheduled_for: new Date().toISOString(),
-          p_idempotency_key: `approval:partner-response:${review.id}`,
-        });
-      }
-    }
+    const entityType=review.prospect_id?'prospect':'lead';
+    const entityId=review.prospect_id||review.lead_id;
+    const actionPath=review.prospect_id?`/workspace/acquisition/${review.prospect_id}`:`/workspace/leads/${review.lead_id}`;
+    await queueOperationsAlert(supabase,{
+      organisationId:review.organisation_id,eventKey:'internal.partner_review.response_received',
+      subject:`Partner response received · ${review.case_reference||'Opportunity'}`,heading:'Delivery Partner response requires review',
+      message:`A technical and commercial response has been received. Feasibility: ${payload.feasibility.replaceAll('_',' ')}. Review assumptions, risk, timing and price before progressing.`,
+      actionUrl:`${process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app'}${actionPath}`,
+      entityType,entityId,idempotencyKey:`ops:partner-review-response:${review.id}`,
+      payload:{reference:review.case_reference,feasibility:payload.feasibility,commercialPrice:payload.commercial_price||null,currency:payload.commercial_currency||null},
+    });
 
     return NextResponse.json({ success: true, response: data?.technical_response || data, commercial_response: data?.commercial_response || null });
   } catch (error) {
