@@ -3,7 +3,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import { getOperationalExceptions, summariseExceptions, type ExceptionCategory, type ExceptionSeverity } from '@/lib/operations/exceptions';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { WorkspaceContextLinks } from '@/components/workspace/WorkspaceRecordMenu';
-import { SignalStrip, WorkQueue } from '@/components/workspace/OperationalUI';
+import { SignalStrip, WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
 
 export const dynamic = 'force-dynamic';
 type SearchParams = Promise<{ severity?: string; category?: string }>;
@@ -13,7 +13,7 @@ function categoryLinks(category:string){const base=[{label:'Mission Control',hre
 
 export default async function ExceptionsPage({searchParams}:{searchParams:SearchParams}){
   const params=await searchParams;const {supabase,organisationId}=await requireUserContext();const severity=(params.severity||'all') as ExceptionSeverity|'all';const category=(params.category||'all') as ExceptionCategory|'all';const all=await getOperationalExceptions(supabase,organisationId);const summary=summariseExceptions(all);const rows=all.filter(item=>(severity==='all'||item.severity===severity)&&(category==='all'||item.category===category));
-  const queueItems=rows.map(item=>{
+  const queueItems:WorkQueueItem[]=rows.map(item=>{
     const related=[{label:'Open source record',href:item.href,detail:item.relatedLabel},...categoryLinks(item.category)];
     return {
       id:item.id,
@@ -24,7 +24,7 @@ export default async function ExceptionsPage({searchParams}:{searchParams:Search
       meta:`${firstLetter(item.category)} · ${formatAge(item.ageMinutes)}`,
       href:item.href,
       actionLabel:'Resolve',
-      tone:item.severity==='critical'?'critical':item.severity==='high'?'attention':'waiting' as const,
+      tone:item.severity==='critical'?'critical':item.severity==='high'?'attention':'waiting',
       inspect:<ContextActions label={`Inspect ${item.title}`}><WorkspaceDrawer triggerLabel="Inspect" eyebrow="Issue" title={item.title} description={item.detail} footer={<Link className="button" href={item.href}>Open source record</Link>}><InteractionFacts><InteractionFact label="Severity">{firstLetter(item.severity)}</InteractionFact><InteractionFact label="Category">{firstLetter(item.category)}</InteractionFact><InteractionFact label="Owner">{item.owner}</InteractionFact><InteractionFact label="Open for">{formatAge(item.ageMinutes)}</InteractionFact><InteractionFact label="Related record">{item.relatedLabel}</InteractionFact><InteractionFact label="Due">{item.dueAt?new Date(item.dueAt).toLocaleDateString('en-GB'):'Not date-driven'}</InteractionFact></InteractionFacts><WorkspaceContextLinks title="Resolution context" links={related}/></WorkspaceDrawer></ContextActions>,
     };
   });
