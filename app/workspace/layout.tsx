@@ -33,6 +33,7 @@ import './workspace-wave6.css';
 import './workspace-wave7.css';
 import './workspace-wave8.css';
 import './reference-surface.css';
+import './reference-behaviour-refactor.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
