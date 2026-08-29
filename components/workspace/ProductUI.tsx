@@ -28,10 +28,10 @@ export function ProductPageHeader({
   backHref?: string;
   backLabel?: string;
 }) {
-  return <header className="product-page-header">
+  return <header className="product-page-header operational-page-header">
     <div className="product-page-header__copy">
       {backHref ? <Link className="product-backlink" href={backHref}>← {backLabel}</Link> : null}
-      <p className="product-eyebrow">{eyebrow}</p>
+      <p className="product-eyebrow op-ui-eyebrow">{eyebrow}</p>
       <h1>{title}</h1>
       {description ? <p className="product-description">{description}</p> : null}
     </div>
@@ -40,26 +40,25 @@ export function ProductPageHeader({
 }
 
 export function ProductMetrics({ children, label }: { children: ReactNode; label?: string }) {
-  return <section className="product-metrics" aria-label={label}>{children}</section>;
+  return <section className="product-metrics op-ui-signals" aria-label={label}>{children}</section>;
 }
 
 export function ProductMetric({ label, value, detail, tone = 'neutral' }: { label: string; value: ReactNode; detail?: ReactNode; tone?: ProductTone }) {
-  return <article className={`product-metric product-metric--${tone}`} data-tone={tone}>
-    <span>{label}</span>
-    <strong>{value}</strong>
-    {detail ? <small>{detail}</small> : null}
+  return <article className={`product-metric product-metric--${tone} op-ui-signal`} data-tone={tone}>
+    <div className="op-ui-signal__top"><small>{label}</small><ProductStatus tone={tone}>{value}</ProductStatus></div>
+    {detail ? <span>{detail}</span> : null}
   </article>;
 }
 
 export function ProductSectionHeader({ eyebrow, title, meta, actions }: { eyebrow?: string; title: string; meta?: ReactNode; actions?: ReactNode }) {
   return <div className="product-section-header">
-    <div>{eyebrow ? <p className="product-eyebrow">{eyebrow}</p> : null}<h2>{title}</h2>{meta ? <div className="product-section-header__meta">{meta}</div> : null}</div>
+    <div>{eyebrow ? <p className="product-eyebrow op-ui-eyebrow">{eyebrow}</p> : null}<h2>{title}</h2>{meta ? <div className="product-section-header__meta">{meta}</div> : null}</div>
     {actions ? <div className="product-section-header__actions">{actions}</div> : null}
   </div>;
 }
 
 export function ProductEmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="product-empty-state" role="status">
+  return <div className="product-empty-state op-ui-empty" role="status">
     <strong>{title}</strong>
     {description ? <p>{description}</p> : null}
     {action ? <div>{action}</div> : null}
