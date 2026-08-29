@@ -27,9 +27,9 @@ function reveal(target: HTMLElement | null, focus = true) {
 }
 
 function contextualOwner(pathname: string) {
-  if (pathname.startsWith('/workspace/leads/')) return { label: 'Back to Case 360', kind: 'case' as const };
-  if (pathname.startsWith('/workspace/projects/')) return { label: 'Back to Project 360', kind: 'project' as const };
-  if (pathname.startsWith('/workspace/commercial-control')) return { label: 'Back to Commercial Control', kind: 'commercial' as const };
+  if (pathname.startsWith('/workspace/leads/')) return { label: 'Back to opportunity', kind: 'case' as const };
+  if (pathname.startsWith('/workspace/projects/')) return { label: 'Back to project', kind: 'project' as const };
+  if (pathname.startsWith('/workspace/commercial-control')) return { label: 'Back to commercials', kind: 'commercial' as const };
   return null;
 }
 
@@ -120,7 +120,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   function requireRecord() {
     if (documentRecordId) return true;
-    setDecision('This preview is not connected to a controlled document record. Open it from Case 360 or Project 360.');
+    setDecision('This preview is not connected to a document record. Open the document from its opportunity, project or the document register to continue.');
     scrollToId('document-review-feedback');
     return false;
   }
@@ -175,7 +175,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   async function submitForReview() {
     if (!requireRecord() || !documentRecordId) return;
-    await runAction('Submitting for controlled review…', () => submitControlledDocumentForReviewAction(documentRecordId), () => scrollToId('document-review-status', 120));
+    await runAction('Submitting for review…', () => submitControlledDocumentForReviewAction(documentRecordId), () => scrollToId('document-review-status', 120));
   }
 
   async function submitSignature() {
@@ -211,7 +211,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   async function archiveDocument() {
     if (!requireRecord() || !documentRecordId) return;
-    await runAction('Archiving controlled document…', () => archiveControlledDocumentAction(documentRecordId), (_status,message) => {
+    await runAction('Archiving document…', () => archiveControlledDocumentAction(documentRecordId), (_status,message) => {
       if (!returnToOperationalOwner(message)) scrollToId('document-review-status', 120);
     });
   }
@@ -219,18 +219,18 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
   return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
     <header className="document-review-header print:hidden">
       <Link aria-label={backLabel} title={backLabel} className="button secondary" href={backHref}>←</Link>
-      <div className="min-w-0"><p>Document review</p><h1>{title}</h1></div>
+      <div className="min-w-0"><p>Document</p><h1>{title}</h1></div>
       <span id="document-review-status" className="document-review-status">{currentStatus.replaceAll('_', ' ')}</span>
       <button className="button secondary desktop-review-control" onClick={() => setFullScreen((value) => !value)} type="button">{fullScreen ? 'Exit' : 'Full screen'}</button>
     </header>
 
     <section id="document-review-feedback" className="document-review-notice print:hidden" aria-live="polite">
       {decision || (hasRecord
-        ? isArchived ? 'This controlled revision is archived. Its issued evidence remains in the audit trail.'
-          : isIssued ? 'This document has been issued. Archive it when the controlled revision is no longer active.'
-          : canSubmitForReview ? 'Submit this revision for controlled review when the evidence is ready.'
-          : 'Review the document and complete the next permitted action.'
-        : 'Open this document from Case 360 or Project 360 to activate document actions.')}
+        ? isArchived ? 'This revision is archived. Its previous release remains available in Activity.'
+          : isIssued ? 'This document has been issued. Archive it when this revision is no longer active.'
+          : canSubmitForReview ? 'Submit this revision for review when it is ready.'
+          : 'Review the document and complete the next available action.'
+        : 'Open this document from its opportunity, project or the document register to activate document actions.')}
     </section>
 
     {actionMode === 'sign' && <section id="document-sign-action" className="card stack print:hidden" aria-label="Electronic signature">

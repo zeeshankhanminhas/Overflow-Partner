@@ -24,7 +24,7 @@ export default function MobileDocumentReviewView({
 
   return <article className="mobile-document-review" aria-label="Mobile document review">
     <section className="mobile-document-hero">
-      <p className="mobile-document-eyebrow">Controlled document</p>
+      <p className="mobile-document-eyebrow">Document</p>
       <h2>{document.title}</h2>
       <p>{language.purpose}</p>
       <div className="mobile-document-status-row">
@@ -35,23 +35,23 @@ export default function MobileDocumentReviewView({
 
     <section className="mobile-document-summary">
       <div><span>Reference</span><strong>{reference}</strong></div>
-      <div><span>Subject</span><strong>{adapted?.subject || 'No live record selected'}</strong></div>
-      <div><span>Source</span><strong>{adapted?.sourceLabel || 'Protected preview'}</strong></div>
+      <div><span>Subject</span><strong>{adapted?.subject || 'No work selected'}</strong></div>
+      <div><span>Source</span><strong>{adapted?.sourceLabel || 'Preview'}</strong></div>
       <div><span>Visibility</span><strong>{language.visibility}</strong></div>
     </section>
 
     {adapted?.warnings.length ? <section className="mobile-document-blockers">
-      <p className="mobile-document-eyebrow">Issue blockers</p>
+      <p className="mobile-document-eyebrow">Needs attention</p>
       <ul>{adapted.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
     </section> : null}
 
     {adapted?.facts.length ? <section className="mobile-document-section">
-      <div className="mobile-document-section-heading"><p className="mobile-document-eyebrow">Live evidence</p><h3>Document data</h3></div>
+      <div className="mobile-document-section-heading"><p className="mobile-document-eyebrow">Key details</p><h3>Document information</h3></div>
       <div className="mobile-document-facts">{adapted.facts.map((item) => <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>)}</div>
     </section> : null}
 
     <section className="mobile-document-section">
-      <div className="mobile-document-section-heading"><p className="mobile-document-eyebrow">Document content</p><h3>Review by section</h3></div>
+      <div className="mobile-document-section-heading"><p className="mobile-document-eyebrow">Contents</p><h3>Review document</h3></div>
       <div className="mobile-document-accordions">
         {language.sections.map((section, sectionIndex) => <details key={section.title} open={sectionIndex === 0}>
           <summary><span>{String(sectionIndex + 1).padStart(2, '0')}</span><strong>{section.title}</strong></summary>
@@ -61,10 +61,10 @@ export default function MobileDocumentReviewView({
     </section>
 
     <section className="mobile-document-control">
-      <p className="mobile-document-eyebrow">Release control</p>
-      <h3>Controlled publication</h3>
+      <p className="mobile-document-eyebrow">Release</p>
+      <h3>Ready to issue</h3>
       <p>{language.closingStatement}</p>
-      <div><span>Issue condition</span><strong>{language.issueCondition}</strong></div>
+      <div><span>Before issue</span><strong>{language.issueCondition}</strong></div>
     </section>
   </article>;
 }
