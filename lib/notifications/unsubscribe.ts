@@ -21,8 +21,9 @@ export function verifyNurtureUnsubscribeToken(organisationId: string, email: str
 }
 
 export function nurtureUnsubscribeUrl(organisationId: string, email: string) {
-  const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://overflow-partner.vercel.app').replace(/\/$/, '');
   const token = createNurtureUnsubscribeToken(organisationId, email);
+  if (!token) return '';
+  const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://overflow-partner.vercel.app').replace(/\/$/, '');
   const query = new URLSearchParams({ organisationId, email: email.trim().toLowerCase(), token });
   return `${base}/api/notifications/unsubscribe?${query.toString()}`;
 }
