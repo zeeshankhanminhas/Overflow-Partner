@@ -98,7 +98,8 @@ export function ProductRegisterRow({ children, href, className = '', id, serial 
 
 /* Action contract: colour follows consequence, never decoration. */
 export function ProductActionLink({ href, children, tone = 'secondary', className = '' }: { href: string; children: ReactNode; tone?: ProductActionTone; className?: string }) {
-  return <Link href={href} className={`button product-action product-action--${tone} ${className}`.trim()} data-action-tone={tone}>{children}</Link>;
+  const secondary = tone === 'primary' ? '' : 'secondary';
+  return <Link href={href} className={`button ${secondary} product-action product-action--${tone} ${className}`.trim()} data-action-tone={tone}>{children}</Link>;
 }
 
 /* Time contract: operational age and contractual date are separate concepts. */
