@@ -1,8 +1,8 @@
 # Global State Presentation Constitution
 
-Status: normative presentation architecture
+Status: normative presentation-state architecture
 
-This document governs how Overflow Partner turns authoritative business state into operator-facing UI. It does not redefine the Business Lifecycle Constitution or database authority.
+This document governs how Overflow Partner turns authoritative business state into operator-facing UI. It does not redefine the Business Lifecycle Constitution or database authority. Workspace interaction and visual behaviour are governed by `WORKSPACE_PRODUCT_CONTRACTS.md`.
 
 ## 1. Core architecture
 
@@ -134,22 +134,24 @@ The first meaningful viewport of a record should answer, in this order:
 
 Audit, history and metadata must remain available without competing with the current operating decision.
 
-## 9. CSS balance
+## 9. Presentation implementation boundary
 
-Presentation reconciliation must not create another generic card system.
+Presentation reconciliation must not create another generic card system or rescue stylesheet.
 
 Rules:
 
+- Use the four canonical surfaces and seven frontend contracts in `WORKSPACE_PRODUCT_CONTRACTS.md`.
 - Prefer one broad operating surface over several equal-weight cards.
 - Use borders only to establish structure or attention.
-- Do not override generic `.card` or `.button` styles from the presentation layer.
 - Avoid large empty containers.
 - Avoid tiny administrative table text for primary operating information.
 - Preserve controlled whitespace and readable density.
-- Mobile layouts must preserve state, waiting owner and next action before secondary metadata.
+- Mobile layouts preserve state, waiting owner and next action before secondary metadata.
 - Do not add another navigation layer to surface presentation state.
+- Do not introduce `*-polish.css`, `*-wave.css`, `*-parity.css` or replacement override layers.
 
-The scoped implementation stylesheet is `app/workspace/global-presentation.css`.
+Canonical shared presentation CSS is `app/workspace/workspace-presentation-system.css`.
+Canonical surface CSS is `app/workspace/product-surfaces.css`.
 
 ## 10. Change control
 
