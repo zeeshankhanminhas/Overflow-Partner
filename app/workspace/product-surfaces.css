@@ -1,8 +1,11 @@
 /* Canonical Overflow Partner surface system.
-   Every operating page should resolve to one of four surface types:
-   dashboard, record, register, decision. */
+   Every operating page resolves to one of four types:
+   dashboard, record, register, decision.
 
-.op-surface{
+   Existing pages are mapped here by stable root classes so the migration does
+   not require each page to invent another presentation layer. */
+
+:where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page:has(> .product-page-header),.acquisition-workspace,.approvals-workspace){
   --surface-bg:#f7f7f4;
   --surface-panel:#fff;
   --surface-text:#171717;
@@ -14,37 +17,42 @@
   color:var(--surface-text);
 }
 
-.op-surface :where(h1,h2,h3,strong){color:var(--surface-text)}
-.op-surface :where(p,small,label,time){color:var(--surface-muted)}
+:where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page:has(> .product-page-header),.acquisition-workspace,.approvals-workspace) :where(h1,h2,h3,strong){color:var(--surface-text)}
+:where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page:has(> .product-page-header),.acquisition-workspace,.approvals-workspace) :where(p,small,label,time){color:var(--surface-muted)}
 
-/* Dashboard — priority first, larger rhythm, fewer simultaneous controls. */
-.op-surface--dashboard{display:grid;gap:24px}
-.op-surface--dashboard :where(.product-panel,.op-ui-state,.op-ui-queue,.op-ui-next-action){border-radius:18px}
+/* DASHBOARD — Mission Control only. Priority first, larger rhythm, fewer simultaneous controls. */
+:where(.op-surface--dashboard,.mission-v2,.mobile-mission){display:grid;gap:24px}
+:where(.op-surface--dashboard,.mission-v2,.mobile-mission) :where(.product-panel,.op-ui-state,.op-ui-queue,.op-ui-next-action){border-radius:18px}
 
-/* Record — one object, current state, evidence and permitted action. */
-.op-surface--record{display:grid;gap:20px}
-.op-surface--record :where(.record-workspace__state,.record-workspace__slot,.op-ui-state){background:var(--surface-panel);border-color:var(--surface-line);box-shadow:none}
+/* RECORD — Case 360 / Project 360 and any RecordWorkspace implementation. */
+:where(.op-surface--record,.record-workspace){display:grid;gap:20px}
+:where(.op-surface--record,.record-workspace) :where(.record-workspace__state,.record-workspace__slot,.op-ui-state){background:var(--surface-panel);border-color:var(--surface-line);box-shadow:none}
 
-/* Register — compact scan, consistent row rhythm, no giant empty panels. */
-.op-surface--register{display:grid;gap:16px}
-.op-surface--register .product-page-header{padding-bottom:14px}
-.op-surface--register .product-metrics{gap:0;border:1px solid var(--surface-line);border-radius:12px;overflow:hidden;background:var(--surface-panel)}
-.op-surface--register .product-metric{min-height:72px;border:0;border-right:1px solid var(--surface-line);border-radius:0;background:transparent;box-shadow:none}
-.op-surface--register .product-metric:last-child{border-right:0}
-.op-surface--register .product-panel{padding:14px 16px;border-color:var(--surface-line);border-radius:12px;background:var(--surface-panel);box-shadow:none}
-.op-surface--register table th{position:static!important;top:auto!important}
-.op-surface--register table td{vertical-align:middle}
+/* REGISTER — Projects, Opportunities, Documents, Quotes, Payments and collection pages.
+   ProductPageHeader is the migration marker; approvals are explicitly excluded below. */
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace){display:grid;gap:16px}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-page-header{padding-bottom:14px}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metrics,
+.acquisition-workspace .op-ui-signals{gap:0;border:1px solid var(--surface-line);border-radius:12px;overflow:hidden;background:var(--surface-panel)}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metric{min-height:72px;border:0;border-right:1px solid var(--surface-line);border-radius:0;background:transparent;box-shadow:none}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metric:last-child{border-right:0}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-panel{padding:14px 16px;border-color:var(--surface-line);border-radius:12px;background:var(--surface-panel);box-shadow:none}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) table th{position:static!important;top:auto!important}
+:where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) table td{vertical-align:middle}
 
-/* Decision — evidence and consequence before controls. */
-.op-surface--decision{display:grid;gap:18px}
-.op-surface--decision :where(.op-ui-next-action,.op-ui-queue,.product-panel){background:var(--surface-panel);border-color:var(--surface-line);border-radius:16px;box-shadow:none}
-.op-surface--decision .button:not(.secondary){background:var(--surface-accent)!important;border-color:var(--surface-accent)!important;color:#fff!important}
+/* DECISION — approvals, reviews and bounded authority surfaces. */
+:where(.op-surface--decision,.approvals-workspace){display:grid;gap:18px}
+:where(.op-surface--decision,.approvals-workspace) :where(.op-ui-next-action,.op-ui-queue,.product-panel){background:var(--surface-panel);border-color:var(--surface-line);border-radius:16px;box-shadow:none}
+:where(.op-surface--decision,.approvals-workspace) .button:not(.secondary){background:var(--surface-accent)!important;border-color:var(--surface-accent)!important;color:#fff!important}
+
+/* Shared surface discipline: interaction layers do not become fifth/sixth page types. */
+.workspace :where(.workspace-drawer,.interaction-drawer,.decision-dialog,.work-window){--surface-panel:#fff;--surface-line:#e6e6e1}
 
 @media(max-width:720px){
-  .op-surface{gap:18px}
-  .op-surface--register .product-metrics{grid-template-columns:repeat(2,minmax(0,1fr));border-radius:14px}
-  .op-surface--register .product-metric{border-bottom:1px solid var(--surface-line)}
-  .op-surface--register .product-metric:nth-child(2n){border-right:0}
-  .op-surface--register .product-metric:nth-last-child(-n+2){border-bottom:0}
-  .op-surface--register .product-panel{padding:12px}
+  :where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page:has(> .product-page-header),.acquisition-workspace,.approvals-workspace){gap:18px}
+  :where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metrics{grid-template-columns:repeat(2,minmax(0,1fr));border-radius:14px}
+  :where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metric{border-bottom:1px solid var(--surface-line)}
+  :where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metric:nth-child(2n){border-right:0}
+  :where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-metric:nth-last-child(-n+2){border-bottom:0}
+  :where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace) .product-panel{padding:12px}
 }
