@@ -1,0 +1,209 @@
+/* Overflow Partner workspace presentation system.
+   Shared anatomy for all four canonical surface types.
+   This file owns hierarchy, spacing and information boundaries; page CSS should not recreate them. */
+
+.workspace{
+  --op-canvas:#f6f6f2;
+  --op-panel:#ffffff;
+  --op-panel-subtle:#fafaf7;
+  --op-line:#deded8;
+  --op-line-soft:#e9e9e4;
+  --op-text:#171717;
+  --op-muted:#6f7378;
+  --op-subtle:#969a9d;
+  --op-accent:#df2b26;
+  --op-radius:12px;
+  --op-section-gap:24px;
+  --op-panel-pad:18px;
+}
+
+.op-content{background:var(--op-canvas)}
+.op-content>section,.op-content>.vp-page,.op-content>.record-workspace,.op-content>.project-os-page{max-width:1280px}
+
+/* 1. Page anatomy */
+.op-content :where(.product-page-header,.saas-hero,.record-workspace__header,.project-os-header){
+  position:relative;
+  padding:6px 0 22px;
+  margin:0;
+  border:0;
+  border-bottom:1px solid var(--op-line);
+  background:transparent;
+}
+.op-content :where(.product-page-header,.saas-hero) h1,
+.op-content :where(.record-workspace__header,.project-os-header) h1{
+  margin-top:5px!important;
+  color:var(--op-text)!important;
+  font-size:clamp(32px,3vw,44px)!important;
+  line-height:1.04!important;
+  letter-spacing:-.045em!important;
+  font-weight:650!important;
+}
+.op-content :where(.product-description,.vp-subtitle,.saas-hero .vp-subtitle){
+  max-width:760px!important;
+  margin-top:10px!important;
+  color:var(--op-muted)!important;
+  font-size:13px!important;
+  line-height:1.55!important;
+}
+.op-content :where(.product-eyebrow,.vp-kicker,.vp-label,.record-workspace__eyebrow,.project-os-section-label){
+  color:var(--op-subtle)!important;
+  font-size:9px!important;
+  font-weight:760!important;
+  letter-spacing:.14em!important;
+  text-transform:uppercase!important;
+}
+.op-content .product-page-header__actions,.op-content .saas-hero__inner>div:last-child{align-self:flex-end}
+
+/* 2. Summary / signal strip */
+.op-content :where(.product-metrics,.saas-metrics,.vp-compact-metrics,.op-ui-signals){
+  overflow:hidden;
+  border:1px solid var(--op-line)!important;
+  border-radius:var(--op-radius)!important;
+  background:var(--op-panel)!important;
+  box-shadow:0 1px 1px rgba(17,17,17,.02);
+}
+.op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal){
+  min-height:78px!important;
+  padding:14px 15px!important;
+  border:0!important;
+  border-right:1px solid var(--op-line-soft)!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+.op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal):last-child{border-right:0!important}
+.op-content :where(.product-metric,.saas-metric,.vp-metric) span{font-size:10px!important;color:var(--op-muted)!important}
+.op-content :where(.product-metric,.saas-metric,.vp-metric)>strong{font-size:24px!important;line-height:1.05!important;color:var(--op-text)!important;font-weight:650!important}
+.op-content :where(.product-metric,.saas-metric,.vp-metric) small{font-size:9.5px!important;color:var(--op-subtle)!important;line-height:1.4!important}
+
+/* 3. Section anatomy */
+.op-content :where(.product-section-header,.saas-section__header,.record-workspace__group-heading){
+  min-height:42px;
+  margin:0 0 12px;
+  padding:0 0 10px;
+  align-items:flex-end;
+  border-bottom:1px solid var(--op-line-soft);
+}
+.op-content :where(.product-section-header,.saas-section__header) h2{
+  margin:3px 0 0!important;
+  color:var(--op-text)!important;
+  font-size:18px!important;
+  line-height:1.2!important;
+  letter-spacing:-.025em!important;
+  font-weight:650!important;
+}
+.op-content :where(.product-section-header__meta,.saas-section__header>span){color:var(--op-muted)!important;font-size:10px!important}
+
+/* 4. Three-level panel hierarchy: canvas / panel / inset. */
+.op-content :where(.product-panel,.saas-panel,.record-workspace__slot,.record-workspace__state,.project-os-panel,.op-ui-queue,.op-ui-state,.op-ui-next-action){
+  border:1px solid var(--op-line)!important;
+  border-radius:var(--op-radius)!important;
+  background:var(--op-panel)!important;
+  box-shadow:0 1px 2px rgba(17,17,17,.025)!important;
+}
+.op-content :where(.product-panel,.saas-panel){padding:var(--op-panel-pad)!important}
+.op-content :where(.vp-list,.product-register,.project-portfolio-register,.saas-action-list,.interaction-facts){
+  overflow:hidden;
+  border:1px solid var(--op-line-soft)!important;
+  border-radius:9px!important;
+  background:var(--op-panel-subtle)!important;
+}
+
+/* 5. Toolbars and filters must read as controls, not loose text. */
+.op-content :where(.product-filter-bar,.product-toolbar){
+  min-height:54px;
+  padding:9px 10px!important;
+  border:1px solid var(--op-line)!important;
+  border-radius:10px!important;
+  background:var(--op-panel)!important;
+  box-shadow:none!important;
+}
+.op-content :where(.product-filter-bar,.product-toolbar) input[type='search']{background:#fff!important;color:var(--op-text)!important;border-color:var(--op-line)!important}
+
+/* 6. Registers and tables */
+.op-content :where(.project-portfolio-register,.product-register){
+  border-color:var(--op-line)!important;
+  background:var(--op-panel)!important;
+}
+.op-content .project-portfolio-head{
+  min-height:38px;
+  padding:9px 12px;
+  background:#f2f2ee!important;
+  border-bottom:1px solid var(--op-line)!important;
+  color:#74787c!important;
+}
+.op-content :where(.project-portfolio-row,.product-register-row,.vp-row){
+  min-height:62px;
+  border-top:1px solid var(--op-line-soft)!important;
+  background:var(--op-panel)!important;
+}
+.op-content :where(.project-portfolio-row,.product-register-row,.vp-row):hover{background:#fafaf7!important}
+.op-content :where(.project-portfolio-row,.product-register-row,.vp-row)>div:first-child strong{color:var(--op-text)!important;font-weight:650}
+.op-content table{background:var(--op-panel);border-collapse:separate!important;border-spacing:0!important}
+.op-content table thead th{
+  position:static!important;
+  top:auto!important;
+  padding:10px 12px!important;
+  background:#f2f2ee!important;
+  color:#73777b!important;
+  border-bottom:1px solid var(--op-line)!important;
+  font-size:9px!important;
+  font-weight:760!important;
+  letter-spacing:.08em!important;
+}
+.op-content table tbody td{padding:12px!important;border-top:1px solid var(--op-line-soft)!important;background:#fff}
+.op-content table tbody tr:first-child td{border-top:0!important}
+.op-content table tbody tr:hover td{background:#fafaf7!important}
+
+/* 7. Actions and statuses */
+.op-content .button,.op-topbar .button{min-height:36px;border-radius:8px;font-weight:650}
+.op-content .button.secondary{background:#fff!important;border-color:var(--op-line)!important;color:#2a2a28!important}
+.op-content .button.secondary:hover{background:#f5f5f1!important;border-color:#cfcfc8!important}
+.op-content .product-status{min-height:22px;padding:3px 7px;border-color:var(--op-line)!important;background:#fafaf7}
+
+/* 8. Empty states remain visible and bounded. */
+.op-content :where(.product-empty-state,.vp-empty,.saas-empty){
+  min-height:92px;
+  padding:18px!important;
+  border:1px dashed #d7d7d0!important;
+  border-radius:9px!important;
+  background:#fbfbf8!important;
+  color:var(--op-muted)!important;
+}
+
+/* 9. Executive / Management dashboard modules. */
+.intelligence-workspace{display:grid!important;gap:22px!important}
+.intelligence-workspace>.saas-section:first-of-type{
+  padding:14px 16px;
+  border:1px solid var(--op-line);
+  border-radius:10px;
+  background:var(--op-panel);
+}
+.intelligence-workspace>div[style*='grid-template-columns']{gap:16px!important}
+.intelligence-workspace .saas-panel{min-width:0}
+.intelligence-workspace .saas-panel>.vp-list{margin-top:4px!important}
+.intelligence-workspace .vp-row{padding:11px 12px!important}
+.intelligence-workspace .vp-compact-metrics{margin-top:4px!important;margin-bottom:12px}
+.intelligence-workspace>.saas-panel{margin:0}
+
+/* 10. Record surfaces: sections must not float. */
+.record-workspace__decision-grid{gap:14px!important}
+.record-workspace__slot{padding:18px!important}
+.record-workspace__state{padding:16px 18px!important}
+.record-workspace__context-bar{background:var(--op-panel)!important;border-color:var(--op-line)!important}
+
+@media(max-width:900px){
+  .op-content{padding-left:18px!important;padding-right:18px!important}
+  .op-content :where(.product-page-header,.saas-hero){padding-bottom:18px}
+  .op-content :where(.product-page-header,.saas-hero) h1{font-size:32px!important}
+  .intelligence-workspace>div[style*='grid-template-columns']{grid-template-columns:1fr!important}
+}
+
+@media(max-width:720px){
+  .workspace{--op-section-gap:18px;--op-panel-pad:14px}
+  .op-content :where(.product-metrics,.saas-metrics,.vp-compact-metrics,.op-ui-signals){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal){border-right:1px solid var(--op-line-soft)!important;border-bottom:1px solid var(--op-line-soft)!important}
+  .op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal):nth-child(2n){border-right:0!important}
+  .op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal):nth-last-child(-n+2){border-bottom:0!important}
+  .op-content :where(.product-panel,.saas-panel){padding:14px!important}
+  .op-content :where(.product-section-header,.saas-section__header){align-items:flex-start;gap:10px}
+}
