@@ -37,6 +37,7 @@ import './mission-control-v2.css';
 import './mobile-ux-cleanup-wave.css';
 import './attention-priority.css';
 import './mobile-nav-safe-layout.css';
+import './project-mobile-reference.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -121,7 +122,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
           <div className="op-topbar-spacer" aria-hidden="true" />
           <div className="midts-topbar-tools op-topbar-tools"><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
         </header>
-        <header className="midts-mobile-header op-mobile-header"><div><strong>Overflow Partner</strong></div><div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div></header>
+        <header className="midts-mobile-header op-mobile-header">
+          <Link href={n.missionControl.href} className="op-mobile-header__brand" aria-label="Overflow Partner home">
+            <img src="/overflow-partner-logo.svg" alt="Overflow Partner" />
+          </Link>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
+        </header>
         <main className="midts-content op-content">{children}</main>
       </section>
 
