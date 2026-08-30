@@ -61,7 +61,7 @@ export default function RecordWorkspace({
   const owner = presentation ? ownerLabel(presentation) : 'Your team';
   const primaryHref = presentation?.primaryActions.find(action => action.href)?.href;
 
-  return <section className={`record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
+  return <section data-surface="record" className={`op-surface op-surface--record record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
     {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
 
