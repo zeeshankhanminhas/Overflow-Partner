@@ -38,6 +38,14 @@ function ownerBucket(stage: AttentionStage): ResolvedAttention['ownerBucket'] {
   return 'internal';
 }
 
+function priorityRank(value: string) {
+  const normalised = String(value || '').toLowerCase();
+  if (['critical', 'urgent'].includes(normalised)) return 4;
+  if (normalised === 'high') return 3;
+  if (normalised === 'medium') return 2;
+  return 1;
+}
+
 export function resolveBusinessAttention(items: AttentionSource[], now = new Date()): AttentionSummary {
   const resolved = items.map(item => {
     const waitingMinutes = minutesWaiting(item.waitingSince, now);
@@ -49,6 +57,15 @@ export function resolveBusinessAttention(items: AttentionSource[], now = new Dat
       ownerBucket: ownerBucket(item.stage),
       urgency: overdue ? 'aged' as const : 'normal' as const,
     };
+  }).sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    const priorityDelta = priorityRank(b.priority) - priorityRank(a.priority);
+    if (priorityDelta) return priorityDelta;
+    if (a.ownerBucket !== b.ownerBucket) {
+      if (a.ownerBucket === 'internal') return -1;
+      if (b.ownerBucket === 'internal') return 1;
+    }
+    return b.waitingMinutes - a.waitingMinutes;
   });
 
   return {
