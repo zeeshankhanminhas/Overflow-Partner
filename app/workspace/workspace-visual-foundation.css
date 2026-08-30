@@ -73,7 +73,8 @@
 .op-ui-icon{display:inline-block;width:18px;height:18px;flex:0 0 18px;color:currentColor}
 .op-ui-icon svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .workspace-shell-action{min-height:var(--op-control-standard)!important;height:var(--op-control-standard)!important;border-radius:var(--op-radius-control)!important;padding:0 var(--op-space-3)!important;gap:var(--op-space-2)!important;font-size:12px!important;font-weight:650!important}
-.workspace-shell-action>svg{width:18px!important;height:18px!important}
+.workspace-shell-action>svg{width:18px!important;height:18px!important;stroke-width:1.8!important}
+.op-mobile-header__actions{display:flex;align-items:center;gap:var(--op-space-2)}
 
 /* Mobile is the same visual system, only the composition changes. */
 @media(max-width:720px){
@@ -102,7 +103,8 @@
   .workspace-overlay__footer>*{min-height:var(--op-control-prominent)!important}
   .workspace-shell-action{width:36px!important;height:36px!important;padding:0!important;justify-content:center!important}
   .workspace-shell-action>span,.workspace-shell-action>kbd{display:none!important}
-  .workspace-shell-action>svg{width:18px!important;height:18px!important}
+  .workspace-shell-action>svg{width:18px!important;height:18px!important;stroke-width:1.8!important}
+  .op-mobile-header__actions{gap:var(--op-space-2)!important}
   .op-mobile-nav a{min-height:52px!important;border-radius:var(--op-radius-control)!important;font-size:11px!important;font-weight:500!important}
   .op-mobile-nav svg{width:21px!important;height:21px!important;stroke-width:1.8!important}
 }
