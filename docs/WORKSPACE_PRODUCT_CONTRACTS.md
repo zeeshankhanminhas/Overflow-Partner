@@ -4,7 +4,7 @@
 
 This document governs the commercial operator experience of the Overflow Partner workspace. It does not redefine lifecycle authority, database state, RLS, document governance or financial controls.
 
-The product uses exactly four reusable page surfaces and seven frontend contracts. New pages or components must fit these rules rather than create a new design language.
+The product uses exactly four reusable page surfaces, seven frontend contracts and five CRM/business relationship contracts. New pages or components must fit these rules rather than create a new design language.
 
 ## Four canonical surfaces
 
@@ -170,6 +170,7 @@ Rules:
 5. Notifications report that something changed; work queues report that something requires action. Do not duplicate the same work in both.
 6. Forms use logical grouping, sensible defaults, inline validation, appropriate input types and preserve entered values on recoverable errors.
 7. Mobile changes geometry, not semantic interaction type.
+8. Related business objects remain inspectable and navigable from the work that owns them; the operator must not have to search again for a company, contact, Case, Quote, Project, invoice, document or Partner already visible in context.
 
 Canonical interaction primitives remain in `components/workspace/InteractionSurface.tsx`.
 
@@ -191,6 +192,114 @@ Rules:
 8. Respect reduced-motion preferences.
 9. Disabled controls remain perceivable and explain why when that explanation helps recovery.
 10. Success, warning, blocked and critical feedback use stable semantic treatment across modules.
+
+---
+
+# CRM / Business Relationship Contracts
+
+These contracts govern how companies, people and commercial relationships behave inside the four product surfaces. They do not create additional surface types.
+
+## CRM 1. Relationship Contract
+
+Company, Contact, Enquiry, Case, Quote, Project, Invoice, Document, Communication and Execution Partner are related business objects, not isolated routes.
+
+Rules:
+
+1. If a visible object has an authoritative record, its name/reference is inspectable or openable.
+2. Relationship navigation is contextual and scoped to the current object; Company 360 links to that company's work, not a generic global register where a scoped view is available.
+3. Record surfaces expose the core relationship chain without duplicating lifecycle state.
+4. Inspect supporting context in a drawer first; open the authoritative record when deeper work is required.
+5. Historical relationships remain stable even when a contact later changes employer or role.
+
+## CRM 2. Contact Role Contract
+
+A person and their role in a piece of work are separate concepts.
+
+Canonical roles include:
+
+- Primary relationship contact
+- Technical contact
+- Commercial contact
+- Quote recipient
+- Billing contact
+- Project contact
+- Delivery reviewer
+- Final approver
+
+Rules:
+
+1. One contact may hold several roles.
+2. Roles belong to the company/work relationship, not permanently to the person.
+3. External actions identify the actual recipient person, role and address before execution.
+4. Generic labels such as `Client` may describe responsibility, but must not replace recipient identity where a communication or decision depends on a person.
+5. Until dedicated relationship-role persistence is introduced, existing Case/Lead `contact_id` is the authoritative primary contact and contextual recipient fields remain transaction evidence.
+
+## CRM 3. Communication Contract
+
+Every external communication must be attributable and observable.
+
+Minimum communication evidence:
+
+- Recipient name
+- Recipient address
+- Company/party
+- Purpose/scenario
+- Related business object
+- Queue/sent/failure state where available
+- Timestamp
+- Retry path when delivery fails
+
+Rules:
+
+1. Workflow state must never imply successful communication when notification queuing/delivery failed silently.
+2. Externally visible actions show who will receive the communication before execution.
+3. After execution, the owning record shows recipient and communication evidence when available.
+4. Reminder, notification and work-queue concepts remain distinct.
+5. Communication history is supporting evidence, not the primary source of lifecycle truth.
+
+## CRM 4. Account Context Contract
+
+Company 360 is the commercial relationship context, not another workflow engine.
+
+It should answer:
+
+1. Who is this company?
+2. Who do we deal with?
+3. What active and historical business do we have with them?
+4. What is the current commercial position?
+5. What needs attention?
+6. What happened recently?
+
+Company 360 may aggregate Contacts, Enquiries, Cases, Quotes, Projects, invoices/receivables, Documents and recent activity. Decisions and governed work remain in their authoritative records.
+
+## CRM 5. Data Stewardship Contract
+
+CRM master data must remain trustworthy over time.
+
+Rules:
+
+1. Email is normalised before duplicate comparison where practical.
+2. Creation flows should warn/block obvious duplicate contacts rather than silently create parallel identities.
+3. Companies and contacts with historical work are not hard-deleted merely because they become inactive.
+4. Historical transactions retain the recipient/company identity recorded at the time.
+5. Missing recipient data blocks external communication that requires it.
+6. Source/provenance of identity should remain traceable where available: enquiry, manual entry, import or transaction evidence.
+7. Future merge tooling must preserve references and audit history rather than delete one side of a relationship.
+
+---
+
+# File Identity & Attachment Presentation
+
+File links must communicate what the operator is about to open.
+
+Rules:
+
+1. Any visible attached/generated file uses a compact SVG/type thumbnail plus filename/title; do not present an unexplained bare link where the type can be inferred.
+2. Thumbnail identity is derived from extension or controlled document type and remains text-labelled (`PDF`, `DWG`, `DOC`, `XLS`, `IMG`, `ZIP`, etc.) so colour is not the only cue.
+3. Controlled documents may use their business document type when no physical extension is available.
+4. File thumbnails are presentation aids only; document reference/revision/status remain authoritative.
+
+Canonical UI: `components/workspace/FileTypeThumbnail.tsx`.
 
 ---
 
@@ -216,9 +325,11 @@ The repository previously contained several overlapping UX/presentation document
 - Presentation contracts: `app/workspace/workspace-presentation-system.css`
 - Interaction mechanics: `components/workspace/InteractionSurface.tsx` + `app/workspace/interaction-surfaces.css`
 - Business presentation state: `lib/presentation/`
+- CRM relationship presentation: Company/Contact master records + scoped drawers/links on owning records
+- File identity: `components/workspace/FileTypeThumbnail.tsx`
 
 ## Change-control rule
 
-Before changing a workspace page, classify the change against one of the seven contracts. If it does not belong to a contract and does not fix an accessibility/security defect or implement a genuine product capability, do not create a new presentation pattern.
+Before changing a workspace page, classify the change against one of the seven contracts or five CRM relationship contracts. If it does not belong to a contract and does not fix an accessibility/security defect or implement a genuine product capability, do not create a new presentation pattern.
 
 Do not add `*-polish.css`, `*-wave.css`, `*-parity.css`, `*-canonical-v2.css` or similar rescue layers. Modify the authoritative primitive/contract instead.
