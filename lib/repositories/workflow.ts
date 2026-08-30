@@ -57,7 +57,7 @@ export async function getProjectById(supabase: SupabaseClient, organisationId: s
 
   const [leadResult, quoteResult, managerResult] = await Promise.all([
     project.lead_id
-      ? supabase.from('leads').select('id,title,company_name,contact_name,contact_email,project_type,status,priority').eq('organisation_id', organisationId).eq('id', project.lead_id).maybeSingle()
+      ? supabase.from('leads').select('id,title,company_name,contact_name,contact_email,project_type,status,priority,company_id,contact_id').eq('organisation_id', organisationId).eq('id', project.lead_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     project.quote_id
       ? supabase.from('quotes').select('id,quote_number,revision,status,subtotal,vat,total,currency,valid_until,issued_at,accepted_at').eq('organisation_id', organisationId).eq('id', project.quote_id).maybeSingle()
@@ -71,15 +71,27 @@ export async function getProjectById(supabase: SupabaseClient, organisationId: s
   if (quoteResult.error) throw new Error(`Project quote could not be loaded: ${quoteResult.error.message}`);
   if (managerResult.error) throw new Error(`Project manager could not be loaded: ${managerResult.error.message}`);
 
+  const lead=leadResult.data as null|{company_id?:string|null;contact_id?:string|null};
+  const [companyResult,contactResult]=await Promise.all([
+    lead?.company_id?supabase.from('companies').select('id,name,website,industry,country').eq('organisation_id',organisationId).eq('id',lead.company_id).maybeSingle():Promise.resolve({data:null,error:null}),
+    lead?.contact_id?supabase.from('contacts').select('id,company_id,full_name,job_title,email,phone,linkedin_url').eq('organisation_id',organisationId).eq('id',lead.contact_id).maybeSingle():Promise.resolve({data:null,error:null}),
+  ]);
+  if(companyResult.error)throw new Error(`Client company could not be loaded: ${companyResult.error.message}`);
+  if(contactResult.error)throw new Error(`Client contact could not be loaded: ${contactResult.error.message}`);
+
   return {
     ...project,
     lead: leadResult.data,
     quote: quoteResult.data,
     project_manager: managerResult.data,
+    client_company: companyResult.data,
+    client_contact: contactResult.data,
   } as Project & {
     lead?: Record<string, unknown> | null;
     quote?: Record<string, unknown> | null;
     project_manager?: Record<string, unknown> | null;
+    client_company?: Record<string, unknown> | null;
+    client_contact?: Record<string, unknown> | null;
   };
 }
 export async function createProject(supabase: SupabaseClient, organisationId: string, userId: string, input: ProjectInput) { const projectNumber=await assertUniqueProjectNumber(supabase,organisationId,input.project_number); const {data,error}=await supabase.from('projects').insert({organisation_id:organisationId,created_by:userId,project_manager_id:userId,lead_id:input.lead_id,quote_id:nullable(input.quote_id),project_number:projectNumber,title:input.title,status:input.status,start_date:nullable(input.start_date),due_date:nullable(input.due_date),notes:nullable(input.notes)}).select('*').single(); if(error)throw new Error(error.message); return data as Project; }
