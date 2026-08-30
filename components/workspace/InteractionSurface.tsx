@@ -72,13 +72,13 @@ export function WorkWindow(props: Omit<InteractionSurfaceProps, 'kind'>) {
 }
 
 export function ContextActions({ children, label = 'Record context' }: { children: ReactNode; label?: string }) {
-  return <div className="interaction-context-actions" aria-label={label}>{children}</div>;
+  return <div className="interaction-context-actions product-toolbar__group" aria-label={label}>{children}</div>;
 }
 
 export function InteractionFacts({ children }: { children: ReactNode }) {
-  return <div className="interaction-facts">{children}</div>;
+  return <div className="interaction-facts crm-relationship-grid">{children}</div>;
 }
 
 export function InteractionFact({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="interaction-fact"><small>{label}</small><strong>{children}</strong></div>;
+  return <div className="interaction-fact crm-relationship-card"><small>{label}</small><strong>{children}</strong></div>;
 }
