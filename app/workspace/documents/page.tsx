@@ -14,5 +14,5 @@ export default async function WorkspaceDocumentsPage({ searchParams }: {
   const leadId = typeof params.lead === 'string' ? params.lead : null;
   const projectId = typeof params.project === 'string' ? params.project : null;
 
-  return <ProtectedDocumentEngine mode="index" leadId={leadId} projectId={projectId} />;
+  return <ProtectedDocumentEngine mode="index" leadId={leadId} projectId={projectId} query={params} />;
 }
