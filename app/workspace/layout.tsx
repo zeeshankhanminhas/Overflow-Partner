@@ -1,5 +1,4 @@
 import './workspace-responsive.css';
-import './mission-control.css';
 import './workspace-shell.css';
 import './visual-constitution.css';
 import './ui-polish.css';
@@ -36,6 +35,7 @@ import './reference-surface.css';
 import './reference-behaviour-refactor.css';
 import './mission-control-v2.css';
 import './mobile-ux-cleanup-wave.css';
+import './attention-priority.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';

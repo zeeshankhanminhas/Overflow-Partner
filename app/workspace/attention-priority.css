@@ -1,0 +1,39 @@
+/* Canonical Mission Control attention surfaces. Keep these selectors scoped so older workspace waves cannot leak into the priority experience. */
+.attention-page{display:grid;gap:16px;max-width:1280px!important;margin:0 auto}
+.attention-page__header{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;padding:4px 1px}
+.attention-page__header>div{min-width:0}
+.attention-page__header h1{margin:0!important}
+.attention-page__header p:not(.op-ui-eyebrow){margin:8px 0 0!important;max-width:72ch!important;font-size:12px!important;line-height:1.6!important}
+.attention-page__header>.button{flex:0 0 auto}
+
+.mission-v2 .op-ui-queue__row>.product-status,
+.attention-page .op-ui-queue__row>.product-status{justify-self:start;max-width:100%;white-space:normal;text-align:left}
+.mission-v2 .op-ui-panel__header a,
+.attention-page .op-ui-panel__header a{display:inline-flex;align-items:center;min-height:30px;padding:4px 0;font-weight:650}
+.attention-page .op-ui-queue__row{grid-template-columns:132px minmax(0,1fr) 116px 112px auto}
+.attention-page .op-ui-queue__copy strong{white-space:normal}
+.attention-page .op-ui-queue__copy p{white-space:normal;line-height:1.45!important}
+
+@media(max-width:1050px){
+  .attention-page .op-ui-queue__row{grid-template-columns:120px minmax(0,1fr) 108px auto}
+  .attention-page .op-ui-queue__meta{display:none}
+}
+
+@media(max-width:760px){
+  .mission-v2__header,.attention-page__header{display:grid;gap:14px;align-items:start}
+  .mission-v2__header-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:8px}
+  .mission-v2__header-actions .button:first-child{grid-column:1/-1}
+  .mission-v2__header-actions .button{width:100%;min-width:0}
+  .attention-page__header>.button{width:100%}
+  .attention-page{gap:12px}
+  .attention-page .op-ui-queue__row{grid-template-columns:1fr;gap:8px;padding:13px 12px}
+  .attention-page .op-ui-queue__meta{display:block}
+  .mission-v2 .op-ui-queue__actions,
+  .attention-page .op-ui-queue__actions{display:grid;grid-template-columns:1fr;width:100%}
+  .mission-v2 .op-ui-queue__actions .button,
+  .attention-page .op-ui-queue__actions .button{width:100%;min-height:40px!important}
+  .mission-v2 .op-ui-panel__header,
+  .attention-page .op-ui-panel__header{align-items:center}
+  .mission-v2 .op-ui-panel__header a,
+  .attention-page .op-ui-panel__header a{min-height:36px;padding:8px 0}
+}
