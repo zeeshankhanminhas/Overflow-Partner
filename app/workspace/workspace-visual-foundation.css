@@ -1,0 +1,108 @@
+/* Overflow Partner — canonical visual foundation implementation.
+   This file implements docs/VISUAL_FOUNDATION_SPECIFICATION.md and is the final
+   physical rendering authority for desktop and mobile. Feature CSS may compose
+   layouts but must not redefine these primitive values. */
+
+.workspace{
+  --op-space-1:4px;
+  --op-space-2:8px;
+  --op-space-3:12px;
+  --op-space-4:16px;
+  --op-space-5:24px;
+  --op-space-6:32px;
+  --op-radius-control:8px;
+  --op-radius-inset:8px;
+  --op-radius-panel:12px;
+  --op-radius-overlay:12px;
+  --op-radius-pill:999px;
+  --op-border-soft:#e9e9e4;
+  --op-border-default:#deded8;
+  --op-border-strong:#c9c9c1;
+  --op-control-compact:32px;
+  --op-control-standard:36px;
+  --op-control-prominent:40px;
+  --op-shadow-popover:0 14px 36px rgba(17,17,17,.12);
+  --op-shadow-overlay:0 24px 70px rgba(17,17,17,.18);
+}
+
+/* A — spacing and density */
+.op-content{padding:var(--op-space-5) var(--op-space-6) 56px!important}
+.op-content :where(.product-panel,.saas-panel,.record-workspace__slot,.record-workspace__state,.project-os-panel,.op-ui-queue,.op-ui-state,.op-ui-next-action,.crm-relationship-card,.workspace-module-rule){padding:var(--op-space-4)!important}
+.op-content :where(.vp-fact,.interaction-fact,.product-notice,.product-empty-state,.workspace-lock-card){padding:var(--op-space-3)!important}
+.op-content :where(.product-stack,.saas-section,.workspace-module-context){gap:var(--op-space-4)!important}
+.op-content :where(.product-toolbar,.product-filter-bar,.product-toolbar__group,.product-filter-group__controls,.product-page-header__actions,.product-section-header__actions,.interaction-context-actions){gap:var(--op-space-2)!important}
+.op-content table :where(th,td){padding:var(--op-space-3)!important}
+.op-content :where(.product-register-row,.vp-row,.project-portfolio-row){padding:var(--op-space-3) var(--op-space-4)!important}
+
+/* B — typography */
+.op-content :where(.product-page-header,.saas-hero,.record-workspace__header,.project-os-header) h1{font-size:32px!important;line-height:1.1!important;font-weight:650!important;letter-spacing:-.035em!important}
+.op-content :where(.record-workspace__title,.project-title){font-size:24px!important;line-height:1.15!important;font-weight:650!important}
+.op-content :where(.product-section-header,.saas-section__header) h2,.workspace-overlay__header h2{font-size:18px!important;line-height:1.25!important;font-weight:650!important}
+.op-content :where(p,.product-description,.vp-subtitle,.saas-hero .vp-subtitle){font-size:13px!important;line-height:1.5!important}
+.op-content :where(.product-register-row,.vp-row,.project-portfolio-row) :where(h3,strong),.op-content table tbody strong{font-size:14px!important;line-height:1.45!important;font-weight:650!important}
+.op-content :where(.product-register-row,.vp-row,.project-portfolio-row) :where(p,small),.op-content table tbody :where(td,small,span){font-size:12px!important;line-height:1.45!important}
+.op-content :where(.product-eyebrow,.vp-kicker,.vp-label,.record-workspace__eyebrow,.project-os-section-label,.product-filter-group__label,.crm-relationship-card small,.crm-recipient__role){font-size:10px!important;line-height:1.3!important;font-weight:650!important;letter-spacing:.09em!important}
+.op-content table thead th{font-size:11px!important;line-height:1.3!important;font-weight:650!important;letter-spacing:.04em!important}
+.op-content :where(.product-date,.product-age){font-size:12px!important;line-height:1.45!important;font-weight:500!important}
+
+/* C — geometry */
+.op-content :where(.product-panel,.saas-panel,.record-workspace__slot,.record-workspace__state,.project-os-panel,.op-ui-queue,.op-ui-state,.op-ui-next-action,.product-register,.project-portfolio-register,.saas-action-list){border-radius:var(--op-radius-panel)!important;border-color:var(--op-border-default)!important;box-shadow:none!important}
+.op-content :where(.vp-list,.vp-fact,.interaction-fact,.crm-relationship-card,.crm-recipient,.product-notice,.product-empty-state,.workspace-popover__panel,.workspace-module-rule){border-radius:var(--op-radius-inset)!important;border-color:var(--op-border-soft)!important}
+.op-content :where(input,select,textarea,.button,button:not(.workspace-overlay__close)){border-radius:var(--op-radius-control)!important}
+.workspace-popover__panel{box-shadow:var(--op-shadow-popover)!important}
+.workspace-overlay__frame{border-radius:var(--op-radius-overlay)!important;border-color:var(--op-border-default)!important;box-shadow:var(--op-shadow-overlay)!important}
+.workspace-overlay--drawer .workspace-overlay__frame{border-radius:0!important}
+
+/* D — controls and status alignment */
+.op-content :where(.button,button,input,select){min-height:var(--op-control-standard)!important}
+.op-content :where(.button,button){display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:var(--op-space-2)!important;padding:0 var(--op-space-3)!important;font-size:12px!important;line-height:1!important;font-weight:650!important}
+.op-content :where(.button,button) svg,.workspace-shell-action svg{width:16px;height:16px;flex:0 0 16px}
+.op-content :where(.product-status,.vp-row-status){display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:24px!important;height:24px!important;padding:0 8px!important;border-radius:var(--op-radius-pill)!important;font-size:11px!important;line-height:1!important;font-weight:650!important;white-space:nowrap!important}
+.op-content .product-status::before{width:5px!important;height:5px!important;margin-right:6px!important;flex:0 0 5px}
+
+/* E — containers and interaction layers */
+.workspace-overlay__header{padding:var(--op-space-5)!important;gap:var(--op-space-5)!important;border-color:var(--op-border-soft)!important}
+.workspace-overlay__body{padding:var(--op-space-5)!important}
+.workspace-overlay__footer{padding:var(--op-space-4) var(--op-space-5)!important;gap:var(--op-space-2)!important;border-color:var(--op-border-soft)!important}
+.workspace-overlay--modal .workspace-overlay__frame{width:min(620px,94vw)!important}
+.workspace-overlay--drawer .workspace-overlay__frame{width:min(520px,92vw)!important}
+.workspace-overlay--window .workspace-overlay__frame{width:min(1050px,94vw)!important}
+.interaction-facts{gap:var(--op-space-2)!important}
+
+/* F — iconography and shell brand geometry */
+.op-ui-icon{display:inline-block;width:18px;height:18px;flex:0 0 18px;color:currentColor}
+.op-ui-icon svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.workspace-shell-action{min-height:var(--op-control-standard)!important;height:var(--op-control-standard)!important;border-radius:var(--op-radius-control)!important;padding:0 var(--op-space-3)!important;gap:var(--op-space-2)!important;font-size:12px!important;font-weight:650!important}
+.workspace-shell-action>svg{width:18px!important;height:18px!important}
+
+/* Mobile is the same visual system, only the composition changes. */
+@media(max-width:720px){
+  .op-content{padding:var(--op-space-4) var(--op-space-4) 32px!important}
+  .op-content :where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page,.acquisition-workspace,.approvals-workspace,.project-os-page){gap:var(--op-space-4)!important}
+  .op-content :where(.product-page-header,.saas-hero,.record-workspace__header,.project-os-header) h1{font-size:28px!important;line-height:1.1!important}
+  .op-content :where(.product-panel,.saas-panel,.record-workspace__slot,.record-workspace__state,.project-os-panel,.op-ui-queue,.op-ui-state,.op-ui-next-action,.crm-relationship-card,.workspace-module-rule){padding:var(--op-space-4)!important;border-radius:var(--op-radius-panel)!important}
+  .op-content :where(.vp-fact,.interaction-fact,.product-notice,.product-empty-state){padding:var(--op-space-3)!important;border-radius:var(--op-radius-inset)!important}
+  .op-content :where(.product-register-row,.vp-row,.project-portfolio-row){padding:var(--op-space-4)!important;border-radius:var(--op-radius-panel)!important;gap:var(--op-space-3)!important}
+  .op-content :where(.product-filter-bar,.product-toolbar){padding:var(--op-space-3)!important;gap:var(--op-space-2)!important;border-radius:var(--op-radius-panel)!important}
+  .op-content :where(.product-filter-bar,.product-toolbar) :where(input,select,.button,button){min-height:var(--op-control-prominent)!important}
+  .op-content :where(.product-status,.vp-row-status){height:24px!important;min-height:24px!important}
+  .op-content table thead th{font-size:11px!important;padding:var(--op-space-3)!important}
+  .op-content table tbody td{font-size:12px!important;padding:var(--op-space-3)!important}
+
+  /* Mobile register/card actions: full usable card width, equal height, centred. */
+  .op-content :where(.product-register-row,.vp-row,.project-portfolio-row,.project-card,.acquisition-card) .interaction-context-actions,
+  .op-content :where(.product-register-row,.vp-row,.project-portfolio-row,.project-card,.acquisition-card) :where(.row-actions,.record-actions,.project-actions){display:grid!important;grid-template-columns:1fr!important;width:100%!important;gap:var(--op-space-2)!important}
+  .op-content :where(.product-register-row,.vp-row,.project-portfolio-row,.project-card,.acquisition-card) .interaction-context-actions>* ,
+  .op-content :where(.product-register-row,.vp-row,.project-portfolio-row,.project-card,.acquisition-card) :where(.row-actions,.record-actions,.project-actions)>*{width:100%!important;min-height:var(--op-control-prominent)!important;justify-content:center!important;text-align:center!important}
+
+  .workspace-overlay--drawer,.workspace-overlay--modal,.workspace-overlay--window{padding:0!important;place-items:stretch!important}
+  .workspace-overlay--drawer .workspace-overlay__frame,.workspace-overlay--modal .workspace-overlay__frame,.workspace-overlay--window .workspace-overlay__frame{width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;border:0!important;border-radius:0!important}
+  .workspace-overlay__header,.workspace-overlay__body{padding:var(--op-space-4)!important}
+  .workspace-overlay__footer{padding:var(--op-space-4)!important;padding-bottom:max(var(--op-space-4),env(safe-area-inset-bottom))!important}
+  .workspace-overlay__footer>*{min-height:var(--op-control-prominent)!important}
+  .workspace-shell-action{width:36px!important;height:36px!important;padding:0!important;justify-content:center!important}
+  .workspace-shell-action>span,.workspace-shell-action>kbd{display:none!important}
+  .workspace-shell-action>svg{width:18px!important;height:18px!important}
+  .op-mobile-nav a{min-height:52px!important;border-radius:var(--op-radius-control)!important;font-size:11px!important;font-weight:500!important}
+  .op-mobile-nav svg{width:21px!important;height:21px!important;stroke-width:1.8!important}
+}
