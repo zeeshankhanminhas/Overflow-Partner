@@ -10,7 +10,7 @@ export async function requireUserContext() {
 
   const { data, error: profileError } = await supabase
     .from('profiles')
-    .select('id, organisation_id, full_name, first_name, last_name, email, role, is_active')
+    .select('id, organisation_id, full_name, first_name, last_name, email, role, is_active, developer_delete_enabled')
     .eq('id', user.id)
     .single();
 
