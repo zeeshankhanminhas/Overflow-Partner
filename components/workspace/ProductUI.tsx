@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 export type ProductTone = 'neutral' | 'active' | 'waiting' | 'attention' | 'blocked' | 'complete' | 'critical';
+export type ProductActionTone = 'primary' | 'secondary' | 'approve' | 'warning' | 'destructive';
 export type ProductProvenanceSource = 'op' | 'partner' | 'system' | 'client';
 
 export function ProductStatus({ children, tone = 'neutral' }: { children: ReactNode; tone?: ProductTone }) {
@@ -67,29 +68,53 @@ export function ProductEmptyState({ title, description, action }: { title: strin
 
 export function ProductNotice({ title, children, tone = 'neutral' }: { title: string; children?: ReactNode; tone?: ProductTone }) {
   const urgent = tone === 'blocked' || tone === 'critical';
-  return <div
-    className={`product-notice product-notice--${tone}`}
-    data-continuity-notice
-    data-tone={tone}
-    role={urgent ? 'alert' : 'status'}
-    aria-live={urgent ? 'assertive' : 'polite'}
-  >
+  return <div className={`product-notice product-notice--${tone}`} data-continuity-notice data-tone={tone} role={urgent ? 'alert' : 'status'} aria-live={urgent ? 'assertive' : 'polite'}>
     <strong>{title}</strong>
     {children ? <div>{children}</div> : null}
   </div>;
 }
 
-export function ProductFilterBar({ children }: { children: ReactNode }) {
-  return <div className="product-filter-bar">{children}</div>;
+/* Filter contract: filters are labelled operating controls, not loose buttons. */
+export function ProductFilterBar({ children, label = 'Filter records' }: { children: ReactNode; label?: string }) {
+  return <div className="product-filter-bar" role="group" aria-label={label}>{children}</div>;
 }
 
-export function ProductRegister({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`product-register ${className}`.trim()}>{children}</div>;
+export function ProductFilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="product-filter-group"><span className="product-filter-group__label">{label}</span><div className="product-filter-group__controls">{children}</div></div>;
 }
 
-export function ProductRegisterRow({ children, href, className = '', id }: { children: ReactNode; href?: string; className?: string; id?: string }) {
-  const body = <>{children}</>;
+/* Register contract: optional serial aids discussion without replacing business identifiers. */
+export function ProductRegister({ children, className = '', label = 'Records' }: { children: ReactNode; className?: string; label?: string }) {
+  return <div className={`product-register ${className}`.trim()} role="list" aria-label={label}>{children}</div>;
+}
+
+export function ProductRegisterRow({ children, href, className = '', id, serial }: { children: ReactNode; href?: string; className?: string; id?: string; serial?: number }) {
+  const body = <>{serial ? <span className="product-register-row__serial" aria-label={`Row ${serial}`}>{serial}</span> : null}{children}</>;
+  const cls = `product-register-row ${serial ? 'product-register-row--numbered' : ''} ${className}`.trim();
   return href
-    ? <Link id={id} className={`product-register-row ${className}`.trim()} href={href}>{body}</Link>
-    : <div id={id} className={`product-register-row ${className}`.trim()}>{body}</div>;
+    ? <Link id={id} className={cls} href={href} role="listitem">{body}</Link>
+    : <div id={id} className={cls} role="listitem">{body}</div>;
+}
+
+/* Action contract: colour follows consequence, never decoration. */
+export function ProductActionLink({ href, children, tone = 'secondary', className = '' }: { href: string; children: ReactNode; tone?: ProductActionTone; className?: string }) {
+  return <Link href={href} className={`button product-action product-action--${tone} ${className}`.trim()} data-action-tone={tone}>{children}</Link>;
+}
+
+/* Time contract: operational age and contractual date are separate concepts. */
+export function ProductAge({ value, now = new Date() }: { value: string | Date | null | undefined; now?: Date }) {
+  if (!value) return <span className="product-age product-age--unknown">—</span>;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return <span className="product-age product-age--unknown">—</span>;
+  const minutes = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 60000));
+  const label = minutes < 60 ? `${Math.max(1, minutes)}m` : minutes < 1440 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 1440)}d`;
+  const band = minutes >= 10080 ? 'old' : minutes >= 4320 ? 'aging' : 'normal';
+  return <time className={`product-age product-age--${band}`} dateTime={date.toISOString()} title={date.toLocaleString('en-GB')}>{label}</time>;
+}
+
+export function ProductDate({ value, fallback = '—' }: { value: string | Date | null | undefined; fallback?: string }) {
+  if (!value) return <span className="product-date product-date--empty">{fallback}</span>;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return <span className="product-date product-date--empty">{fallback}</span>;
+  return <time className="product-date" dateTime={date.toISOString()}>{date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</time>;
 }
