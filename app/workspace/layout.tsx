@@ -1,10 +1,8 @@
 /* Workspace CSS loading policy
    1) semantic/core styles
    2) active feature styles
-   3) canonical surface + seven-contract presentation layer LAST
-
-   Historical wave/polish/parity/reference layers have been removed from the
-   repository. Do not add rescue override layers; update the owning primitive. */
+   3) canonical surface + product presentation
+   4) visual foundation LAST — the physical rendering authority on desktop and mobile. */
 import './workspace-responsive.css';
 import './workspace-shell.css';
 import './visual-constitution.css';
@@ -23,7 +21,7 @@ import './workspace-interaction-system.css';
 import './mission-control-v2.css';
 import './attention-priority.css';
 
-/* Canonical presentation layer. Keep these last. */
+/* Canonical presentation layer. */
 import './product-surfaces.css';
 import './project-mobile-reference.css';
 import './mobile-reference-rebuild.css';
@@ -31,6 +29,7 @@ import './mobile-header-actions.css';
 import './project-desktop-canonical.css';
 import './document-register-canonical.css';
 import './workspace-presentation-system.css';
+import './workspace-visual-foundation.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
@@ -122,7 +121,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
           <Link href={n.missionControl.href} className="op-mobile-header__brand" aria-label="Overflow Partner home">
             <img src="/overflow-partner-logo.svg" alt="Overflow Partner" />
           </Link>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}><Suspense fallback={null}><DeveloperDeleteCurrentRecord enabled={developerDeleteEnabled}/></Suspense><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
+          <div className="op-mobile-header__actions"><Suspense fallback={null}><DeveloperDeleteCurrentRecord enabled={developerDeleteEnabled}/></Suspense><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
         </header>
         <main className="midts-content op-content">{children}</main>
       </section>
