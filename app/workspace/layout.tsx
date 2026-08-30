@@ -1,10 +1,10 @@
 /* Workspace CSS loading policy
    1) semantic/core styles
    2) active feature styles
-   3) canonical mobile + desktop surfaces LAST
+   3) canonical surface + seven-contract presentation layer LAST
 
-   Historical polish/wave/parity/reference override files remain in the repo for
-   rollback/history but are deliberately no longer loaded by the workspace shell. */
+   Historical wave/polish/parity/reference layers have been removed from the
+   repository. Do not add rescue override layers; update the owning primitive. */
 import './workspace-responsive.css';
 import './workspace-shell.css';
 import './visual-constitution.css';
@@ -16,7 +16,6 @@ import './lifecycle-sidebar.css';
 import './document-print.css';
 import './record-workspace.css';
 import './continuity.css';
-import './commercial-saas-ui.css';
 import './product-registers.css';
 import './product-states.css';
 import './phase3-document-actions.css';
