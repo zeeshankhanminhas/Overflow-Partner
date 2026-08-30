@@ -1,0 +1,296 @@
+/* Canonical desktop Project 360 presentation.
+   Loaded last to prevent legacy workspace styles from leaking into the project surface.
+   Mobile is intentionally untouched. */
+
+@media (min-width: 901px) {
+  .project-os-page.record-workspace {
+    --pd-bg: #f6f6f3;
+    --pd-surface: #ffffff;
+    --pd-text: #171717;
+    --pd-muted: #71757b;
+    --pd-line: #e5e5df;
+    --pd-red: #df2b26;
+    --pd-red-soft: #fff1ef;
+    --pd-green: #3d7f44;
+    --pd-green-soft: #eef7ef;
+    --pd-amber: #a96b00;
+    --pd-amber-soft: #fff6e5;
+    color: var(--pd-text) !important;
+    width: min(1180px, calc(100vw - 330px));
+    margin: 0 auto;
+    padding: 30px 0 72px;
+    display: grid;
+    gap: 20px;
+  }
+
+  .op-content:has(.project-os-page) {
+    background: var(--pd-bg, #f6f6f3) !important;
+  }
+
+  .project-os-page .record-workspace__header {
+    margin: 0;
+    padding: 0 2px 18px;
+    border-bottom: 1px solid var(--pd-line);
+  }
+  .project-os-page .record-workspace__header h1 {
+    max-width: 900px;
+    margin: 8px 0 10px !important;
+    color: var(--pd-text) !important;
+    font-size: clamp(34px, 3vw, 48px) !important;
+    line-height: .98 !important;
+    letter-spacing: -.045em !important;
+    font-weight: 760 !important;
+  }
+  .project-os-page .project-os-back,
+  .project-os-page .project-os-reference {
+    color: var(--pd-muted) !important;
+    font-size: 12px !important;
+  }
+  .project-os-page .project-os-meta {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  .project-os-page .project-os-meta > span {
+    background: var(--pd-surface) !important;
+    border: 1px solid var(--pd-line) !important;
+    border-radius: 999px !important;
+    color: #62666c !important;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    box-shadow: none !important;
+  }
+
+  .project-os-page .record-workspace__state,
+  .project-os-page .operating-state,
+  .project-os-page .record-workspace__context-bar,
+  .project-os-page .record-workspace__slot,
+  .project-os-page .record-workspace__primary-work,
+  .project-os-page .record-workspace__group--evidence .record-workspace__slot {
+    background: var(--pd-surface) !important;
+    color: var(--pd-text) !important;
+    border: 1px solid var(--pd-line) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 6px 20px rgba(23,23,23,.035) !important;
+  }
+
+  .project-os-page .record-workspace__state {
+    padding: 20px 22px 14px !important;
+  }
+  .project-os-page .project-os-progress-card,
+  .project-os-page .project-os-progress-scroll,
+  .project-os-page .project-os-progress,
+  .project-os-page .project-os-progress-footer {
+    background: transparent !important;
+    color: inherit !important;
+    border-color: var(--pd-line) !important;
+  }
+  .project-os-page .project-os-progress::before {
+    background: var(--pd-line) !important;
+  }
+  .project-os-page .project-os-progress li strong,
+  .project-os-page .project-os-progress li small,
+  .project-os-page .project-os-progress-footer p,
+  .project-os-page .project-os-progress-footer span {
+    color: var(--pd-muted) !important;
+  }
+  .project-os-page .project-os-progress li.current strong,
+  .project-os-page .project-os-progress li.current small {
+    color: var(--pd-red) !important;
+  }
+  .project-os-page .project-os-node span {
+    background: #202020 !important;
+    color: #fff !important;
+    border: 0 !important;
+  }
+  .project-os-page .project-os-progress li.current .project-os-node span {
+    background: var(--pd-red) !important;
+  }
+  .project-os-page .record-workspace__provenance {
+    margin-top: 14px !important;
+    border-top: 1px solid var(--pd-line) !important;
+    padding-top: 12px !important;
+  }
+
+  .project-os-page .operating-state {
+    padding: 24px !important;
+  }
+  .project-os-page .operating-state h2,
+  .project-os-page .operating-state strong,
+  .project-os-page .operating-state__title,
+  .project-os-page .operating-state__record,
+  .project-os-page .operating-state__owner,
+  .project-os-page .operating-state__action {
+    color: var(--pd-text) !important;
+  }
+  .project-os-page .operating-state p,
+  .project-os-page .operating-state small,
+  .project-os-page .operating-state span {
+    color: var(--pd-muted) !important;
+  }
+  .project-os-page .operating-state a,
+  .project-os-page .operating-state button,
+  .project-os-page .operating-state__action {
+    border-radius: 12px !important;
+  }
+
+  .project-os-page .record-workspace__context-bar {
+    padding: 10px 12px !important;
+    box-shadow: none !important;
+  }
+  .project-os-page .record-workspace__context-bar > span {
+    color: var(--pd-muted) !important;
+  }
+
+  .project-os-page .record-workspace__group {
+    display: grid !important;
+    gap: 12px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+  .project-os-page .record-workspace__group-heading {
+    padding: 0 2px !important;
+    display: flex !important;
+    align-items: end !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+  }
+  .project-os-page .record-workspace__group-heading p,
+  .project-os-page .record-workspace__eyebrow {
+    margin: 0 !important;
+    color: #55595f !important;
+    font-size: 11px !important;
+    font-weight: 760 !important;
+    letter-spacing: .09em !important;
+    text-transform: uppercase !important;
+  }
+  .project-os-page .record-workspace__group-heading span {
+    color: #92959a !important;
+    font-size: 11px !important;
+  }
+
+  .project-os-page .record-workspace__decision-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.45fr) minmax(310px, .75fr) !important;
+    gap: 14px !important;
+    align-items: start !important;
+  }
+  .project-os-page .record-workspace__slot {
+    padding: 18px !important;
+    min-width: 0 !important;
+  }
+  .project-os-page .record-workspace__slot--readiness {
+    grid-column: 1;
+  }
+  .project-os-page .record-workspace__slot--summary {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .project-os-page .project-os-check-row {
+    border: 0 !important;
+    border-bottom: 1px solid var(--pd-line) !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 13px 0 !important;
+    color: var(--pd-text) !important;
+  }
+  .project-os-page .project-os-check-row:last-child {
+    border-bottom: 0 !important;
+  }
+  .project-os-page .project-os-check-row strong {
+    color: var(--pd-text) !important;
+  }
+  .project-os-page .project-os-check-row small,
+  .project-os-page .project-os-check-row > span:last-child {
+    color: var(--pd-muted) !important;
+  }
+  .project-os-page .project-os-check-row a {
+    color: var(--pd-red) !important;
+    font-weight: 700 !important;
+  }
+  .project-os-page .project-os-check-icon {
+    background: var(--pd-green-soft) !important;
+    color: var(--pd-green) !important;
+    border: 0 !important;
+  }
+  .project-os-page .project-os-check-icon.missing {
+    background: var(--pd-red-soft) !important;
+    color: var(--pd-red) !important;
+  }
+
+  /* Critical legacy leak: old dark live-work/evidence strips. */
+  .project-os-page .record-workspace__primary-work,
+  .project-os-page .record-workspace__slot--primary-work,
+  .project-os-page .record-workspace__slot--evidence {
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  .project-os-page .record-workspace__slot--primary-work > .record-workspace__eyebrow,
+  .project-os-page .record-workspace__slot--evidence > .record-workspace__eyebrow {
+    padding: 16px 18px 0 !important;
+  }
+  .project-os-page #record-activities,
+  .project-os-page #record-documents {
+    background: var(--pd-surface) !important;
+    color: var(--pd-text) !important;
+  }
+  .project-os-page #record-activities *,
+  .project-os-page #record-documents * {
+    border-color: var(--pd-line) !important;
+  }
+  .project-os-page #record-activities [style*="background"],
+  .project-os-page #record-documents [style*="background"] {
+    background: transparent !important;
+  }
+  .project-os-page #record-activities [style*="color"],
+  .project-os-page #record-documents [style*="color"] {
+    color: inherit !important;
+  }
+  .project-os-page #record-activities > div,
+  .project-os-page #record-documents > div {
+    background: var(--pd-surface) !important;
+  }
+  .project-os-page #record-activities .vp-facts,
+  .project-os-page #record-documents .vp-facts,
+  .project-os-page #record-activities [class*="facts"],
+  .project-os-page #record-documents [class*="facts"] {
+    background: #fafaf8 !important;
+    color: var(--pd-text) !important;
+    border-top: 1px solid var(--pd-line) !important;
+    border-bottom: 1px solid var(--pd-line) !important;
+  }
+  .project-os-page #record-activities .vp-fact,
+  .project-os-page #record-documents .vp-fact,
+  .project-os-page #record-activities [class*="fact"],
+  .project-os-page #record-documents [class*="fact"] {
+    background: transparent !important;
+    color: var(--pd-text) !important;
+  }
+  .project-os-page #record-activities strong,
+  .project-os-page #record-documents strong {
+    color: var(--pd-text) !important;
+  }
+  .project-os-page #record-activities small,
+  .project-os-page #record-activities span,
+  .project-os-page #record-documents small,
+  .project-os-page #record-documents span {
+    color: var(--pd-muted) !important;
+  }
+
+  .project-os-page a.button,
+  .project-os-page button.button,
+  .project-os-page .button {
+    border-radius: 10px !important;
+    min-height: 38px !important;
+  }
+
+  /* Remove the legacy tab/button chrome that reads like an old admin panel. */
+  .op-content:has(.project-os-page) .reference-tabs,
+  .op-content:has(.project-os-page) .record-tabs,
+  .op-content:has(.project-os-page) [class*="legacy-tabs"] {
+    display: none !important;
+  }
+}
