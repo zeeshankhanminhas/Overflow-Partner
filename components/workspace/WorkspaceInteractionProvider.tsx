@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { primaryNavigation } from '@/lib/presentation/navigationContract';
 import WorkspaceOperatorCentre from './WorkspaceOperatorCentre';
+import WorkspaceIcon from './WorkspaceIcon';
 
 type SurfaceKind = 'drawer' | 'modal' | 'window';
 type ToastTone = 'success' | 'error' | 'info';
@@ -150,7 +151,7 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
             <h2 id={titleId}>{surface.title}</h2>
             {surface.description ? <span id={descriptionId}>{surface.description}</span> : null}
           </div>
-          <button type="button" className="workspace-overlay__close" onClick={closeSurface} aria-label={`Close ${surface.title}`}>×</button>
+          <button type="button" className="workspace-overlay__close" onClick={closeSurface} aria-label={`Close ${surface.title}`}><WorkspaceIcon name="close" /></button>
         </header>
         <div className="workspace-overlay__body">{surface.content}</div>
         {surface.footer ? <footer className="workspace-overlay__footer">{surface.footer}</footer> : null}
@@ -158,9 +159,9 @@ export function WorkspaceInteractionProvider({ children }: { children: ReactNode
     </dialog> : null}
     <div className="workspace-toast-stack" aria-live="polite" aria-atomic="false">
       {toasts.map((toast) => <div key={toast.id} role={toast.tone === 'error' ? 'alert' : 'status'} className={`workspace-toast workspace-toast--${toast.tone}`}>
-        <div className="workspace-toast__mark" aria-hidden="true">{toast.tone === 'success' ? '✓' : toast.tone === 'error' ? '!' : 'i'}</div>
+        <div className="workspace-toast__mark" aria-hidden="true"><WorkspaceIcon name={toast.tone === 'success' ? 'check' : toast.tone === 'error' ? 'error' : 'info'} /></div>
         <div><strong>{toast.message}</strong>{toast.detail ? <span>{toast.detail}</span> : null}</div>
-        <button type="button" onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))} aria-label="Dismiss notification">×</button>
+        <button type="button" onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))} aria-label="Dismiss notification"><WorkspaceIcon name="close" size={16} /></button>
       </div>)}
     </div>
   </WorkspaceInteractionContext.Provider>;
@@ -185,7 +186,7 @@ export function WorkspaceShellActions({ alerts = [] }: { alerts?: WorkspaceAlert
   }), [alerts, closeSurface, openWindow]);
 
   const alertContent = <div className="workspace-notification-drawer">
-    {alerts.length ? <div className="workspace-alert-list">{alerts.map((alert) => <Link key={alert.id} href={alert.href} onClick={closeSurface} className={`workspace-alert workspace-alert--${alert.tone}`}><span className="workspace-alert__mark" aria-hidden="true">{alert.kind === 'approval' ? 'A' : '!'}</span><span className="workspace-alert__body"><strong>{alert.title}</strong><small>{alert.detail}</small><em>{alert.meta}</em></span><span className="workspace-alert__open" aria-hidden="true">→</span></Link>)}</div> : <div className="workspace-notification-empty"><span>✓</span><strong>No unresolved operational alerts</strong><p>Approval and exception queues are currently clear.</p></div>}
+    {alerts.length ? <div className="workspace-alert-list">{alerts.map((alert) => <Link key={alert.id} href={alert.href} onClick={closeSurface} className={`workspace-alert workspace-alert--${alert.tone}`}><span className="workspace-alert__mark" aria-hidden="true"><WorkspaceIcon name={alert.kind === 'approval' ? 'check' : 'error'} size={16}/></span><span className="workspace-alert__body"><strong>{alert.title}</strong><small>{alert.detail}</small><em>{alert.meta}</em></span><span className="workspace-alert__open" aria-hidden="true"><WorkspaceIcon name="arrow" size={16}/></span></Link>)}</div> : <div className="workspace-notification-empty"><span><WorkspaceIcon name="check" size={18}/></span><strong>No unresolved operational alerts</strong><p>Approval and exception queues are currently clear.</p></div>}
     <div className="workspace-alert-footer"><Link href={n.approvals.href} onClick={closeSurface} className="button secondary">Approvals</Link><Link href={n.issues.href} onClick={closeSurface} className="button secondary">Issues</Link></div>
   </div>;
 
@@ -206,9 +207,9 @@ export function WorkspaceShellActions({ alerts = [] }: { alerts?: WorkspaceAlert
   }, [openAlerts, openWorkCentre]);
 
   return <div className="workspace-shell-actions">
-    <button type="button" className="workspace-shell-action" onClick={() => openModal({ eyebrow: 'Workspace', title: 'Quick actions', description: 'Move into the next piece of operational work without losing context.', content: quickLinks })}>＋ <span>Quick</span></button>
-    <button type="button" className="workspace-shell-action" onClick={openWorkCentre} title="Ctrl/⌘ Shift W">▣ <span>Work centre</span></button>
-    <button type="button" className="workspace-shell-action workspace-shell-action--bell" onClick={openAlerts} title="Ctrl/⌘ Shift A" aria-label={`Open operating alerts${alerts.length ? `, ${alerts.length} unresolved` : ''}`}>♢ <span>Alerts</span>{alerts.length ? <b className="workspace-alert-count">{alerts.length > 99 ? '99+' : alerts.length}</b> : null}</button>
+    <button type="button" className="workspace-shell-action" onClick={() => openModal({ eyebrow: 'Workspace', title: 'Quick actions', description: 'Move into the next piece of operational work without losing context.', content: quickLinks })}><WorkspaceIcon name="add" /><span>Quick</span></button>
+    <button type="button" className="workspace-shell-action" onClick={openWorkCentre} title="Ctrl/⌘ Shift W"><WorkspaceIcon name="work" /><span>Work centre</span></button>
+    <button type="button" className="workspace-shell-action workspace-shell-action--bell" onClick={openAlerts} title="Ctrl/⌘ Shift A" aria-label={`Open operating alerts${alerts.length ? `, ${alerts.length} unresolved` : ''}`}><WorkspaceIcon name="alerts" /><span>Alerts</span>{alerts.length ? <b className="workspace-alert-count">{alerts.length > 99 ? '99+' : alerts.length}</b> : null}</button>
   </div>;
 }
 
