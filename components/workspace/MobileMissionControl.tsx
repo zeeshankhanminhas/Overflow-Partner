@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 type MobilePriorityItem = {
   id: string;
@@ -71,6 +74,16 @@ function statusLabel(item: MobilePriorityItem) {
   return item.actionLabel || 'Open';
 }
 
+function compact(text: string, max = 58) {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
+}
+
+function compactMeta(item: MobilePriorityItem) {
+  const first = item.meta.split(' · ').filter(Boolean)[0] || item.label;
+  return compact(first, 34);
+}
+
 export default function MobileMissionControl({
   priorityAttention,
   p1,
@@ -89,6 +102,20 @@ export default function MobileMissionControl({
   primary,
   queue,
 }: MobileMissionControlProps) {
+  useEffect(() => {
+    const scrollContainer = document.querySelector<HTMLElement>('.op-content');
+    const reset = () => {
+      if (scrollContainer) scrollContainer.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    };
+    reset();
+    const first = window.requestAnimationFrame(() => {
+      reset();
+      window.requestAnimationFrame(reset);
+    });
+    return () => window.cancelAnimationFrame(first);
+  }, []);
+
   return <section className="mobile-mission" aria-label="Mission Control mobile view">
     <header className="mobile-mission__intro">
       <h1>Mission Control</h1>
@@ -99,9 +126,9 @@ export default function MobileMissionControl({
       <div className="mobile-mission__priority-copy">
         <span className="mobile-mission__priority-label">Current priority</span>
         <h2>{primary.title}</h2>
-        <p>{primary.reason}</p>
+        <p>{compact(primary.reason, 88)}</p>
         <div className="mobile-mission__priority-meta">
-          <span><Icon name="clock" size={18}/>{primary.detail}</span>
+          <span><Icon name="clock" size={18}/>{compact(primary.detail, 42)}</span>
           <span><Icon name="person" size={18}/>{primary.owner}</span>
           <span><Icon name="status" size={18}/>{primary.status}</span>
         </div>
@@ -153,12 +180,12 @@ export default function MobileMissionControl({
         <Link href="/workspace/attention">View all</Link>
       </header>
       <div className="mobile-mission__next-card">
-        {queue.length ? queue.slice(0, 3).map((item, index) => <Link className="mobile-mission__next-row" href={item.href} key={item.id}>
+        {queue.length ? queue.slice(0, 2).map((item) => <Link className="mobile-mission__next-row" href={item.href} key={item.id}>
           <span className={`mobile-mission__avatar ${toneClass(item.tone)}`}>{item.title.slice(0, 2).toUpperCase()}</span>
           <span className="mobile-mission__next-copy">
-            <strong>{item.title}</strong>
-            <small>{item.detail}</small>
-            <em>{item.meta} · {item.owner}</em>
+            <strong>{compact(item.title, 48)}</strong>
+            <small>{compact(item.detail, 54)}</small>
+            <em>{compactMeta(item)} · {compact(item.owner, 22)}</em>
           </span>
           <span className={`mobile-mission__status-pill ${toneClass(item.tone)}`}>{statusLabel(item)}</span>
           <span className="mobile-mission__next-chevron"><Icon name="chevron"/></span>
