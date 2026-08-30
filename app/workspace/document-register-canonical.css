@@ -1,0 +1,141 @@
+/* Canonical document register surface. Scoped to prevent cross-page leakage. */
+
+.document-reference-workspace{
+  gap:16px!important;
+}
+
+.document-reference-workspace .product-page-header{
+  padding-bottom:14px!important;
+}
+
+.document-reference-workspace .product-metrics{
+  gap:0!important;
+  overflow:hidden!important;
+  border:1px solid var(--op-line)!important;
+  border-radius:12px!important;
+  background:var(--op-panel)!important;
+}
+
+.document-reference-workspace .product-metric{
+  min-height:72px!important;
+  padding:12px 14px!important;
+  border:0!important;
+  border-right:1px solid var(--op-line)!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+
+.document-reference-workspace .product-metric:last-child{
+  border-right:0!important;
+}
+
+.document-reference-workspace .product-panel{
+  padding:16px!important;
+  border:1px solid var(--op-line)!important;
+  border-radius:12px!important;
+  background:var(--op-panel)!important;
+}
+
+.document-reference-workspace .document-registry__table-wrap{
+  display:block!important;
+  min-height:0!important;
+  padding:14px 14px 10px!important;
+}
+
+.document-reference-workspace .document-registry__table-wrap .product-section-header{
+  margin:0 0 4px!important;
+  min-height:0!important;
+}
+
+.document-reference-workspace .document-registry__table-wrap>.product-section-header+p{
+  margin:0 0 8px!important;
+  line-height:1.4!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll{
+  display:block!important;
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll table{
+  margin:0!important;
+  table-layout:auto!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll thead{
+  position:static!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll th{
+  position:static!important;
+  top:auto!important;
+  padding:8px 10px!important;
+  background:#f3f3ef!important;
+  color:var(--op-subtle)!important;
+  font-size:9px!important;
+  line-height:1.2!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll td{
+  padding:11px 10px!important;
+  vertical-align:middle!important;
+  line-height:1.3!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll tbody tr{
+  min-height:0!important;
+  height:auto!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll td strong{
+  line-height:1.25!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll td small{
+  display:block!important;
+  margin-top:3px!important;
+  line-height:1.2!important;
+}
+
+.document-reference-workspace .document-registry__table-scroll .button,
+.document-reference-workspace .document-registry__table-scroll button{
+  min-height:34px!important;
+  padding:7px 10px!important;
+  font-size:10.5px!important;
+}
+
+.document-reference-workspace>.product-panel:last-child{
+  margin-top:0!important;
+}
+
+@media(max-width:900px){
+  .document-reference-workspace{
+    gap:18px!important;
+  }
+
+  .document-reference-workspace .product-metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .document-reference-workspace .product-metric:nth-child(2){
+    border-right:0!important;
+  }
+
+  .document-reference-workspace .product-metric:nth-child(-n+2){
+    border-bottom:1px solid var(--op-line)!important;
+  }
+
+  .document-reference-workspace .document-registry__table-wrap{
+    padding:12px!important;
+  }
+
+  .document-reference-workspace .document-registry__table-scroll{
+    margin-inline:-2px!important;
+  }
+}
