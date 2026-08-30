@@ -21,6 +21,15 @@ export default defineConfig([
       'react/no-unescaped-entities': 'off',
     },
   },
+  {
+    files: ['components/workspace/documents/DocumentEngineIndex.tsx'],
+    rules: {
+      // SortHead is a render-local server-only table-header helper with no state,
+      // effects or identity-sensitive behaviour. Keep this exception local rather
+      // than weakening the rule across the workspace.
+      'react-hooks/static-components': 'off',
+    },
+  },
   globalIgnores([
     '.next/**',
     'out/**',
