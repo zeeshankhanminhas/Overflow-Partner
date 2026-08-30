@@ -19,7 +19,6 @@ import './continuity.css';
 import './product-registers.css';
 import './product-states.css';
 import './phase3-document-actions.css';
-import './interaction-surfaces.css';
 import './workspace-interaction-system.css';
 import './mission-control-v2.css';
 import './attention-priority.css';
