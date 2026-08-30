@@ -78,7 +78,7 @@ export default async function DocumentEngineIndex({leadId,projectId}:Props){
 
 function Register({title,description,documents,current=false}:{title:string;description:string;documents:RegistryDocument[];current?:boolean}){
   return <section className="product-panel document-registry__table-wrap"><ProductSectionHeader eyebrow="Working register" title={title} meta={`${documents.length} document${documents.length===1?'':'s'}`}/><p style={{margin:'-4px 0 12px',color:'var(--saas-muted)',fontSize:11}}>{description}</p><div className="document-registry__table-scroll"><table><thead><tr><th>Document</th><th>Type</th><th>Status</th><th>Revision</th><th>Purpose</th><th>Next action</th><th>Updated</th><th>Actions</th></tr></thead><tbody>{documents.map(document=>{const presentation=resolveDocumentPresentation(state(document),document.title);return <tr id={`document-${document.id}`} key={document.id}>
-    <td><strong>{document.title}</strong><small>{document.reference}</small></td>
+    <td><Link href={openUrl(document)} aria-label={`${presentation.approval?.required?'Review':'Open'} ${document.title}`}><strong>{document.title}</strong><small>{document.reference}</small></Link></td>
     <td>{canonicalDocumentSlug(document.document_type).replaceAll('-',' ')}</td>
     <td><ProductStatus tone={presentation.tone}>{commercialCopy(presentation.state)}</ProductStatus></td>
     <td><strong>{revision(document)}</strong><small>v{document.version}</small></td>
