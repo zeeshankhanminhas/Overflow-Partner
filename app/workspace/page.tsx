@@ -40,7 +40,10 @@ export default async function WorkspacePage(){
     return {id:`partner-${row.id}`,title:clarification?'Delivery partner needs clarification':'Waiting for delivery partner',company:row.prospect?.company_name||'Opportunity',reason:clarification?'More information is holding up the next step':`${row.partner?.company_name||'Delivery Partner'} · due ${new Date(row.response_due_at).toLocaleDateString('en-GB')}`,waitingSince:row.submitted_at||row.sent_at||row.created_at,priority:clarification?'high':'normal',href:`/workspace/acquisition/${row.prospect_id}`,stage:clarification?'prospect':'partner'};
   });
 
-  const canonicalBase=dashboard.attention.filter(item=>!prospectIds.has(String(item.id)));
+  const canonicalBase:AttentionSource[]=dashboard.cases
+    .filter(item=>item.stage!=='project'||['waiting','review'].includes(item.status))
+    .filter(item=>!prospectIds.has(String(item.id)))
+    .map(item=>({id:item.id,title:item.nextAction,company:item.company,reason:item.deadline?`Deadline ${item.deadline}`:`${item.stageLabel} · ${item.status.replaceAll('_',' ')}`,waitingSince:item.waitingSince,priority:item.priority,href:item.href,stage:item.stage}));
   const attention=resolveBusinessAttention([...partnerAttention,...canonicalBase]);
   const approvalSummary=summariseApprovalQueue(approvals);
   const exceptionSummary=summariseExceptions(operationalExceptions);
