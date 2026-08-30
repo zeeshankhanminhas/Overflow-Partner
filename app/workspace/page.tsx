@@ -7,6 +7,7 @@ import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/
 import { getApprovalQueue, summariseApprovalQueue } from '@/lib/presentation/approvals';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { NextActionRail, OperatingState, SignalStrip, WaitingOnPanel, WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
+import MobileMissionControl from '@/components/workspace/MobileMissionControl';
 
 function money(value:number){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(value)}
 function approvalSource(source:string){return source==='acquisition'?'Opportunity':source==='commercial'?'Commercial review':source==='document'?'Document':'Payment'}
@@ -87,34 +88,67 @@ export default async function WorkspacePage(){
     actionLabel:priorityAction(item.kind),
   }));
 
-  return <section className="mission-v2">
-    <header className="mission-v2__header"><div><p className="op-ui-eyebrow">Mission Control</p><h1>What needs your attention</h1><p>A ranked operating queue for decisions, dependencies and delivery issues. Highest business consequence comes first.</p></div><div className="mission-v2__header-actions"><Link className="button" href="/workspace/attention">View all attention</Link><Link className="button secondary" href="/workspace/projects">Projects</Link><Link className="button secondary" href="/workspace/acquisition">Opportunities</Link></div></header>
+  const mobileQueue=priorityQueue.slice(0,6).map(item=>({
+    id:item.id,
+    label:`${item.tier} · ${item.label}`,
+    title:item.title,
+    detail:item.detail,
+    meta:`${item.meta} · ${formatWaitingMinutes(item.ageMinutes)}`,
+    owner:item.owner,
+    href:item.href,
+    tone:item.tone,
+    actionLabel:priorityAction(item.kind),
+  }));
 
-    <SignalStrip items={[
-      {label:'Priority attention',value:prioritySummary.p1+prioritySummary.p2,detail:`${prioritySummary.p1} P1 · ${prioritySummary.p2} P2`,tone:prioritySummary.p1?'critical':prioritySummary.p2?'attention':'neutral'},
-      {label:'Ready decisions',value:approvalSummary.ready,detail:`${approvalSummary.blocked} waiting for information`,tone:approvalSummary.ready?'waiting':'neutral'},
-      {label:'Dependencies',value:attention.items.length,detail:`${attention.waitingOnPartner+attention.waitingOnClient} external · ${attention.overdue} aged`,tone:attention.items.length?'attention':'neutral'},
-      {label:'Delivery issues',value:exceptionSummary.total,detail:`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`,tone:exceptionSummary.critical?'critical':exceptionSummary.total?'attention':'neutral'},
-    ]}/>
+  return <>
+    <MobileMissionControl
+      priorityAttention={prioritySummary.p1+prioritySummary.p2}
+      p1={prioritySummary.p1}
+      p2={prioritySummary.p2}
+      readyDecisions={approvalSummary.ready}
+      blockedDecisions={approvalSummary.blocked}
+      dependencies={attention.items.length}
+      externalDependencies={attention.waitingOnPartner+attention.waitingOnClient}
+      agedDependencies={attention.overdue}
+      deliveryIssues={exceptionSummary.total}
+      criticalIssues={exceptionSummary.critical}
+      highIssues={exceptionSummary.high}
+      waitingInternal={attention.waitingOnInternal}
+      waitingPartner={attention.waitingOnPartner}
+      waitingClient={attention.waitingOnClient}
+      primary={{title:primaryTitle,record:primaryRecord,reason:primaryReason,owner:primaryOwner,detail:primaryDetail,status:topPriority?`${topPriority.tier} priority`:'Controlled',href:primaryHref,actionLabel:primaryLabel}}
+      queue={mobileQueue}
+    />
 
-    <OperatingState title={primaryTitle} record={primaryRecord} reason={primaryReason} owner={primaryOwner} ownerDetail={primaryDetail} status={topPriority?`${topPriority.tier} priority`:'Controlled'} tone={topPriority?.tone||'active'} nextAction={primaryLabel} href={primaryHref} consequence={consequence}/>
+    <section className="mission-v2 mission-v2--desktop">
+      <header className="mission-v2__header"><div><p className="op-ui-eyebrow">Mission Control</p><h1>What needs your attention</h1><p>A ranked operating queue for decisions, dependencies and delivery issues. Highest business consequence comes first.</p></div><div className="mission-v2__header-actions"><Link className="button" href="/workspace/attention">View all attention</Link><Link className="button secondary" href="/workspace/projects">Projects</Link><Link className="button secondary" href="/workspace/acquisition">Opportunities</Link></div></header>
 
-    <div className="mission-v2__workgrid">
-      <main className="mission-v2__main">
-        <WorkQueue eyebrow="Priority queue" title="Next up" items={nextQueue} empty="No immediate actions are waiting. Open active projects to continue planned work." viewAllHref="/workspace/attention" viewAllLabel="View all attention"/>
-        <div className="mission-v2__queues">
-          <WorkQueue title="Approvals" items={approvalItems} empty="No approvals are ready for decision." viewAllHref="/workspace/approvals"/>
-          <WorkQueue title="Waiting / blocked" items={dependencyItems} empty="No external or internal dependencies are waiting." viewAllHref="/workspace/attention" viewAllLabel="View all"/>
-          <WorkQueue title="Issues" items={issueItems} empty="No delivery issues need attention." viewAllHref="/workspace/exceptions"/>
+      <SignalStrip items={[
+        {label:'Priority attention',value:prioritySummary.p1+prioritySummary.p2,detail:`${prioritySummary.p1} P1 · ${prioritySummary.p2} P2`,tone:prioritySummary.p1?'critical':prioritySummary.p2?'attention':'neutral'},
+        {label:'Ready decisions',value:approvalSummary.ready,detail:`${approvalSummary.blocked} waiting for information`,tone:approvalSummary.ready?'waiting':'neutral'},
+        {label:'Dependencies',value:attention.items.length,detail:`${attention.waitingOnPartner+attention.waitingOnClient} external · ${attention.overdue} aged`,tone:attention.items.length?'attention':'neutral'},
+        {label:'Delivery issues',value:exceptionSummary.total,detail:`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`,tone:exceptionSummary.critical?'critical':exceptionSummary.total?'attention':'neutral'},
+      ]}/>
+
+      <OperatingState title={primaryTitle} record={primaryRecord} reason={primaryReason} owner={primaryOwner} ownerDetail={primaryDetail} status={topPriority?`${topPriority.tier} priority`:'Controlled'} tone={topPriority?.tone||'active'} nextAction={primaryLabel} href={primaryHref} consequence={consequence}/>
+
+      <div className="mission-v2__workgrid">
+        <main className="mission-v2__main">
+          <WorkQueue eyebrow="Priority queue" title="Next up" items={nextQueue} empty="No immediate actions are waiting. Open active projects to continue planned work." viewAllHref="/workspace/attention" viewAllLabel="View all attention"/>
+          <div className="mission-v2__queues">
+            <WorkQueue title="Approvals" items={approvalItems} empty="No approvals are ready for decision." viewAllHref="/workspace/approvals"/>
+            <WorkQueue title="Waiting / blocked" items={dependencyItems} empty="No external or internal dependencies are waiting." viewAllHref="/workspace/attention" viewAllLabel="View all"/>
+            <WorkQueue title="Issues" items={issueItems} empty="No delivery issues need attention." viewAllHref="/workspace/exceptions"/>
+          </div>
+        </main>
+
+        <div className="mission-v2__rail">
+          <NextActionRail actionLabel={primaryLabel} href={primaryHref} reason={primaryReason} owner={primaryOwner} deadline={topPriority?formatWaitingMinutes(topPriority.ageMinutes):undefined} consequence={consequence} secondary={[{label:'View all attention',href:'/workspace/attention'},{label:'Review approvals',href:'/workspace/approvals'},{label:'Open projects',href:'/workspace/projects'}]}/>
+          <WaitingOnPanel internal={attention.waitingOnInternal} partner={attention.waitingOnPartner} client={attention.waitingOnClient}/>
         </div>
-      </main>
-
-      <div className="mission-v2__rail">
-        <NextActionRail actionLabel={primaryLabel} href={primaryHref} reason={primaryReason} owner={primaryOwner} deadline={topPriority?formatWaitingMinutes(topPriority.ageMinutes):undefined} consequence={consequence} secondary={[{label:'View all attention',href:'/workspace/attention'},{label:'Review approvals',href:'/workspace/approvals'},{label:'Open projects',href:'/workspace/projects'}]}/>
-        <WaitingOnPanel internal={attention.waitingOnInternal} partner={attention.waitingOnPartner} client={attention.waitingOnClient}/>
       </div>
-    </div>
 
-    <footer className="mission-v2__management"><span>Management context</span><Link href="/workspace/payments">Commercials →</Link><Link href="/workspace/documents">Documents →</Link><Link href="/workspace/partners">Delivery partners →</Link></footer>
-  </section>;
+      <footer className="mission-v2__management"><span>Management context</span><Link href="/workspace/payments">Commercials →</Link><Link href="/workspace/documents">Documents →</Link><Link href="/workspace/partners">Delivery partners →</Link></footer>
+    </section>
+  </>;
 }
