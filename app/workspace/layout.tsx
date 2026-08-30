@@ -36,6 +36,7 @@ import './reference-surface.css';
 import './reference-behaviour-refactor.css';
 import './mission-control-v2.css';
 import './mobile-ux-cleanup-wave.css';
+import './workspace-light-surface-fix.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';

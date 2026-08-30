@@ -1,0 +1,40 @@
+/* Final light-workspace surface correction.
+   Older UX parity styles still assign dark surfaces to shared fact cells.
+   Keep the current light operating workspace consistent on desktop and mobile. */
+
+.workspace.op-shell .vp-facts {
+  border-color: var(--op-line) !important;
+  background: #ffffff !important;
+  color: var(--op-text) !important;
+}
+
+.workspace.op-shell .vp-fact {
+  background: #ffffff !important;
+  color: var(--op-text) !important;
+  border-color: var(--op-line) !important;
+  box-shadow: none !important;
+}
+
+.workspace.op-shell .vp-fact small {
+  color: var(--op-muted) !important;
+}
+
+.workspace.op-shell .vp-fact strong {
+  color: var(--op-text) !important;
+}
+
+/* Fact groups often sit inside already-white record slots. Avoid a heavy boxed block. */
+.workspace.op-shell .record-workspace__slot .vp-facts {
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+
+@media (max-width: 767px) {
+  .workspace.op-shell .vp-facts {
+    width: 100% !important;
+  }
+
+  .workspace.op-shell .vp-fact {
+    min-width: 0 !important;
+  }
+}
