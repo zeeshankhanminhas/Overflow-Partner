@@ -1,0 +1,505 @@
+/* Mobile Project 360 reference composition
+   Faithful to the approved Overflow Partner mobile concept.
+   This file is intentionally scoped to Project 360 and mobile only so desktop remains untouched. */
+
+@media (max-width: 720px) {
+  .workspace.op-shell {
+    --op-mobile-bg: #f7f7f4;
+    --op-mobile-surface: #ffffff;
+    --op-mobile-text: #171717;
+    --op-mobile-muted: #73777f;
+    --op-mobile-line: #e8e8e4;
+    --op-mobile-red: #e5483f;
+    --op-mobile-green: #297a36;
+    --op-mobile-orange: #b96500;
+    --op-mobile-violet: #4c2dc7;
+  }
+
+  /* App shell: bright, compact and intentionally mobile. */
+  .op-main,
+  .op-content {
+    background: var(--op-mobile-bg) !important;
+    color: var(--op-mobile-text) !important;
+  }
+
+  .op-mobile-header {
+    min-height: 68px !important;
+    padding: max(10px, env(safe-area-inset-top)) 16px 10px !important;
+    border-bottom: 1px solid var(--op-mobile-line) !important;
+    background: rgba(255,255,255,.97) !important;
+    color: var(--op-mobile-text) !important;
+    box-shadow: none !important;
+  }
+
+  .op-mobile-header__brand {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .op-mobile-header__brand img {
+    display: block;
+    width: 178px;
+    max-width: 46vw;
+    height: 34px;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .op-content {
+    padding: 14px 12px calc(102px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Mobile navigation mirrors a native app tab bar. */
+  .op-mobile-nav {
+    min-height: 74px;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom)) !important;
+    border-top: 1px solid var(--op-mobile-line) !important;
+    border-radius: 22px 22px 0 0;
+    background: rgba(255,255,255,.98) !important;
+    box-shadow: 0 -8px 28px rgba(23,23,23,.06) !important;
+  }
+
+  .op-mobile-nav a {
+    position: relative;
+    display: grid !important;
+    place-items: center;
+    align-content: center;
+    gap: 5px;
+    min-height: 54px !important;
+    color: #73777f !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+  }
+
+  .op-mobile-nav a::before {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    color: currentColor;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .op-mobile-nav a:nth-child(1)::before { content: '⌂'; }
+  .op-mobile-nav a:nth-child(2)::before { content: '▣'; }
+  .op-mobile-nav a:nth-child(3)::before { content: '□'; }
+  .op-mobile-nav a:nth-child(4)::before { content: '◇'; }
+  .op-mobile-nav a:nth-child(5)::before { content: '▤'; }
+
+  /* Project 360 becomes a separate mobile composition, not a compressed desktop grid. */
+  .project-os-page.record-workspace {
+    gap: 24px !important;
+    color: var(--op-mobile-text) !important;
+  }
+
+  .project-os-page .record-workspace__header {
+    padding: 2px 2px 0 !important;
+    color: var(--op-mobile-text) !important;
+  }
+
+  .project-os-page .project-os-back,
+  .project-os-page .project-os-reference,
+  .project-os-page .project-os-meta,
+  .project-os-page .project-os-meta span {
+    color: var(--op-mobile-muted) !important;
+  }
+
+  .project-os-page .record-workspace__header h1 {
+    margin: 6px 0 8px !important;
+    color: var(--op-mobile-text) !important;
+    font-size: clamp(24px, 7vw, 30px) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -.025em !important;
+  }
+
+  /* Stage card: light reference surface. */
+  .project-os-page .record-workspace__state {
+    order: 1;
+    padding: 16px !important;
+    border: 1px solid var(--op-mobile-line) !important;
+    border-radius: 20px !important;
+    background: var(--op-mobile-surface) !important;
+    box-shadow: 0 8px 26px rgba(23,23,23,.055) !important;
+  }
+
+  .project-os-page .record-workspace__state .project-os-progress-card {
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .project-os-page .record-workspace__state .project-os-progress-scroll {
+    display: none !important;
+  }
+
+  .project-os-page .project-os-progress-footer {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    gap: 4px !important;
+  }
+
+  .project-os-page .project-os-progress-footer p {
+    color: var(--op-mobile-text) !important;
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+    font-weight: 720 !important;
+  }
+
+  .project-os-page .project-os-progress-footer span {
+    color: var(--op-mobile-muted) !important;
+    font-size: 12px !important;
+  }
+
+  .project-os-page .record-workspace__provenance {
+    display: none !important;
+  }
+
+  /* Operating-state detail stays available, but reads like a compact tap target. */
+  .project-os-page > .op-ui-state {
+    order: 2;
+    padding: 16px !important;
+    border: 1px solid var(--op-mobile-line) !important;
+    border-radius: 18px !important;
+    background: var(--op-mobile-surface) !important;
+    color: var(--op-mobile-text) !important;
+    box-shadow: 0 6px 20px rgba(23,23,23,.04) !important;
+  }
+
+  .project-os-page > .op-ui-state .op-ui-eyebrow,
+  .project-os-page > .op-ui-state .op-ui-state__record,
+  .project-os-page > .op-ui-state .op-ui-state__reason,
+  .project-os-page > .op-ui-state small,
+  .project-os-page > .op-ui-state span {
+    color: var(--op-mobile-muted) !important;
+  }
+
+  .project-os-page > .op-ui-state h2,
+  .project-os-page > .op-ui-state strong {
+    color: var(--op-mobile-text) !important;
+  }
+
+  .project-os-page > .op-ui-state .button {
+    border-color: var(--op-mobile-red) !important;
+    background: var(--op-mobile-red) !important;
+    color: white !important;
+  }
+
+  .project-os-page .record-workspace__context-bar {
+    order: 5;
+  }
+
+  /* Put live execution and evidence ahead of desktop-oriented control grids. */
+  .project-os-page #record-current-stage-work {
+    order: 3;
+  }
+  .project-os-page .record-workspace__group--evidence {
+    order: 4;
+  }
+  .project-os-page .record-workspace__group--decision {
+    order: 6;
+  }
+
+  .project-os-page .record-workspace__group {
+    gap: 12px !important;
+  }
+
+  .project-os-page .record-workspace__group-heading {
+    display: flex !important;
+    align-items: end !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 0 2px !important;
+  }
+
+  .project-os-page .record-workspace__group-heading p {
+    color: var(--op-mobile-text) !important;
+    font-size: 22px !important;
+    line-height: 1.1 !important;
+    letter-spacing: -.025em !important;
+    text-transform: none !important;
+  }
+
+  .project-os-page .record-workspace__group-heading span {
+    max-width: 56%;
+    color: var(--op-mobile-muted) !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    text-align: right !important;
+  }
+
+  /* Remove the desktop card-inside-card treatment. */
+  .project-os-page .record-workspace__slot--primary-work,
+  .project-os-page .record-workspace__slot--evidence {
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .project-os-page .record-workspace__slot--primary-work > .record-workspace__eyebrow,
+  .project-os-page .record-workspace__slot--evidence > .record-workspace__eyebrow {
+    display: none !important;
+  }
+
+  /* CURRENT WORK — faithful 2x2 light cards. */
+  .project-os-page .operating-work-summary {
+    gap: 12px !important;
+  }
+
+  .project-os-page .operating-work-summary > :first-child:not(.vp-facts) {
+    display: none !important;
+  }
+
+  .project-os-page .operating-work-summary > .vp-facts {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 10px !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact {
+    position: relative;
+    display: grid !important;
+    align-content: center;
+    min-height: 94px;
+    padding: 14px 12px 14px 54px !important;
+    border: 1px solid var(--op-mobile-line) !important;
+    border-radius: 16px !important;
+    background: var(--op-mobile-surface) !important;
+    color: var(--op-mobile-text) !important;
+    box-shadow: 0 5px 18px rgba(23,23,23,.045) !important;
+  }
+
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 32px;
+    height: 32px;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: #fff0ee;
+  }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(2)::before { background:#f0f3f8; }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(3)::before { background:#fff2dc; }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(4)::before { background:#f2efff; }
+
+  .project-os-page .operating-work-summary > .vp-facts small {
+    margin-bottom: 4px !important;
+    color: var(--op-mobile-muted) !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+  }
+
+  .project-os-page .operating-work-summary > .vp-facts strong {
+    color: var(--op-mobile-text) !important;
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    font-weight: 680 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(3) strong { color: var(--op-mobile-orange) !important; }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(4) strong { color: var(--op-mobile-violet) !important; }
+
+  /* Delivery is the obvious primary action; partner workspace is secondary. */
+  .project-os-page .operating-work-summary > div:last-child {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .project-os-page .operating-work-summary > div:last-child .button {
+    width: 100% !important;
+    min-height: 52px !important;
+    justify-content: center !important;
+    border-radius: 15px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+  }
+
+  .project-os-page .operating-work-summary > div:last-child .button:nth-child(2) {
+    order: 1;
+    border: 1px solid var(--op-mobile-red) !important;
+    background: var(--op-mobile-red) !important;
+    color: #fff !important;
+  }
+
+  .project-os-page .operating-work-summary > div:last-child .button:nth-child(1) {
+    order: 2;
+    border: 1px solid var(--op-mobile-red) !important;
+    background: var(--op-mobile-surface) !important;
+    color: var(--op-mobile-red) !important;
+  }
+
+  /* EVIDENCE — three equal metrics followed by native-style document rows. */
+  .project-os-page .record-workspace__slot--evidence > .stack {
+    gap: 10px !important;
+  }
+
+  .project-os-page .record-workspace__slot--evidence .vp-facts {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+    gap: 0 !important;
+    overflow: hidden;
+    border: 1px solid var(--op-mobile-line) !important;
+    border-radius: 16px !important;
+    background: var(--op-mobile-surface) !important;
+    box-shadow: 0 5px 18px rgba(23,23,23,.04) !important;
+  }
+
+  .project-os-page .record-workspace__slot--evidence .vp-fact {
+    display: grid !important;
+    gap: 5px !important;
+    min-height: 88px;
+    padding: 14px 10px !important;
+    border: 0 !important;
+    border-right: 1px solid var(--op-mobile-line) !important;
+    background: transparent !important;
+  }
+  .project-os-page .record-workspace__slot--evidence .vp-fact:last-child { border-right: 0 !important; }
+
+  .project-os-page .record-workspace__slot--evidence .vp-fact small {
+    color: var(--op-mobile-muted) !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+  }
+
+  .project-os-page .record-workspace__slot--evidence .vp-fact strong {
+    color: var(--op-mobile-text) !important;
+    font-size: 25px !important;
+    line-height: 1 !important;
+    font-weight: 660 !important;
+  }
+  .project-os-page .record-workspace__slot--evidence .vp-fact:nth-child(1) strong { color: var(--op-mobile-red) !important; }
+  .project-os-page .record-workspace__slot--evidence .vp-fact:nth-child(2) strong { color: var(--op-mobile-green) !important; }
+
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: 38px minmax(0,1fr) 28px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-height: 76px;
+    padding: 12px 12px !important;
+    border: 1px solid var(--op-mobile-line) !important;
+    border-radius: 16px !important;
+    background: var(--op-mobile-surface) !important;
+    box-shadow: 0 4px 16px rgba(23,23,23,.035) !important;
+  }
+
+  .project-os-page .record-workspace__slot--evidence .project-os-check-icon {
+    display: grid !important;
+    place-items: center !important;
+    width: 34px !important;
+    height: 34px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: #edf7eb !important;
+    color: var(--op-mobile-green) !important;
+    font-size: 15px !important;
+  }
+  .project-os-page .record-workspace__slot--evidence .project-os-check-icon.missing {
+    background: #fff1df !important;
+    color: var(--op-mobile-orange) !important;
+  }
+
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row strong {
+    color: var(--op-mobile-text) !important;
+    font-size: 14px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Replace workflow-engine phrasing with safe, commercial surface language. */
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row small {
+    display: block;
+    margin-top: 3px;
+    color: transparent !important;
+    font-size: 0 !important;
+  }
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row small::after {
+    content: 'Requirement complete';
+    color: var(--op-mobile-muted);
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row:has(.project-os-check-icon.missing) small::after {
+    content: 'Action needed';
+  }
+
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row > a {
+    display: grid !important;
+    place-items: center;
+    width: 28px;
+    height: 40px;
+    overflow: hidden;
+    color: transparent !important;
+    font-size: 0 !important;
+    text-decoration: none !important;
+  }
+  .project-os-page .record-workspace__slot--evidence .project-os-check-row > a::after {
+    content: '›';
+    color: #7b8188;
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .project-os-page .record-workspace__slot--evidence > .stack > .button:last-child {
+    min-height: 48px !important;
+    border: 1px solid var(--op-mobile-red) !important;
+    border-radius: 15px !important;
+    background: var(--op-mobile-surface) !important;
+    color: var(--op-mobile-red) !important;
+    justify-content: center !important;
+  }
+
+  /* Decision controls remain below the approved mobile summary instead of dominating the first viewport. */
+  .project-os-page .record-workspace__group--decision {
+    margin-top: 2px;
+    padding-top: 20px;
+    border-top: 1px solid var(--op-mobile-line);
+  }
+
+  .project-os-page .record-workspace__group--decision .record-workspace__slot,
+  .project-os-page .record-workspace__context-bar {
+    border-color: var(--op-mobile-line) !important;
+    background: var(--op-mobile-surface) !important;
+    color: var(--op-mobile-text) !important;
+  }
+
+  .project-os-page .record-workspace__group--decision .record-workspace__eyebrow,
+  .project-os-page .record-workspace__group--decision small,
+  .project-os-page .record-workspace__group--decision p,
+  .project-os-page .record-workspace__context-bar {
+    color: var(--op-mobile-muted) !important;
+  }
+
+  .project-os-page .record-workspace__group--decision strong,
+  .project-os-page .record-workspace__group--decision h2,
+  .project-os-page .record-workspace__group--decision dt,
+  .project-os-page .record-workspace__group--decision dd {
+    color: var(--op-mobile-text) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact {
+    min-height: 88px;
+    padding-left: 48px !important;
+  }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact::before {
+    left: 10px;
+    width: 30px;
+    height: 30px;
+  }
+  .project-os-page .operating-work-summary > .vp-facts small { font-size: 10px !important; }
+  .project-os-page .operating-work-summary > .vp-facts strong { font-size: 14px !important; }
+}
