@@ -1,42 +1,31 @@
+/* Workspace CSS loading policy
+   1) semantic/core styles
+   2) active feature styles
+   3) canonical mobile + desktop surfaces LAST
+
+   Historical polish/wave/parity/reference override files remain in the repo for
+   rollback/history but are deliberately no longer loaded by the workspace shell. */
 import './workspace-responsive.css';
 import './workspace-shell.css';
 import './visual-constitution.css';
-import './ui-polish.css';
-import './workspace-unified-polish.css';
 import './stage-documents.css';
 import './mobile-document-review.css';
 import './acquisition-layout.css';
 import './notification-centre.css';
 import './lifecycle-sidebar.css';
 import './document-print.css';
-import './sprint-zero.css';
 import './record-workspace.css';
 import './continuity.css';
-import './phase-1c-consistency.css';
-import './phase-1f-mobile-polish.css';
 import './commercial-saas-ui.css';
 import './product-registers.css';
 import './product-states.css';
-import './product-mobile-overrides.css';
-import './workspace-mobile-canonical.css';
 import './phase3-document-actions.css';
-import './ux-ui-parity.css';
-import './ux-ui-parity-mobile.css';
-import './global-presentation.css';
 import './interaction-surfaces.css';
 import './workspace-interaction-system.css';
-import './workspace-wave3.css';
-import './workspace-wave4.css';
-import './workspace-wave5.css';
-import './workspace-wave6.css';
-import './workspace-wave7.css';
-import './workspace-wave8.css';
-import './reference-surface.css';
-import './reference-behaviour-refactor.css';
 import './mission-control-v2.css';
-import './mobile-ux-cleanup-wave.css';
 import './attention-priority.css';
-import './mobile-nav-safe-layout.css';
+
+/* Canonical presentation layer. Keep these last. */
 import './project-mobile-reference.css';
 import './mobile-reference-rebuild.css';
 import './mobile-header-actions.css';
