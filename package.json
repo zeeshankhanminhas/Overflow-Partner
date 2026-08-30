@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run wave8:check && next build",
+    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "phase3:check": "node scripts/phase3-launch-check.mjs",
     "phase3:smoke": "node scripts/phase3-launch-check.mjs --smoke",
-    "wave8:check": "node scripts/wave8-interaction-check.mjs"
+    "workspace:check": "node scripts/workspace-interaction-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
