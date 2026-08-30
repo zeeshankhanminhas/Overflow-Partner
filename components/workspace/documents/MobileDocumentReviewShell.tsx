@@ -216,7 +216,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
     });
   }
 
-  return <div className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} document-review-shell`}>
+  return <div data-surface="decision" className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} op-surface op-surface--decision document-review-shell`}>
     <header className="document-review-header print:hidden">
       <Link aria-label={backLabel} title={backLabel} className="button secondary" href={backHref}>←</Link>
       <div className="min-w-0"><p>Document review</p><h1>{title}</h1></div>
