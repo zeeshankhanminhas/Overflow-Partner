@@ -5,7 +5,7 @@ import { formatWaitingMinutes, resolveBusinessAttention, type AttentionSource } 
 import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/exceptions';
 import { getApprovalQueue, summariseApprovalQueue } from '@/lib/presentation/approvals';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
-import { NextActionRail, OperatingState, SignalStrip, WaitingOnPanel, WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
+import { OperatingState, SignalStrip, WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
 
 function money(value:number){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(value)}
 function approvalSource(source:string){return source==='acquisition'?'Opportunity':source==='commercial'?'Commercial review':source==='document'?'Document':'Payment'}
@@ -65,35 +65,23 @@ export default async function WorkspacePage(){
 
   const issueItems:WorkQueueItem[]=issues.slice(0,4).map(item=>({id:item.id,label:item.severity,title:item.title,detail:item.detail,meta:item.category,owner:item.owner,href:item.href,tone:item.severity==='critical'?'critical':item.severity==='high'?'attention':'neutral',actionLabel:'Resolve'}));
 
-  const nextQueue=[...approvalItems,...dependencyItems,...issueItems].slice(0,6);
+  const nextQueue=[...approvalItems,...dependencyItems,...issueItems]
+    .filter(item=>item.href!==primaryHref)
+    .slice(0,5);
 
   return <section className="mission-v2">
-    <header className="mission-v2__header"><div><p className="op-ui-eyebrow">Mission Control</p><h1>What needs your attention</h1><p>One operating view for decisions, dependencies and delivery work that can move now.</p></div><div className="mission-v2__header-actions"><Link className="button secondary" href="/workspace/projects">Projects</Link><Link className="button secondary" href="/workspace/acquisition">Opportunities</Link></div></header>
+    <header className="mission-v2__header"><div><p className="op-ui-eyebrow">Mission Control</p><h1>What needs your attention</h1><p>Decisions, dependencies and delivery issues that need intervention now.</p></div></header>
 
     <SignalStrip items={[
-      {label:'Ready decisions',value:approvalSummary.ready,detail:`${approvalSummary.blocked} waiting for information`,tone:approvalSummary.ready?'waiting':'neutral'},
+      {label:'Ready decisions',value:approvalSummary.ready,detail:`${approvalSummary.blocked} waiting`,tone:approvalSummary.ready?'waiting':'neutral'},
       {label:'Dependencies',value:attention.items.length,detail:`${attention.waitingOnPartner+attention.waitingOnClient} external`,tone:attention.items.length?'attention':'neutral'},
-      {label:'Delivery issues',value:exceptionSummary.total,detail:`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`,tone:exceptionSummary.critical?'critical':exceptionSummary.total?'attention':'neutral'},
-      {label:'Active projects',value:dashboard.activeProjects,detail:'Current delivery workload'},
+      {label:'Delivery issues',value:exceptionSummary.total,detail:exceptionSummary.total?`${exceptionSummary.critical} critical · ${exceptionSummary.high} high`:'None open',tone:exceptionSummary.critical?'critical':exceptionSummary.total?'attention':'neutral'},
+      {label:'Active projects',value:dashboard.activeProjects,detail:'In delivery'},
     ]}/>
 
     <OperatingState title={primaryTitle} record={primaryRecord} reason={primaryReason} owner={primaryOwner} ownerDetail={primaryDetail} status={nextApproval?'Decision ready':nextDependency?'Waiting':nextIssue?'Needs attention':'Controlled'} tone={nextApproval?'waiting':nextIssue?'attention':'active'} nextAction={primaryLabel} href={primaryHref} consequence={consequence}/>
 
-    <div className="mission-v2__workgrid">
-      <main className="mission-v2__main">
-        <WorkQueue eyebrow="Next up" title="Actions you can move" items={nextQueue} empty="No immediate actions are waiting. Open active projects to continue planned work."/>
-        <div className="mission-v2__queues">
-          <WorkQueue title="Approvals" items={approvalItems} empty="No approvals are ready for decision." viewAllHref="/workspace/approvals"/>
-          <WorkQueue title="Waiting / blocked" items={dependencyItems} empty="No external or internal dependencies are waiting."/>
-          <WorkQueue title="Issues" items={issueItems} empty="No delivery issues need attention." viewAllHref="/workspace/exceptions"/>
-        </div>
-      </main>
-
-      <div className="mission-v2__rail">
-        <NextActionRail actionLabel={primaryLabel} href={primaryHref} reason={primaryReason} owner={primaryOwner} deadline={nextDependency?formatWaitingMinutes(nextDependency.waitingMinutes):undefined} consequence={consequence} secondary={[{label:'Review approvals',href:'/workspace/approvals'},{label:'Open projects',href:'/workspace/projects'},{label:'Open documents',href:'/workspace/documents'}]}/>
-        <WaitingOnPanel internal={attention.waitingOnInternal} partner={attention.waitingOnPartner} client={attention.waitingOnClient}/>
-      </div>
-    </div>
+    <WorkQueue eyebrow="Next up" title="Other work needing attention" items={nextQueue} empty="Nothing else needs immediate intervention."/>
 
     <footer className="mission-v2__management"><span>Management context</span><Link href="/workspace/payments">Commercials →</Link><Link href="/workspace/documents">Documents →</Link><Link href="/workspace/partners">Delivery partners →</Link></footer>
   </section>;
