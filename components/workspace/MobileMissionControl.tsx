@@ -40,6 +40,21 @@ type MobileMissionControlProps = {
   queue: MobilePriorityItem[];
 };
 
+type IconName = 'flag' | 'clock' | 'person' | 'status' | 'clipboard' | 'users' | 'check' | 'document' | 'chevron';
+
+function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+  if (name === 'flag') return <svg {...common}><path d="M5 21V4"/><path d="M5 5h10l-1.6 3L15 11H5"/></svg>;
+  if (name === 'clock') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>;
+  if (name === 'person') return <svg {...common}><circle cx="12" cy="8" r="3"/><path d="M6.5 19c.7-3 2.6-4.5 5.5-4.5s4.8 1.5 5.5 4.5"/></svg>;
+  if (name === 'status') return <svg {...common}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg>;
+  if (name === 'clipboard') return <svg {...common}><rect x="6" y="5" width="12" height="15" rx="2"/><path d="M9 5.5V4h6v1.5"/><path d="M9 10h6M9 14h6"/></svg>;
+  if (name === 'users') return <svg {...common}><circle cx="9" cy="9" r="3"/><path d="M3.8 19c.5-3 2.2-4.5 5.2-4.5s4.7 1.5 5.2 4.5"/><path d="M15 7.5a2.5 2.5 0 0 1 0 5"/><path d="M16.5 15c2 .4 3.2 1.7 3.7 4"/></svg>;
+  if (name === 'check') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="m8.5 12.2 2.2 2.2 4.8-5"/></svg>;
+  if (name === 'document') return <svg {...common}><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5v4h4"/><path d="M9 12h6M9 15.5h6"/></svg>;
+  return <svg {...common}><path d="m9 6 6 6-6 6"/></svg>;
+}
+
 function toneClass(tone?: MobilePriorityItem['tone']) {
   if (tone === 'critical') return 'is-critical';
   if (tone === 'attention') return 'is-attention';
@@ -48,15 +63,12 @@ function toneClass(tone?: MobilePriorityItem['tone']) {
   return '';
 }
 
-function Icon({ name }: { name: 'priority' | 'owner' | 'alert' | 'decision' | 'dependency' | 'issue' | 'chevron' }) {
-  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
-  if (name === 'priority') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2.5"/></svg>;
-  if (name === 'owner') return <svg {...common}><circle cx="12" cy="8" r="3"/><path d="M6.5 19c.7-3 2.6-4.5 5.5-4.5s4.8 1.5 5.5 4.5"/></svg>;
-  if (name === 'alert') return <svg {...common}><path d="M12 3.5 21 20H3z"/><path d="M12 9v4"/><path d="M12 16.5h.01"/></svg>;
-  if (name === 'decision') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="m8.8 12.2 2.1 2.1 4.5-5"/></svg>;
-  if (name === 'dependency') return <svg {...common}><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><path d="M10 12h4"/></svg>;
-  if (name === 'issue') return <svg {...common}><path d="M5 5h14v14H5z"/><path d="M9 9h6v6H9z"/></svg>;
-  return <svg {...common}><path d="m9 6 6 6-6 6"/></svg>;
+function statusLabel(item: MobilePriorityItem) {
+  if (item.tone === 'critical') return 'Urgent';
+  if (item.tone === 'attention') return 'Needs attention';
+  if (item.tone === 'waiting') return 'Pending';
+  if (item.tone === 'ready') return 'Ready';
+  return item.actionLabel || 'Open';
 }
 
 export default function MobileMissionControl({
@@ -78,68 +90,91 @@ export default function MobileMissionControl({
   queue,
 }: MobileMissionControlProps) {
   return <section className="mobile-mission" aria-label="Mission Control mobile view">
-    <div className="mobile-mission__intro">
-      <p className="mobile-mission__eyebrow">Mission Control</p>
-      <h1>What needs your attention</h1>
-      <p>Decisions, dependencies and delivery issues in business-priority order.</p>
-    </div>
+    <header className="mobile-mission__intro">
+      <h1>Mission Control</h1>
+      <p>Your operational cockpit. Focus on what moves the needle.</p>
+    </header>
 
-    <section className="mobile-mission__hero" aria-label="Current priority">
-      <div className="mobile-mission__hero-main">
-        <div className="mobile-mission__hero-icon"><Icon name="priority"/></div>
-        <div className="mobile-mission__hero-copy">
-          <span>Current priority</span>
-          <strong>{primary.title}</strong>
-          <em>{primary.status}</em>
+    <section className="mobile-mission__priority-card" aria-label="Current priority">
+      <div className="mobile-mission__priority-copy">
+        <span className="mobile-mission__priority-label">Current priority</span>
+        <h2>{primary.title}</h2>
+        <p>{primary.reason}</p>
+        <div className="mobile-mission__priority-meta">
+          <span><Icon name="clock" size={18}/>{primary.detail}</span>
+          <span><Icon name="person" size={18}/>{primary.owner}</span>
+          <span><Icon name="status" size={18}/>{primary.status}</span>
         </div>
       </div>
-      <div className="mobile-mission__hero-side">
-        <div><span>Attention</span><strong>{priorityAttention}</strong></div>
-        <div><span>Ready decisions</span><strong>{readyDecisions}</strong></div>
-      </div>
-      <div className="mobile-mission__hero-footer">
-        <div className="mobile-mission__hero-footer-icon"><Icon name="owner"/></div>
-        <div><span>Current responsibility</span><strong>{primary.owner}</strong><small>{primary.detail}</small></div>
-        <span className="mobile-mission__hero-chevron"><Icon name="chevron"/></span>
-      </div>
+      <div className="mobile-mission__priority-flag"><Icon name="flag" size={30}/></div>
+      <Link className="mobile-mission__priority-action" href={primary.href}>{primary.actionLabel}<Icon name="chevron" size={19}/></Link>
     </section>
 
     <section className="mobile-mission__section">
       <header className="mobile-mission__section-head">
-        <div><h2>Current work</h2><p>Live operating signals that may need action.</p></div>
+        <h2>Current Work</h2>
+        <Link href="/workspace/attention">View all</Link>
       </header>
-      <div className="mobile-mission__metric-grid">
-        <article className="mobile-mission__metric"><i><Icon name="alert"/></i><div><span>Priority attention</span><strong>{priorityAttention}</strong><small>{p1} P1 · {p2} P2</small></div></article>
-        <article className="mobile-mission__metric"><i><Icon name="decision"/></i><div><span>Ready decisions</span><strong>{readyDecisions}</strong><small>{blockedDecisions} waiting for information</small></div></article>
-        <article className="mobile-mission__metric"><i><Icon name="dependency"/></i><div><span>Dependencies</span><strong>{dependencies}</strong><small>{externalDependencies} external · {agedDependencies} aged</small></div></article>
-        <article className="mobile-mission__metric"><i><Icon name="issue"/></i><div><span>Delivery issues</span><strong>{deliveryIssues}</strong><small>{criticalIssues} critical · {highIssues} high</small></div></article>
-      </div>
-      <div className="mobile-mission__actions">
-        <Link className="mobile-mission__primary" href={primary.href}>{primary.actionLabel}</Link>
-        <Link className="mobile-mission__secondary" href="/workspace/attention">View all attention</Link>
+      <div className="mobile-mission__work-grid">
+        <Link href="/workspace/attention" className="mobile-mission__work-card tone-red">
+          <span className="mobile-mission__work-icon"><Icon name="clipboard"/></span>
+          <span className="mobile-mission__work-number">{priorityAttention}</span>
+          <strong>Open delivery work</strong>
+          <small>{p1 + p2 ? `${p1} P1 · ${p2} P2 need attention` : 'Nothing urgent right now'}</small>
+          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
+        </Link>
+        <Link href="/workspace/attention" className="mobile-mission__work-card tone-amber">
+          <span className="mobile-mission__work-icon"><Icon name="users"/></span>
+          <span className="mobile-mission__work-number">{dependencies}</span>
+          <strong>Waiting on others</strong>
+          <small>{externalDependencies} external · {agedDependencies} aged</small>
+          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
+        </Link>
+        <Link href="/workspace/approvals" className="mobile-mission__work-card tone-blue">
+          <span className="mobile-mission__work-icon"><Icon name="check"/></span>
+          <span className="mobile-mission__work-number">{readyDecisions}</span>
+          <strong>Approvals</strong>
+          <small>{blockedDecisions} waiting for information</small>
+          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
+        </Link>
+        <Link href="/workspace/exceptions" className="mobile-mission__work-card tone-green">
+          <span className="mobile-mission__work-icon"><Icon name="document"/></span>
+          <span className="mobile-mission__work-number">{deliveryIssues}</span>
+          <strong>Delivery issues</strong>
+          <small>{criticalIssues} critical · {highIssues} high</small>
+          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
+        </Link>
       </div>
     </section>
 
     <section className="mobile-mission__section mobile-mission__next">
-      <header className="mobile-mission__section-head mobile-mission__section-head--inline">
-        <div><h2>Next up</h2><p>Highest business consequence first.</p></div>
+      <header className="mobile-mission__section-head">
+        <h2>Next up</h2>
         <Link href="/workspace/attention">View all</Link>
       </header>
-      <div className="mobile-mission__list">
-        {queue.length ? queue.slice(0, 4).map((item, index) => <Link className="mobile-mission__row" href={item.href} key={item.id}>
-          <span className={`mobile-mission__row-icon ${toneClass(item.tone)}`}>{index + 1}</span>
-          <span className="mobile-mission__row-copy"><strong>{item.title}</strong><small>{item.label} · {item.owner}</small><em>{item.meta}</em></span>
-          <span className="mobile-mission__row-chevron"><Icon name="chevron"/></span>
+      <div className="mobile-mission__next-card">
+        {queue.length ? queue.slice(0, 3).map((item, index) => <Link className="mobile-mission__next-row" href={item.href} key={item.id}>
+          <span className={`mobile-mission__avatar ${toneClass(item.tone)}`}>{item.title.slice(0, 2).toUpperCase()}</span>
+          <span className="mobile-mission__next-copy">
+            <strong>{item.title}</strong>
+            <small>{item.detail}</small>
+            <em>{item.meta} · {item.owner}</em>
+          </span>
+          <span className={`mobile-mission__status-pill ${toneClass(item.tone)}`}>{statusLabel(item)}</span>
+          <span className="mobile-mission__next-chevron"><Icon name="chevron"/></span>
         </Link>) : <div className="mobile-mission__empty">No immediate actions are waiting.</div>}
       </div>
     </section>
 
     <section className="mobile-mission__section mobile-mission__waiting">
-      <header className="mobile-mission__section-head"><div><h2>Waiting on</h2><p>Who currently owns the next movement.</p></div></header>
-      <div className="mobile-mission__waiting-grid">
-        <div><span>Your team</span><strong>{waitingInternal}</strong></div>
-        <div><span>Delivery partner</span><strong>{waitingPartner}</strong></div>
-        <div><span>Client</span><strong>{waitingClient}</strong></div>
+      <header className="mobile-mission__section-head">
+        <h2>Waiting on</h2>
+        <Link href="/workspace/attention">View all</Link>
+      </header>
+      <div className="mobile-mission__waiting-card">
+        <div className="tone-red"><strong>{waitingClient}</strong><span>Client</span><small>Awaiting client updates</small><i><Icon name="users" size={18}/></i></div>
+        <div className="tone-amber"><strong>{waitingInternal}</strong><span>Team</span><small>Awaiting team updates</small><i><Icon name="person" size={18}/></i></div>
+        <div className="tone-green"><strong>{waitingPartner}</strong><span>Delivery partner</span><small>Awaiting partner updates</small><i><Icon name="document" size={18}/></i></div>
       </div>
     </section>
   </section>;
