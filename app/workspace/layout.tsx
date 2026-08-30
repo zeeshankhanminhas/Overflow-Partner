@@ -40,6 +40,7 @@ import './mobile-nav-safe-layout.css';
 import './project-mobile-reference.css';
 import './mobile-reference-rebuild.css';
 import './mobile-header-actions.css';
+import './project-desktop-canonical.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
