@@ -51,6 +51,7 @@ import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
 import WorkspaceContinuity from '@/components/workspace/WorkspaceContinuity';
 import WorkspaceFlashBridge from '@/components/workspace/WorkspaceFlashBridge';
+import MobileWorkspaceNav from '@/components/workspace/MobileWorkspaceNav';
 import { WorkspaceActivityTracker } from '@/components/workspace/WorkspaceOperatorCentre';
 import {
   WorkspaceInteractionProvider,
@@ -132,13 +133,13 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <main className="midts-content op-content">{children}</main>
       </section>
 
-      <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
-        <Link href={n.missionControl.href}>Home</Link>
-        <Link href={n.enquiries.href}>Opportunities</Link>
-        <Link href={n.projects.href}>Projects</Link>
-        <Link href={n.approvals.href}>Approvals</Link>
-        <Link href={n.documents.href}>Documents</Link>
-      </nav>
+      <MobileWorkspaceNav
+        home={n.missionControl.href}
+        opportunities={n.enquiries.href}
+        projects={n.projects.href}
+        approvals={n.approvals.href}
+        documents={n.documents.href}
+      />
     </div>
   </WorkspaceInteractionProvider>;
 }
