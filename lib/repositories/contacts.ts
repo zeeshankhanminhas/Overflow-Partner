@@ -37,3 +37,23 @@ export async function createContact(supabase: SupabaseClient, organisationId: st
   if (error) throw new Error(error.message);
   return data as Contact;
 }
+
+export async function updateContact(supabase: SupabaseClient, organisationId: string, contactId: string, input: ContactInput) {
+  const email=String(input.email||'').trim().toLowerCase();
+  if(email){
+    const {data:duplicate,error:duplicateError}=await supabase.from('contacts').select('id,full_name,email,company_id').eq('organisation_id',organisationId).ilike('email',email).neq('id',contactId).limit(1).maybeSingle();
+    if(duplicateError)throw new Error(duplicateError.message);
+    if(duplicate)throw new Error(`A contact with ${email} already exists: ${duplicate.full_name}. Open the existing contact instead of creating a duplicate.`);
+  }
+  const {data,error}=await supabase.from('contacts').update({
+    company_id: input.company_id || null,
+    full_name: input.full_name.trim(),
+    job_title: input.job_title || null,
+    email: email || null,
+    phone: input.phone || null,
+    linkedin_url: input.linkedin_url || null,
+    notes: input.notes || null,
+  }).eq('organisation_id',organisationId).eq('id',contactId).select('*, company:companies(id,name)').single();
+  if(error)throw new Error(error.message);
+  return data as Contact;
+}
