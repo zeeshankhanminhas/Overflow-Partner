@@ -7,8 +7,8 @@
     gap:8px!important;
   }
 
-  /* Mobile header uses the canonical SVGs rendered by the components.
-     Do not inject icon artwork with pseudo-elements. */
+  /* Mobile header renders one canonical SVG per action. No legacy artwork,
+     pseudo icons, text glyphs or displaced duplicate children are allowed. */
   .op-mobile-header .workspace-shell-action,
   .op-mobile-header > div:last-child > button[aria-label="Search workspace"]{
     position:relative!important;
@@ -19,16 +19,19 @@
     height:36px!important;
     min-width:36px!important;
     min-height:36px!important;
+    max-width:36px!important;
+    max-height:36px!important;
     padding:0!important;
     gap:0!important;
     border:1px solid var(--op-border-default,#deded8)!important;
     border-radius:var(--op-radius-control,8px)!important;
     background:#fff!important;
+    background-image:none!important;
     color:#34363a!important;
     font-size:0!important;
     line-height:0!important;
     box-shadow:none!important;
-    overflow:visible!important;
+    overflow:hidden!important;
   }
 
   .op-mobile-header .workspace-shell-action::before,
@@ -37,33 +40,44 @@
   .op-mobile-header > div:last-child > button[aria-label="Search workspace"]::after{
     content:none!important;
     display:none!important;
+    width:0!important;
+    height:0!important;
     background:none!important;
+    background-image:none!important;
   }
 
-  .op-mobile-header .workspace-shell-action span,
-  .op-mobile-header .workspace-shell-action kbd,
-  .op-mobile-header > div:last-child > button[aria-label="Search workspace"] span,
-  .op-mobile-header > div:last-child > button[aria-label="Search workspace"] kbd{
+  .op-mobile-header .workspace-shell-action > :not(svg):not(.workspace-alert-count),
+  .op-mobile-header > div:last-child > button[aria-label="Search workspace"] > :not(svg){
     display:none!important;
   }
 
   /* Work Centre stays out of the compact mobile header. */
   .op-mobile-header .workspace-shell-action:nth-child(2){display:none!important}
 
-  /* Quick is the only filled action. Its actual SVG inherits white. */
+  /* Quick is the only filled action. */
   .op-mobile-header .workspace-shell-action:nth-child(1){
     border-color:var(--op-accent,#df2b26)!important;
     background:var(--op-accent,#df2b26)!important;
+    background-image:none!important;
     color:#fff!important;
   }
 
   .op-mobile-header .workspace-shell-action > svg,
   .op-mobile-header > div:last-child > button[aria-label="Search workspace"] > svg{
+    position:static!important;
+    inset:auto!important;
     display:block!important;
     width:18px!important;
     height:18px!important;
+    min-width:18px!important;
+    min-height:18px!important;
+    max-width:18px!important;
+    max-height:18px!important;
     flex:0 0 18px!important;
     margin:0!important;
+    padding:0!important;
+    transform:none!important;
+    translate:none!important;
   }
 
   .op-mobile-header .workspace-alert-count{
