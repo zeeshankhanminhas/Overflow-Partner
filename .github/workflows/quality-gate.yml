@@ -35,5 +35,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Phase 3 release contracts
+        run: npm run phase3:check
+
+      - name: Workspace interaction contracts
+        run: npm run workspace:check
+
       - name: Production build
         run: npx next build
