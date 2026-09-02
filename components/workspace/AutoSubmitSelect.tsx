@@ -1,9 +1,10 @@
 'use client';
 
-import type { SelectHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
+import { Select } from '@/components/ui/select';
 
-export default function AutoSubmitSelect({ onChange, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select
+export default function AutoSubmitSelect({ onChange, ...props }: ComponentProps<typeof Select>) {
+  return <Select
     {...props}
     onChange={(event) => {
       onChange?.(event);
