@@ -9,6 +9,7 @@ import { getCaseDocumentRequirements } from '@/lib/cases/documentRequirements';
 import { documentSatisfiesRequirement, resolveActionState, resolveEvidenceState } from '@/lib/workspace/state';
 import { toOperatorError } from '@/lib/workspace/operatorErrors';
 import RecordWorkspace from '@/components/workspace/RecordWorkspace';
+import { ProductNotice } from '@/components/workspace/ProductUI';
 import GovernedAction from '@/components/workspace/GovernedAction';
 import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
 import { getWorkspaceDocument } from '@/components/workspace/documents/documentRegistry';
@@ -68,7 +69,7 @@ export default async function Case360Page({params,searchParams}:{params:Promise<
   const contextLabel=workflow.project?'Project 360 owns delivery':review?.partner?.company_name?`Partner · ${review.partner.company_name}`:'Overflow Partner';
   const operatorError=query.error?toOperatorError(query.error):null;const displayOperatorError=caseIsHistorical&&String(query.error||'').includes('Case is historical')?null:operatorError;
 
-  const notices=<>{success?<div className="vp-callout"><strong>{String(success)}</strong><p>{presentation.state} · {presentation.nextAction.label}.</p></div>:null}{displayOperatorError?<div className="vp-callout"><strong>{displayOperatorError.title}</strong><p>{displayOperatorError.message}</p></div>:null}</>;
+  const notices=<>{success?<ProductNotice title={String(success)} tone="complete"><p>{presentation.state} · {presentation.nextAction.label}.</p></ProductNotice>:null}{displayOperatorError?<ProductNotice title={displayOperatorError.title} tone="blocked"><p>{displayOperatorError.message}</p></ProductNotice>:null}</>;
   const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/leads">← Back to cases</Link><p className="vp-kicker">Case 360 · {caseReference}</p><h1>{workflow.lead.title||workflow.lead.company_name}</h1><p className="vp-subtitle">{workflow.lead.company_name}{workflow.lead.contact_name?` · ${workflow.lead.contact_name}`:''}</p><div className="project-os-meta"><span>{contextLabel}</span>{presentation.waitingOn?<span>Waiting on · {presentation.waitingOn.label}</span>:null}</div></div><span className="vp-status">{presentation.state}</span></div>;
   const stateStrip=<div><div className="case360-stage-strip">{caseStages.map((label,index)=><div className="case360-stage-step" key={label} style={{borderTop:`2px solid ${index===stageIndex?'var(--op-accent)':index<stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<stageIndex?'Complete':index===stageIndex?(caseIsHistorical?'Handed off':'Current'):'Future'}</small><strong>{label}</strong></div>)}</div><p style={{margin:'14px 0 0',color:'var(--op-muted)'}}>{presentation.summary}</p></div>;
 
