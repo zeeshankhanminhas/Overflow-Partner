@@ -8,7 +8,7 @@ import { normaliseProjectStage } from '@/lib/projects/stages';
 import { resolveFinancialGate } from '@/lib/finance/state';
 import { resolveProjectPresentation } from '@/lib/presentation/operatingState';
 import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
-import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
+import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductPagination, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 const PAGE_SIZE=25;
@@ -183,7 +183,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
           </div>
         </div>)}
       </div>}
-      {totalPages>1?<nav className="vp-pagination" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginTop:16}}>{page>1?<Link className="button secondary" href={href(view,page-1,q)}>← Previous</Link>:<span/>}<span style={{color:'var(--saas-muted)',fontSize:11}}>Page {page} of {totalPages}</span>{page<totalPages?<Link className="button secondary" href={href(view,page+1,q)}>Next →</Link>:<span/>}</nav>:null}
+      <ProductPagination page={page} totalPages={totalPages} href={(targetPage)=>href(view,targetPage,q)} label="Project portfolio pages" />
     </section>
   </section>;
 }
