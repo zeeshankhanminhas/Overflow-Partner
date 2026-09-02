@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { EmptyState } from '@/components/ui/state';
 
 export type ProductTone = 'neutral' | 'active' | 'waiting' | 'attention' | 'blocked' | 'complete' | 'critical';
 export type ProductActionTone = 'primary' | 'secondary' | 'approve' | 'warning' | 'destructive';
@@ -59,19 +61,27 @@ export function ProductSectionHeader({ eyebrow, title, meta, actions }: { eyebro
 }
 
 export function ProductEmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="product-empty-state op-ui-empty" role="status">
-    <strong>{title}</strong>
-    {description ? <p>{description}</p> : null}
-    {action ? <div>{action}</div> : null}
-  </div>;
+  return <EmptyState
+    className="product-empty-state op-ui-empty"
+    title={title}
+    description={description || ''}
+    action={action ? <div>{action}</div> : undefined}
+  />;
 }
 
 export function ProductNotice({ title, children, tone = 'neutral' }: { title: string; children?: ReactNode; tone?: ProductTone }) {
   const urgent = tone === 'blocked' || tone === 'critical';
-  return <div className={`product-notice product-notice--${tone}`} data-continuity-notice data-tone={tone} role={urgent ? 'alert' : 'status'} aria-live={urgent ? 'assertive' : 'polite'}>
-    <strong>{title}</strong>
+  const variant = urgent ? 'destructive' : tone === 'complete' ? 'success' : tone === 'attention' || tone === 'waiting' ? 'warning' : 'default';
+  return <Alert
+    className={`product-notice product-notice--${tone}`}
+    variant={variant}
+    data-continuity-notice
+    data-tone={tone}
+    aria-live={urgent ? 'assertive' : 'polite'}
+  >
+    <AlertTitle>{title}</AlertTitle>
     {children ? <div>{children}</div> : null}
-  </div>;
+  </Alert>;
 }
 
 /* Filter contract: filters are labelled operating controls, not loose buttons. */
