@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { primaryNavigation } from '@/lib/presentation/navigationContract';
+import { EmptyState } from '@/components/ui/state';
 import WorkspaceOperatorCentre from './WorkspaceOperatorCentre';
 import WorkspaceIcon from './WorkspaceIcon';
 
@@ -186,7 +187,7 @@ export function WorkspaceShellActions({ alerts = [] }: { alerts?: WorkspaceAlert
   }), [alerts, closeSurface, openWindow]);
 
   const alertContent = <div className="workspace-notification-drawer">
-    {alerts.length ? <div className="workspace-alert-list">{alerts.map((alert) => <Link key={alert.id} href={alert.href} onClick={closeSurface} className={`workspace-alert workspace-alert--${alert.tone}`}><span className="workspace-alert__mark" aria-hidden="true"><WorkspaceIcon name={alert.kind === 'approval' ? 'check' : 'error'} size={16}/></span><span className="workspace-alert__body"><strong>{alert.title}</strong><small>{alert.detail}</small><em>{alert.meta}</em></span><span className="workspace-alert__open" aria-hidden="true"><WorkspaceIcon name="arrow" size={16}/></span></Link>)}</div> : <div className="workspace-notification-empty"><span><WorkspaceIcon name="check" size={18}/></span><strong>No unresolved operational alerts</strong><p>Approval and exception queues are currently clear.</p></div>}
+    {alerts.length ? <div className="workspace-alert-list">{alerts.map((alert) => <Link key={alert.id} href={alert.href} onClick={closeSurface} className={`workspace-alert workspace-alert--${alert.tone}`}><span className="workspace-alert__mark" aria-hidden="true"><WorkspaceIcon name={alert.kind === 'approval' ? 'check' : 'error'} size={16}/></span><span className="workspace-alert__body"><strong>{alert.title}</strong><small>{alert.detail}</small><em>{alert.meta}</em></span><span className="workspace-alert__open" aria-hidden="true"><WorkspaceIcon name="arrow" size={16}/></span></Link>)}</div> : <EmptyState className="workspace-notification-empty" icon={<WorkspaceIcon name="check" size={18}/>} title="No unresolved operational alerts" description="Approval and exception queues are currently clear." />}
     <div className="workspace-alert-footer"><Link href={n.approvals.href} onClick={closeSurface} className="button secondary">Approvals</Link><Link href={n.issues.href} onClick={closeSurface} className="button secondary">Issues</Link></div>
   </div>;
 
