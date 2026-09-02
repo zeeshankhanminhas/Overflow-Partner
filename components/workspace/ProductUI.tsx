@@ -60,6 +60,15 @@ export function ProductSectionHeader({ eyebrow, title, meta, actions }: { eyebro
   </div>;
 }
 
+export function ProductPagination({ page, totalPages, href, label = 'Register pages' }: { page: number; totalPages: number; href: (page: number) => string; label?: string }) {
+  if (totalPages <= 1) return null;
+  return <nav className="vp-pagination product-pagination" aria-label={label}>
+    {page > 1 ? <Link className="button secondary" href={href(page - 1)}>← Previous</Link> : <span />}
+    <span className="product-pagination__status" aria-current="page">Page {Math.min(page, totalPages)} of {totalPages}</span>
+    {page < totalPages ? <Link className="button secondary" href={href(page + 1)}>Next →</Link> : <span />}
+  </nav>;
+}
+
 export function ProductEmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return <EmptyState
     className="product-empty-state op-ui-empty"
