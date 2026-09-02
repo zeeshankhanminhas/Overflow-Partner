@@ -5,7 +5,7 @@ import { listCompanies } from '@/lib/repositories/companies';
 import { listContacts } from '@/lib/repositories/contacts';
 import { resolveCaseQueuePresentation } from '@/lib/presentation/queueState';
 import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
-import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
+import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductPagination, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 type View='all'|'assessment'|'partner-review'|'partner-pricing'|'commercial-review'|'client-quotes';
 type QueueRow={id:string;title:string|null;company_name:string;contact_name:string|null;lead_status:string;workflow_stage:string;created_at:string;total_count:number|string};
@@ -48,6 +48,6 @@ export default async function LeadsPage({searchParams}:{searchParams?:Promise<Re
         </WorkspaceDrawer>
         <Link className="button secondary" href={`/workspace/leads/${row.id}`}>Open</Link>
       </ContextActions>
-    </ProductRegisterRow>)}</ProductRegister>}{totalPages>1?<nav className="vp-pagination" aria-label="Case queue pages" style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,marginTop:16}}>{page>1?<Link className="button secondary" href={pageHref(view,page-1)}>← Previous</Link>:<span/>}<span style={{color:'var(--saas-muted)',fontSize:11}}>Page {Math.min(page,totalPages)} of {totalPages}</span>{page<totalPages?<Link className="button secondary" href={pageHref(view,page+1)}>Next →</Link>:<span/>}</nav>:null}</section>
+    </ProductRegisterRow>)}</ProductRegister>}<ProductPagination page={page} totalPages={totalPages} href={(targetPage)=>pageHref(view,targetPage)} label="Case queue pages" /></section>
   </section>;
 }
