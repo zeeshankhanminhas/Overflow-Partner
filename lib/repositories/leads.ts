@@ -3,7 +3,7 @@ import type { Lead, LeadStatus } from '@/types/domain';
 import type { LeadInput } from '@/lib/validation/leads';
 
 export async function listLeads(supabase: SupabaseClient, organisationId: string) {
-  const { data, error } = await supabase.from('leads').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('leads').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(100);
   if (error) throw new Error(error.message);
   return (data ?? []) as Lead[];
 }
