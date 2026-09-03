@@ -1,22 +1,17 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
-import { listClientQuotes } from '@/lib/repositories/workflow';
-import { listLeads } from '@/lib/repositories/leads';
-import { createProjectFormAction } from '../workflow-actions';
 import { normaliseProjectStage } from '@/lib/projects/stages';
 import { resolveFinancialGate } from '@/lib/finance/state';
 import { resolveProjectPresentation } from '@/lib/presentation/operatingState';
-import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
+import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductPagination, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
-const input='border border-white/10 rounded-lg bg-white px-3 py-2 text-black';
 const PAGE_SIZE=25;
 type View='all'|'attention'|'mobilisation'|'delivery'|'client_review'|'closeout'|'closed';
 type QueueRow={id:string;project_number:string;title:string;project_status:string;project_stage:string;start_date:string|null;due_date:string|null;created_at:string;total_count:number|string};
 const viewMeta:Record<View,{label:string;description:string}>={all:{label:'All active',description:'Every current project.'},attention:{label:'Needs attention',description:'Projects with a real blocker, overdue date or unresolved exception.'},mobilisation:{label:'Mobilisation',description:'Accepted work not yet in execution.'},delivery:{label:'In delivery',description:'Projects in Partner execution and technical review.'},client_review:{label:'Client review',description:'Projects in client issue or review.'},closeout:{label:'Closeout',description:'Completion-stage work waiting for closure.'},closed:{label:'Closed',description:'Completed historical project records.'}};
 function href(view:View,page=1,q=''){const p=new URLSearchParams();if(view!=='all')p.set('view',view);if(page>1)p.set('page',String(page));if(q)p.set('q',q);const s=p.toString();return `/workspace/projects${s?`?${s}`:''}`}
-function exceptionHref(view:View,page:number,q:string){const target=new URL(href(view,page,q),'https://overflow-partner.local');target.searchParams.set('exception','1');return `${target.pathname}${target.search}`}
 function formatDate(value:string|null){if(!value)return 'Not set';const d=new Date(value);return Number.isNaN(d.getTime())?value:d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function money(value:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency,maximumFractionDigits:0}).format(Number(value||0))}catch{return `${currency} ${Number(value||0).toFixed(0)}`}}
 
@@ -26,14 +21,12 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const requested=String(params.view||'all');
   const view=(Object.keys(viewMeta).includes(requested)?requested:'all') as View;
   const q=String(params.q||'').trim();
-  const exceptional=String(params.exception||'')==='1';
   const requestedPage=Number.parseInt(String(params.page||'1'),10);
   const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;
   const {supabase,organisationId}=await requireUserContext();
 
   const {data,error}=await supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0});
   if(error)throw new Error(`Project queue could not be loaded: ${error.message}`);
-  const [quotes,leads]=exceptional?await Promise.all([listClientQuotes(supabase,organisationId),listLeads(supabase,organisationId)]):[[],[]];
   const baseRows=(data||[]) as QueueRow[];
   const ids=baseRows.map(r=>r.id);
 
@@ -119,21 +112,10 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const total=filtered.length;const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));const pageRows=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
   const attentionCount=enriched.filter(p=>p.attention).length;const waitingCount=enriched.filter(p=>p.presentation.tone==='waiting').length;const deliveryCount=enriched.filter(p=>['in_progress','internal_review','partner_correction','ready_for_client_issue','issued_to_client','client_review'].includes(p.stage)).length;const closeoutCount=enriched.filter(p=>p.stage==='completion').length;
 
-  const exceptionalEntry=exceptional?<WorkWindow defaultOpen triggerLabel="Administrative exception" triggerClassName="button secondary" eyebrow="Administrative exception" title="Create Project directly" description="Use only when the governed Case → accepted Quote → Project handoff cannot be used.">
-    <form action={createProjectFormAction} className="stack">
-      <div className="grid gap-4 md:grid-cols-2">
-        <select className={input} name="lead_id" required><option value="">Select Case</option>{leads.map(l=><option key={l.id} value={l.id}>{l.title||l.company_name}</option>)}</select>
-        <select className={input} name="quote_id"><option value="">No linked quote</option>{quotes.map(qt=><option key={qt.id} value={qt.id}>{qt.quote_number} · {qt.status}</option>)}</select>
-        <input className={input} name="project_number" placeholder="OP-PRJ-0001" required/>
-        <input className={input} name="title" placeholder="Project title" required/>
-      </div>
-      <textarea className={input} name="notes" rows={3} placeholder="Reason" required/>
-      <button className="button">Create exceptional Project</button>
-    </form>
-  </WorkWindow>:<Link className="button secondary" href={exceptionHref(view,page,q)}>Administrative exception</Link>;
+  const caseEntry=<Link className="button secondary" href="/workspace/leads">Open Cases</Link>;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Choose a Project from the portfolio. Inspect the operating position in place, then open Project 360 only when you need to perform record-level work." actions={exceptionalEntry} />
+    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Choose a Project from the portfolio. Inspect the operating position in place, then open Project 360 only when you need to perform record-level work." actions={caseEntry} />
 
     <ProductMetrics label="Project portfolio summary">
       <ProductMetric label="Active portfolio" value={enriched.filter(p=>p.stage!=='closed').length} detail="Current project-owned work" />
