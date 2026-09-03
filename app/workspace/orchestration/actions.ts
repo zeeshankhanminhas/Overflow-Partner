@@ -103,10 +103,14 @@ export async function acceptQuoteAction(formData: FormData) {
     const acceptedByName = required(formData, 'accepted_by_name');
     const acceptedByEmail = String(formData.get('accepted_by_email') || '').trim();
     const acceptanceNotes = String(formData.get('acceptance_notes') || '').trim();
+    const paymentMethod = required(formData, 'payment_method');
+    const paymentReference = required(formData, 'payment_reference');
+    const paymentConfirmedAt = required(formData, 'payment_confirmed_at');
     const { supabase, organisationId, user } = await requireUserContext();
-    const { data: project, error } = await supabase.rpc('op_accept_quote_create_project_with_acceptance', {
+    const { data: project, error } = await supabase.rpc('op_accept_quote_create_project_with_payment_confirmation', {
       p_organisation_id: organisationId, p_user_id:user.id, p_quote_id:quoteId, p_acceptance_basis:acceptanceBasis,
       p_evidence_reference:evidenceReference, p_accepted_by_name:acceptedByName, p_accepted_by_email:acceptedByEmail||null, p_notes:acceptanceNotes||null,
+      p_payment_method:paymentMethod, p_payment_reference:paymentReference, p_payment_confirmed_at:new Date(paymentConfirmedAt).toISOString(),
     });
     if (error) throw new Error(error.message);
     if (!project?.id) throw new Error('Project 360 was not returned after recording client acceptance.');
@@ -116,7 +120,7 @@ export async function acceptQuoteAction(formData: FormData) {
     const email=acceptedByEmail||recipient?.contact_email||'';
     if(email) await queueLifecycleEmail(supabase,{organisationId,scenario:'quote.accepted',recipientEmail:email,recipientName:acceptedByName||recipient?.contact_name,actionUrl:publicSiteUrl(),payload:{company:recipient?.company_name,reference:project.project_number||recipient?.reference},entityType:'lead',entityId:leadId,idempotencyKey:`quote:accepted:${quoteId}`}).catch(()=>null);
     refreshCase(leadId); revalidatePath(`/workspace/projects/${project.id}`);
-    destination = `/workspace/projects/${project.id}?created=${encodeURIComponent(`Project ${project.project_number} created from governed written client acceptance.`)}&focus=record-next-action`;
+    destination = `/workspace/projects/${project.id}?created=${encodeURIComponent(`Project ${project.project_number} created after governed written client acceptance and confirmed payment.`)}&focus=record-next-action`;
   }
   catch (error) { destination = caseUrl(leadId, { error: message(error), focus:'record-next-action' }); }
   redirect(destination);

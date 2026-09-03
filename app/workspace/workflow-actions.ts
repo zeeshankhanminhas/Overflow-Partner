@@ -3,8 +3,8 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
-import { partnerSchema, partnerQuoteSchema, commercialReviewSchema, clientQuoteSchema, projectSchema, taskSchema } from '@/lib/validation/workflow';
-import { createPartner, createPartnerQuote, createCommercialReview, createClientQuote, createProject, createTask } from '@/lib/repositories/workflow';
+import { partnerSchema, partnerQuoteSchema, commercialReviewSchema, clientQuoteSchema, taskSchema } from '@/lib/validation/workflow';
+import { createPartner, createPartnerQuote, createCommercialReview, createClientQuote, createTask } from '@/lib/repositories/workflow';
 import { recordActivity } from '@/lib/repositories/activity';
 import { assertCaseIsActive } from '@/lib/business/invariants';
 
@@ -69,13 +69,8 @@ export async function createClientQuoteFormAction(formData: FormData) {
   }catch(error){redirect(`/workspace/quotes?error=${encodeURIComponent(error instanceof Error?error.message:'Client Quote exception failed.')}`)}
 }
 
-export async function createProjectFormAction(formData: FormData) {
-  try{
-    const {supabase,user,organisationId,raw,leadId,note}=await exceptionalContext(formData,'project');const parsed=projectSchema.safeParse(raw);if(!parsed.success)throw new Error(parsed.error.issues[0]?.message||'Invalid Project data.');
-    const {data:existing,error:existingError}=await supabase.from('projects').select('id,project_number').eq('organisation_id',organisationId).eq('lead_id',leadId).limit(1).maybeSingle();if(existingError)throw existingError;if(existing)throw new Error(`This Case already belongs to Project ${existing.project_number}.`);
-    if(parsed.data.quote_id){const {data:quote,error:quoteError}=await supabase.from('quotes').select('id,lead_id,status').eq('organisation_id',organisationId).eq('id',parsed.data.quote_id).single();if(quoteError||!quote||quote.lead_id!==leadId)throw new Error('Linked quotation does not belong to the selected Case.');if(!['issued','accepted'].includes(quote.status))throw new Error('Exceptional Project creation requires an issued or accepted linked quotation.');}
-    const safeInput={...parsed.data,status:'planning' as const,notes:`ADMINISTRATIVE EXCEPTION: ${note}`};const data=await createProject(supabase,organisationId,user.id,safeInput);await recordActivity(supabase,{organisationId,entityType:'project',entityId:data.id,userId:user.id,eventType:'project.exception_created',newValue:{...data,exceptionReason:note,invariant:'SINGLE_PROJECT_PER_CASE'}});revalidatePath('/workspace/projects');revalidatePath('/workspace/leads');revalidatePath(`/workspace/leads/${leadId}`);revalidatePath('/workspace');redirect(`/workspace/projects/${data.id}?created=1`);
-  }catch(error){redirect(`/workspace/projects?error=${encodeURIComponent(error instanceof Error?error.message:'Exceptional Project creation failed.')}`)}
+export async function createProjectFormAction() {
+  redirect('/workspace/projects?error=' + encodeURIComponent('Project 360 can only be created from Case 360 after written client acceptance and confirmed opening payment.'));
 }
 
 export async function createTaskFormAction(formData: FormData) {

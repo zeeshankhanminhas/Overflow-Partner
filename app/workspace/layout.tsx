@@ -30,6 +30,7 @@ import './project-desktop-canonical.css';
 import './document-register-canonical.css';
 import './workspace-presentation-system.css';
 import './workspace-visual-foundation.css';
+import './ui-foundation.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
