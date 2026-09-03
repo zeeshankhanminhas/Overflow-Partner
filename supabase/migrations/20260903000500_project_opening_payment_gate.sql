@@ -6,8 +6,8 @@ begin;
 create table if not exists public.quote_payment_confirmations (
   id uuid primary key default gen_random_uuid(),
   organisation_id uuid not null references public.organisations(id) on delete cascade,
-  quote_id uuid not null references public.quotes(id) on delete restrict,
-  lead_id uuid not null references public.leads(id) on delete restrict,
+  quote_id uuid not null references public.quotes(id) on delete cascade,
+  lead_id uuid not null references public.leads(id) on delete cascade,
   amount numeric(14,2) not null check (amount > 0),
   currency text not null default 'GBP',
   payment_method text not null check (payment_method in ('bank_transfer','card','other')),
@@ -34,6 +34,8 @@ using (
 );
 
 revoke all on table public.quote_payment_confirmations from public, anon;
+revoke all on function public.op_developer_delete_test_record(text,uuid) from public, anon;
+grant execute on function public.op_developer_delete_test_record(text,uuid) to authenticated;
 grant select on table public.quote_payment_confirmations to authenticated;
 grant all on table public.quote_payment_confirmations to service_role;
 
