@@ -31,6 +31,7 @@ expect(migration.includes('Project 360 requires confirmed opening payment eviden
 expect(migration.includes('new.quote_id is null'),'Database trigger rejects unquoted Project creation');
 expect(migration.includes("array['owner','admin','operator','commercial','business_development']"),'Payment-gated RPC has explicit role authority');
 expect(migration.includes('from public, anon, authenticated'),'Previous acceptance-only RPC is unavailable to workspace callers');
+expect(migration.includes('op_developer_delete_test_record(text,uuid) from public, anon'),'Developer deletion RPC is unavailable anonymously');
 expect(migration.includes('client_payment_confirmed_for_project_release'),'Payment confirmation writes quote audit history');
 expect(migration.includes('project_opening_payment_gate_satisfied'),'Project release writes Project audit history');
 expect(lifecycle.includes('Quote Payment Confirmation'),'Lifecycle constitution defines payment evidence');
