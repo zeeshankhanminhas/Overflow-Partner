@@ -4,7 +4,7 @@ import type { DocumentInput } from '@/lib/validation/documents';
 import { assertUniqueDocumentReference } from '@/lib/business/identifierIntegrity';
 
 export async function listDocuments(supabase: SupabaseClient, organisationId: string) {
-  const { data, error } = await supabase.from('documents').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('documents').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(100);
   if (error) throw new Error(error.message); return (data ?? []) as DocumentRecord[];
 }
 export async function getDocumentById(supabase: SupabaseClient, organisationId: string, documentId: string) {
