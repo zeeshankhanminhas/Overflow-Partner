@@ -36,23 +36,23 @@ export async function getApprovalQueue(supabase: any, organisationId: string): P
       .eq('organisation_id',organisationId)
       .not('prospect_id','is',null)
       .eq('status','submitted')
-      .order('submitted_at',{ascending:true}),
+      .order('submitted_at',{ascending:true}).limit(50),
     supabase.from('commercial_reviews')
       .select('id,lead_id,status,client_price,cost_price,margin_amount,margin_percent,created_at,lead:leads(company_name,title)')
       .eq('organisation_id',organisationId)
       .eq('status','pending_approval')
-      .order('created_at',{ascending:true}),
+      .order('created_at',{ascending:true}).limit(50),
     supabase.from('documents')
       .select('id,lead_id,project_id,document_type,reference,title,status,revision_code,is_current_revision,created_at,updated_at')
       .eq('organisation_id',organisationId)
       .eq('is_current_revision',true)
       .in('status',['in_review','signed'])
-      .order('updated_at',{ascending:true}),
+      .order('updated_at',{ascending:true}).limit(50),
     supabase.from('partner_payables')
       .select('id,project_id,partner_id,payable_number,invoice_reference,status,total,currency,evidence_confirmed,created_at,partner:partners(company_name),project:projects(project_number,title)')
       .eq('organisation_id',organisationId)
       .in('status',['received','matched'])
-      .order('created_at',{ascending:true}),
+      .order('created_at',{ascending:true}).limit(50),
   ]);
 
   const items: ApprovalQueueItem[] = [];

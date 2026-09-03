@@ -3,7 +3,7 @@ import type { Prospect } from '@/types/domain';
 import type { ProspectInput } from '@/lib/validation/prospects';
 
 export async function listProspects(supabase: SupabaseClient, organisationId: string) {
-  const { data, error } = await supabase.from('prospects').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('prospects').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(100);
   if (error) throw new Error(error.message);
   return (data ?? []) as Prospect[];
 }

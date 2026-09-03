@@ -44,5 +44,8 @@ jobs:
       - name: Credibility release contracts
         run: npm run credibility:check
 
+      - name: Workspace performance contracts
+        run: npm run performance:check
+
       - name: Production build
         run: npx next build
