@@ -116,7 +116,7 @@ These URLs remain so old bookmarks do not fail, but they do not create parallel 
 - **Enquiry** owns qualification, Technical Intake collection and pre-Case Partner Assessment.
 - **Case 360** owns technical/commercial governance before delivery commitment.
 - **Client Quote** is a controlled offer; quote history does not become a parallel Case workflow.
-- **Project 360** owns accepted delivery and closeout.
+- **Project 360** owns delivery and closeout only after written acceptance and confirmed opening payment.
 - **Documents** are workflow evidence; the Documents route is a controlled registry only.
 - **Messages** are correspondence; they do not contain activity/audit events.
 - **Issues** are genuinely off-plan work requiring intervention.
@@ -234,7 +234,7 @@ Preferred product language:
 
 - **Enquiry / Prospect** before qualification.
 - **Case** after qualification and before Project ownership.
-- **Project** after accepted commercial work becomes delivery-owned.
+- **Project** after accepted commercial work and confirmed opening payment becomes delivery-owned.
 - **Partner Assessment** for Execution Partner feasibility/capacity/price review.
 - **Commercial control** for authorisation and project financial controls.
 - **Payments** for receivables, payables and cash movement.
