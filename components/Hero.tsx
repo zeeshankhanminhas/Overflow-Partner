@@ -75,13 +75,13 @@ export default function Hero() {
           </div>
 
           <div className="relative z-0 -mx-5 mt-4 aspect-[600/523] overflow-hidden sm:-mx-7 lg:absolute lg:-right-[8%] lg:bottom-4 lg:top-14 lg:mx-0 lg:mt-0 lg:h-auto lg:w-[66%] lg:overflow-visible xl:-right-[7%] xl:w-[65%]">
-            <img
+            <Image
               src="/overflow-hero-cad-faithful.webp"
               alt="Mechanical CAD gear assembly with wireframe geometry"
+              fill
+              sizes="(min-width: 1280px) 65vw, (min-width: 1024px) 66vw, 100vw"
               className="h-full w-full object-cover object-center lg:object-contain"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
+              priority
             />
           </div>
         </div>
@@ -106,3 +106,4 @@ export default function Hero() {
     </section>
   );
 }
+import Image from 'next/image';

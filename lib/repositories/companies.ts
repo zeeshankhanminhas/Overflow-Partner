@@ -3,7 +3,7 @@ import type { Company, Contact, Prospect, Lead, TechnicalIntake, DocumentRecord 
 import type { CompanyInput } from '@/lib/validation/companies';
 
 export async function listCompanies(supabase: SupabaseClient, organisationId: string) {
-  const { data, error } = await supabase.from('companies').select('*').eq('organisation_id', organisationId).order('name');
+  const { data, error } = await supabase.from('companies').select('*').eq('organisation_id', organisationId).order('name').limit(100);
   if (error) throw new Error(error.message);
   return (data ?? []) as Company[];
 }

@@ -13,7 +13,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   const { supabase, organisationId } = await requireUserContext();
   let record;try { record = await getCompany360(supabase, organisationId, companyId); } catch { notFound(); }
   const companies = await listCompanies(supabase, organisationId);
-  const { company, contacts, prospects, leads: cases, technicalIntakes, documents, quotes, projects, invoices, activity } = record;
+  const { company, contacts, prospects, leads: cases, documents, quotes, projects, invoices, activity } = record;
   const activeProjects=(projects as any[]).filter(item=>!['closed','completed','cancelled'].includes(String(item.status))).length;
   const openCases=cases.filter(item=>!['won','lost'].includes(String(item.status))).length;
   const outstanding=(invoices as any[]).reduce((sum,item)=>sum+Math.max(0,Number(item.total||0)-Number(item.amount_paid||0)),0);

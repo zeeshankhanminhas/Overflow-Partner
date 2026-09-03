@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { AppRole, Profile } from '@/types/domain';
 
-export async function requireUserContext() {
+export const requireUserContext = cache(async function requireUserContext() {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -21,7 +22,7 @@ export async function requireUserContext() {
   }
 
   return { supabase, user, profile, organisationId: profile.organisation_id };
-}
+});
 
 export function assertRole(role: AppRole, allowed: AppRole[]) {
   if (!allowed.includes(role)) throw new Error('You do not have permission to perform this action.');

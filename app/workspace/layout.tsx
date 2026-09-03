@@ -8,7 +8,6 @@ import './workspace-shell.css';
 import './visual-constitution.css';
 import './stage-documents.css';
 import './mobile-document-review.css';
-import './acquisition-layout.css';
 import './notification-centre.css';
 import './lifecycle-sidebar.css';
 import './document-print.css';
@@ -18,26 +17,20 @@ import './product-registers.css';
 import './product-states.css';
 import './phase3-document-actions.css';
 import './workspace-interaction-system.css';
-import './mission-control-v2.css';
-import './attention-priority.css';
 
 /* Canonical presentation layer. */
 import './product-surfaces.css';
-import './project-mobile-reference.css';
 import './mobile-reference-rebuild.css';
 import './mobile-header-actions.css';
-import './project-desktop-canonical.css';
-import './document-register-canonical.css';
 import './workspace-presentation-system.css';
 import './workspace-visual-foundation.css';
 import './ui-foundation.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { signOut } from '@/app/login/actions';
-import { requireUserContext } from '@/lib/auth/context';
-import { getApprovalQueue } from '@/lib/presentation/approvals';
-import { getOperationalExceptions } from '@/lib/operations/exceptions';
+import { getWorkspaceChromeData } from '@/lib/workspace/request-data';
 import { primaryNavigation } from '@/lib/presentation/navigationContract';
 import LifecycleSidebar from './LifecycleSidebar';
 import CommandPalette from '@/components/workspace/CommandPalette';
@@ -58,6 +51,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+export const runtime = 'nodejs';
+
 function ageLabel(minutes: number) {
   if (minutes < 60) return `${Math.max(1, minutes)}m`;
   const hours = Math.floor(minutes / 60);
@@ -66,13 +61,8 @@ function ageLabel(minutes: number) {
 }
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const { supabase, organisationId, profile } = await requireUserContext();
+  const { context: { profile }, approvals: approvalQueue, exceptions: exceptionQueue } = await getWorkspaceChromeData();
   const n=primaryNavigation;
-
-  const [approvalQueue, exceptionQueue] = await Promise.all([
-    getApprovalQueue(supabase, organisationId),
-    getOperationalExceptions(supabase, organisationId),
-  ]);
 
   const approvalAlerts: WorkspaceAlert[] = approvalQueue
     .filter((item) => item.status === 'ready')
@@ -120,7 +110,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         </header>
         <header className="midts-mobile-header op-mobile-header">
           <Link href={n.missionControl.href} className="op-mobile-header__brand" aria-label="Overflow Partner home">
-            <img src="/overflow-partner-logo.svg" alt="Overflow Partner" />
+            <Image src="/overflow-partner-logo.svg" alt="Overflow Partner" width={146} height={32} priority />
           </Link>
           <div className="op-mobile-header__actions"><Suspense fallback={null}><DeveloperDeleteCurrentRecord enabled={developerDeleteEnabled}/></Suspense><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
         </header>

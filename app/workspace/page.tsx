@@ -1,10 +1,12 @@
+import './mission-control-v2.css';
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 import { formatWaitingMinutes, resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/attention';
 import { buildMissionPriorityQueue, summariseMissionPriorityQueue } from '@/lib/dashboard/priorityQueue';
-import { getOperationalExceptions, summariseExceptions } from '@/lib/operations/exceptions';
-import { getApprovalQueue, summariseApprovalQueue } from '@/lib/presentation/approvals';
+import { summariseExceptions } from '@/lib/operations/exceptions';
+import { summariseApprovalQueue } from '@/lib/presentation/approvals';
+import { getWorkspaceChromeData } from '@/lib/workspace/request-data';
 import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { NextActionRail, OperatingState, SignalStrip, WaitingOnPanel, WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
 import MobileMissionControl from '@/components/workspace/MobileMissionControl';
@@ -27,12 +29,13 @@ function priorityConsequence(kind:'issue'|'approval'|'dependency'){
 
 export default async function WorkspacePage(){
   const {supabase,organisationId}=await requireUserContext();
-  const [dashboard,pendingPartnerResult,operationalExceptions,approvals]=await Promise.all([
+  const [dashboard,pendingPartnerResult,chrome]=await Promise.all([
     getDashboardSnapshot(supabase,organisationId),
     supabase.from('partner_review_requests').select('id,prospect_id,status,created_at,sent_at,submitted_at,response_due_at,partner:partners(company_name),prospect:prospects(company_name)').eq('organisation_id',organisationId).not('prospect_id','is',null).in('status',['invited','opened','in_progress','clarification_required']).order('created_at',{ascending:false}),
-    getOperationalExceptions(supabase,organisationId),
-    getApprovalQueue(supabase,organisationId),
+    getWorkspaceChromeData(),
   ]);
+  const operationalExceptions=chrome.exceptions;
+  const approvals=chrome.approvals;
 
   const partnerRows=(pendingPartnerResult.data||[]) as any[];
   const prospectIds=new Set(partnerRows.map(row=>String(row.prospect_id)));
