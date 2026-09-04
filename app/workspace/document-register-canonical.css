@@ -20,7 +20,7 @@
 .document-register__saved-views a{padding:7px 9px;border:1px solid var(--op-line);border-radius:8px;color:var(--op-muted);font-size:11px;font-weight:650;text-decoration:none;background:#fff;}
 .document-register__saved-views a:hover,.document-register__saved-views a.is-active{border-color:#c9c9c2;color:var(--op-text);background:#f7f7f3;}
 
-.document-reference-workspace .document-registry__table-wrap{display:block!important;min-height:0!important;padding:14px 14px 10px!important;}
+.document-reference-workspace .document-registry__table-wrap{display:block!important;min-height:0!important;padding:14px 14px 10px!important;container-type:inline-size;}
 .document-reference-workspace .document-registry__table-wrap .product-section-header{margin:0 0 10px!important;min-height:0!important;}
 .document-reference-workspace .document-registry__table-scroll{display:block!important;min-height:0!important;height:auto!important;max-height:none!important;margin:0!important;padding:0!important;overflow:auto!important;}
 .document-reference-workspace .document-registry__table-scroll table{margin:0!important;min-width:1280px;table-layout:auto!important;}
@@ -74,4 +74,48 @@
   .document-reference-workspace .document-registry__table-scroll table{min-width:1180px;}
   .file-identity__copy strong{max-width:210px;}
   .document-row-more__menu{right:auto;left:-138px;}
+}
+
+/* When the register panel cannot accommodate the full control table, recompose
+   each record as a labelled card. This responds to the panel width, so it also
+   covers split-screen and narrower desktop workspaces—not only phone widths. */
+@container (max-width:920px){
+  .document-reference-workspace .document-registry__table-scroll{overflow:visible!important;}
+  .document-reference-workspace .document-registry__table-scroll table,
+  .document-reference-workspace .document-registry__table-scroll tbody{display:block!important;width:100%!important;min-width:0!important;}
+  .document-reference-workspace .document-registry__table-scroll thead{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody{display:grid!important;gap:10px!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody tr{display:grid!important;grid-template-columns:32px minmax(0,1fr) auto!important;gap:0 10px!important;padding:14px!important;border:1px solid var(--op-line)!important;border-radius:12px!important;background:var(--op-panel)!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td{display:block!important;min-width:0!important;padding:9px 0!important;border:0!important;border-top:1px solid var(--op-line-soft)!important;overflow-wrap:normal!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td::before{display:block;margin-bottom:3px;color:var(--op-subtle);font-size:9px;font-weight:800;letter-spacing:.08em;line-height:1.2;text-transform:uppercase;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(1){grid-column:1;grid-row:1;padding:4px 0!important;border-top:0!important;text-align:left;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(2){grid-column:2;grid-row:1;padding:0!important;border-top:0!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(12){grid-column:3;grid-row:1;padding:0!important;border-top:0!important;justify-self:end;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(n+3):nth-child(-n+11){grid-column:2/4;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(3)::before{content:'Related to';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(4)::before{content:'Document type';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(5)::before{content:'Status';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(6)::before{content:'Revision';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(7)::before{content:'Owner / waiting';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(8)::before{content:'Purpose';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(9)::before{content:'Last release';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(10)::before{content:'Age / updated';}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(11)::before{content:'Next action';}
+  .document-reference-workspace .document-registry__table-scroll .file-identity{min-width:0;align-items:flex-start;}
+  .document-reference-workspace .document-registry__table-scroll .file-identity__copy strong,
+  .document-reference-workspace .document-registry__table-scroll .file-identity__filename{max-width:100%;white-space:normal;overflow-wrap:anywhere;}
+  .document-reference-workspace .document-registry__table-scroll .document-registry__next-action{white-space:normal;}
+  .document-reference-workspace .document-row-more__menu{right:0;left:auto;}
+}
+
+@media(max-width:520px){
+  .document-reference-workspace .document-registry__table-wrap{padding:10px!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody tr{grid-template-columns:24px minmax(0,1fr) auto!important;padding:12px!important;gap:0 8px!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(4),
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(9){display:none!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(5),
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(6){grid-column:auto!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(5){grid-column:2!important;padding-right:10px!important;}
+  .document-reference-workspace .document-registry__table-scroll tbody td:nth-child(6){grid-column:3!important;}
+  .document-reference-workspace .document-register__record-scale{justify-content:flex-start;padding-bottom:4px;}
 }
