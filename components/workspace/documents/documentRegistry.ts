@@ -28,7 +28,6 @@ export type WorkspaceDocumentItem = {
 };
 
 const previewOnly = 'Preview only. Live Workspace data is not connected yet.';
-const legacyPreview = 'Legacy preview. Do not use for final issue until live data is connected.';
 
 export const workspaceDocuments: WorkspaceDocumentItem[] = [
   { slug: 'partner-technical-assessment-report', title: 'Partner Technical Assessment Report', dataStatus: 'preview-only', description: `Controlled partner assessment of feasibility, assumptions, risks, lead time and pricing readiness. ${previewOnly}` },
@@ -42,15 +41,18 @@ export const workspaceDocuments: WorkspaceDocumentItem[] = [
   { slug: 'document-register', title: 'Document Register', dataStatus: 'preview-only', description: `Controlled index of documents, revisions, status, owners and authorised recipients. ${previewOnly}` },
   { slug: 'commercial-qualification-record', title: 'Commercial Qualification Record', dataStatus: 'live-backed', description: 'Live internal decision record built from the Case, Technical Intake and Partner Technical Assessment.' },
   { slug: 'capability-statement', title: 'Capability Statement', dataStatus: 'preview-only', description: `Overview of Overflow Partner services and delivery model. ${previewOnly}` },
-  { slug: 'requirement-sheet', title: 'Requirement Sheet', dataStatus: 'legacy-preview', description: `Initial engineering requirement and clarification record. ${legacyPreview}` },
-  { slug: 'technical-review', title: 'Technical Review', dataStatus: 'legacy-preview', description: `Technical readiness, risk and clarification review. ${legacyPreview}` },
   { slug: 'proposal', title: 'Proposal', dataStatus: 'preview-only', description: `Recommended engineering approach before final quotation. ${previewOnly}` },
-  { slug: 'quote', title: 'Quote', dataStatus: 'legacy-preview', description: `Price and terms for a defined scope. ${legacyPreview}` },
   { slug: 'statement-of-work', title: 'Statement of Work', dataStatus: 'preview-only', description: `Delivery-governing scope, responsibilities, milestones, acceptance criteria and change control. ${previewOnly}` },
   { slug: 'handover-pack', title: 'Delivery Handover Pack', dataStatus: 'preview-only', description: `Approved commercial and technical baseline prepared for the start of delivery. ${previewOnly}` },
   { slug: 'completion-report', title: 'Completion Report', dataStatus: 'preview-only', description: `Controlled summary of delivered work, agreed deviations and completion status. ${previewOnly}` },
   { slug: 'invoice', title: 'Invoice', dataStatus: 'preview-only', description: `Client billing and payment document linked to the accepted quotation and project. ${previewOnly}` },
 ];
+
+export const legacyDocumentAliases: Partial<Record<WorkspaceDocumentSlug, WorkspaceDocumentSlug>> = {
+  'requirement-sheet': 'client-requirements',
+  'technical-review': 'partner-technical-assessment-report',
+  quote: 'client-quote',
+};
 
 export function getWorkspaceDocument(slug: string) {
   return workspaceDocuments.find((document) => document.slug === slug);

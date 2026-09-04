@@ -26,6 +26,7 @@ const checks = [
   ['Document data uses human-readable requirement labels', adapter.includes("fact('Requirement reference'") && adapter.includes("fact('Requirement'" )],
   ['Invoice documents use the invoice ledger', adapter.includes("many(supabase, 'invoices'") && !/slug === 'invoice'[\s\S]{0,500}quote\?\.(?:subtotal|vat|total)/.test(adapter)],
   ['Legacy document variants cannot become issue ready', contracts.includes("'requirement-sheet': contract('internal', ['technicalIntake'], false)") && contracts.includes("'technical-review': contract('internal', ['partnerAssessment'], false)") && contracts.includes("'quote': contract('client', ['clientQuote'], false)")],
+  ['Legacy document variants are retired from the active suite', !registry.includes("{ slug: 'requirement-sheet'") && !registry.includes("{ slug: 'technical-review'") && !registry.includes("{ slug: 'quote'") && registry.includes("'requirement-sheet': 'client-requirements'")],
   ['Review and issue fail closed on evidence gaps', (reviewActions.match(/assertDocumentEvidenceReady\(/g) || []).length >= 3],
   ['Issueable document copy contains no authoring placeholders', !/body: '(?:List|Show|State|Record|Describe|Choose|Provide|Give|Reference|Carry forward)\b/.test(language.replace(/'email-templates':[\s\S]*$/, ''))],
   ['Template review centre requires workspace authentication', reviewPage.includes('await requireUserContext()')],
