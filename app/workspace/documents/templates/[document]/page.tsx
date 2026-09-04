@@ -20,7 +20,7 @@ export default async function WorkspaceDocumentPreviewPage({
   searchParams,
 }: {
   params: Promise<{ document: WorkspaceDocumentSlug }>;
-  searchParams?: Promise<{ case?: string; project?: string; quote?: string; document_record?: string }>;
+  searchParams?: Promise<{ case?: string; project?: string; quote?: string; invoice?: string; document_record?: string }>;
 }) {
   const { document } = await params;
   if (!getWorkspaceDocument(document)) notFound();
@@ -31,6 +31,7 @@ export default async function WorkspaceDocumentPreviewPage({
     caseId: query.case,
     projectId: query.project,
     quoteId: query.quote,
+    invoiceId: query.invoice,
   });
 
   const ownerFact = adapted.facts.find((item) => item.label === 'Owner');

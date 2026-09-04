@@ -1,6 +1,7 @@
 import { getWorkspaceDocument, type WorkspaceDocumentSlug } from './documentRegistry';
 import { documentLanguage } from './documentLanguage';
 import type { AdaptedDocumentData } from './documentAdapter';
+import { OverflowPartnerMark } from '@/components/brand/OverflowPartnerBrand';
 
 const ink = '#171918';
 const muted = '#3f4542';
@@ -10,8 +11,8 @@ const paper = '#fafaf8';
 
 function BrandMark() {
   return <div className="flex items-center gap-4">
-    <span className="grid h-12 w-12 place-items-center border-2 text-sm font-black tracking-[-.06em]" style={{ borderColor: ink, color: ink }}>OP</span>
-    <div><strong className="block text-base font-bold tracking-[-.025em]" style={{ color: ink }}>Overflow Partner</strong><span className="mt-1 block text-[9px] font-bold uppercase tracking-[.22em]" style={{ color: accent }}>Engineering capacity</span></div>
+    <OverflowPartnerMark className="h-14 w-14" />
+    <div><strong className="block text-xs font-bold uppercase leading-4 tracking-[.16em]" style={{ color: ink }}>Overflow<br />Partner</strong><span className="mt-2 block text-[8px] font-bold uppercase tracking-[.2em]" style={{ color: accent }}>Engineering capacity</span></div>
   </div>;
 }
 
@@ -73,7 +74,7 @@ export default function DocumentEngineViewer({ slug, adapted }: { slug: Workspac
 
     {adapted?.connected ? <Page reference={reference} page="02">
       <div className="grid grid-cols-[5rem_1fr] gap-8 border-b-2 pb-8" style={{ borderColor: ink }}><span className="text-5xl font-bold tracking-[-.06em]" style={{ color: accent }}>00</span><div><p className="text-[10px] font-bold uppercase tracking-[.22em]" style={{ color: accent }}>Inherited controlled record</p><h2 className="mt-3 max-w-2xl text-4xl font-bold tracking-[-.05em] md:text-5xl" style={{ color: ink }}>Live document data</h2></div></div>
-      <div className="mt-12 grid grid-cols-1 gap-x-8 md:grid-cols-2">{adapted.facts.filter((item) => !['Electronically signed by','Signer role','Signed at','Signature declaration','Electronic signature','Approved by','Approved at'].includes(item.label)).map((item) => <div key={item.label} className="border-t-2 py-6" style={{ borderColor: line }}><p className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: accent }}>{item.label}</p><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-7" style={{ color: ink }}>{item.value}</p></div>)}</div>
+      <div className="mt-12 grid gap-10">{adapted.sections.map((section) => <section key={section.title}><h3 className="border-b-2 pb-3 text-xs font-bold uppercase tracking-[.18em]" style={{ borderColor: ink, color: accent }}>{section.title}</h3><div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">{section.facts.map((item, index) => <div key={`${section.title}-${item.label}-${index}`} className="border-t py-5" style={{ borderColor: line }}><p className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: accent }}>{item.label}</p><p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-7" style={{ color: ink }}>{item.value}</p></div>)}</div></section>)}</div>
       {adapted.warnings.length ? <div className="mt-10 border-l-4 p-6" style={{ borderColor: accent, background: '#f2eee9' }}><p className="text-[9px] font-bold uppercase tracking-[.18em]" style={{ color: accent }}>Issue blockers</p><ul className="mt-4 grid gap-2">{adapted.warnings.map((warning) => <li key={warning} className="text-sm font-semibold" style={{ color: ink }}>{warning}</li>)}</ul></div> : null}
     </Page> : null}
 
@@ -92,7 +93,7 @@ export default function DocumentEngineViewer({ slug, adapted }: { slug: Workspac
             {signatureDeclaration ? <p className="mt-5 border-t pt-4 text-xs leading-5" style={{ borderColor: line, color: muted }}>{signatureDeclaration}</p> : null}
             {approvedBy ? <div className="mt-5 grid grid-cols-2 gap-6 border-t pt-5" style={{ borderColor: line }}><div><p className="text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: muted }}>Approved by</p><p className="mt-2 text-sm font-bold" style={{ color: ink }}>{approvedBy}</p></div><div><p className="text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: muted }}>Approved at</p><p className="mt-2 text-sm font-bold" style={{ color: ink }}>{approvedAt || 'Recorded in audit trail'}</p></div></div> : null}
           </section> : null}
-          <div className="grid gap-0 border-y-2" style={{ borderColor: ink }}><div className="grid grid-cols-[10rem_1fr] border-b py-5" style={{ borderColor: line }}><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Issue condition</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{language.issueCondition}</p></div><div className="grid grid-cols-[10rem_1fr] py-5"><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Release control</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{adapted?.connected && !adapted.warnings.length ? 'Live source data is connected. Complete approval and controlled PDF issue before external distribution.' : 'Preview or incomplete record. Connect the required live evidence and complete approval before external issue.'}</p></div></div>
+          <div className="grid gap-0 border-y-2" style={{ borderColor: ink }}><div className="grid grid-cols-[10rem_1fr] border-b py-5" style={{ borderColor: line }}><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Issue condition</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{language.issueCondition}</p></div><div className="grid grid-cols-[10rem_1fr] py-5"><strong className="text-xs uppercase tracking-[.14em]" style={{ color: accent }}>Release control</strong><p className="text-sm font-semibold leading-6" style={{ color: ink }}>{adapted?.issueReady ? 'Required source evidence is complete. The document still requires signature, approval and controlled issue before external distribution.' : 'Final issue is blocked. Complete every listed evidence requirement before review and release.'}</p></div></div>
         </div>
       </div>
     </Page>

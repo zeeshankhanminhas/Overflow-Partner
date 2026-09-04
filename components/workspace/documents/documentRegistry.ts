@@ -46,10 +46,10 @@ export const workspaceDocuments: WorkspaceDocumentItem[] = [
   { slug: 'technical-review', title: 'Technical Review', dataStatus: 'legacy-preview', description: `Technical readiness, risk and clarification review. ${legacyPreview}` },
   { slug: 'proposal', title: 'Proposal', dataStatus: 'preview-only', description: `Recommended engineering approach before final quotation. ${previewOnly}` },
   { slug: 'quote', title: 'Quote', dataStatus: 'legacy-preview', description: `Price and terms for a defined scope. ${legacyPreview}` },
-  { slug: 'statement-of-work', title: 'Statement of Work', dataStatus: 'legacy-preview', description: `Delivery-governing scope, responsibilities, milestones, acceptance criteria and change control. ${legacyPreview}` },
-  { slug: 'handover-pack', title: 'Delivery Handover Pack', dataStatus: 'legacy-preview', description: `Approved commercial and technical baseline prepared for the start of delivery. ${legacyPreview}` },
-  { slug: 'completion-report', title: 'Completion Report', dataStatus: 'legacy-preview', description: `Controlled summary of delivered work, agreed deviations and completion status. ${legacyPreview}` },
-  { slug: 'invoice', title: 'Invoice', dataStatus: 'legacy-preview', description: `Client billing and payment document linked to the accepted quotation and project. ${legacyPreview}` },
+  { slug: 'statement-of-work', title: 'Statement of Work', dataStatus: 'preview-only', description: `Delivery-governing scope, responsibilities, milestones, acceptance criteria and change control. ${previewOnly}` },
+  { slug: 'handover-pack', title: 'Delivery Handover Pack', dataStatus: 'preview-only', description: `Approved commercial and technical baseline prepared for the start of delivery. ${previewOnly}` },
+  { slug: 'completion-report', title: 'Completion Report', dataStatus: 'preview-only', description: `Controlled summary of delivered work, agreed deviations and completion status. ${previewOnly}` },
+  { slug: 'invoice', title: 'Invoice', dataStatus: 'preview-only', description: `Client billing and payment document linked to the accepted quotation and project. ${previewOnly}` },
 ];
 
 export function getWorkspaceDocument(slug: string) {

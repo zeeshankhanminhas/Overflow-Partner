@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
+import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
+import { getWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
 
 const ownerAuthorityRoles = ['owner', 'admin'] as const;
 const reviewRoles = ['owner', 'admin', 'engineering', 'commercial'] as const;
@@ -21,17 +23,25 @@ type ControlledDocument = {
   signed_by: string | null;
   approved_by: string | null;
   issued_by: string | null;
+  quote_id: string | null;
 };
 
 async function loadControlledDocument(documentId: string) {
   const context = await requireUserContext();
   const { data: document, error } = await context.supabase
     .from('documents')
-    .select('id,status,lead_id,project_id,reference,document_type,version,governance_mode,independent_review_required,signed_by,approved_by,issued_by')
+    .select('id,status,lead_id,project_id,quote_id,reference,document_type,version,governance_mode,independent_review_required,signed_by,approved_by,issued_by')
     .eq('organisation_id', context.organisationId)
     .eq('id', documentId)
     .single();
   return { ...context, document: document as ControlledDocument | null, error };
+}
+
+async function assertDocumentEvidenceReady(supabase: Awaited<ReturnType<typeof requireUserContext>>['supabase'], organisationId: string, document: ControlledDocument) {
+  const definition = getWorkspaceDocument(document.document_type);
+  if (!definition) throw new Error('This document type is not in the controlled template register.');
+  const adapted = await buildDocumentAdapter(supabase, document.document_type as WorkspaceDocumentSlug, { organisationId, caseId: document.lead_id, projectId: document.project_id, quoteId: document.quote_id });
+  if (!adapted.issueReady) throw new Error(`Document evidence is incomplete: ${adapted.warnings.join(' ')}`);
 }
 
 async function recordDocumentEvent({ supabase, organisationId, userId, document, eventType, oldStatus, newStatus, evidence }: {
@@ -94,6 +104,7 @@ export async function submitControlledDocumentForReviewAction(documentId: string
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
     if (document.status === 'in_review') return { ok: true, message: 'Document is already in review.', status: 'in_review' };
     if (!['draft','changes_requested'].includes(document.status)) return { ok: false, message: `Document cannot enter review from ${document.status}.` };
+    await assertDocumentEvidenceReady(supabase, organisationId, document);
 
     const submittedAt = new Date().toISOString();
     await persistDocumentStatus({
@@ -200,6 +211,7 @@ export async function issueControlledDocumentAction(documentId: string): Promise
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
     if (['issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already issued.', status: document.status };
     if (document.status !== 'approved') return { ok: false, message: 'Document must be approved before controlled issue.' };
+    await assertDocumentEvidenceReady(supabase, organisationId, document);
 
     const issuedAt = new Date().toISOString();
     const combinedAuthority = document.approved_by === user.id;
