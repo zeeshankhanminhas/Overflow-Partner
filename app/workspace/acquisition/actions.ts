@@ -113,6 +113,72 @@ export async function qualifyProspectFormAction(formData: FormData) {
   redirect(`${destination}${destination.includes('?') ? '&' : '?'}error=${encodeURIComponent('Qualification is controlled by the governed Partner Review Go / No-Go decision. Review the partner response instead.')}&focus=record-next-action`);
 }
 
+const manuallyEditableProspectStatuses = new Set(['identified','contacted','conversation','not_a_fit']);
+
+export async function updateProspectWorkingStatusFormAction(formData: FormData) {
+  const prospectId = String(formData.get('prospect_id') || '').trim();
+  const targetStatus = String(formData.get('status') || '').trim();
+  const reason = String(formData.get('reason') || '').trim();
+  let destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
+
+  try {
+    const { supabase, user, profile, organisationId } = await requireUserContext();
+    assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
+    if (!prospectId) throw new Error('Prospect ID is required.');
+    if (!manuallyEditableProspectStatuses.has(targetStatus)) throw new Error('This status is controlled by the governed acquisition workflow.');
+
+    const { data: prospect, error: prospectError } = await supabase
+      .from('prospects')
+      .select('id,status,converted_lead_id,company_name,next_action')
+      .eq('organisation_id', organisationId)
+      .eq('id', prospectId)
+      .single();
+    if (prospectError || !prospect) throw new Error('Prospect not found.');
+    if (prospect.converted_lead_id || prospect.status === 'converted') throw new Error('Converted opportunities are controlled by Case 360.');
+    if (prospect.status === 'qualified') throw new Error('Qualified opportunities are controlled by the approved Go / No-Go decision.');
+    if (prospect.status === targetStatus) throw new Error('Select a different status.');
+    if ((targetStatus === 'not_a_fit' || prospect.status === 'not_a_fit') && reason.length < 5) throw new Error('Record a brief reason when closing or reopening an opportunity.');
+
+    const nextActionByStatus: Record<string,string> = {
+      identified: 'Establish contact and confirm initial interest',
+      contacted: 'Follow up initial contact',
+      conversation: 'Confirm requirement and prepare requirements request',
+      not_a_fit: 'Closed as not a fit',
+    };
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabase.from('prospects').update({
+      status: targetStatus,
+      next_action: nextActionByStatus[targetStatus],
+      updated_at: now,
+    }).eq('organisation_id', organisationId).eq('id', prospectId);
+    if (updateError) throw new Error(updateError.message);
+
+    await recordActivity(supabase, {
+      organisationId,
+      entityType: 'prospect',
+      entityId: prospectId,
+      userId: user.id,
+      eventType: 'prospect.status_changed',
+      eventData: { reason: reason || null, source: 'manual_early_stage_control' },
+      oldValue: { status: prospect.status, nextAction: prospect.next_action },
+      newValue: { status: targetStatus, nextAction: nextActionByStatus[targetStatus] },
+    });
+
+    if (targetStatus === 'not_a_fit') await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
+    revalidatePath(`/workspace/acquisition/${prospectId}`);
+    revalidatePath('/workspace/acquisition');
+    revalidatePath('/workspace/acquisition/prospects');
+    revalidatePath('/workspace');
+    destination = acquisitionUrl(prospectId,{updated:'Opportunity status updated',focus:'record-next-action'});
+  } catch (error) {
+    destination = prospectId
+      ? acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Status could not be updated.',focus:'record-next-action'})
+      : '/workspace/acquisition';
+  }
+
+  redirect(destination);
+}
+
 export async function convertProspectAction(formData: FormData): Promise<ActionResult<Lead>> {
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
