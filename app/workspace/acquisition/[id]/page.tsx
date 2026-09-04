@@ -9,7 +9,8 @@ import { acquisitionStages, resolveAcquisitionState } from '@/lib/acquisition/st
 import { resolveAcquisitionPresentation } from '@/lib/presentation/operatingState';
 import { commercialCopy, commercialStatus } from '@/lib/presentation/commercialLanguage';
 import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
-import { convertProspectFormAction, createStep2InvitationFormAction } from '../actions';
+import { DecisionDialog } from '@/components/workspace/InteractionSurface';
+import { convertProspectFormAction, createStep2InvitationFormAction, updateProspectWorkingStatusFormAction } from '../actions';
 import { generateStep2TestLinkFormAction } from '../test-link-actions';
 
 function dateTime(value: string | null | undefined) {
@@ -64,7 +65,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const canUseDeveloperLink=['owner','admin'].includes(String(profile.role));
 
   const notices=<>
-    {query.created||query.qualified||query.partnerReviewCreated||query.partnerDecision?<div className="vp-callout"><strong>Opportunity updated</strong><p>{query.partnerReviewCreated?'Delivery review sent.':query.partnerDecision?`Commercial decision: ${commercialStatus(String(query.partnerDecision),commercialCopy(String(query.partnerDecision)))}.`:display(query.created||query.qualified)}</p></div>:null}
+    {query.created||query.updated||query.qualified||query.partnerReviewCreated||query.partnerDecision?<div className="vp-callout"><strong>Opportunity updated</strong><p>{query.partnerReviewCreated?'Delivery review sent.':query.partnerDecision?`Commercial decision: ${commercialStatus(String(query.partnerDecision),commercialCopy(String(query.partnerDecision)))}.`:display(query.created||query.updated||query.qualified)}</p></div>:null}
     {query.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{operatorErrorMessage(String(query.error))}</p></div>:null}
     {canUseDeveloperLink&&invitationUrl?<Step2TestLink url={invitationUrl}/>:null}
   </>;
@@ -76,6 +77,8 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const readiness=<div className="vp-facts"><Fact label="Requirements" value={acquisition.readiness.technicalIntake}/><Fact label="Client submission" value={acquisition.readiness.technicalSubmission}/><Fact label="Delivery review" value={acquisition.readiness.partnerReview}/><Fact label="Partner cost" value={acquisition.readiness.partnerPricing}/><Fact label="Commercial decision" value={acquisition.readiness.approval}/><Fact label="Ready to progress" value={acquisition.readiness.qualification}/></div>;
 
   const partnerGate=<AcquisitionPartnerGate prospectId={id} intakeSessionId={session?.id||''} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')} partners={partners} request={partnerRequest} response={response} quote={partnerQuote} decision={decision} reviewUrl={canUseDeveloperLink?reviewUrl:undefined}/>;
+  const canEditWorkingStatus=['identified','contacted','conversation','not_a_fit'].includes(String(prospect.status))&&!convertedCaseId;
+  const statusControl=canEditWorkingStatus?<DecisionDialog triggerLabel="Update opportunity status" triggerClassName="button secondary" eyebrow="Opportunity control" title="Update opportunity status" description="Manage early commercial engagement without bypassing technical qualification or Case conversion."><form action={updateProspectWorkingStatusFormAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Status<select name="status" defaultValue={prospect.status} required><option value="identified">Identified</option><option value="contacted">Contacted</option><option value="conversation">In conversation</option><option value="not_a_fit">Not a fit</option></select></label><label>Reason<textarea name="reason" rows={3} placeholder="Required when closing or reopening an opportunity"/></label><div className="product-notice"><strong>Governed boundaries</strong><div>Qualified status remains controlled by the approved Go / No-Go decision. Converted status remains controlled by Case 360 creation.</div></div><button className="button" type="submit">Save status</button></form></DecisionDialog>:null;
   const nextActionPanel=<div><p className="vp-kicker">Next action</p><h2 style={{marginTop:6}}>{commercialCopy(presentation.nextAction.label)}</h2><p>{commercialCopy(presentation.nextAction.reason)}</p>
     {acquisition.actionKey==='create_intake'?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create requirements request</button></form>:null}
     {['request_partner','wait_partner','review_partner_response','resolve_clarification'].includes(acquisition.actionKey)?partnerGate:null}
@@ -83,6 +86,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     {acquisition.actionKey==='create_case'?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Progress opportunity</button></form>:null}
     {acquisition.actionKey==='open_case'?(convertedCaseId?<Link className="button" href={`/workspace/leads/${convertedCaseId}`}>Open commercial workspace</Link>:<Link className="button secondary" href="/workspace/leads">Open opportunities</Link>):null}
     {acquisition.actionKey==='closed'?<div className="vp-callout"><strong>Opportunity declined</strong><p>This opportunity will not progress to commercial preparation or delivery.</p></div>:null}
+    {statusControl}
   </div>;
 
   const summary=<div className="vp-facts"><Fact label="Client" value={prospect.company_name}/><Fact label="Primary contact" value={prospect.contact_name}/><Fact label="Role" value={prospect.job_title}/><Fact label="Source" value={prospect.source}/><Fact label="Requirement" value={prospect.requirement_summary}/><Fact label="Status" value={commercialStatus(prospect.status,commercialCopy(display(prospect.status)))}/></div>;
