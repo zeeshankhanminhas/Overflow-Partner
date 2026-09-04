@@ -2,11 +2,13 @@ import Link from 'next/link';
 import CompanyForm from '@/components/workspace/CompanyForm';
 import { requireUserContext } from '@/lib/auth/context';
 import { listCompanies } from '@/lib/repositories/companies';
-import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
+import { developerDeleteRecordAction } from '@/app/workspace/developer-actions';
+import WorkspaceConsequenceGuard from '@/components/workspace/WorkspaceConsequenceGuard';
+import { ContextActions, DecisionDialog, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 export default async function CompaniesPage({searchParams}:{searchParams?:Promise<Record<string,string|string[]|undefined>>}){
-  const params=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();const companies=await listCompanies(supabase,organisationId);
+  const params=searchParams?await searchParams:{};const {supabase,organisationId,profile}=await requireUserContext();const companies=await listCompanies(supabase,organisationId);const developerDeleteEnabled=Boolean(profile.developer_delete_enabled);
   const uk=companies.filter(company=>company.country==='United Kingdom').length;const profiled=companies.filter(company=>company.industry).length;
   const addCompany=<WorkWindow triggerLabel="Add company" triggerClassName="button" eyebrow="CRM master" title="Add company" description="Create the shared company master record without expanding the register into a form page."><CompanyForm/></WorkWindow>;
   return <section className="vp-page">
@@ -29,6 +31,7 @@ export default async function CompaniesPage({searchParams}:{searchParams?:Promis
           <nav className="workspace-record-context" aria-label={`Related work for ${company.name}`}><small>Relationship context</small><div className="workspace-record-context__links"><Link href={`/workspace/companies/${company.id}`}>Company 360<span>→</span></Link><Link href="/workspace/contacts">Contacts<span>→</span></Link><Link href="/workspace/leads">Cases<span>→</span></Link><Link href="/workspace/projects">Projects<span>→</span></Link></div></nav>
         </WorkspaceDrawer>
         <Link className="button secondary" href={`/workspace/companies/${company.id}`}>Open</Link>
+        {developerDeleteEnabled?<DecisionDialog triggerLabel="Delete test client" triggerClassName="button secondary product-action product-action--destructive" eyebrow="Developer test control" title={`Delete ${company.name}?`} description="Permanent test-data cleanup for this client company master record. Linked Cases and Projects remain as historical operating records."><form action={developerDeleteRecordAction} className="stack"><input type="hidden" name="entity_type" value="company"/><input type="hidden" name="entity_id" value={company.id}/><input type="hidden" name="return_to" value="/workspace/companies"/><div className="product-notice product-notice--critical"><strong>Permanent client deletion</strong><div>{company.name} will be removed. Linked contacts, enquiries and Cases will remain but will no longer reference this company master.</div></div><WorkspaceConsequenceGuard actionLabel="Delete test client" pendingLabel="Deleting client…" confirmationLabel={`I understand the ${company.name} company master will be permanently deleted.`} consequence="The company profile and company-specific commercial profile will be removed." recovery="Historical operating records remain, but this company link cannot be restored automatically." className="button product-action product-action--destructive"/></form></DecisionDialog>:null}
       </ContextActions>
     </ProductRegisterRow>)}</ProductRegister>}</section>
   </section>;

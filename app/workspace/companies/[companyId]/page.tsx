@@ -4,13 +4,16 @@ import ContactForm from '@/components/workspace/ContactForm';
 import FileTypeThumbnail from '@/components/workspace/FileTypeThumbnail';
 import { requireUserContext } from '@/lib/auth/context';
 import { listCompanies, getCompany360 } from '@/lib/repositories/companies';
+import { developerDeleteRecordAction } from '@/app/workspace/developer-actions';
+import WorkspaceConsequenceGuard from '@/components/workspace/WorkspaceConsequenceGuard';
+import { DecisionDialog } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 function money(value:unknown,currency='GBP'){try{return new Intl.NumberFormat('en-GB',{style:'currency',currency,maximumFractionDigits:0}).format(Number(value||0))}catch{return `${currency} ${Number(value||0).toFixed(0)}`}}
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ companyId: string }> }) {
   const { companyId } = await params;
-  const { supabase, organisationId } = await requireUserContext();
+  const { supabase, organisationId, profile } = await requireUserContext();
   let record;try { record = await getCompany360(supabase, organisationId, companyId); } catch { notFound(); }
   const companies = await listCompanies(supabase, organisationId);
   const { company, contacts, prospects, leads: cases, documents, quotes, projects, invoices, activity } = record;
@@ -25,7 +28,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   ];
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="CRM · Company 360" title={company.name} description={[company.industry, company.country].filter(Boolean).join(' · ') || undefined} backHref="/workspace/companies" backLabel="Companies" />
+    <ProductPageHeader eyebrow="CRM · Company 360" title={company.name} description={[company.industry, company.country].filter(Boolean).join(' · ') || undefined} backHref="/workspace/companies" backLabel="Companies" actions={profile.developer_delete_enabled?<DecisionDialog triggerLabel="Delete test client" triggerClassName="button secondary product-action product-action--destructive" eyebrow="Developer test control" title={`Delete ${company.name}?`} description="Permanent test-data cleanup for this client company master record. Linked Cases and Projects remain as historical operating records."><form action={developerDeleteRecordAction} className="stack"><input type="hidden" name="entity_type" value="company"/><input type="hidden" name="entity_id" value={company.id}/><input type="hidden" name="return_to" value="/workspace/companies"/><div className="product-notice product-notice--critical"><strong>Permanent client deletion</strong><div>{company.name} will be removed. Linked contacts, enquiries and Cases will remain but will no longer reference this company master.</div></div><WorkspaceConsequenceGuard actionLabel="Delete test client" pendingLabel="Deleting client…" confirmationLabel={`I understand the ${company.name} company master will be permanently deleted.`} consequence="The company profile and company-specific commercial profile will be removed." recovery="Historical operating records remain, but this company link cannot be restored automatically." className="button product-action product-action--destructive"/></form></DecisionDialog>:undefined}/>
     <ProductMetrics label="Company relationship summary"><ProductMetric label="Active projects" value={activeProjects} detail={`${openCases} open Case${openCases===1?'':'s'}`} tone={activeProjects?'active':'neutral'}/><ProductMetric label="Contacts" value={contacts.length} detail="People linked to this company"/><ProductMetric label="Accepted value" value={money(acceptedValue)} detail="Accepted quoted value"/><ProductMetric label="Receivables" value={money(outstanding)} detail="Outstanding client balance" tone={outstanding?'waiting':'complete'}/></ProductMetrics>
 
     <section className="product-panel"><ProductSectionHeader eyebrow="Account" title="Company profile" actions={company.website?<a className="button secondary" href={company.website} target="_blank" rel="noreferrer">Website</a>:undefined}/><div className="vp-facts"><div className="vp-fact"><small>Industry</small><strong>{company.industry||'Not recorded'}</strong></div><div className="vp-fact"><small>Country</small><strong>{company.country||'Not recorded'}</strong></div><div className="vp-fact"><small>Employees</small><strong>{company.employee_count||'Not recorded'}</strong></div><div className="vp-fact"><small>Relationship</small><strong>{projects.length||cases.length?'Active':'Prospect / master data'}</strong></div></div>{company.notes?<p>{company.notes}</p>:null}</section>
