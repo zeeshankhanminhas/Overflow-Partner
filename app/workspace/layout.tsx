@@ -28,7 +28,7 @@ import './ui-foundation.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import OverflowPartnerBrand from '@/components/brand/OverflowPartnerBrand';
 import { signOut } from '@/app/login/actions';
 import { getWorkspaceChromeData } from '@/lib/workspace/request-data';
 import { primaryNavigation } from '@/lib/presentation/navigationContract';
@@ -96,7 +96,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <div className="workspace midts-shell op-shell">
       <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
       <aside className="midts-sidebar op-sidebar">
-        <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><span className="midts-brand-dot op-brand-mark" />Overflow Partner</Link>
+        <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><OverflowPartnerBrand /></Link>
         <LifecycleSidebar />
         <div className="midts-sidebar-footer op-sidebar-footer">
           <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
@@ -110,7 +110,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         </header>
         <header className="midts-mobile-header op-mobile-header">
           <Link href={n.missionControl.href} className="op-mobile-header__brand" aria-label="Overflow Partner home">
-            <Image src="/overflow-partner-logo.svg" alt="Overflow Partner" width={146} height={32} priority />
+            <OverflowPartnerBrand />
           </Link>
           <div className="op-mobile-header__actions"><Suspense fallback={null}><DeveloperDeleteCurrentRecord enabled={developerDeleteEnabled}/></Suspense><WorkspaceShellActions alerts={alerts}/><CommandPalette/></div>
         </header>

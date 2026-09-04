@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import ProtectedDocumentEngine from '@/components/workspace/documents/ProtectedDocumentEngine';
-import { getWorkspaceDocument, workspaceDocuments, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
+import { getWorkspaceDocument, legacyDocumentAliases, workspaceDocuments, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
 import { requireUserContext } from '@/lib/auth/context';
 
@@ -20,17 +20,23 @@ export default async function WorkspaceDocumentPreviewPage({
   searchParams,
 }: {
   params: Promise<{ document: WorkspaceDocumentSlug }>;
-  searchParams?: Promise<{ case?: string; project?: string; quote?: string; document_record?: string }>;
+  searchParams?: Promise<{ case?: string; project?: string; quote?: string; invoice?: string; document_record?: string }>;
 }) {
   const { document } = await params;
-  if (!getWorkspaceDocument(document)) notFound();
   const query = searchParams ? await searchParams : {};
+  const replacement = legacyDocumentAliases[document];
+  if (replacement) {
+    const preserved = new URLSearchParams(Object.entries(query).filter((entry): entry is [string,string] => typeof entry[1] === 'string'));
+    permanentRedirect(`/workspace/documents/templates/${replacement}${preserved.size ? `?${preserved}` : ''}`);
+  }
+  if (!getWorkspaceDocument(document)) notFound();
   const { supabase, organisationId } = await requireUserContext();
   const adapted = await buildDocumentAdapter(supabase, document, {
     organisationId,
     caseId: query.case,
     projectId: query.project,
     quoteId: query.quote,
+    invoiceId: query.invoice,
   });
 
   const ownerFact = adapted.facts.find((item) => item.label === 'Owner');

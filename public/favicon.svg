@@ -1,16 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg"
-  width="128" height="128" viewBox="0 0 128 128"
-  role="img" aria-labelledby="title desc">
-  <title id="title">Overflow Partner favicon</title>
-  <desc id="desc">Compact OP capacity-extension symbol.</desc>
-  <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
-    <rect x="14" y="18" width="28" height="20" rx="4"
-          stroke="#171717" stroke-width="6"/>
-    <path d="M42 28H98" stroke="#171717" stroke-width="6"/>
-    <path d="M28 52V92" stroke="#171717" stroke-width="6"/>
-    <path d="M28 54H50C60 54 65 60 65 68C65 76 60 82 50 82H28"
-          stroke="#171717" stroke-width="6"/>
-    <path d="M65 82H91" stroke="#171717" stroke-width="6"/>
-    <path d="M91 82H114" stroke="#E5483F" stroke-width="6"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title"><title id="title">Overflow Partner</title><rect width="128" height="128" rx="18" fill="#fafaf8"/><g transform="translate(16 16)" fill="none" stroke="#171918" stroke-width="6" stroke-linejoin="round"><path d="M12 19h33a14 14 0 0 1 14 14v12a14 14 0 0 1-14 14H26a14 14 0 0 1-14-14V19Z"/><path d="M38 32h30a17 17 0 0 1 0 34H38V32Zm0 0v46" stroke-linecap="square"/></g><path d="M16 112h96" stroke="#c84a31" stroke-width="6"/></svg>
