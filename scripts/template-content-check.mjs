@@ -5,6 +5,10 @@ const renderer = readFileSync('lib/notifications/templates.ts', 'utf8');
 const registry = readFileSync('components/workspace/documents/documentRegistry.ts', 'utf8');
 const adapter = readFileSync('components/workspace/documents/documentAdapter.ts', 'utf8');
 const language = readFileSync('components/workspace/documents/documentLanguage.ts', 'utf8');
+const reviewPage = readFileSync('app/workspace/template-review/page.tsx', 'utf8');
+const reviewCentre = readFileSync('components/workspace/templates/TemplateReviewCentre.tsx', 'utf8');
+const documentsPage = readFileSync('app/workspace/documents/page.tsx', 'utf8');
+const communicationsPage = readFileSync('app/workspace/communications/page.tsx', 'utf8');
 
 const checks = [
   ['Enquiry acknowledgement uses direct reply', scenarios.includes("actionLabel:'Reply to this email'")],
@@ -19,6 +23,9 @@ const checks = [
   ['Client-facing document data does not expose owner IDs', !adapter.includes("fact('Owner', lead.owner_id)")],
   ['Document data uses human-readable requirement labels', adapter.includes("fact('Requirement reference'") && adapter.includes("fact('Requirement'" )],
   ['Issueable document copy contains no authoring placeholders', !/body: '(?:List|Show|State|Record|Describe|Choose|Provide|Give|Reference|Carry forward)\b/.test(language.replace(/'email-templates':[\s\S]*$/, ''))],
+  ['Template review centre requires workspace authentication', reviewPage.includes('await requireUserContext()')],
+  ['Template review centre remains read only', !/(fetch\(|useActionState|<form|type="submit")/.test(reviewCentre)],
+  ['Template review centre is linked from Documents and Messages', documentsPage.includes('href="/workspace/template-review"') && communicationsPage.includes('href="/workspace/template-review"')],
 ];
 
 let failures = 0;
