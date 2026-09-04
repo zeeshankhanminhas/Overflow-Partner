@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext } from '@/lib/auth/context';
 
-const allowedTypes = new Set(['prospect','lead','project','document']);
+const allowedTypes = new Set(['prospect','lead','project','document','company']);
 
 function required(formData: FormData, key: string) {
   const value = String(formData.get(key) || '').trim();
@@ -35,6 +35,7 @@ export async function developerDeleteRecordAction(formData: FormData) {
     revalidatePath('/workspace/leads');
     revalidatePath('/workspace/projects');
     revalidatePath('/workspace/documents');
+    revalidatePath('/workspace/companies');
     revalidatePath('/workspace/management');
     destination = `${returnTo}${returnTo.includes('?') ? '&' : '?'}deleted=1`;
   } catch (error) {

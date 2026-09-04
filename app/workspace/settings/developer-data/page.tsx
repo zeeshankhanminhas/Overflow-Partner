@@ -41,6 +41,7 @@ export default async function DeveloperDataPage({searchParams}:{searchParams?:Pr
             <option value="case">Case</option>
             <option value="project">Project</option>
             <option value="document">Document</option>
+            <option value="company">Client company</option>
             <option value="invoice">Invoice</option>
             <option value="partner_payable">Partner payable</option>
           </select>

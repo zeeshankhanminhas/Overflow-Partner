@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext } from '@/lib/auth/context';
 
-const allowedTypes = ['prospect','case','project','document','invoice','partner_payable'] as const;
+const allowedTypes = ['prospect','case','project','document','company','invoice','partner_payable'] as const;
 type DeleteType = (typeof allowedTypes)[number];
 
 function developerDataUrl(params: Record<string,string>) {
@@ -46,6 +46,7 @@ export async function deleteDeveloperTestRecordAction(formData: FormData) {
     revalidatePath('/workspace/leads');
     revalidatePath('/workspace/projects');
     revalidatePath('/workspace/documents');
+    revalidatePath('/workspace/companies');
     revalidatePath('/workspace/commercial-control');
     destination = developerDataUrl({ deleted: `${entityType} ${entityId} deleted.` });
   } catch (error) {

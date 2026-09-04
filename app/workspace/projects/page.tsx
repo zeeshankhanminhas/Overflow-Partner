@@ -4,7 +4,9 @@ import { requireUserContext } from '@/lib/auth/context';
 import { normaliseProjectStage } from '@/lib/projects/stages';
 import { resolveFinancialGate } from '@/lib/finance/state';
 import { resolveProjectPresentation } from '@/lib/presentation/operatingState';
-import { ContextActions, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
+import { developerDeleteRecordAction } from '@/app/workspace/developer-actions';
+import WorkspaceConsequenceGuard from '@/components/workspace/WorkspaceConsequenceGuard';
+import { ContextActions, DecisionDialog, InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductFilterBar, ProductMetric, ProductMetrics, ProductPageHeader, ProductPagination, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
 
 const PAGE_SIZE=25;
@@ -23,7 +25,8 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const q=String(params.q||'').trim();
   const requestedPage=Number.parseInt(String(params.page||'1'),10);
   const page=Number.isFinite(requestedPage)&&requestedPage>0?requestedPage:1;
-  const {supabase,organisationId}=await requireUserContext();
+  const {supabase,organisationId,profile}=await requireUserContext();
+  const developerDeleteEnabled=Boolean(profile.developer_delete_enabled);
 
   const {data,error}=await supabase.rpc('op_project_queue',{p_organisation_id:organisationId,p_view:view==='attention'?'all':view==='mobilisation'?'all':view==='client_review'?'delivery':view,p_limit:200,p_offset:0});
   if(error)throw new Error(`Project queue could not be loaded: ${error.message}`);
@@ -161,6 +164,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
                 {p.attention?<div className="product-notice product-notice--attention"><strong>Needs attention</strong><div>{p.presentation.blockers?.[0]||p.finance.reason||'Review the Project operating state.'}</div></div>:<p className="interaction-summary__lead">{p.presentation.summary}</p>}
               </WorkspaceDrawer>
               <Link className="button secondary" href={`/workspace/projects/${p.id}`}>Open</Link>
+              {developerDeleteEnabled?<DecisionDialog triggerLabel="Delete test project" triggerClassName="button secondary product-action product-action--destructive" eyebrow="Developer test control" title={`Delete ${p.project_number}?`} description="Permanent test-data cleanup. Related delivery, financial and controlled-document test records will also be removed."><form action={developerDeleteRecordAction} className="stack"><input type="hidden" name="entity_type" value="project"/><input type="hidden" name="entity_id" value={p.id}/><input type="hidden" name="return_to" value="/workspace/projects"/><div className="product-notice product-notice--critical"><strong>Permanent project deletion</strong><div>{p.project_number} · {p.title} and its dependent test records will be removed.</div></div><WorkspaceConsequenceGuard actionLabel="Delete test project" pendingLabel="Deleting project…" confirmationLabel={`I understand ${p.project_number} and its dependent test records will be permanently deleted.`} consequence="Project delivery, financial and document test records will be removed." recovery="This action cannot be undone." className="button product-action product-action--destructive"/></form></DecisionDialog>:null}
             </ContextActions>
           </div>
         </div>)}
