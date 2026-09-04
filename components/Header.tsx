@@ -1,8 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import OverflowPartnerBrand from '@/components/brand/OverflowPartnerBrand';
 
 const links = [
   { label: 'Services', href: '/#services' },
@@ -11,8 +11,6 @@ const links = [
   { label: 'FAQ', href: '/#faq' },
   { label: 'Contact', href: '/#contact' },
 ];
-
-const logoSrc = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/overflow-partner-logo-monochrome.svg`;
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,7 +35,7 @@ export default function Header() {
       <div className="container_large padding_global">
         <div className="flex min-h-[78px] items-center justify-between gap-6">
           <Link className="flex items-center" href="/" aria-label="Overflow Partner home" onClick={closeMenu}>
-            <Image src={logoSrc} alt="Overflow Partner" width={320} height={64} priority className="h-8 w-auto object-contain md:h-[34px]" />
+            <OverflowPartnerBrand className="transition-opacity hover:opacity-70" />
           </Link>
 
           <nav className="hidden items-center gap-8 text-[13px] font-medium md:flex" aria-label="Primary navigation">

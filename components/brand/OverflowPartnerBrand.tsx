@@ -8,8 +8,8 @@ export function OverflowPartnerMark({ className = '' }: { className?: string }) 
 }
 
 export default function OverflowPartnerBrand({ compact = false, className = '' }: BrandProps) {
-  return <span className={`op-identity ${compact ? 'op-identity--compact' : ''} ${className}`.trim()}>
-    <OverflowPartnerMark className="op-identity__mark" />
-    {!compact ? <span className="op-identity__name"><span>Overflow</span><span>Partner</span></span> : null}
+  return <span className={`op-identity inline-flex items-center gap-2.5 text-current ${compact ? 'op-identity--compact' : ''} ${className}`.trim()}>
+    <OverflowPartnerMark className="op-identity__mark h-9 w-9 shrink-0" />
+    {!compact ? <span className="op-identity__name grid text-[10px] font-bold uppercase leading-[1.05] tracking-[.14em]"><span>Overflow</span><span>Partner</span></span> : null}
   </span>;
 }
