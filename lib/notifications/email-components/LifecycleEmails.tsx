@@ -114,7 +114,7 @@ function LifecycleEmailShell({ config, props }: { config: FamilyConfig; props: L
             <Section style={{ padding: '26px 32px 10px' }}>
               <Text style={{ margin: '0 0 18px', fontSize: '15px', lineHeight: '24px' }}>Hello {props.recipient},</Text>
               <Heading as="h1" style={{ margin: '0 0 16px', fontSize: '28px', lineHeight: '34px', fontWeight: 600, letterSpacing: '-0.02em' }}>{props.heading}</Heading>
-              <Text style={{ margin: 0, color: '#45413b', fontSize: '15px', lineHeight: '25px' }}>{props.message}</Text>
+              <Text style={{ margin: 0, color: '#45413b', fontSize: '15px', lineHeight: '25px', whiteSpace: 'pre-line' }}>{props.message}</Text>
               <FactGrid facts={facts} />
               {props.note ? (
                 <Section style={{ marginTop: '18px', padding: '14px 16px', backgroundColor: config.panelBackground, borderLeft: `3px solid ${config.accent}` }}>

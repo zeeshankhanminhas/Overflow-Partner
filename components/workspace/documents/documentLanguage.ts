@@ -19,17 +19,17 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'This assessment applies to the information, files, assumptions and constraints listed in this revision.',
     sections: [
       { title: 'Assessment basis', entries: [
-        { heading: 'Scope reviewed', body: 'List the scope reviewed, deliverables, source information, output formats, applicable standards and required delivery date.' },
-        { heading: 'Information status', body: 'Separate confirmed information from assumptions, missing information and questions.' },
+        { heading: 'Scope reviewed', body: 'This assessment covers the scope, deliverables, source information, output formats, applicable standards and required delivery date identified in the controlled record.' },
+        { heading: 'Information status', body: 'Confirmed information, assumptions, missing information and outstanding questions are distinguished in the assessment evidence.' },
       ]},
       { title: 'Technical conclusion', entries: [
-        { heading: 'Feasibility', body: 'State whether the work is feasible, feasible with conditions, needs more information or is not feasible. List any conditions.' },
-        { heading: 'Capability and compatibility', body: 'Confirm the required engineering skills, software compatibility, source-file usability and ability to produce the requested deliverables.' },
-        { heading: 'Capacity and programme', body: 'State current capacity, earliest start date, estimated engineering hours and lead time. These are planning estimates until the commercial offer is accepted.' },
+        { heading: 'Feasibility', body: 'The recorded conclusion identifies whether the work is feasible, feasible subject to conditions, awaiting further information or not feasible, together with any conditions that apply.' },
+        { heading: 'Capability and compatibility', body: 'The assessment evidence confirms the required engineering capability, software compatibility, source-file usability and ability to produce the requested deliverables.' },
+        { heading: 'Capacity and programme', body: 'Capacity, earliest start date, estimated engineering effort and lead time remain planning estimates until Overflow Partner issues a written work instruction.' },
       ]},
       { title: 'Risks and declaration', entries: [
-        { heading: 'Technical risks', body: 'List significant technical, data, manufacturing, tolerance, standards and schedule risks, their likely impact and how they can be managed.' },
-        { heading: 'Assumptions and exclusions', body: 'List assumptions and exclusions that affect scope, effort, timing or deliverables.' },
+        { heading: 'Technical risks', body: 'The assessment evidence records significant technical, data, manufacturing, tolerance, standards and schedule risks, including their likely effect and proposed treatment.' },
+        { heading: 'Assumptions and exclusions', body: 'The recorded assumptions and exclusions form part of the assessment basis and may affect scope, effort, timing or deliverables.' },
         { heading: 'Reviewer declaration', body: 'The named reviewer confirms that this assessment reflects the partner’s technical view for this revision.' },
       ]},
     ],
@@ -42,13 +42,13 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Internal only. Do not send this record to the client or partner.',
     sections: [
       { title: 'Pricing basis', entries: [
-        { heading: 'Technical basis', body: 'Reference the approved technical response, accepted assumptions, key risks and selected partner used for pricing.' },
-        { heading: 'Partner cost', body: 'Record the partner cost, currency, validity, lead time, payment terms and delivery commitment from the selected partner response.' },
+        { heading: 'Technical basis', body: 'The pricing decision is based on the approved technical response, accepted assumptions, material risks and selected Delivery Partner recorded for this requirement.' },
+        { heading: 'Partner cost', body: 'The controlled commercial record contains the selected partner cost, currency, validity, lead time, payment terms and delivery commitment.' },
       ]},
       { title: 'Pricing decision', entries: [
-        { heading: 'Client price', body: 'Record the approved client price, markup or margin basis, and applicable VAT or tax.' },
-        { heading: 'Reason for approval', body: 'Briefly record why the price is acceptable, including complexity, delivery risk, client value and any contingency.' },
-        { heading: 'Commercial risks', body: 'Record significant risks affecting validity, currency, payment, scope, schedule or partner dependency. Resolve or accept them before the quote is issued.' },
+        { heading: 'Client price', body: 'The approved client price, margin basis and applicable VAT or tax are shown in the controlled commercial evidence.' },
+        { heading: 'Reason for approval', body: 'Approval reflects the recorded complexity, delivery risk, client value, contingency and commercial rationale.' },
+        { heading: 'Commercial risks', body: 'Material risks affecting validity, currency, payment, scope, programme or partner dependency must be resolved or expressly accepted before the quotation is issued.' },
       ]},
     ],
   },
@@ -65,8 +65,8 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
         { heading: 'Delivery', body: 'Delivery dates depend on receiving the required client information on time and resolving questions promptly.' },
       ]},
       { title: 'Price and terms', entries: [
-        { heading: 'Price', body: 'Show the subtotal, VAT or other applicable tax, total, currency and quote expiry date.' },
-        { heading: 'Payment terms', body: 'State when invoices are due and any deposit or milestone payment required. Work may be paused if agreed payments are overdue.' },
+        { heading: 'Price', body: 'The controlled quotation record shows the subtotal, applicable VAT or tax, total, currency and quotation expiry date.' },
+        { heading: 'Payment terms', body: 'Invoices are payable in accordance with the terms shown in this quotation. Work may be withheld or paused when an agreed payment condition is not satisfied.' },
         { heading: 'Acceptance', body: 'Accept this quotation in writing before the expiry date. Requested changes may require a revised quotation.' },
       ]},
     ],
@@ -79,14 +79,14 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Only the work listed as in scope is included.',
     sections: [
       { title: 'Scope', entries: [
-        { heading: 'Purpose', body: 'Describe the engineering work to be provided and the outcome the project is expected to achieve.' },
-        { heading: 'Included activities', body: 'List the engineering activities included in the work.' },
-        { heading: 'Deliverables', body: 'List each deliverable, its format, required level of detail, intended use and any source-file requirements.' },
+        { heading: 'Purpose', body: 'The engineering objective and intended outcome are defined by the controlled requirement and accepted quotation referenced in this document.' },
+        { heading: 'Included activities', body: 'Only the engineering activities identified in the controlled scope evidence are included.' },
+        { heading: 'Deliverables', body: 'The controlled record defines each deliverable, its format, required level of detail, intended use and source-file requirements.' },
       ]},
       { title: 'Responsibilities and changes', entries: [
         { heading: 'Client responsibilities', body: 'The client provides accurate inputs, answers questions and reviews deliverables within the agreed timescale.' },
         { heading: 'Overflow Partner responsibilities', body: 'Overflow Partner coordinates the work, manages document revisions and reviews, and issues the agreed deliverables.' },
-        { heading: 'Acceptance and changes', body: 'State how deliverables will be accepted. Changes to scope, inputs, standards, quantities or timing must be reviewed before work proceeds.' },
+        { heading: 'Acceptance and changes', body: 'Deliverables will be reviewed against the recorded acceptance requirements. Changes to scope, inputs, standards, quantities or timing require review and written approval before affected work proceeds.' },
       ]},
     ],
   },
@@ -98,9 +98,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Items still open in this revision need confirmation before they are treated as agreed requirements.',
     sections: [
       { title: 'Requirements', entries: [
-        { heading: 'Confirmed requirements', body: 'List requirements supplied or confirmed by the client that will be used for the work.' },
-        { heading: 'Assumptions', body: 'List assumptions used for assessment or pricing that still need client confirmation.' },
-        { heading: 'Missing information', body: 'List missing information that could affect feasibility, effort, timing, price or acceptance, with an owner and required response date.' },
+        { heading: 'Confirmed requirements', body: 'The confirmed client requirements shown in the controlled record form the basis of technical assessment and pricing.' },
+        { heading: 'Assumptions', body: 'Any assumption not expressly confirmed remains subject to client verification before it is treated as an agreed requirement.' },
+        { heading: 'Missing information', body: 'Outstanding information that may affect feasibility, effort, timing, price or acceptance must be resolved by the recorded owner and response date.' },
       ]},
     ],
   },
@@ -112,9 +112,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Use this package only for the assigned work. Do not copy, share or reuse it for any other purpose.',
     sections: [
       { title: 'Package contents', entries: [
-        { heading: 'Assignment summary', body: 'State the case reference, technical objective, required deliverables, response or delivery date and review instructions.' },
-        { heading: 'Files provided', body: 'List the documents and files provided for this assignment. Use only the listed information and raise questions through Overflow Partner.' },
-        { heading: 'Confidentiality', body: 'Show client identity only when permitted. Do not include client prices, internal notes, margin information or unrelated customer data.' },
+        { heading: 'Assignment summary', body: 'The controlled record identifies the requirement reference, technical objective, required deliverables, response or delivery date and review instructions.' },
+        { heading: 'Files provided', body: 'Only the documents and files identified in this package are authorised for use. Questions must be raised through Overflow Partner.' },
+        { heading: 'Confidentiality', body: 'Client identity is disclosed only where authorised. Client prices, internal notes, margin information and unrelated customer information are excluded from this package.' },
       ]},
     ],
   },
@@ -141,9 +141,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'This response is a quotation only. It is not an instruction to start work.',
     sections: [
       { title: 'Partner price', entries: [
-        { heading: 'Price and currency', body: 'Provide the full price and currency. State whether tax, licences, travel, specialist services or third-party costs are included or excluded.' },
-        { heading: 'Lead time and validity', body: 'State the earliest start date, lead time, quote expiry date and any capacity limits.' },
-        { heading: 'Terms', body: 'State payment terms, delivery commitment, assumptions, exclusions and the partner quote reference.' },
+        { heading: 'Price and currency', body: 'The submitted price and currency must identify whether tax, licences, travel, specialist services and third-party costs are included or excluded.' },
+        { heading: 'Lead time and validity', body: 'The quotation is subject to the recorded earliest start date, lead time, expiry date and capacity limitations.' },
+        { heading: 'Terms', body: 'The recorded payment terms, delivery commitment, assumptions, exclusions and partner quotation reference form part of this response.' },
       ]},
     ],
   },
@@ -155,9 +155,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Use the latest approved revision shown in this register unless stated otherwise.',
     sections: [
       { title: 'Document register', entries: [
-        { heading: 'Identification', body: 'Give each document a unique reference, title, type and revision.' },
-        { heading: 'Status and owner', body: 'Show the owner, approval status, issue date, recipient and whether the document is current or replaced.' },
-        { heading: 'Distribution', body: 'Record which revision was sent externally, when it was sent and who received it.' },
+        { heading: 'Identification', body: 'Each controlled document is identified by a unique reference, title, type and revision.' },
+        { heading: 'Status and owner', body: 'The register identifies document ownership, approval status, issue date, authorised recipient and whether the revision is current or superseded.' },
+        { heading: 'Distribution', body: 'External distribution is controlled by revision, issue date and named recipient.' },
       ]},
     ],
   },
@@ -169,9 +169,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Qualification means the enquiry can progress. It is not technical approval, price approval or a commitment to deliver.',
     sections: [
       { title: 'Qualification decision', entries: [
-        { heading: 'Opportunity', body: 'Record the customer need, expected service, likely value, timescale and source.' },
-        { heading: 'Readiness', body: 'Check whether there is enough technical information, client engagement, decision authority, budget indication and delivery timing to continue.' },
-        { heading: 'Decision', body: 'Choose qualify, hold, reject or request more information, and record the reason.' },
+        { heading: 'Requirement', body: 'The commercial assessment considers the customer need, expected service, indicative value, timescale and source.' },
+        { heading: 'Readiness', body: 'Progression requires sufficient technical information, client engagement, decision authority, budget indication and delivery timing.' },
+        { heading: 'Decision', body: 'The recorded decision and rationale identify whether the requirement is qualified, held, declined or awaiting further information.' },
       ]},
     ],
   },
@@ -197,9 +197,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'This sheet records the initial requirement. The agreed Scope of Work defines the final project scope.',
     sections: [
       { title: 'Requirement', entries: [
-        { heading: 'Engineering objective', body: 'State the required outcome in practical engineering terms and explain how the deliverables will be used.' },
-        { heading: 'Inputs and outputs', body: 'List available source formats, required output formats, drawing quantities, software requirements and reference documents.' },
-        { heading: 'Constraints and questions', body: 'List applicable standards, tolerances, deadlines, known constraints and open questions.' },
+        { heading: 'Engineering objective', body: 'The controlled requirement identifies the practical engineering outcome and intended use of the deliverables.' },
+        { heading: 'Inputs and outputs', body: 'Available source formats, required outputs, drawing quantities, software requirements and reference documents are defined in the intake evidence.' },
+        { heading: 'Constraints and questions', body: 'Applicable standards, tolerances, deadlines, known constraints and outstanding questions form part of the assessment basis.' },
       ]},
     ],
   },
@@ -211,9 +211,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Technical approval means the request can move forward. It does not approve the client price.',
     sections: [
       { title: 'Technical readiness', entries: [
-        { heading: 'Conclusion', body: 'State whether the request is ready, ready with conditions, needs clarification or should not progress.' },
-        { heading: 'Risks and gaps', body: 'Record unclear requirements, missing data, incompatible formats, standards issues, tolerance risks and timing concerns.' },
-        { heading: 'Required action', body: 'For each open item, record who is responsible and what must be completed before approval.' },
+        { heading: 'Conclusion', body: 'The technical decision identifies whether the requirement is ready, ready subject to conditions, awaiting clarification or unsuitable to progress.' },
+        { heading: 'Risks and gaps', body: 'The review evidence identifies unclear requirements, missing data, incompatible formats, standards issues, tolerance risks and programme concerns.' },
+        { heading: 'Required action', body: 'Each open item requires a named owner, responsible party and completion condition before approval.' },
       ]},
     ],
   },
@@ -225,9 +225,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Final scope, price and delivery terms will be confirmed in the quotation or contract.',
     sections: [
       { title: 'Proposed approach', entries: [
-        { heading: 'Objective', body: 'Restate the client’s objective and the outcome Overflow Partner proposes to achieve.' },
-        { heading: 'How we will deliver', body: 'Describe the engineering approach, review points, responsibilities and expected deliverables.' },
-        { heading: 'Assumptions and next steps', body: 'List key assumptions, information needed from the client and the next actions required to move to quotation.' },
+        { heading: 'Objective', body: 'The proposed approach responds to the client objective and intended engineering outcome shown in the controlled requirement.' },
+        { heading: 'How we will deliver', body: 'Overflow Partner will coordinate the agreed engineering approach, review points, responsibilities and expected deliverables.' },
+        { heading: 'Assumptions and next steps', body: 'The proposal remains subject to the recorded assumptions, outstanding client information and actions required before quotation.' },
       ]},
     ],
   },
@@ -239,9 +239,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'This quote applies only to the scope and revision shown and is valid until the stated expiry date.',
     sections: [
       { title: 'Quote', entries: [
-        { heading: 'Scope and price', body: 'Show the priced scope, deliverables, currency, subtotal, tax and total. Do not show internal cost or margin.' },
-        { heading: 'Validity and terms', body: 'State the quote expiry date, payment terms, delivery basis, assumptions and exclusions.' },
-        { heading: 'Acceptance', body: 'Accept the quote in writing and reference the quote number and revision.' },
+        { heading: 'Scope and price', body: 'The quotation applies to the priced scope and deliverables shown with the stated currency, subtotal, applicable tax and total.' },
+        { heading: 'Validity and terms', body: 'The quotation is subject to its expiry date, payment terms, delivery basis, assumptions and exclusions.' },
+        { heading: 'Acceptance', body: 'Acceptance must be provided in writing before expiry and must identify the quotation number and revision.' },
       ]},
     ],
   },
@@ -253,9 +253,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'This Statement of Work and the accepted quotation define the agreed delivery unless a signed contract says otherwise.',
     sections: [
       { title: 'Work package', entries: [
-        { heading: 'In scope', body: 'List the engineering activities and deliverables included in enough detail for the work to be completed and reviewed.' },
-        { heading: 'Out of scope', body: 'List activities, services and responsibilities that are not included.' },
-        { heading: 'Milestones and acceptance', body: 'For each milestone, show the expected output, target date, reviewer and acceptance criteria.' },
+        { heading: 'In scope', body: 'The controlled scope and deliverables define the engineering activities authorised for delivery and review.' },
+        { heading: 'Out of scope', body: 'Activities, services and responsibilities not expressly included in the controlled scope are excluded.' },
+        { heading: 'Milestones and acceptance', body: 'Each recorded milestone is governed by its expected output, target date, reviewer and acceptance criteria.' },
         { heading: 'Changes', body: 'Changes that affect scope, effort, cost, timing or acceptance need written approval before they are carried out.' },
       ]},
     ],
@@ -268,9 +268,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'This pack records the information in place when delivery starts. Update it when an approved change affects the work.',
     sections: [
       { title: 'Delivery handover', entries: [
-        { heading: 'Project summary', body: 'Show the client, project objective, accepted quote, agreed scope, selected partner, delivery date and project owner.' },
-        { heading: 'Technical information', body: 'Carry forward the agreed requirements, deliverables, standards, assumptions, exclusions, source files and accepted technical risks.' },
-        { heading: 'Commercial and delivery notes', body: 'Record payment milestones, partner commitment, communication route and important outstanding actions.' },
+        { heading: 'Project summary', body: 'The handover baseline identifies the client, project objective, accepted quotation, agreed scope, selected Delivery Partner, delivery date and project owner.' },
+        { heading: 'Technical information', body: 'The agreed requirements, deliverables, standards, assumptions, exclusions, source files and accepted technical risks carry into delivery.' },
+        { heading: 'Commercial and delivery controls', body: 'Payment milestones, partner commitment, communication route and outstanding actions remain governed by the controlled project record.' },
       ]},
     ],
   },
@@ -282,10 +282,10 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'The deliverables listed in this report have been completed against the agreed scope, subject to any deviations or open actions noted here.',
     sections: [
       { title: 'Completion', entries: [
-        { heading: 'Project overview', body: 'Show the agreed scope, delivery period, issued revision and main project references.' },
-        { heading: 'Delivered work', body: 'List completed activities and issued deliverables against the agreed scope.' },
-        { heading: 'Deviations and limitations', body: 'List agreed deviations, remaining limitations, client dependencies and exclusions that affect use of the deliverables.' },
-        { heading: 'Completion status', body: 'Confirm whether the project is complete, complete with open actions, or not ready to close, and record the quality-review status.' },
+        { heading: 'Project overview', body: 'The completion record identifies the agreed scope, delivery period, final issued revision and principal project references.' },
+        { heading: 'Delivered work', body: 'Completed activities and issued deliverables are assessed against the agreed scope.' },
+        { heading: 'Deviations and limitations', body: 'Any agreed deviation, remaining limitation, client dependency or exclusion affecting use of the deliverables forms part of this completion record.' },
+        { heading: 'Completion status', body: 'The recorded status confirms whether the project is complete, complete with open actions or not ready to close, together with its quality-review position.' },
       ]},
     ],
   },
@@ -297,9 +297,9 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     closingStatement: 'Please pay using the invoice reference and bank details shown on the invoice.',
     sections: [
       { title: 'Invoice details', entries: [
-        { heading: 'Billing information', body: 'Show the legal billing names, billing address, invoice number, issue date, due date, purchase-order reference where applicable, and project or quote reference.' },
-        { heading: 'Charges and tax', body: 'Describe each billed service or milestone and show the quantity or basis, net amount, applicable tax and total due.' },
-        { heading: 'Payment instructions', body: 'Show the approved bank details, payment terms and contact details for invoice questions. Do not show internal margin or partner cost.' },
+        { heading: 'Billing information', body: 'This invoice applies to the legal billing parties, invoice number, issue date, due date, purchase-order reference and project or quotation reference shown in the controlled record.' },
+        { heading: 'Charges and tax', body: 'The billed service or milestone, charging basis, net amount, applicable tax and total due are shown in the invoice evidence.' },
+        { heading: 'Payment instructions', body: 'Payment must use the approved bank details, terms and invoice reference supplied through the controlled payment route. Internal margin and Delivery Partner cost are not disclosed.' },
       ]},
     ],
   },

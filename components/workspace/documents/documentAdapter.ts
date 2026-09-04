@@ -33,6 +33,12 @@ function date(value: unknown) {
   const parsed = new Date(String(value));
   return Number.isNaN(parsed.getTime()) ? text(value) : parsed.toLocaleDateString('en-GB');
 }
+function status(value: unknown) {
+  const valueText = text(value);
+  return valueText === 'Not recorded'
+    ? valueText
+    : valueText.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 function fact(label: string, value: unknown, fallback?: string): DocumentAdapterFact { return { label, value: text(value, fallback) }; }
 
 async function maybeOne(supabase: SupabaseClient, table: string, organisationId: string, filters: Record<string,string>, order = 'created_at') {
@@ -65,12 +71,13 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
   const reviewRequest = await maybeOne(supabase, 'partner_review_requests', input.organisationId, { lead_id: String(lead.id) });
   const response = reviewRequest?.id ? await maybeOne(supabase, 'partner_review_responses', input.organisationId, { partner_review_request_id: String(reviewRequest.id) }) : null;
   const commercial = await maybeOne(supabase, 'commercial_reviews', input.organisationId, { lead_id: String(lead.id) });
+  const owner = lead.owner_id ? await maybeOne(supabase, 'profiles', input.organisationId, { id: String(lead.owner_id) }, 'created_at') : null;
   const { count: documentCount } = await supabase.from('documents').select('id', { count: 'exact', head: true }).eq('organisation_id', input.organisationId).eq('lead_id', String(lead.id));
 
   const referenceBase = text(lead.case_reference || lead.reference || lead.id).slice(0, 36);
   const common = [
-    fact('Case reference', referenceBase), fact('Client', lead.company_name), fact('Project', lead.title || lead.project_type),
-    fact('Contact', lead.contact_name), fact('Owner', lead.owner_id), fact('Priority', lead.priority),
+    fact('Requirement reference', referenceBase), fact('Client', lead.company_name), fact('Requirement', lead.title || lead.project_type),
+    fact('Contact', lead.contact_name), fact('Owner', owner?.full_name, 'Overflow Partner'),
   ];
   let facts: DocumentAdapterFact[] = common;
 
@@ -88,7 +95,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
       facts = [...common,
         fact('Partner cost', money(commercial?.cost_price, quote?.currency)), fact('Client price', money(commercial?.client_price, quote?.currency)),
         fact('Margin amount', money(commercial?.margin_amount, quote?.currency)), fact('Margin', commercial?.margin_percent !== undefined ? `${number(commercial.margin_percent).toFixed(1)}%` : null),
-        fact('Approval state', commercial?.status), fact('Approved at', date(commercial?.approved_at)),
+        fact('Approval state', status(commercial?.status)), fact('Approved at', date(commercial?.approved_at)),
       ]; break;
     case 'client-quote':
     case 'quote':
@@ -96,7 +103,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
       facts = [...common,
         fact('Quote number', quote?.quote_number), fact('Revision', quote?.revision), fact('Subtotal', money(quote?.subtotal, quote?.currency)),
         fact('VAT', money(quote?.vat, quote?.currency)), fact('Total', money(quote?.total, quote?.currency)),
-        fact('Valid until', date(quote?.valid_until)), fact('Quote status', quote?.status),
+        fact('Valid until', date(quote?.valid_until)), fact('Quotation status', status(quote?.status)),
       ]; break;
     case 'scope-of-work':
     case 'statement-of-work':
@@ -111,11 +118,11 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     case 'rfq-response':
       facts = [fact('Controlled case', referenceBase), fact('Project', lead.title || lead.project_type), fact('Discipline', intake?.discipline),
         fact('Scope', intake?.description), fact('Deliverables', intake?.deliverables), fact('Response due', date(reviewRequest?.response_due_at)),
-        fact('Review status', reviewRequest?.status), fact('Controlled documents', documentCount ?? 0)]; break;
+        fact('Review status', status(reviewRequest?.status)), fact('Controlled documents', documentCount ?? 0)]; break;
     case 'handover-pack':
     case 'completion-report':
       facts = [...common,
-        fact('Project number', project?.project_number), fact('Delivery stage', project?.project_stage || project?.status),
+        fact('Project number', project?.project_number), fact('Delivery stage', status(project?.project_stage || project?.status)),
         fact('Start date', date(project?.start_date)), fact('Due date', date(project?.due_date)), fact('Controlled documents', documentCount ?? 0),
         fact('Accepted value', money(quote?.total, quote?.currency)),
       ]; break;
@@ -124,7 +131,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
         fact('Quote reference', quote?.quote_number), fact('Net amount', money(quote?.subtotal, quote?.currency)), fact('Tax', money(quote?.vat, quote?.currency)),
         fact('Amount due', money(quote?.total, quote?.currency)), fact('Currency', quote?.currency)]; break;
     case 'document-register':
-      facts = [...common, fact('Controlled documents', documentCount ?? 0), fact('Project number', project?.project_number), fact('Current delivery stage', project?.project_stage || project?.status)]; break;
+      facts = [...common, fact('Controlled documents', documentCount ?? 0), fact('Project number', project?.project_number), fact('Current delivery stage', status(project?.project_stage || project?.status))]; break;
     default:
       facts = [...common, fact('Project type', intake?.project_type || lead.project_type), fact('Discipline', intake?.discipline), fact('Deliverables', intake?.deliverables)];
   }
