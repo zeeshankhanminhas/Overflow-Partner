@@ -50,7 +50,7 @@ export type LifecycleEmailScenario =
   | 'dormant_opportunity.day90'
   | 'dormant_opportunity.day180';
 
-type ScenarioDefinition = {
+export type ScenarioDefinition = {
   family: EmailFamily;
   category: NotificationCategory;
   subject: string;
