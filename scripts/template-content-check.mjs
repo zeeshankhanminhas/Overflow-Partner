@@ -1,0 +1,31 @@
+import { readFileSync } from 'node:fs';
+
+const scenarios = readFileSync('lib/notifications/scenarios.ts', 'utf8');
+const renderer = readFileSync('lib/notifications/templates.ts', 'utf8');
+const registry = readFileSync('components/workspace/documents/documentRegistry.ts', 'utf8');
+const adapter = readFileSync('components/workspace/documents/documentAdapter.ts', 'utf8');
+const language = readFileSync('components/workspace/documents/documentLanguage.ts', 'utf8');
+
+const checks = [
+  ['Enquiry acknowledgement uses direct reply', scenarios.includes("actionLabel:'Reply to this email'")],
+  ['Requirements invitation uses a secure form', scenarios.includes("actionLabel:'Complete secure requirements form'")],
+  ['Partner review uses a secure review', scenarios.includes("actionLabel:'Open secure delivery review'")],
+  ['Partner assessment states that work must not begin', scenarios.includes('It is not an instruction to begin work')],
+  ['Quotation acceptance confirms payment before delivery setup', scenarios.includes('recorded your written acceptance and confirmed the agreed payment')],
+  ['Invoice actions use the secure invoice view', scenarios.includes("actionLabel:'View secure invoice'")],
+  ['Partner delivery uses the secure workspace', scenarios.includes("actionLabel:'Open secure delivery workspace'")],
+  ['Conversational actions generate mailto links', renderer.includes("content.action.startsWith('Reply')") && renderer.includes('mailto:')],
+  ['Email templates are not listed as controlled documents', !registry.includes("{ slug: 'email-templates'")],
+  ['Client-facing document data does not expose owner IDs', !adapter.includes("fact('Owner', lead.owner_id)")],
+  ['Document data uses human-readable requirement labels', adapter.includes("fact('Requirement reference'") && adapter.includes("fact('Requirement'" )],
+  ['Issueable document copy contains no authoring placeholders', !/body: '(?:List|Show|State|Record|Describe|Choose|Provide|Give|Reference|Carry forward)\b/.test(language.replace(/'email-templates':[\s\S]*$/, ''))],
+];
+
+let failures = 0;
+for (const [name, passed] of checks) {
+  if (passed) console.log(`PASS ${name}`);
+  else { console.error(`FAIL ${name}`); failures += 1; }
+}
+
+console.log(`Template content checks: ${checks.length - failures}/${checks.length} passed`);
+if (failures) process.exit(1);

@@ -47,5 +47,8 @@ jobs:
       - name: Workspace performance contracts
         run: npm run performance:check
 
+      - name: Template content contracts
+        run: npm run templates:check
+
       - name: Production build
         run: npx next build
