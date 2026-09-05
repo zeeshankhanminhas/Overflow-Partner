@@ -11,7 +11,7 @@ export default function ContactForm({ companies, defaultCompanyId = '', contact 
       {contact?<input type="hidden" name="contact_id" value={contact.id}/>:null}
       <div><p className="eyebrow">CRM contact</p><h3>{editing?'Edit contact':'Add contact'}</h3></div>
       <div className="grid gap-4 md:grid-cols-2">
-        <label className={labelClass}>Company<select className={inputClass} name="company_id" defaultValue={contact?.company_id||defaultCompanyId}><option value="">Unassigned</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
+        <label className={labelClass}>Company<select className={inputClass} name="company_id" required defaultValue={contact?.company_id||defaultCompanyId}><option value="">Select company</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
         <label className={labelClass}>Full name<input className={inputClass} name="full_name" required defaultValue={contact?.full_name||''}/></label>
         <label className={labelClass}>Job title<input className={inputClass} name="job_title" defaultValue={contact?.job_title||''}/></label>
         <label className={labelClass}>Email<input className={inputClass} name="email" type="email" defaultValue={contact?.email||''}/></label>

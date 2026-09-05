@@ -6,6 +6,7 @@ import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { contactInputSchema } from '@/lib/validation/contacts';
 import { createContact, getContactById, updateContact } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
+import { getCompanyById } from '@/lib/repositories/companies';
 
 export async function createContactFormAction(formData: FormData) {
   try {
@@ -13,6 +14,7 @@ export async function createContactFormAction(formData: FormData) {
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const parsed = contactInputSchema.safeParse(Object.fromEntries(formData.entries()));
     if (!parsed.success) redirect(`/workspace/contacts?error=${encodeURIComponent('Please correct the contact details.')}`);
+    await getCompanyById(supabase,organisationId,parsed.data.company_id);
     const contact = await createContact(supabase, organisationId, user.id, parsed.data);
     await recordActivity(supabase, { organisationId, entityType: 'contact', entityId: contact.id, userId: user.id, eventType: 'contact.created', newValue: contact });
     revalidatePath('/workspace/contacts');
@@ -33,6 +35,7 @@ export async function updateContactFormAction(formData: FormData) {
   if(!parsed.success) redirect(`/workspace/contacts/${contactId}?error=${encodeURIComponent('Please correct the contact details.')}`);
 
   try {
+    await getCompanyById(supabase,organisationId,parsed.data.company_id);
     const previous=await getContactById(supabase,organisationId,contactId);
     const contact=await updateContact(supabase,organisationId,contactId,parsed.data);
     await recordActivity(supabase,{organisationId,entityType:'contact',entityId:contact.id,userId:user.id,eventType:'contact.updated',oldValue:previous,newValue:contact});

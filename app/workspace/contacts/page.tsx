@@ -5,13 +5,14 @@ import { listCompanies } from '@/lib/repositories/companies';
 import { listContacts } from '@/lib/repositories/contacts';
 import { ContextActions, InteractionFact, InteractionFacts, WorkWindow, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
 import { ProductEmptyState, ProductMetric, ProductMetrics, ProductNotice, ProductPageHeader, ProductRegister, ProductRegisterRow, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
+import ProspectForm from '@/components/workspace/ProspectForm';
 
 export default async function ContactsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params=searchParams?await searchParams:{};
   const {supabase,organisationId}=await requireUserContext();
   const [companies,contacts]=await Promise.all([listCompanies(supabase,organisationId),listContacts(supabase,organisationId)]);
   const linked=contacts.filter(contact=>contact.company_id).length;const withEmail=contacts.filter(contact=>contact.email).length;
-  const addContact=<WorkWindow triggerLabel="Add contact" triggerClassName="button" eyebrow="CRM master" title="Add contact" description="Create a governed person record while keeping the contact register in context."><ContactForm companies={companies}/></WorkWindow>;
+  const addContact=companies.length?<WorkWindow triggerLabel="Add contact" triggerClassName="button" eyebrow="CRM master" title="Add contact" description="Create a governed person record while keeping the contact register in context."><ContactForm companies={companies}/></WorkWindow>:<Link className="button" href="/workspace/companies">Add company first</Link>;
   return <section className="vp-page">
     <ProductPageHeader eyebrow="CRM · Contacts" title="Contact register" description="Decision-makers and technical contacts shared across client work." actions={addContact} />
     {params.created?<ProductNotice title="Contact created" tone="complete"><p>The contact is now available across the workspace.</p></ProductNotice>:null}{params.error?<ProductNotice title="Contact could not be created" tone="blocked"><p>{String(params.error)}</p></ProductNotice>:null}
@@ -21,6 +22,7 @@ export default async function ContactsPage({ searchParams }: { searchParams?: Pr
       <ProductStatus>{contact.company_id?'Company linked':'Unassigned'}</ProductStatus>
       <div><small>Contact</small><strong style={{display:'block',marginTop:3}}>{contact.email||contact.phone||'Not recorded'}</strong></div>
       <ContextActions label={`Actions for ${contact.full_name}`}>
+        {contact.company_id?<WorkWindow triggerLabel="Create prospect" eyebrow="Acquisition" title={`Create prospect · ${contact.full_name}`} description="Create a separate commercial opportunity for this company contact."><ProspectForm companies={companies} contacts={contacts} defaultCompanyId={contact.company_id} defaultContactId={contact.id} lockIdentity returnTo="/workspace/contacts"/></WorkWindow>:null}
         <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Contact master" title={contact.full_name} description="Decision-maker and technical contact context shared across governed work." footer={<><Link className="button" href={`/workspace/contacts/${contact.id}`}>Open contact</Link>{contact.company_id?<Link className="button secondary" href={`/workspace/companies/${contact.company_id}`}>Company 360</Link>:null}</>}>
           <InteractionFacts><InteractionFact label="Job title">{contact.job_title||'Not recorded'}</InteractionFact><InteractionFact label="Company">{contact.company?.name||'Unassigned'}</InteractionFact><InteractionFact label="Email">{contact.email||'Not recorded'}</InteractionFact><InteractionFact label="Phone">{contact.phone||'Not recorded'}</InteractionFact><InteractionFact label="LinkedIn">{contact.linkedin_url||'Not recorded'}</InteractionFact></InteractionFacts>
         </WorkspaceDrawer>

@@ -2,22 +2,25 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ContactForm from '@/components/workspace/ContactForm';
 import { requireUserContext } from '@/lib/auth/context';
-import { getContactById } from '@/lib/repositories/contacts';
+import { getContactById, listContacts } from '@/lib/repositories/contacts';
 import { listCompanies } from '@/lib/repositories/companies';
 import { WorkWindow } from '@/components/workspace/InteractionSurface';
 import { ProductNotice, ProductPageHeader, ProductSectionHeader, ProductStatus } from '@/components/workspace/ProductUI';
+import ProspectForm from '@/components/workspace/ProspectForm';
 
 export default async function ContactDetailPage({params,searchParams}:{params:Promise<{contactId:string}>;searchParams?:Promise<Record<string,string|string[]|undefined>>}){
   const {contactId}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
   let contact;try{contact=await getContactById(supabase,organisationId,contactId)}catch{notFound()}
-  const [companies,leadsResult,prospectsResult]=await Promise.all([
+  const [companies,contacts,leadsResult,prospectsResult]=await Promise.all([
     listCompanies(supabase,organisationId),
+    listContacts(supabase,organisationId),
     supabase.from('leads').select('id,title,company_name,status,reference').eq('organisation_id',organisationId).eq('contact_id',contactId).order('created_at',{ascending:false}),
     supabase.from('prospects').select('id,company_name,status').eq('organisation_id',organisationId).eq('contact_id',contactId).order('created_at',{ascending:false}),
   ]);
   const cases=leadsResult.data||[];const enquiries=prospectsResult.data||[];
   const editContact=<WorkWindow triggerLabel="Edit contact" triggerClassName="button" eyebrow="CRM master" title={`Edit ${contact.full_name}`} description="Update the authoritative contact record used across enquiries, cases and projects."><ContactForm companies={companies} contact={contact}/></WorkWindow>;
-  const headerActions=<>{editContact}{contact.company_id?<Link className="button secondary" href={`/workspace/companies/${contact.company_id}`}>Company 360</Link>:null}</>;
+  const createProspect=contact.company_id?<WorkWindow triggerLabel="Create prospect" triggerClassName="button" eyebrow="Acquisition" title={`Create prospect · ${contact.full_name}`} description="Company and contact are fixed to preserve the commercial record relationship."><ProspectForm companies={companies} contacts={contacts} defaultCompanyId={contact.company_id} defaultContactId={contact.id} lockIdentity returnTo={`/workspace/contacts/${contact.id}`}/></WorkWindow>:null;
+  const headerActions=<>{createProspect}{editContact}{contact.company_id?<Link className="button secondary" href={`/workspace/companies/${contact.company_id}`}>Company 360</Link>:null}</>;
   return <section className="vp-page">
     <ProductPageHeader eyebrow="CRM · Contact" title={contact.full_name} description={[contact.job_title,contact.company?.name].filter(Boolean).join(' · ')||undefined} backHref="/workspace/contacts" backLabel="Contacts" actions={headerActions}/>
     {query.updated?<ProductNotice title="Contact updated" tone="complete"><p>The authoritative contact record has been updated across the workspace.</p></ProductNotice>:null}
