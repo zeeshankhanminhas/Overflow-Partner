@@ -26,6 +26,9 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     listContacts(supabase,organisationId),
   ]);
   const prospects=prospectsResult.data??[];
+  const companyContacts=contacts.filter(contact=>Boolean(contact.company_id));
+  const companyReady=companies.length>0;
+  const contactReady=companyContacts.length>0;
   const ids=prospects.map((prospect:any)=>prospect.id);
   const [sessionsResult,requestsResult]=await Promise.all([
     ids.length?supabase.from('intake_sessions').select('id,prospect_id,status,expires_at,sent_at,opened_at,submitted_at,created_at').eq('organisation_id',organisationId).in('prospect_id',ids).order('created_at',{ascending:false}):Promise.resolve({data:[] as any[]}),
@@ -78,6 +81,15 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     {params.created ? <div className="vp-callout" data-continuity-notice><strong>Opportunity added</strong><p>The new opportunity is ready to work.</p></div> : null}
     {params.error ? <div className="vp-callout" data-continuity-notice><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
 
+    <section className="opportunity-entry-path" aria-labelledby="opportunity-entry-title">
+      <div className="opportunity-entry-path__header"><div><p className="vp-kicker">Required record order</p><h2 id="opportunity-entry-title">Create an opportunity</h2><p>Build the commercial record in sequence so every prospect has a known company and contact.</p></div>{!companyReady?<Link className="button" href="/workspace/companies">1 · Add company</Link>:!contactReady?<Link className="button" href="/workspace/contacts">2 · Add contact</Link>:<a className="button" href="#manual-prospect">3 · Create prospect</a>}</div>
+      <ol className="opportunity-entry-steps">
+        <li data-state={companyReady?'complete':'current'}><span>1</span><div><strong>Company</strong><small>{companyReady?`${companies.length} available`:'Required first'}</small></div></li>
+        <li data-state={contactReady?'complete':companyReady?'current':'locked'}><span>2</span><div><strong>Contact</strong><small>{contactReady?`${companyContacts.length} company-linked`:companyReady?'Add to a company':'Complete company first'}</small></div></li>
+        <li data-state={contactReady?'current':'locked'}><span>3</span><div><strong>Prospect</strong><small>{contactReady?'Ready to create':'Complete contact first'}</small></div></li>
+      </ol>
+    </section>
+
     <SignalStrip items={[
       {label:'Follow-ups due',value:followUpsDue,detail:'LinkedIn actions due now',tone:followUpsDue?'attention':'complete'},
       {label:'Replies to progress',value:repliesWaiting,detail:'Interested replies awaiting action',tone:repliesWaiting?'active':'neutral'},
@@ -85,7 +97,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       {label:'Outreach started',value:outreachStarted,detail:`${prospects.length} active opportunities`,tone:outreachStarted?'active':'neutral'},
     ]}/>
 
-    <details id="manual-prospect" className="vp-disclosure"><summary>Add opportunity</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating an opportunity. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>
+    <details id="manual-prospect" className="vp-disclosure" open={contactReady}><summary>Create prospect</summary><div>{!companyReady?<div className="vp-empty">A company is required first. <Link href="/workspace/companies">Add company →</Link></div>:!contactReady?<div className="vp-empty">Now add a contact to that company. <Link href="/workspace/contacts">Add contact →</Link></div>:<ProspectForm companies={companies} contacts={companyContacts} />}</div></details>
 
     <WorkQueue title="Opportunity queue" eyebrow="Active work" items={queueItems} empty="No active opportunities." viewAllHref="/workspace/acquisition/prospects" viewAllLabel="View all opportunities" />
   </section>;
