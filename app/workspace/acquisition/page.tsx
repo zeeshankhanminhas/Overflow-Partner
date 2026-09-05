@@ -20,11 +20,8 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   const params = searchParams ? await searchParams : {};
   const { supabase, organisationId } = await requireUserContext();
   const activeProspects = supabase.from('prospects').select('*',{count:'exact'}).eq('organisation_id',organisationId).neq('status','converted');
-  const [prospectsResult, waitingResult, technicalPendingResult, qualifiedResult, companies, contacts] = await Promise.all([
-    activeProspects.order('created_at',{ascending:false}).range(0,11),
-    supabase.from('intake_sessions').select('id,prospects!inner(status)',{count:'exact',head:true}).eq('organisation_id',organisationId).in('status',['invited','opened','in_progress']).neq('prospects.status','converted'),
-    supabase.from('intake_sessions').select('id,prospects!inner(status)',{count:'exact',head:true}).eq('organisation_id',organisationId).eq('status','submitted').neq('prospects.status','converted'),
-    supabase.from('prospects').select('id',{count:'exact',head:true}).eq('organisation_id',organisationId).eq('status','qualified'),
+  const [prospectsResult, companies, contacts] = await Promise.all([
+    activeProspects.order('created_at',{ascending:false}).limit(500),
     listCompanies(supabase,organisationId),
     listContacts(supabase,organisationId),
   ]);
@@ -47,12 +44,17 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   const responseSet=new Set((responseResult.data||[]).map((item:any)=>String(item.partner_review_request_id)));
   const decisionMap=new Map<string,any>();for(const item of decisionResult.data||[])if(!decisionMap.has(String((item as any).partner_review_request_id)))decisionMap.set(String((item as any).partner_review_request_id),item);
   const priceSet=new Set((priceResult.data||[]).filter((item:any)=>Number(item.price)>0).map((item:any)=>String(item.partner_review_request_id)));
-  const rows=prospects.map((prospect:any)=>{
+  const rows=prospects.slice(0,12).map((prospect:any)=>{
     const session=sessionByProspect.get(prospect.id);const request=requestByProspect.get(prospect.id);const decision=request?decisionMap.get(String(request.id)):null;
     const state=resolveAcquisitionState({prospectStatus:prospect.status,hasSession:Boolean(session),sessionStatus:session?.status,hasSubmission:Boolean(session&&submissionSet.has(String(session.id))),convertedCaseId:prospect.converted_lead_id,hasPartnerRequest:Boolean(request),partnerRequestStatus:request?.status,hasPartnerResponse:Boolean(request&&responseSet.has(String(request.id))),partnerDecision:decision?.decision,hasPartnerPricing:Boolean(request&&priceSet.has(String(request.id)))});
     return {prospect,session,presentation:resolveAcquisitionPresentation(state)};
   });
   const approvalCount=rows.filter(row=>row.presentation.approval?.required).length;
+  const now=Date.now();
+  const followUpsDue=prospects.filter((item:any)=>item.next_follow_up_at&&new Date(item.next_follow_up_at).getTime()<=now&&!['paused','replied'].includes(String(item.outreach_status))).length;
+  const repliesWaiting=prospects.filter((item:any)=>item.outreach_status==='replied'&&item.response_outcome==='interested').length;
+  const linksSent=(sessionsResult.data||[]).filter((item:any)=>item.sent_at).length;
+  const outreachStarted=prospects.filter((item:any)=>item.outreach_status&&item.outreach_status!=='not_contacted').length;
   const queueItems=rows.map(({prospect,session,presentation}:any)=>({
     id:prospect.id,
     label:presentation.state,
@@ -77,10 +79,10 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     {params.error ? <div className="vp-callout" data-continuity-notice><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
 
     <SignalStrip items={[
-      {label:'Waiting for client',value:waitingResult.count||0,detail:'Requirements requests still open',tone:(waitingResult.count||0)?'waiting':'complete'},
-      {label:'Ready to review',value:technicalPendingResult.count||0,detail:'Client requirements received',tone:(technicalPendingResult.count||0)?'active':'neutral'},
-      {label:'Approvals',value:approvalCount,detail:'Commercial decisions required',tone:approvalCount?'attention':'complete'},
-      {label:'Ready to progress',value:qualifiedResult.count||0,detail:'Opportunity work complete',tone:(qualifiedResult.count||0)?'complete':'neutral'},
+      {label:'Follow-ups due',value:followUpsDue,detail:'LinkedIn actions due now',tone:followUpsDue?'attention':'complete'},
+      {label:'Replies to progress',value:repliesWaiting,detail:'Interested replies awaiting action',tone:repliesWaiting?'active':'neutral'},
+      {label:'Secure links sent',value:linksSent,detail:'Requirements requests created',tone:linksSent?'complete':'neutral'},
+      {label:'Outreach started',value:outreachStarted,detail:`${prospects.length} active opportunities`,tone:outreachStarted?'active':'neutral'},
     ]}/>
 
     <details id="manual-prospect" className="vp-disclosure"><summary>Add opportunity</summary><div>{companies.length ? <ProspectForm companies={companies} contacts={contacts} /> : <div className="vp-empty">Add a company before creating an opportunity. <Link href="/workspace/companies">Add company →</Link></div>}</div></details>

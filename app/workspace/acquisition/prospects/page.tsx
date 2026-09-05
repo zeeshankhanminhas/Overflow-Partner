@@ -59,7 +59,8 @@ export default async function ProspectRegisterPage(){
                 <InteractionFact label="Operating state">{presentation.state}</InteractionFact>
                 <InteractionFact label="Owner / waiting on">{presentation.waitingOn?.label||'Overflow Partner'}</InteractionFact>
                 <InteractionFact label="Next action">{presentation.nextAction.label}</InteractionFact>
-                <InteractionFact label="Source">{item.source}</InteractionFact>
+                <InteractionFact label="Outreach">{String((item as any).outreach_status||'not_contacted').replaceAll('_',' ')}</InteractionFact>
+                <InteractionFact label="Follow-up">{(item as any).next_follow_up_at?new Date((item as any).next_follow_up_at).toLocaleString('en-GB'):'Not scheduled'}</InteractionFact>
                 <InteractionFact label="Technical intake">{session?String(session.status).replaceAll('_',' '):'Not started'}</InteractionFact>
                 <InteractionFact label="Partner assessment">{request?String(request.status).replaceAll('_',' '):'Not started'}</InteractionFact>
               </InteractionFacts>

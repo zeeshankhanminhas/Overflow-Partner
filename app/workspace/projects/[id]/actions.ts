@@ -99,6 +99,19 @@ export async function advanceProjectStageAction(formData: FormData) {
       const {data:project}=await supabase.from('projects').select('project_number,title,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
       if(project?.lead_id){const {data:client}=await supabase.from('leads').select('contact_name,contact_email,company_name').eq('organisation_id',organisationId).eq('id',project.lead_id).maybeSingle();if(client?.contact_email)await queueLifecycleEmail(supabase,{organisationId,scenario:'project.completed',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl:appUrl(),payload:{company:client.company_name,reference:project.project_number,project:project.title},entityType:'project',entityId:projectId,idempotencyKey:`project:completed:${projectId}`}).catch(()=>null);}
     }
+    if(targetStage==='closed'){
+      const {data:project}=await supabase.from('projects').select('id,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
+      if(project?.lead_id){
+        const {data:lead}=await supabase.from('leads').select('company_id').eq('organisation_id',organisationId).eq('id',project.lead_id).maybeSingle();
+        if(lead?.company_id){
+          const {count}=await supabase.from('projects').select('id,leads!inner(company_id)',{count:'exact',head:true}).eq('organisation_id',organisationId).eq('leads.company_id',lead.company_id).eq('project_stage','closed');
+          const nextReview=new Date(Date.now()+30*24*60*60*1000).toISOString();
+          await supabase.from('companies').update({account_status:(count||0)>1?'repeat':'active',account_owner_id:user.id,next_account_review_at:nextReview,updated_at:new Date().toISOString()}).eq('organisation_id',organisationId).eq('id',lead.company_id);
+          await supabase.from('activity_events').insert({organisation_id:organisationId,entity_type:'company',entity_id:lead.company_id,user_id:user.id,event_type:'company.post_delivery_review_scheduled',event_data:{projectId,nextReview,completedProjectCount:count||1}});
+          revalidatePath(`/workspace/companies/${lead.company_id}`);revalidatePath('/workspace/companies');
+        }
+      }
+    }
     refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,focus:targetStage==='closed'?'record-summary':'record-next-action'});
   } catch (error) { destination = projectUrl(projectId,{error:error instanceof Error ? error.message : 'Project stage could not be advanced.',focus:'record-next-action'}); }
   redirect(destination);

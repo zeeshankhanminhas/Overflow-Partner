@@ -179,6 +179,36 @@ export async function updateProspectWorkingStatusFormAction(formData: FormData) 
   redirect(destination);
 }
 
+const outreachStatuses = new Set(['not_contacted','message_sent','follow_up_due','replied','no_response','paused']);
+const responseOutcomes = new Set(['interested','later','referred','not_interested','no_response']);
+
+export async function updateProspectOutreachAction(formData: FormData) {
+  const prospectId=String(formData.get('prospect_id')||'').trim();
+  let destination=prospectId?acquisitionUrl(prospectId):'/workspace/acquisition';
+  try{
+    const {supabase,user,profile,organisationId}=await requireUserContext();
+    assertRole(profile.role,['owner','admin','business_development','operator']);
+    const outreachStatus=String(formData.get('outreach_status')||'').trim();
+    const responseOutcome=String(formData.get('response_outcome')||'').trim();
+    const followUp=String(formData.get('next_follow_up_at')||'').trim();
+    const note=String(formData.get('outreach_note')||'').trim();
+    if(!prospectId||!outreachStatuses.has(outreachStatus))throw new Error('Select a valid outreach action.');
+    if(responseOutcome&&!responseOutcomes.has(responseOutcome))throw new Error('Select a valid reply outcome.');
+    if(outreachStatus==='replied'&&!responseOutcome)throw new Error('Record the reply outcome.');
+    if(outreachStatus==='follow_up_due'&&!followUp)throw new Error('Set the next follow-up date and time.');
+    const {data:prospect,error:readError}=await supabase.from('prospects').select('id,status,converted_lead_id,outreach_status,response_outcome,next_follow_up_at').eq('organisation_id',organisationId).eq('id',prospectId).single();
+    if(readError||!prospect)throw new Error('Prospect not found.');
+    if(prospect.converted_lead_id||prospect.status==='converted')throw new Error('Converted opportunities are managed through the client account.');
+    const now=new Date().toISOString();
+    const updates={outreach_status:outreachStatus,response_outcome:responseOutcome||null,next_follow_up_at:followUp?new Date(followUp).toISOString():null,last_contacted_at:outreachStatus==='message_sent'?now:undefined,last_reply_at:outreachStatus==='replied'?now:undefined,updated_at:now};
+    const {error:updateError}=await supabase.from('prospects').update(updates).eq('organisation_id',organisationId).eq('id',prospectId);if(updateError)throw new Error(updateError.message);
+    await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:prospectId,userId:user.id,eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin'},oldValue:{outreachStatus:prospect.outreach_status,responseOutcome:prospect.response_outcome,nextFollowUpAt:prospect.next_follow_up_at},newValue:{outreachStatus,responseOutcome:responseOutcome||null,nextFollowUpAt:updates.next_follow_up_at}});
+    revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace');
+    destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-communications'});
+  }catch(error){destination=acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Outreach could not be recorded.',focus:'record-communications'});}
+  redirect(destination);
+}
+
 export async function convertProspectAction(formData: FormData): Promise<ActionResult<Lead>> {
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
