@@ -33,8 +33,15 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
     if (!companyId) return { ok: false, error: 'Select a company.' };
     const company = await getCompanyById(supabase, organisationId, companyId);
     const contactId = String(raw.contact_id || '');
-    const contact = contactId ? await getContactById(supabase, organisationId, contactId) : null;
+    if (!contactId) return { ok: false, error: 'Select the contact this prospect belongs to. Website enquiries enter through the public intake workflow.' };
+    const contact = await getContactById(supabase, organisationId, contactId);
     if (contact?.company_id && contact.company_id !== company.id) return { ok: false, error: 'The selected contact does not belong to the selected company.' };
+    if (!contact.company_id) return { ok:false,error:'Assign this contact to a company before creating a prospect.' };
+    if (raw.confirm_duplicate !== 'on') {
+      const {data:duplicate,error:duplicateError}=await supabase.from('prospects').select('id,company_name,status').eq('organisation_id',organisationId).eq('contact_id',contactId).not('status','in','(converted,not_a_fit)').limit(1).maybeSingle();
+      if(duplicateError)throw new Error(duplicateError.message);
+      if(duplicate)return {ok:false,error:`An active prospect already exists for this contact at ${duplicate.company_name}. Open that prospect, or confirm that this is a separate requirement.`};
+    }
     const parsed = prospectInputSchema.safeParse({ ...raw, company_id: company.id, company_name: company.name, contact_id: contact?.id || '', contact_name: contact?.full_name || '', job_title: contact?.job_title || '', linkedin_url: contact?.linkedin_url || '', email: contact?.email || '', phone: contact?.phone || '', industry: company.industry || '' });
     if (!parsed.success) return { ok: false, error: 'Please correct the highlighted prospect details.', fieldErrors: parsed.error.flatten().fieldErrors };
     const prospect = await createProspect(supabase, organisationId, user.id, parsed.data);
@@ -61,9 +68,11 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
 
 export async function createProspectFormAction(formData: FormData) {
   const result = await createProspectAction(formData);
+  const returnTo=String(formData.get('return_to')||'');
+  const safeReturnTo=returnTo.startsWith('/workspace/contacts')?returnTo:'/workspace/acquisition';
   redirect(result.ok
     ? acquisitionUrl(result.data.id,{created:'Prospect added',focus:'record-next-action'})
-    : `/workspace/acquisition?error=${encodeURIComponent(result.error)}&focus=manual-prospect`);
+    : `${safeReturnTo}${safeReturnTo.includes('?')?'&':'?'}error=${encodeURIComponent(result.error)}&focus=manual-prospect`);
 }
 
 export async function createStep2InvitationFormAction(formData: FormData) {
