@@ -4,11 +4,12 @@ import type { Company, Contact } from '@/types/domain';
 const inputClass = 'field_input border border-black/15 bg-white px-3 py-2 text-black';
 const labelClass = 'field_group grid gap-2 text-xs font-medium uppercase text-black';
 
-export default function ContactForm({ companies, defaultCompanyId = '', contact }: { companies: Company[]; defaultCompanyId?: string; contact?: Contact }) {
+export default function ContactForm({ companies, defaultCompanyId = '', contact, returnTo = '' }: { companies: Company[]; defaultCompanyId?: string; contact?: Contact; returnTo?: string }) {
   const editing=Boolean(contact);
   return (
     <form action={editing?updateContactFormAction:createContactFormAction} className="card stack" style={{ width: '100%', marginTop: 20 }}>
       {contact?<input type="hidden" name="contact_id" value={contact.id}/>:null}
+      {returnTo?<input type="hidden" name="return_to" value={returnTo}/>:null}
       <div><p className="eyebrow">CRM contact</p><h3>{editing?'Edit contact':'Add contact'}</h3></div>
       <div className="grid gap-4 md:grid-cols-2">
         <label className={labelClass}>Company<select className={inputClass} name="company_id" required defaultValue={contact?.company_id||defaultCompanyId}><option value="">Select company</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
