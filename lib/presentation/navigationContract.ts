@@ -25,10 +25,22 @@ export const primaryNavigation = {
     interactionPattern: 'Decision queue linked back to the owning work.',
   },
   enquiries: {
-    label: 'Opportunities', href: '/workspace/acquisition/prospects', group: 'work', placement: 'primary',
+    label: 'Prospects', href: '/workspace/acquisition/prospects', group: 'work', placement: 'primary',
     operatorJob: 'Qualify and progress pre-project opportunities.',
     authoritativeModel: 'Acquisition and pre-project opportunity state.',
     interactionPattern: 'Opportunity queue into the current commercial record.',
+  },
+  companies: {
+    label: 'Companies', href: '/workspace/companies', group: 'commercial', placement: 'primary',
+    operatorJob: 'Maintain prospect and client account master records.',
+    authoritativeModel: 'Company master and recurring account relationship.',
+    interactionPattern: 'Company register into Company 360.',
+  },
+  contacts: {
+    label: 'Contacts', href: '/workspace/contacts', group: 'commercial', placement: 'primary',
+    operatorJob: 'Maintain decision-maker and technical-contact records.',
+    authoritativeModel: 'Contact master linked to one company.',
+    interactionPattern: 'Contact register into contact relationship history.',
   },
   cases: {
     label: 'Opportunities', href: '/workspace/leads', group: 'work', placement: 'contextual',

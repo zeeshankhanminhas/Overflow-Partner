@@ -18,7 +18,10 @@ export default function ContactForm({ companies, defaultCompanyId = '', contact,
         <label className={labelClass}>Email<input className={inputClass} name="email" type="email" defaultValue={contact?.email||''}/></label>
         <label className={labelClass}>Phone<input className={inputClass} name="phone" defaultValue={contact?.phone||''}/></label>
         <label className={labelClass}>LinkedIn URL<input className={inputClass} name="linkedin_url" type="url" defaultValue={contact?.linkedin_url||''}/></label>
+        {editing?<label className={labelClass}>Record status<select className={inputClass} name="lifecycle_status" defaultValue={contact?.lifecycle_status||'active'}><option value="active">Active</option><option value="inactive">Inactive</option><option value="archived">Archived</option></select></label>:null}
+        <label className={labelClass}>Communication<select className={inputClass} name="communication_status" defaultValue={contact?.communication_status||'business_contact'}><option value="business_contact">Business contact</option><option value="do_not_contact">Do not contact</option></select></label>
       </div>
+      <label style={{display:'flex',gap:10,alignItems:'center'}}><input name="is_primary" type="checkbox" value="true" defaultChecked={Boolean(contact?.is_primary)}/> Primary contact for this company</label>
       <label className={labelClass}>Notes<textarea className={inputClass} name="notes" rows={4} defaultValue={contact?.notes||''}/></label>
       <button className="button" type="submit">{editing?'Save changes':'Add contact'}</button>
     </form>

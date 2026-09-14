@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { companyInputSchema } from '@/lib/validation/companies';
-import { createCompany } from '@/lib/repositories/companies';
+import { createCompany, getCompanyById, updateCompany } from '@/lib/repositories/companies';
 import { recordActivity } from '@/lib/repositories/activity';
 
 export async function createCompanyAction(formData: FormData) {
@@ -41,6 +41,23 @@ export async function createCompanyAction(formData: FormData) {
     const separator=returnTo.includes('?')?'&':'?';
     destination=`${returnTo}${separator}error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create company')}`;
   }
+  redirect(destination);
+}
+
+export async function updateCompanyFormAction(formData:FormData){
+  const companyId=String(formData.get('company_id')||'').trim();
+  let destination=`/workspace/companies/${companyId}`;
+  try{
+    const {supabase,user,profile,organisationId}=await requireUserContext();
+    assertRole(profile.role,['owner','admin','business_development','operator']);
+    const parsed=companyInputSchema.safeParse(Object.fromEntries(formData.entries()));
+    if(!companyId||!parsed.success)throw new Error(parsed.success?'Company is required.':parsed.error.issues[0]?.message||'Please correct the company details.');
+    const previous=await getCompanyById(supabase,organisationId,companyId);
+    const company=await updateCompany(supabase,organisationId,companyId,parsed.data);
+    await recordActivity(supabase,{organisationId,entityType:'company',entityId:companyId,userId:user.id,eventType:'company.updated',oldValue:previous,newValue:company});
+    revalidatePath(`/workspace/companies/${companyId}`);revalidatePath('/workspace/companies');revalidatePath('/workspace/acquisition');revalidatePath('/workspace');
+    destination+=`?updated=${encodeURIComponent('Company profile saved')}`;
+  }catch(error){destination+=`?error=${encodeURIComponent(error instanceof Error?error.message:'Company could not be saved.')}`;}
   redirect(destination);
 }
 

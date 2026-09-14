@@ -8,6 +8,9 @@ export const contactInputSchema = z.object({
   phone: z.string().trim().max(80).optional().or(z.literal('')),
   linkedin_url: z.string().trim().url('Enter a valid LinkedIn URL').optional().or(z.literal('')),
   notes: z.string().trim().max(4000).optional().or(z.literal('')),
+  lifecycle_status: z.enum(['active','inactive','archived']).optional().default('active'),
+  is_primary: z.coerce.boolean().optional().default(false),
+  communication_status: z.enum(['business_contact','do_not_contact']).optional().default('business_contact'),
 });
 
 export type ContactInput = z.infer<typeof contactInputSchema>;

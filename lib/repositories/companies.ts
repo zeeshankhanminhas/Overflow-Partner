@@ -50,7 +50,16 @@ export async function createCompany(supabase: SupabaseClient, organisationId: st
   const {data:duplicate,error:duplicateError}=await supabase.from('companies').select('id,name').eq('organisation_id',organisationId).ilike('name',name).limit(1).maybeSingle();
   if(duplicateError)throw new Error(duplicateError.message);
   if(duplicate)throw new Error(`A company named ${duplicate.name} already exists. Open the existing company instead of creating a duplicate.`);
-  const { data, error } = await supabase.from('companies').insert({ organisation_id: organisationId, created_by: userId, name, website: input.website || null, industry: input.industry || null, country: input.country || null, employee_count: input.employee_count === '' || input.employee_count === undefined ? null : input.employee_count, notes: input.notes || null }).select('*').single();
+  const { data, error } = await supabase.from('companies').insert({ organisation_id: organisationId, created_by: userId, name, website: input.website || null, industry: input.industry || null, country: input.country || null, employee_count: input.employee_count === '' || input.employee_count === undefined ? null : input.employee_count, notes: input.notes || null, lifecycle_status:input.lifecycle_status }).select('*').single();
   if (error) throw new Error(error.message);
   return data as Company;
+}
+
+export async function updateCompany(supabase:SupabaseClient,organisationId:string,companyId:string,input:CompanyInput){
+  const name=input.name.trim();
+  const {data:duplicate,error:duplicateError}=await supabase.from('companies').select('id,name').eq('organisation_id',organisationId).ilike('name',name).neq('id',companyId).limit(1).maybeSingle();
+  if(duplicateError)throw new Error(duplicateError.message);
+  if(duplicate)throw new Error(`A company named ${duplicate.name} already exists.`);
+  const {data,error}=await supabase.from('companies').update({name,website:input.website||null,industry:input.industry||null,country:input.country||null,employee_count:input.employee_count===''||input.employee_count===undefined?null:input.employee_count,notes:input.notes||null,lifecycle_status:input.lifecycle_status,updated_at:new Date().toISOString()}).eq('organisation_id',organisationId).eq('id',companyId).select('*').single();
+  if(error)throw new Error(error.message);return data as Company;
 }

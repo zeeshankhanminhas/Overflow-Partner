@@ -73,7 +73,13 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
   let actionKey: AcquisitionActionKey = 'create_intake';
   let waitingExternally = false;
 
-  if (input.hasSession && !submitted && !converted) {
+  if (input.hasSession && ['expired','cancelled'].includes(String(input.sessionStatus)) && !converted && !closed) {
+    stageIndex = 1;
+    currentState = 'Requirements request needs reissuing';
+    nextAction = 'Send a new requirements request';
+    nextReason = 'The previous secure request is no longer active. Reissue it so the client can continue.';
+    actionKey = 'create_intake';
+  } else if (input.hasSession && !submitted && !converted) {
     stageIndex = 1;
     currentState = 'Waiting for customer';
     nextAction = 'Wait for customer scope';
@@ -89,6 +95,14 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
     nextReason = qualified
       ? 'This enquiry has an older qualified flag, but Partner feasibility, price and Go / No-Go evidence are still required.'
       : 'The customer scope is ready for feasibility, capacity and price assessment by an approved Execution Partner.';
+    actionKey = 'request_partner';
+  }
+
+  if (submitted && input.hasPartnerRequest && ['expired','revoked'].includes(partnerStatus) && !converted && !closed) {
+    stageIndex = 3;
+    currentState = 'Delivery review needs reissuing';
+    nextAction = 'Select a partner and reissue review';
+    nextReason = 'The previous delivery review is closed without an approved response. Send a new review to recover the opportunity.';
     actionKey = 'request_partner';
   }
 

@@ -29,15 +29,17 @@ function priorityConsequence(kind:'issue'|'approval'|'dependency'){
 
 export default async function WorkspacePage(){
   const {supabase,organisationId}=await requireUserContext();
-  const [dashboard,pendingPartnerResult,chrome]=await Promise.all([
+  const [dashboard,pendingPartnerResult,companyReviewResult,chrome]=await Promise.all([
     getDashboardSnapshot(supabase,organisationId),
     supabase.from('partner_review_requests').select('id,prospect_id,status,created_at,sent_at,submitted_at,response_due_at,partner:partners(company_name),prospect:prospects(company_name)').eq('organisation_id',organisationId).not('prospect_id','is',null).in('status',['invited','opened','in_progress','clarification_required']).order('created_at',{ascending:false}),
+    supabase.from('companies').select('id,name,next_account_review_at').eq('organisation_id',organisationId).neq('lifecycle_status','archived').not('next_account_review_at','is',null).lte('next_account_review_at',new Date().toISOString()).order('next_account_review_at',{ascending:true}).limit(20),
     getWorkspaceChromeData(),
   ]);
   const operationalExceptions=chrome.exceptions;
   const approvals=chrome.approvals;
 
   const partnerRows=(pendingPartnerResult.data||[]) as any[];
+  const companyReviewAttention:AttentionSource[]=((companyReviewResult.data||[]) as any[]).map(row=>({id:`company-review-${row.id}`,title:'Review client account',company:row.name,reason:`Account review due ${new Date(row.next_account_review_at).toLocaleDateString('en-GB')}`,waitingSince:row.next_account_review_at,priority:'normal',href:`/workspace/companies/${row.id}`,stage:'prospect'}));
   const prospectIds=new Set(partnerRows.map(row=>String(row.prospect_id)));
   const partnerAttention:AttentionSource[]=partnerRows.map(row=>{
     const clarification=row.status==='clarification_required';
@@ -48,7 +50,7 @@ export default async function WorkspacePage(){
     .filter(item=>item.stage!=='project'||['waiting','review'].includes(item.status))
     .filter(item=>!prospectIds.has(String(item.id)))
     .map(item=>({id:item.id,title:item.nextAction,company:item.company,reason:item.deadline?`Deadline ${item.deadline}`:`${item.stageLabel} · ${item.status.replaceAll('_',' ')}`,waitingSince:item.waitingSince,priority:item.priority,href:item.href,stage:item.stage}));
-  const attention=resolveBusinessAttention([...partnerAttention,...canonicalBase]);
+  const attention=resolveBusinessAttention([...companyReviewAttention,...partnerAttention,...canonicalBase]);
   const approvalSummary=summariseApprovalQueue(approvals);
   const exceptionSummary=summariseExceptions(operationalExceptions);
   const readyApprovals=approvals.filter(item=>item.status==='ready');
