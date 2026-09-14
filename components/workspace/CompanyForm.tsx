@@ -1,8 +1,9 @@
 import { createCompanyAction } from '@/app/workspace/companies/actions';
 
-export default function CompanyForm() {
+export default function CompanyForm({ returnTo = '' }: { returnTo?: string }) {
   return (
     <form action={createCompanyAction} className="card stack" style={{ width: '100%', marginTop: 24 }}>
+      {returnTo ? <input type="hidden" name="return_to" value={returnTo} /> : null}
       <div>
         <p className="eyebrow">CRM</p>
         <h3>Add company</h3>

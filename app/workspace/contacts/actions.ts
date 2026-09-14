@@ -9,21 +9,30 @@ import { recordActivity } from '@/lib/repositories/activity';
 import { getCompanyById } from '@/lib/repositories/companies';
 
 export async function createContactFormAction(formData: FormData) {
+  const requestedReturnTo=String(formData.get('return_to')||'').trim();
+  const returnTo=requestedReturnTo.startsWith('/workspace')?requestedReturnTo:'/workspace/contacts';
+  let destination='';
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const parsed = contactInputSchema.safeParse(Object.fromEntries(formData.entries()));
-    if (!parsed.success) redirect(`/workspace/contacts?error=${encodeURIComponent('Please correct the contact details.')}`);
+    if (!parsed.success) throw new Error('Please correct the contact details.');
     await getCompanyById(supabase,organisationId,parsed.data.company_id);
     const contact = await createContact(supabase, organisationId, user.id, parsed.data);
     await recordActivity(supabase, { organisationId, entityType: 'contact', entityId: contact.id, userId: user.id, eventType: 'contact.created', newValue: contact });
     revalidatePath('/workspace/contacts');
     revalidatePath('/workspace/companies');
+    revalidatePath('/workspace/acquisition');
     if (contact.company_id) revalidatePath(`/workspace/companies/${contact.company_id}`);
-    redirect('/workspace/contacts?created=1');
+    const separator=returnTo.includes('?')?'&':'?';
+    destination=requestedReturnTo
+      ?`${returnTo}${separator}company_id=${encodeURIComponent(contact.company_id||'')}&contact_id=${encodeURIComponent(contact.id)}&contact_created=1`
+      :'/workspace/contacts?created=1';
   } catch (error) {
-    redirect(`/workspace/contacts?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create contact.')}`);
+    const separator=returnTo.includes('?')?'&':'?';
+    destination=`${returnTo}${separator}error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create contact.')}`;
   }
+  redirect(destination);
 }
 
 export async function updateContactFormAction(formData: FormData) {

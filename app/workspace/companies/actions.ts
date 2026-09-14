@@ -8,14 +8,18 @@ import { createCompany } from '@/lib/repositories/companies';
 import { recordActivity } from '@/lib/repositories/activity';
 
 export async function createCompanyAction(formData: FormData) {
+  const requestedReturnTo=String(formData.get('return_to')||'').trim();
+  const returnTo=requestedReturnTo.startsWith('/workspace')?requestedReturnTo:'/workspace/companies';
   const { supabase, user, profile, organisationId } = await requireUserContext();
   assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
 
   const parsed = companyInputSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
-    redirect(`/workspace/companies?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'Invalid company details')}`);
+    const separator=returnTo.includes('?')?'&':'?';
+    redirect(`${returnTo}${separator}error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'Invalid company details')}`);
   }
 
+  let destination='';
   try {
     const company = await createCompany(supabase, organisationId, user.id, parsed.data);
     await recordActivity(supabase, {
@@ -27,11 +31,17 @@ export async function createCompanyAction(formData: FormData) {
       newValue: company,
     });
     revalidatePath('/workspace/companies');
+    revalidatePath('/workspace/acquisition');
     revalidatePath('/workspace');
-    redirect('/workspace/companies?created=1');
+    const separator=returnTo.includes('?')?'&':'?';
+    destination=requestedReturnTo
+      ?`${returnTo}${separator}company_id=${encodeURIComponent(company.id)}&company_created=1`
+      :'/workspace/companies?created=1';
   } catch (error) {
-    redirect(`/workspace/companies?error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create company')}`);
+    const separator=returnTo.includes('?')?'&':'?';
+    destination=`${returnTo}${separator}error=${encodeURIComponent(error instanceof Error ? error.message : 'Unable to create company')}`;
   }
+  redirect(destination);
 }
 
 export async function updateAccountDevelopmentAction(formData:FormData){

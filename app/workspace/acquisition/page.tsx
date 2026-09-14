@@ -1,11 +1,14 @@
 import Link from 'next/link';
 import ProspectForm from '@/components/workspace/ProspectForm';
+import CompanyForm from '@/components/workspace/CompanyForm';
+import ContactForm from '@/components/workspace/ContactForm';
 import { requireUserContext } from '@/lib/auth/context';
 import { listCompanies } from '@/lib/repositories/companies';
 import { listContacts } from '@/lib/repositories/contacts';
 import { resolveAcquisitionState } from '@/lib/acquisition/state';
 import { resolveAcquisitionPresentation } from '@/lib/presentation/operatingState';
 import { SignalStrip, WorkQueue } from '@/components/workspace/OperationalUI';
+import { WorkWindow } from '@/components/workspace/InteractionSurface';
 
 function dateTime(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not yet';
@@ -27,6 +30,8 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   ]);
   const prospects=prospectsResult.data??[];
   const companyContacts=contacts.filter(contact=>Boolean(contact.company_id));
+  const selectedCompanyId=typeof params.company_id==='string'&&companies.some(company=>company.id===params.company_id)?params.company_id:'';
+  const selectedContactId=typeof params.contact_id==='string'&&companyContacts.some(contact=>contact.id===params.contact_id&&contact.company_id===selectedCompanyId)?params.contact_id:'';
   const companyReady=companies.length>0;
   const contactReady=companyContacts.length>0;
   const ids=prospects.map((prospect:any)=>prospect.id);
@@ -79,10 +84,12 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     </section>
 
     {params.created ? <div className="vp-callout" data-continuity-notice><strong>Opportunity added</strong><p>The new opportunity is ready to work.</p></div> : null}
+    {params.company_created ? <div className="vp-callout" data-continuity-notice><strong>Company created</strong><p>Now add a contact for this company, or select an existing company contact below.</p></div> : null}
+    {params.contact_created ? <div className="vp-callout" data-continuity-notice><strong>Contact created</strong><p>The company and contact are selected. Complete the opportunity details below.</p></div> : null}
     {params.error ? <div className="vp-callout" data-continuity-notice><strong>Couldn’t complete that action</strong><p>{String(params.error)}</p></div> : null}
 
     <section className="opportunity-entry-path" aria-labelledby="opportunity-entry-title">
-      <div className="opportunity-entry-path__header"><div><p className="vp-kicker">Required record order</p><h2 id="opportunity-entry-title">Create an opportunity</h2><p>Build the commercial record in sequence so every prospect has a known company and contact.</p></div>{!companyReady?<Link className="button" href="/workspace/companies">1 · Add company</Link>:!contactReady?<Link className="button" href="/workspace/contacts">2 · Add contact</Link>:<a className="button" href="#manual-prospect">3 · Create prospect</a>}</div>
+      <div className="opportunity-entry-path__header"><div><p className="vp-kicker">Required record order</p><h2 id="opportunity-entry-title">Create an opportunity</h2><p>Build the commercial record in sequence so every prospect has a known company and contact.</p></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><WorkWindow triggerLabel="1 · Add company" triggerClassName="button secondary" eyebrow="CRM master" title="Add company" description="Create the company without leaving Acquisition. It will be selected for the next step."><CompanyForm returnTo="/workspace/acquisition"/></WorkWindow>{companyReady?<WorkWindow triggerLabel="2 · Add contact" triggerClassName="button secondary" eyebrow="CRM master" title="Add company contact" description="Create the decision-maker or technical contact without leaving Acquisition."><ContactForm companies={companies} defaultCompanyId={selectedCompanyId} returnTo="/workspace/acquisition"/></WorkWindow>:null}{contactReady?<a className="button" href="#manual-prospect">3 · Create prospect</a>:null}</div></div>
       <ol className="opportunity-entry-steps">
         <li data-state={companyReady?'complete':'current'}><span>1</span><div><strong>Company</strong><small>{companyReady?`${companies.length} available`:'Required first'}</small></div></li>
         <li data-state={contactReady?'complete':companyReady?'current':'locked'}><span>2</span><div><strong>Contact</strong><small>{contactReady?`${companyContacts.length} company-linked`:companyReady?'Add to a company':'Complete company first'}</small></div></li>
@@ -97,7 +104,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
       {label:'Outreach started',value:outreachStarted,detail:`${prospects.length} active opportunities`,tone:outreachStarted?'active':'neutral'},
     ]}/>
 
-    <details id="manual-prospect" className="vp-disclosure" open={contactReady}><summary>Create prospect</summary><div>{!companyReady?<div className="vp-empty">A company is required first. <Link href="/workspace/companies">Add company →</Link></div>:!contactReady?<div className="vp-empty">Now add a contact to that company. <Link href="/workspace/contacts">Add contact →</Link></div>:<ProspectForm companies={companies} contacts={companyContacts} />}</div></details>
+    <details id="manual-prospect" className="vp-disclosure" open={contactReady}><summary>Create prospect</summary><div>{!companyReady?<div className="vp-empty">Add a company above to begin.</div>:!contactReady?<div className="vp-empty">Now add a contact to that company using the action above.</div>:<ProspectForm companies={companies} contacts={companyContacts} defaultCompanyId={selectedCompanyId} defaultContactId={selectedContactId} />}</div></details>
 
     <WorkQueue title="Opportunity queue" eyebrow="Active work" items={queueItems} empty="No active opportunities." viewAllHref="/workspace/acquisition/prospects" viewAllLabel="View all opportunities" />
   </section>;
