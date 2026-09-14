@@ -50,13 +50,30 @@ export async function POST(request: Request) {
       payload.source ? `Campaign source: ${payload.source}` : '',
     ].filter(Boolean).join('\n');
 
+    const {data:matchedCompany,error:companyLookupError}=await supabase.from('companies').select('id,name').eq('organisation_id',owner.organisation_id).ilike('name',payload.company).limit(1).maybeSingle();
+    if(companyLookupError)throw companyLookupError;
+    let company=matchedCompany;
+    if(!company){
+      const created=await supabase.from('companies').insert({organisation_id:owner.organisation_id,created_by:owner.id,name:payload.company,lifecycle_status:'active'}).select('id,name').single();
+      if(created.error)throw created.error;company=created.data;
+    }
+    const {data:matchedContact,error:contactLookupError}=await supabase.from('contacts').select('id,full_name').eq('organisation_id',owner.organisation_id).eq('company_id',company.id).ilike('email',payload.work_email).limit(1).maybeSingle();
+    if(contactLookupError)throw contactLookupError;
+    let contact=matchedContact;
+    if(!contact){
+      const created=await supabase.from('contacts').insert({organisation_id:owner.organisation_id,created_by:owner.id,company_id:company.id,full_name:payload.full_name,email:payload.work_email,lifecycle_status:'active',communication_status:'marketable'}).select('id,full_name').single();
+      if(created.error)throw created.error;contact=created.data;
+    }
+
     const { data: prospect, error: prospectError } = await supabase.from('prospects').insert({
       organisation_id: owner.organisation_id,
       created_by: owner.id,
       assigned_to: owner.id,
       source: 'website',
-      company_name: payload.company,
-      contact_name: payload.full_name,
+      company_id: company.id,
+      contact_id: contact.id,
+      company_name: company.name,
+      contact_name: contact.full_name,
       email: payload.work_email,
       project_type: payload.project_type,
       requirement_summary: payload.brief_requirement,

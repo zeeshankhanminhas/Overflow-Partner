@@ -1,11 +1,15 @@
+'use client';
+
 import { createProspectFormAction } from '@/app/workspace/acquisition/actions';
 import type { Company, Contact } from '@/types/domain';
+import { useState } from 'react';
 
 const inputClass = 'field_input border border-black/15 bg-white px-3 py-2 text-black';
 const labelClass = 'field_group grid gap-2 text-xs font-medium uppercase text-black';
 
 export default function ProspectForm({ companies, contacts, defaultCompanyId = '', defaultContactId = '', lockIdentity = false, returnTo = '' }: { companies: Company[]; contacts: Contact[]; defaultCompanyId?: string; defaultContactId?: string; lockIdentity?: boolean; returnTo?: string }) {
-  const availableContacts=contacts.filter(contact=>Boolean(contact.company_id)&&(!defaultCompanyId||contact.company_id===defaultCompanyId));
+  const [companyId,setCompanyId]=useState(defaultCompanyId);
+  const availableContacts=contacts.filter(contact=>Boolean(contact.company_id)&&(!companyId||contact.company_id===companyId));
   return (
     <form action={createProspectFormAction} className="card stack acquisition-entry-form" style={{ width: '100%', marginTop: 20 }}>
       {returnTo?<input type="hidden" name="return_to" value={returnTo}/>:null}
@@ -13,8 +17,8 @@ export default function ProspectForm({ companies, contacts, defaultCompanyId = '
       <div className="grid gap-4 md:grid-cols-2">
         <label className={labelClass}>Source<select className={inputClass} name="source" defaultValue="linkedin"><option value="linkedin">LinkedIn</option><option value="email">Email</option><option value="referral">Referral</option><option value="phone">Phone</option><option value="manual">Manual</option></select></label>
         <label className={labelClass}>Stage<select className={inputClass} name="status" defaultValue="identified"><option value="identified">Identified</option><option value="contacted">Contacted</option><option value="conversation">Conversation</option><option value="qualified">Qualified</option><option value="not_a_fit">Not a fit</option></select></label>
-        <label className={labelClass}>Company<select className={inputClass} name="company_id" required defaultValue={defaultCompanyId} disabled={lockIdentity}><option value="">Select company</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select>{lockIdentity?<input type="hidden" name="company_id" value={defaultCompanyId}/>:null}</label>
-        <label className={labelClass}>Contact<select className={inputClass} name="contact_id" required defaultValue={defaultContactId} disabled={lockIdentity}><option value="">Select contact</option>{availableContacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.full_name}{contact.company?.name ? ` · ${contact.company.name}` : ''}</option>)}</select>{lockIdentity?<input type="hidden" name="contact_id" value={defaultContactId}/>:null}</label>
+        <label className={labelClass}>Company<select className={inputClass} name="company_id" required value={companyId} onChange={event=>setCompanyId(event.target.value)} disabled={lockIdentity}><option value="">Select company</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select>{lockIdentity?<input type="hidden" name="company_id" value={defaultCompanyId}/>:null}</label>
+        <label className={labelClass}>Contact<select key={companyId} className={inputClass} name="contact_id" required defaultValue={companyId===defaultCompanyId?defaultContactId:''} disabled={lockIdentity||!companyId}><option value="">{companyId?'Select contact':'Select company first'}</option>{availableContacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.full_name}{contact.company?.name ? ` · ${contact.company.name}` : ''}</option>)}</select>{lockIdentity?<input type="hidden" name="contact_id" value={defaultContactId}/>:null}</label>
         <label className={labelClass}>Next action date<input className={inputClass} name="next_action_at" type="datetime-local" /></label>
         <label className={labelClass}>Next action<input className={inputClass} name="next_action" /></label>
       </div>

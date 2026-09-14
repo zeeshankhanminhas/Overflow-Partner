@@ -33,6 +33,7 @@ export async function createContact(supabase: SupabaseClient, organisationId: st
     phone: input.phone || null,
     linkedin_url: input.linkedin_url || null,
     notes: input.notes || null,
+    lifecycle_status:input.lifecycle_status,is_primary:input.is_primary,communication_status:input.communication_status,
   }).select('*, company:companies(id,name)').single();
   if (error) throw new Error(error.message);
   return data as Contact;
@@ -53,6 +54,7 @@ export async function updateContact(supabase: SupabaseClient, organisationId: st
     phone: input.phone || null,
     linkedin_url: input.linkedin_url || null,
     notes: input.notes || null,
+    lifecycle_status:input.lifecycle_status,is_primary:input.is_primary,communication_status:input.communication_status,
   }).eq('organisation_id',organisationId).eq('id',contactId).select('*, company:companies(id,name)').single();
   if(error)throw new Error(error.message);
   return data as Contact;

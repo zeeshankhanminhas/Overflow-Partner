@@ -7,6 +7,7 @@ export const companyInputSchema = z.object({
   country: z.string().trim().max(120).optional().or(z.literal('')),
   employee_count: z.coerce.number().int().min(0).optional().or(z.literal('')),
   notes: z.string().trim().max(4000).optional().or(z.literal('')),
+  lifecycle_status: z.enum(['active','dormant','archived']).optional().default('active'),
 });
 
 export type CompanyInput = z.infer<typeof companyInputSchema>;

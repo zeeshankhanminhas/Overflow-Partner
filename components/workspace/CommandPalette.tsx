@@ -10,6 +10,8 @@ const RECENT_KEY='overflow-partner:recent-work';
 const quick=[
   {title:n.missionControl.label,subtitle:'Current operating position and next intervention',href:n.missionControl.href},
   {title:n.approvals.label,subtitle:'Authority decisions ready for review',href:n.approvals.href},
+  {title:n.companies.label,subtitle:'Prospect and client company master records',href:n.companies.href},
+  {title:n.contacts.label,subtitle:'Decision-makers and technical contacts',href:n.contacts.href},
   {title:n.cases.label,subtitle:'Pre-project technical and commercial control',href:n.cases.href},
   {title:n.projects.label,subtitle:'Controlled engineering delivery',href:n.projects.href},
   {title:n.payments.label,subtitle:'Receivables, liabilities and settlement evidence',href:n.payments.href},

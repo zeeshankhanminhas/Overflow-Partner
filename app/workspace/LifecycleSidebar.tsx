@@ -85,6 +85,8 @@ export default function LifecycleSidebar() {
     </NavSection>
 
     <NavSection title="Commercial">
+      <Link className={isActive(pathname, n.companies.href) ? 'active' : ''} href={n.companies.href}>{n.companies.label}</Link>
+      <Link className={isActive(pathname, n.contacts.href) ? 'active' : ''} href={n.contacts.href}>{n.contacts.label}</Link>
       <Link className={isActive(pathname, n.quotes.href) ? 'active' : ''} href={n.quotes.href}>{n.quotes.label}</Link>
       <Link className={isActive(pathname, n.payments.href) ? 'active' : ''} href={n.payments.href}>{n.payments.label}</Link>
     </NavSection>

@@ -17,9 +17,9 @@ export default function AcquisitionPartnerGate({
 }){
   const dueDefault=new Date(Date.now()+3*24*60*60*1000).toISOString().slice(0,16);
 
-  if(!request){
+  if(!request||['expired','revoked'].includes(request.status)){
     return <div style={{display:'grid',gap:18}}>
-      <div className="vp-callout"><strong>Delivery review required</strong><p>Send the requirements to an approved delivery partner to confirm feasibility, availability, lead time and cost before pricing the opportunity.</p></div>
+      <div className="vp-callout"><strong>{request?'Delivery review needs reissuing':'Delivery review required'}</strong><p>{request?'The previous review is closed. Select an approved delivery partner and issue a new assessment.':'Send the requirements to an approved delivery partner to confirm feasibility, availability, lead time and cost before pricing the opportunity.'}</p></div>
       {partners.length?<form action={createProspectPartnerReviewAction} style={{display:'grid',gap:16}}>
         <input type="hidden" name="prospect_id" value={prospectId}/><input type="hidden" name="intake_session_id" value={intakeSessionId}/><input type="hidden" name="scope_summary" value={scopeSummary}/>
         <label className="field">Delivery partner<select name="partner_id" required defaultValue=""><option value="" disabled>Select approved partner</option>{partners.map(p=><option key={p.id} value={p.id}>{p.company_name}{p.rating!==null?` · ${p.rating}/5`:''}</option>)}</select></label>
