@@ -1,4 +1,4 @@
-export type PrimaryNavigationGroup = 'home' | 'work' | 'commercial' | 'delivery' | 'management' | 'admin';
+export type PrimaryNavigationGroup = 'home' | 'crm' | 'commercial' | 'delivery' | 'management' | 'admin';
 export type WorkspaceNavigationPlacement = 'primary' | 'contextual' | 'utility';
 
 export type PrimaryNavigationContract = {
@@ -25,37 +25,37 @@ export const primaryNavigation = {
     interactionPattern: 'Decision queue linked back to the owning work.',
   },
   enquiries: {
-    label: 'Prospects', href: '/workspace/acquisition/prospects', group: 'work', placement: 'primary',
+    label: 'Prospects', href: '/workspace/acquisition/prospects', group: 'crm', placement: 'primary',
     operatorJob: 'Qualify and progress pre-project opportunities.',
     authoritativeModel: 'Acquisition and pre-project opportunity state.',
     interactionPattern: 'Opportunity queue into the current commercial record.',
   },
   companies: {
-    label: 'Companies', href: '/workspace/companies', group: 'commercial', placement: 'primary',
+    label: 'Companies', href: '/workspace/companies', group: 'crm', placement: 'primary',
     operatorJob: 'Maintain prospect and client account master records.',
     authoritativeModel: 'Company master and recurring account relationship.',
     interactionPattern: 'Company register into Company 360.',
   },
   contacts: {
-    label: 'Contacts', href: '/workspace/contacts', group: 'commercial', placement: 'primary',
+    label: 'Contacts', href: '/workspace/contacts', group: 'crm', placement: 'primary',
     operatorJob: 'Maintain decision-maker and technical-contact records.',
     authoritativeModel: 'Contact master linked to one company.',
     interactionPattern: 'Contact register into contact relationship history.',
   },
   cases: {
-    label: 'Opportunities', href: '/workspace/leads', group: 'work', placement: 'contextual',
+    label: 'Opportunities', href: '/workspace/leads', group: 'crm', placement: 'contextual',
     operatorJob: 'Control requirements, delivery review, pricing and quote preparation.',
     authoritativeModel: 'Pre-project opportunity state and inherited evidence.',
     interactionPattern: 'Contextual opportunity workspace after qualification.',
   },
   assessments: {
-    label: 'Delivery reviews', href: '/workspace/assessments', group: 'work', placement: 'contextual',
+    label: 'Delivery reviews', href: '/workspace/assessments', group: 'crm', placement: 'contextual',
     operatorJob: 'Confirm delivery feasibility, capacity and partner response.',
     authoritativeModel: 'Acquisition-owned partner review request and response evidence.',
     interactionPattern: 'Contextual review linked to its opportunity.',
   },
   projects: {
-    label: 'Projects', href: '/workspace/projects', group: 'work', placement: 'primary',
+    label: 'Projects', href: '/workspace/projects', group: 'delivery', placement: 'primary',
     operatorJob: 'Operate accepted work through delivery and closeout.',
     authoritativeModel: 'Canonical project operating state.',
     interactionPattern: 'Portfolio register into Project Overview.',
