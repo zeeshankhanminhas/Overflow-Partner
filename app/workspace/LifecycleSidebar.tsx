@@ -79,21 +79,21 @@ export default function LifecycleSidebar() {
       </div>
     </section> : null}
 
-    <NavSection title="Work">
+    <NavSection title="CRM">
+      <Link className={isActive(pathname, n.companies.href) ? 'active' : ''} href={n.companies.href}>{n.companies.label}</Link>
+      <Link className={isActive(pathname, n.contacts.href) ? 'active' : ''} href={n.contacts.href}>{n.contacts.label}</Link>
       <Link className={pathname.startsWith('/workspace/acquisition') || pathname.startsWith('/workspace/leads') || pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
-      <Link className={pathname.startsWith(n.projects.href) ? 'active' : ''} href={n.projects.href}>{n.projects.label}</Link>
     </NavSection>
 
     <NavSection title="Commercial">
-      <Link className={isActive(pathname, n.companies.href) ? 'active' : ''} href={n.companies.href}>{n.companies.label}</Link>
-      <Link className={isActive(pathname, n.contacts.href) ? 'active' : ''} href={n.contacts.href}>{n.contacts.label}</Link>
       <Link className={isActive(pathname, n.quotes.href) ? 'active' : ''} href={n.quotes.href}>{n.quotes.label}</Link>
       <Link className={isActive(pathname, n.payments.href) ? 'active' : ''} href={n.payments.href}>{n.payments.label}</Link>
     </NavSection>
 
     <NavSection title="Delivery">
-      <Link className={isActive(pathname, n.documents.href) ? 'active' : ''} href={n.documents.href}>{n.documents.label}</Link>
+      <Link className={pathname.startsWith(n.projects.href) ? 'active' : ''} href={n.projects.href}>{n.projects.label}</Link>
       <Link className={isActive(pathname, n.partners.href) ? 'active' : ''} href={n.partners.href}>{n.partners.label}</Link>
+      <Link className={isActive(pathname, n.documents.href) ? 'active' : ''} href={n.documents.href}>{n.documents.label}</Link>
       <Link className={isActive(pathname, n.issues.href) ? 'active' : ''} href={n.issues.href}>{n.issues.label}</Link>
     </NavSection>
 
