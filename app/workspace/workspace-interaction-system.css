@@ -40,7 +40,7 @@ button[data-action-state="processing"]{cursor:progress;opacity:.78}.workspace-ac
 
 /* Consequence dialogs are portal-mounted beside .workspace, so they must own
    their tokens and must not inherit the full-width text-input rule on checks. */
-.workspace-overlay{--op-line:#d9d9d2;--op-danger:#a62f28;--surface-panel:#fff;--surface-line:#dfdfd8;--surface-muted:#6d6d66}
+.workspace-overlay{--op-line:#d9d9d2;--op-danger:#a62f28;--op-space-2:8px;--op-space-3:12px;--op-space-4:16px;--op-space-5:24px;--op-radius-control:8px;--op-radius-inset:8px;--op-radius-overlay:14px;--op-border-soft:#e6e6e1;--op-border-default:rgba(17,17,17,.14);--op-shadow-overlay:0 24px 70px rgba(0,0,0,.18);--op-control-prominent:44px;--surface-panel:#fff;--surface-line:#dfdfd8;--surface-muted:#6d6d66}
 .workspace-overlay__body input[type='checkbox'],.workspace-overlay__body input[type='radio']{width:auto;min-height:0;padding:0;box-shadow:none}
 .workspace-overlay :where(.button){display:inline-flex;align-items:center;justify-content:center;border:1px solid #171717;background:#171717;color:#fff;cursor:pointer}
 .workspace-overlay :where(.button.product-action--destructive){border-color:#b6342d!important;background:#b6342d!important;color:#fff!important}
