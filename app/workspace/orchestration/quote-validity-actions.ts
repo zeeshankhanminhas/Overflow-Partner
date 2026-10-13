@@ -14,7 +14,6 @@ export async function recordDraftQuoteValidityAction(formData: FormData) {
   const leadId = String(formData.get('lead_id') || '').trim();
   const documentId = String(formData.get('document_id') || '').trim();
   const validUntil = String(formData.get('valid_until') || '').trim();
-  const fallback = quoteDocumentUrl(leadId, documentId, {});
 
   try {
     if (!quoteId || !leadId || !documentId) throw new Error('The controlled Client Quote record is incomplete.');
