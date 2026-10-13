@@ -116,8 +116,8 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     if (lockError) throw new Error(`Quotation email could not be prepared: ${lockError.message}`);
     if (!locked) throw new Error('Quotation email delivery has already started. Refresh the Case before trying again.');
     const { html, text } = await renderNotificationEmail({
-      event_key: 'quote.issued', category: 'transactional', recipient_email: recipientEmail, recipient_name: recipientName,
-      subject, template_key: 'quote', payload: { heading: payload.heading, message: payload.message, actionLabel: 'Reply about this quotation', actionUrl: publicSiteUrl(), ...payload },
+      event_key: 'quote.issued', category: 'transactional', recipient_name: recipientName,
+      subject, template_key: 'quote', payload: { actionLabel: 'Reply about this quotation', actionUrl: publicSiteUrl(), ...payload },
     });
     try {
       const response = await fetch('https://api.resend.com/emails', {
