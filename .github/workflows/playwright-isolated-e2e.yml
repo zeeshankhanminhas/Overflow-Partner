@@ -1,0 +1,122 @@
+name: OP Isolated E2E — temporary local stack
+
+on:
+  push:
+    branches:
+      - test/playwright-e2e-baseline-20261013
+    paths:
+      - .github/workflows/playwright-isolated-e2e.yml
+      - scripts/e2e/**
+      - supabase/migrations/**
+      - tests/e2e/**
+      - playwright.config.ts
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: op-isolated-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-migrations-and-browser:
+    name: Isolated migration + operator browser verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # No checkout of sensitive production secrets. No Vercel or Supabase remote tokens.
+    env:
+      CI: "true"
+      OP_E2E_ENVIRONMENT: isolated
+      OP_E2E_BASE_URL: http://127.0.0.1:3000
+      OP_E2E_SAFE_LOGS_ONLY: "1"
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      # Intentionally NOT set: RESEND_API_KEY, Supabase access token, and any production secrets.
+    steps:
+      - name: Checkout branch only
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install npm dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install local Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Prepare local-only Supabase project identity
+        shell: bash
+        run: |
+          if ! grep -q '^\[project\]' supabase/config.toml; then
+            printf '\n[project]\nid = "op-e2e-ci-runner"\n' >> supabase/config.toml
+          fi
+          if test -e supabase/.branches/_current_branch; then
+            echo 'Unexpected linked branch file — refusing to start.' >&2
+            exit 1
+          fi
+
+      - name: Start disposable Supabase services and apply repository migrations
+        run: supabase start -x studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta
+        timeout-minutes: 20
+
+      - name: Export ONLY local stack credentials to job
+        shell: bash
+        run: |
+          # Output contains local-only keys; do not echo or upload the file.
+          supabase status -o env > "$RUNNER_TEMP/op-local-status.env"
+          set -a
+          source "$RUNNER_TEMP/op-local-status.env"
+          set +a
+          if [[ "$API_URL" != "http://127.0.0.1:54321" ]]; then
+            echo 'Supabase URL fails local-only safety check.' >&2
+            exit 1
+          fi
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+          rm -f "$RUNNER_TEMP/op-local-status.env"
+
+      - name: Provision a local E2E operator and verify login
+        run: node scripts/e2e/bootstrap-local.mjs
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start temporary OP server
+        shell: bash
+        run: |
+          npm run dev -- --hostname 127.0.0.1 > "$RUNNER_TEMP/op-local-next.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/op-local-next.pid"
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
+              echo 'Local OP health endpoint is ready.'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Local OP never became ready.' >&2
+          tail -n 120 "$RUNNER_TEMP/op-local-next.log" | sed -E 's/(eyJ[A-Za-z0-9._-]{60,})/[REDACTED]/g' >&2
+          exit 1
+
+      - name: Run operator and anonymous Playwright tests (desktop + mobile)
+        run: npx playwright test tests/e2e/smoke.spec.ts tests/e2e/operator.spec.ts
+
+      - name: Show non-secret diagnostic summary
+        if: failure()
+        run: |
+          echo 'A local migration, fixture, server or browser check failed.'
+          echo 'Inspect the failed step above; do not copy secrets into the issue.'
+
+      - name: Remove disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true
