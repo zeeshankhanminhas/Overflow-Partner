@@ -147,6 +147,7 @@ export async function renderNotificationEmail(row: NotificationRow) {
     preheader: text(payload.preheader) || content.heading,
     actionLabel: content.action,
     actionUrl,
+    actions: Array.isArray(payload.actions) ? payload.actions as { label: string; url: string }[] : undefined,
     facts: contextRows(payload, row.event_key),
     unsubscribeUrl: unsubscribeUrl || undefined,
     note: text(payload.nextStep || payload.instruction || payload.note) || undefined,
