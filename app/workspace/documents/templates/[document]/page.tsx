@@ -4,6 +4,7 @@ import ProtectedDocumentEngine from '@/components/workspace/documents/ProtectedD
 import { getWorkspaceDocument, legacyDocumentAliases, workspaceDocuments, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
 import { requireUserContext } from '@/lib/auth/context';
+import { recordDraftQuoteValidityAction } from '@/app/workspace/orchestration/quote-validity-actions';
 
 export const metadata: Metadata = {
   title: 'Overflow Partner Workspace Document Preview',
@@ -20,7 +21,7 @@ export default async function WorkspaceDocumentPreviewPage({
   searchParams,
 }: {
   params: Promise<{ document: WorkspaceDocumentSlug }>;
-  searchParams?: Promise<{ case?: string; project?: string; quote?: string; invoice?: string; document_record?: string }>;
+  searchParams?: Promise<{ case?: string; project?: string; quote?: string; invoice?: string; document_record?: string; validity_saved?: string; error?: string }>;
 }) {
   const { document } = await params;
   const query = searchParams ? await searchParams : {};
@@ -57,16 +58,27 @@ export default async function WorkspaceDocumentPreviewPage({
 
   let documentRecordId: string | undefined;
   let documentStatus: string | undefined;
+  let quoteForValidity: { id:string; lead_id:string; valid_until:string|null; status:string } | null = null;
   if (query.document_record) {
     const { data: record } = await supabase
       .from('documents')
-      .select('id,status,document_type,lead_id,project_id')
+      .select('id,status,document_type,lead_id,project_id,quote_id')
       .eq('organisation_id', organisationId)
       .eq('id', query.document_record)
       .eq('document_type', document)
       .maybeSingle();
     documentRecordId = record?.id;
     documentStatus = record?.status;
+
+    if (document === 'client-quote' && record?.quote_id) {
+      const { data: quote } = await supabase
+        .from('quotes')
+        .select('id,lead_id,valid_until,status')
+        .eq('organisation_id', organisationId)
+        .eq('id', record.quote_id)
+        .maybeSingle();
+      quoteForValidity = quote;
+    }
 
     if (record) {
       adapted.issueState = String(record.status || adapted.issueState).replaceAll('_', ' ');
@@ -112,11 +124,25 @@ export default async function WorkspaceDocumentPreviewPage({
     }
   }
 
-  return <ProtectedDocumentEngine
-    mode="viewer"
-    document={document}
-    adapted={adapted}
-    documentRecordId={documentRecordId}
-    documentStatus={documentStatus}
-  />;
+  return <>
+    {query.error ? <section className="vp-page"><div role="alert" className="product-notice"><strong>Quote validity could not be saved</strong><div>{query.error}</div></div></section> : null}
+    {query.validity_saved ? <section className="vp-page"><div role="status" className="product-notice"><strong>Quotation expiry recorded</strong><div>Review the updated evidence below.</div></div></section> : null}
+    {quoteForValidity && quoteForValidity.status === 'draft' && !quoteForValidity.valid_until && documentRecordId && documentStatus === 'draft' ? <section className="vp-page">
+      <form action={recordDraftQuoteValidityAction} className="product-panel" style={{display:'grid',gap:12,maxWidth:760}}>
+        <input type="hidden" name="quote_id" value={quoteForValidity.id} />
+        <input type="hidden" name="lead_id" value={quoteForValidity.lead_id} />
+        <input type="hidden" name="document_id" value={documentRecordId} />
+        <div><strong>Record quotation validity</strong><p style={{margin:'4px 0 0',color:'var(--saas-muted)'}}>Choose the client quote’s expiry date. This is required before the quotation can be reviewed.</p></div>
+        <label className="field" style={{maxWidth:320}}>Valid until<input type="date" name="valid_until" min={new Date().toISOString().slice(0,10)} required /></label>
+        <button className="button" type="submit">Save quote validity</button>
+      </form>
+    </section> : null}
+    <ProtectedDocumentEngine
+      mode="viewer"
+      document={document}
+      adapted={adapted}
+      documentRecordId={documentRecordId}
+      documentStatus={documentStatus}
+    />
+  </>;
 }
