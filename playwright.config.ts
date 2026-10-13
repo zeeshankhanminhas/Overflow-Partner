@@ -17,9 +17,9 @@ export default defineConfig({
   use: {
     baseURL,
     headless: true,
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-    trace: 'retain-on-failure',
+    screenshot: process.env.OP_E2E_SAFE_LOGS_ONLY === '1' ? 'off' : 'only-on-failure',
+    video: process.env.OP_E2E_SAFE_LOGS_ONLY === '1' ? 'off' : 'retain-on-failure',
+    trace: process.env.OP_E2E_SAFE_LOGS_ONLY === '1' ? 'off' : 'retain-on-failure',
   },
   projects: [
     { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
