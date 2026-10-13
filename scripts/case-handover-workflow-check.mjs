@@ -64,6 +64,8 @@ expect(quoteSendAction.includes('Resend message ${delivery.providerMessageId}')&
   'Client Quote issue evidence records the provider message and actual recipient');
 expect(case360.includes('Send Client Quote by email')&&case360.includes('The approved scope, deliverables, price, VAT and expiry will be emailed now'),
   'Case action makes immediate email delivery explicit to the operator');
+expect(case360.includes('Revise the Client Quote')&&case360.includes('The current issue will be archived and the new revision must be approved and sent'),
+  'An issued Client Quote can be revised when the client requests a change');
 expect(lifecycleTemplates.includes('payload.clientQuoteFacts'),
   'The quotation email includes client-facing scope and commercial facts');
 
