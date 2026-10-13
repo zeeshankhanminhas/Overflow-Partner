@@ -1,6 +1,5 @@
 export type ProjectDocumentRequirement = {
   slug:
-    | 'scope-of-work'
     | 'statement-of-work'
     | 'handover-pack'
     | 'document-register'
@@ -21,13 +20,6 @@ export function getProjectDocumentRequirements(stage: string, hasAcceptedQuote: 
   const atInternalReview = ['internal_review', 'partner_correction', 'ready_for_client_issue', 'issued_to_client', 'client_review', 'completion', 'closed'].includes(stage);
 
   return [
-    {
-      slug: 'scope-of-work',
-      enabled: true,
-      requiredNow: atMobilisation,
-      minimumStatus: 'approved',
-      reason: 'The approved scope is the controlled boundary for mobilisation and execution.',
-    },
     {
       slug: 'statement-of-work',
       enabled: true,

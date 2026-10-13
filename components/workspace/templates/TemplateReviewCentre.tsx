@@ -20,6 +20,8 @@ type DocumentTemplate = {
   title: string;
   description: string;
   dataStatus: 'live-backed' | 'preview-only' | 'legacy-preview';
+  lifecycle: 'active' | 'dormant';
+  dormantReason?: string | null;
   audience: string;
   visibility: string;
   issueCondition: string;
@@ -88,7 +90,7 @@ export default function TemplateReviewCentre({ emails, documents }: Props) {
     return matchesAudience && (!deferredQuery || haystack.includes(deferredQuery));
   }), [audience, deferredQuery, emails]);
   const visibleDocuments = useMemo(() => documents.filter((template) => {
-    const matchesStatus = documentStatus === 'all' || template.dataStatus === documentStatus;
+    const matchesStatus = documentStatus === 'all' || (documentStatus === 'dormant' ? template.lifecycle === 'dormant' : template.lifecycle === 'active' && template.dataStatus === documentStatus);
     const haystack = `${template.title} ${template.description} ${template.audience} ${template.visibility}`.toLowerCase();
     return matchesStatus && (!deferredQuery || haystack.includes(deferredQuery));
   }), [deferredQuery, documentStatus, documents]);
@@ -107,7 +109,7 @@ export default function TemplateReviewCentre({ emails, documents }: Props) {
 
     <div className="tr-filters">
       <label><span>Find a template</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by subject, stage or audience" type="search" /></label>
-      {view === 'emails' ? <label><span>Audience</span><select value={audience} onChange={(event) => setAudience(event.target.value)}><option value="all">All audiences</option><option>Prospective client</option><option>Client</option><option>Delivery Partner</option></select></label> : <label><span>Data status</span><select value={documentStatus} onChange={(event) => setDocumentStatus(event.target.value)}><option value="all">All statuses</option><option value="live-backed">Live-backed</option><option value="preview-only">Preview only</option><option value="legacy-preview">Legacy preview</option></select></label>}
+      {view === 'emails' ? <label><span>Audience</span><select value={audience} onChange={(event) => setAudience(event.target.value)}><option value="all">All audiences</option><option>Prospective client</option><option>Client</option><option>Delivery Partner</option></select></label> : <label><span>Document status</span><select value={documentStatus} onChange={(event) => setDocumentStatus(event.target.value)}><option value="all">All documents</option><option value="live-backed">Live-backed</option><option value="preview-only">Preview only</option><option value="legacy-preview">Legacy preview</option><option value="dormant">Dormant</option></select></label>}
     </div>
 
     {view === 'emails' && selectedEmail ? <div className="tr-email-layout">
@@ -124,9 +126,10 @@ export default function TemplateReviewCentre({ emails, documents }: Props) {
 
     {view === 'documents' ? <div className="tr-document-grid">
       {visibleDocuments.map((template) => <article key={template.slug} className="tr-document-card">
-        <header><span className={`tr-status tr-status--${template.dataStatus}`}>{words(template.dataStatus)}</span><small>{template.visibility}</small></header>
+        <header><span className={`tr-status tr-status--${template.lifecycle === 'dormant' ? 'dormant' : template.dataStatus}`}>{template.lifecycle === 'dormant' ? 'Dormant' : words(template.dataStatus)}</span><small>{template.visibility}</small></header>
         <h2>{template.title}</h2><p>{template.purpose}</p>
         <dl><div><dt>Audience</dt><dd>{template.audience}</dd></div><div><dt>Issue condition</dt><dd>{template.issueCondition}</dd></div></dl>
+        {template.lifecycle === 'dormant' ? <div className="tr-warning">{template.dormantReason || 'This document is dormant and cannot be generated.'}</div> : null}
         {template.dataStatus !== 'live-backed' ? <div className="tr-warning">External issue remains blocked until the live data contract is complete.</div> : null}
         <Link className="button secondary" href={`/workspace/documents/templates/${template.slug}`}>Open document preview</Link>
       </article>)}

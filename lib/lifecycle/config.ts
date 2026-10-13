@@ -86,11 +86,11 @@ export const caseDocumentRequirements: Record<'acquire'|'assess'|'commercial', S
 
 export const projectDocumentRequirements: Record<string, StageDocumentRequirement[]> = {
   mobilisation: [
-    { key: 'scope-of-work', label: 'Scope of Work', aliases: ['scope-of-work','scope_of_work','sow'], minimumStatus: 'approved', required: true, description: 'Approved delivery scope governing mobilisation.' },
+    { key: 'statement-of-work', label: 'Statement of Work', aliases: ['statement-of-work','statement_of_work'], minimumStatus: 'approved', required: true, description: 'Approved delivery agreement governing mobilisation.' },
     { key: 'project-plan', label: 'Project Delivery Plan', aliases: ['project-plan','project_plan','delivery-plan','delivery_plan'], minimumStatus: 'draft', required: false, description: 'Delivery sequence, responsibilities and dates.' },
   ],
   ready_for_execution: [
-    { key: 'scope-of-work', label: 'Scope of Work', aliases: ['scope-of-work','scope_of_work','sow'], minimumStatus: 'approved', required: true, description: 'Approved technical and delivery boundary.' },
+    { key: 'statement-of-work', label: 'Statement of Work', aliases: ['statement-of-work','statement_of_work'], minimumStatus: 'approved', required: true, description: 'Approved delivery agreement and execution boundary.' },
     { key: 'partner-package', label: 'Partner Delivery Package', aliases: ['partner-package','partner_package','execution-package','execution_package'], minimumStatus: 'issued', required: false, description: 'Controlled package issued to the execution partner.' },
   ],
   in_progress: [

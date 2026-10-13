@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "phase3:check": "node scripts/phase3-launch-check.mjs",
     "phase3:smoke": "node scripts/phase3-launch-check.mjs --smoke",
+    "case-workflow:check": "node scripts/case-handover-workflow-check.mjs",
     "workspace:check": "node scripts/workspace-interaction-check.mjs",
     "credibility:check": "node scripts/credibility-release-check.mjs",
     "performance:check": "node scripts/workspace-performance-check.mjs",

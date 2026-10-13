@@ -3,17 +3,17 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
-import { getWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
+import { getWorkspaceDocument, isDormantWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
 import { getWorkflowCase } from '@/lib/orchestration/service';
 
 const roles = ['owner','admin','operator','engineering','commercial','business_development'] as const;
 
 const caseDocuments: WorkspaceDocumentSlug[] = [
-  'client-requirements','scope-of-work','partner-technical-assessment-report','vendor-safe-package','vendor-instructions','rfq-response','commercial-approval','client-quote','commercial-qualification-record','proposal','quote','statement-of-work','technical-review','requirement-sheet',
+  'client-requirements','partner-technical-assessment-report','vendor-instructions','rfq-response','client-quote','commercial-qualification-record','proposal','quote','technical-review','requirement-sheet',
 ];
 
 const projectDocuments: WorkspaceDocumentSlug[] = [
-  'scope-of-work','statement-of-work','handover-pack','completion-report','invoice','document-register',
+  'statement-of-work','handover-pack','completion-report','invoice','document-register',
 ];
 
 const documentPrefixes: Partial<Record<WorkspaceDocumentSlug,string>> = {
@@ -81,6 +81,9 @@ export async function generateControlledDocumentAction(formData: FormData) {
 
   if (!definition || (!leadId && !projectId && !quoteId)) {
     redirect(returnWithDocumentError(returnTo, 'A valid document type and record are required.'));
+  }
+  if (isDormantWorkspaceDocument(slug)) {
+    redirect(returnWithDocumentError(returnTo, definition.dormantReason || 'This document is dormant and cannot be generated.'));
   }
 
   let destination: string;
@@ -192,16 +195,11 @@ export async function generateControlledDocumentAction(formData: FormData) {
         .order('created_at',{ascending:false}).limit(1).maybeSingle();
       if (reviewError) throw new Error(reviewError.message);
 
-      const intake = workflow.technicalIntake;
       const commercial = workflow.commercialReview;
       const quote = workflow.clientQuote;
 
-      if (slug === 'scope-of-work') {
-        if (!intake) throw new Error('Scope of Work cannot be generated because the technical intake has not been created yet.');
-        if (intake.status !== 'approved') throw new Error(`Scope of Work requires an approved technical intake. Current intake status: ${String(intake.status).replaceAll('_',' ')}.`);
-      }
       if (slug === 'partner-technical-assessment-report' && !review) throw new Error('Partner Technical Assessment requires a partner review record.');
-      if (['commercial-approval','commercial-qualification-record'].includes(slug) && commercial?.status !== 'approved') throw new Error('Commercial approval documents require an approved commercial decision.');
+      if (slug === 'commercial-qualification-record' && commercial?.status !== 'approved') throw new Error('Commercial qualification records require an approved commercial decision.');
       if (['client-quote','quote'].includes(slug) && !quote) throw new Error('A client quote must exist before this document can be generated.');
       resolvedLeadId = workflow.lead.id;
       resolvedQuoteId = resolvedQuoteId || quote?.id || null;

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { assertRole, requireUserContext } from '@/lib/auth/context';
+import { isDormantWorkspaceDocument } from '@/components/workspace/documents/documentRegistry';
 
 const controlRoles = ['owner','admin','engineering','commercial'] as const;
 const ownerRoles = ['owner','admin'] as const;
@@ -32,6 +33,7 @@ export async function createDocumentRevisionAction(formData:FormData){
     const {data:document,error}=await supabase.from('documents').select('id,lead_id,project_id,quote_id,document_type,reference,title,status,version,governance_mode,independent_review_required,is_current_revision').eq('organisation_id',organisationId).eq('id',documentId).single();
     if(error||!document) throw new Error(error?.message||'Document could not be found.');
     fallback=documentReturn(document,{focus:`document-${document.id}`});
+    if(isDormantWorkspaceDocument(document.document_type)) throw new Error('This document is dormant. Keep the existing revision as historical evidence; new revisions are disabled.');
     if(String(document.status)==='draft' || String(document.status)==='changes_requested') throw new Error('Finish or update the current working revision instead of creating another draft.');
     if(document.is_current_revision===false || String(document.status)==='superseded') throw new Error('A new revision can only be created from the current revision.');
 
