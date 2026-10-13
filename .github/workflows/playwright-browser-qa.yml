@@ -1,0 +1,80 @@
+name: OP Browser QA — safe baseline
+
+on:
+  push:
+    branches:
+      - test/playwright-e2e-baseline-20261013
+    paths:
+      - .github/workflows/playwright-browser-qa.yml
+      - playwright.config.ts
+      - tests/e2e/**
+      - package.json
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Public target URL for READ-ONLY smoke checks (not a secure token link)"
+        required: false
+        default: "https://overflow-partner.vercel.app"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: op-playwright-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-browser-smoke:
+    name: Public browser smoke • ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [desktop-chromium, mobile-chromium]
+    env:
+      OP_E2E_BASE_URL: ${{ inputs.base_url || 'https://overflow-partner.vercel.app' }}
+    steps:
+      - name: Checkout Playwright branch
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install test dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify target and reject embedded credentials
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const raw=process.env.OP_E2E_BASE_URL;
+          const u=new URL(raw);
+          if (!['https:','http:'].includes(u.protocol) || u.username || u.password || u.search || u.hash || u.pathname !== '/') {
+            throw new Error('The smoke-test target must be a clean URL origin with no embedded credentials.');
+          }
+          if (u.protocol!=='https:' && !['127.0.0.1','localhost'].includes(u.hostname)) {
+            throw new Error('An HTTPS public target is required.');
+          }
+          console.log('Safe read-only public browser smoke target verified.');
+          NODE
+
+      - name: Run read-only public browser tests
+        run: npx playwright test tests/e2e/smoke.spec.ts --project="${{ matrix.browser }}"
+
+      - name: Publish public smoke evidence (no client data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: op-public-smoke-${{ matrix.browser }}-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 1
