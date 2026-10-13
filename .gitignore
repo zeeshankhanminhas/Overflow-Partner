@@ -1,0 +1,16 @@
+# Local secrets and test credentials
+.env
+.env.*
+!.env.example
+!.env.e2e.example
+# Browser test output
+playwright-report/
+test-results/
+playwright/.cache/
+.playwright/
+# Dependencies and build artifacts
+node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+.DS_Store
