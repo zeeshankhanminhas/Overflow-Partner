@@ -15,6 +15,9 @@ const approvals=read('lib/presentation/approvals.ts');
 const reviewActions=read('app/workspace/documents/review-actions.ts');
 const controlActions=read('app/workspace/documents/control-actions.ts');
 const migration=read('supabase/migrations/20261013090000_streamline_case_and_handover_documents.sql');
+const quotePreview=read('app/workspace/documents/templates/[document]/page.tsx');
+const quoteValidityAction=read('app/workspace/orchestration/quote-validity-actions.ts');
+const quoteValidityMigration=read('supabase/migrations/20261013222800_record_draft_quote_validity.sql');
 
 const projectBranch=case360.indexOf('if(workflow.project)');
 const missingIntakeBranch=case360.indexOf('else if(!workflow.technicalIntake)',projectBranch);
@@ -44,6 +47,12 @@ expect(migration.includes("Approved Partner Technical Assessment is required bef
   'Commercial Review retains technical and Partner gates without Scope of Work gate');
 expect(migration.includes('op_project_stage_readiness_with_duplicate_scope_gate')&&migration.includes("'Approved execution scope is required.'")&&!migration.includes("'Approved Statement of Work is required.',"),
   'Project readiness removes only duplicate Scope gate and retains Statement of Work');
+expect(quotePreview.includes('quoteForValidity.status === \'draft\'')&&quotePreview.includes('name="valid_until"')&&quotePreview.includes('recordDraftQuoteValidityAction'),
+  'A draft Client Quote exposes an action to record its missing expiry');
+expect(quoteValidityAction.includes("assertRole(profile.role, ['owner','admin','commercial'])")&&quoteValidityAction.includes("'op_set_draft_quote_validity'")&&quoteValidityAction.includes('revalidatePath(`/workspace/leads/${leadId}`)'),
+  'Quote expiry changes use an authorised, audited workflow action');
+expect(quoteValidityMigration.includes("v_quote.status::text <> 'draft'")&&quoteValidityMigration.includes("d.status::text in ('draft','changes_requested')")&&quoteValidityMigration.includes('quote_validity_recorded'),
+  'Quote expiry can change only on a working draft and is recorded in activity history');
 
 let failed=0;
 for(const check of checks){
