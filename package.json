@@ -17,7 +17,8 @@
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test tests/e2e/smoke.spec.ts",
     "test:e2e:operator": "playwright test tests/e2e/operator.spec.ts",
-    "test:e2e:secure": "playwright test tests/e2e/secure-links.spec.ts"
+    "test:e2e:secure": "playwright test tests/e2e/secure-links.spec.ts",
+    "test:e2e:partner-submit": "playwright test tests/e2e/partner-submission.spec.ts --project=desktop-chromium"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
