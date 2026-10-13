@@ -309,6 +309,11 @@
   background: #f0efec;
   color: #666;
 }
+.tr-status--dormant {
+  border-color: #c9a0a0;
+  background: #f8eeee;
+  color: #763d3d;
+}
 .tr-warning {
   margin: auto 0 18px;
   padding: 12px;

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
-import { getWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
+import { getWorkspaceDocument, isDormantWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
 
 const ownerAuthorityRoles = ['owner', 'admin'] as const;
 const reviewRoles = ['owner', 'admin', 'engineering', 'commercial'] as const;
@@ -42,6 +42,12 @@ async function assertDocumentEvidenceReady(supabase: Awaited<ReturnType<typeof r
   if (!definition) throw new Error('This document type is not in the controlled template register.');
   const adapted = await buildDocumentAdapter(supabase, document.document_type as WorkspaceDocumentSlug, { organisationId, caseId: document.lead_id, projectId: document.project_id, quoteId: document.quote_id });
   if (!adapted.issueReady) throw new Error(`Document evidence is incomplete: ${adapted.warnings.join(' ')}`);
+}
+
+function assertDocumentActive(document: ControlledDocument) {
+  if (isDormantWorkspaceDocument(document.document_type)) {
+    throw new Error('This document is dormant. Its existing record remains available as historical evidence, and no further approval or issue action is available.');
+  }
 }
 
 async function recordDocumentEvent({ supabase, organisationId, userId, document, eventType, oldStatus, newStatus, evidence }: {
@@ -102,6 +108,7 @@ export async function submitControlledDocumentForReviewAction(documentId: string
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...reviewRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    assertDocumentActive(document);
     if (document.status === 'in_review') return { ok: true, message: 'Document is already in review.', status: 'in_review' };
     if (!['draft','changes_requested'].includes(document.status)) return { ok: false, message: `Document cannot enter review from ${document.status}.` };
     await assertDocumentEvidenceReady(supabase, organisationId, document);
@@ -129,6 +136,7 @@ export async function signControlledDocumentAction(documentId: string, signerNam
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...reviewRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    assertDocumentActive(document);
     if (['signed','approved','issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already signed.', status: document.status };
     if (document.status !== 'in_review') return { ok: false, message: 'Document must be in controlled review before it can be signed.' };
 
@@ -157,6 +165,7 @@ export async function requestDocumentChangesAction(documentId: string, reason: s
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...reviewRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    assertDocumentActive(document);
     if (!['in_review','signed'].includes(document.status)) return { ok: false, message: 'Changes can only be requested during review or after technical sign-off but before approval.' };
     const requestedAt = new Date().toISOString();
     await persistDocumentStatus({
@@ -179,6 +188,7 @@ export async function approveControlledDocumentAction(documentId: string): Promi
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...ownerAuthorityRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    assertDocumentActive(document);
     if (['approved','issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already approved.', status: document.status };
     if (document.status !== 'signed') return { ok: false, message: 'Document must be electronically signed before approval.' };
     if (document.independent_review_required && document.signed_by === user.id) return { ok: false, message: 'Independent review is required, so the signer cannot approve this document.' };
@@ -209,6 +219,7 @@ export async function issueControlledDocumentAction(documentId: string): Promise
     const { supabase, user, profile, organisationId, document, error } = await loadControlledDocument(documentId);
     assertRole(profile.role, [...ownerAuthorityRoles]);
     if (error || !document) return { ok: false, message: 'Controlled document could not be found.' };
+    assertDocumentActive(document);
     if (['issued','published','archived'].includes(document.status)) return { ok: true, message: 'Document is already issued.', status: document.status };
     if (document.status !== 'approved') return { ok: false, message: 'Document must be approved before controlled issue.' };
     await assertDocumentEvidenceReady(supabase, organisationId, document);

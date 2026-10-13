@@ -25,6 +25,8 @@ export default async function TemplateReviewPage() {
     const language = documentLanguage[document.slug];
     return {
       ...document,
+      lifecycle: document.lifecycle,
+      dormantReason: document.dormantReason || null,
       audience: language.audience,
       visibility: language.visibility,
       issueCondition: language.issueCondition,

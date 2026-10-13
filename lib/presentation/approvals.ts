@@ -1,3 +1,5 @@
+import { isDormantWorkspaceDocument } from '@/components/workspace/documents/documentRegistry';
+
 export type ApprovalQueueItem = {
   id: string;
   source: 'acquisition' | 'commercial' | 'document' | 'payable';
@@ -93,6 +95,7 @@ export async function getApprovalQueue(supabase: any, organisationId: string): P
   }
 
   for (const document of (documentResult.data || []) as any[]) {
+    if (isDormantWorkspaceDocument(document.document_type)) continue;
     items.push({
       id:`document-${document.id}`,
       source:'document',

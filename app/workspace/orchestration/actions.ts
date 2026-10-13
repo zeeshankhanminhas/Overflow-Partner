@@ -44,7 +44,7 @@ export async function createIntakeShellAction(formData: FormData) {
 
 export async function approveIntakeAction(formData: FormData) {
   const intakeId = required(formData, 'intake_id'); const suppliedLeadId = String(formData.get('lead_id') ?? '').trim(); let destination = suppliedLeadId ? `/workspace/leads/${suppliedLeadId}` : '/workspace/leads';
-  try { const { supabase, organisationId, user } = await requireUserContext(); const intake = await approveTechnicalIntake(supabase, organisationId, user.id, intakeId); const leadId = suppliedLeadId || intake.lead_id; await cancelEntityReminders(supabase,{organisationId,entityType:'lead',entityId:leadId}).catch(()=>0); refreshCase(leadId); destination = caseUrl(leadId, { success: 'Technical scope approved. Scope of Work and Partner Technical Assessment are now the controlled commercial basis.', resultStatus: 'Control inherited partner evidence', focus:'record-documents' }); }
+  try { const { supabase, organisationId, user } = await requireUserContext(); const intake = await approveTechnicalIntake(supabase, organisationId, user.id, intakeId); const leadId = suppliedLeadId || intake.lead_id; await cancelEntityReminders(supabase,{organisationId,entityType:'lead',entityId:leadId}).catch(()=>0); refreshCase(leadId); destination = caseUrl(leadId, { success: 'Technical Scope approved. It and the inherited Partner Assessment are the controlled commercial basis.', resultStatus: 'Control inherited partner evidence', focus:'record-documents' }); }
   catch (error) { destination = suppliedLeadId ? caseUrl(suppliedLeadId, { error: message(error), focus:'record-next-action' }) : `/workspace/leads?error=${encodeURIComponent(message(error))}`; }
   redirect(destination);
 }
