@@ -48,5 +48,6 @@ const attempt = await createClient(apiURL, process.env.NEXT_PUBLIC_SUPABASE_ANON
 }).auth.signInWithPassword({ email, password });
 if (attempt.error || !attempt.data.user) throw new Error('Local test operator login verification failed: ' + (attempt.error?.message ?? 'no user'));
 
+console.log('::add-mask::' + password);
 appendFileSync(githubEnv, 'OP_E2E_EMAIL=' + email + '\nOP_E2E_PASSWORD=' + password + '\n');
 console.log('Disposable local operator and organisation created; login verified. No production data touched.');
