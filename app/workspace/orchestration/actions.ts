@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requireUserContext } from '@/lib/auth/context';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { assertRole, requireUserContext } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
+import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
 import {
   approveCommercialAndGenerateQuote,
@@ -33,6 +35,112 @@ function publicSiteUrl(path='') {
 async function leadRecipient(supabase: Awaited<ReturnType<typeof requireUserContext>>['supabase'], organisationId: string, leadId: string) {
   const { data } = await supabase.from('leads').select('contact_name,contact_email,company_name,reference').eq('organisation_id', organisationId).eq('id', leadId).maybeSingle();
   return data as { contact_name?: string | null; contact_email?: string | null; company_name?: string | null; reference?:string|null } | null;
+}
+
+function notificationAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Server notification credentials are not configured.');
+  return createSupabaseClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+function quoteMoney(value: unknown, currency: string) {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(Number(value || 0));
+}
+
+async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId, recipientEmail, recipientName, companyName }:{
+  supabase: Awaited<ReturnType<typeof requireUserContext>>['supabase']; organisationId: string; quoteId: string; leadId: string;
+  recipientEmail: string; recipientName: string; companyName: string | null;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) throw new Error('Quotation email is unavailable because the email sender is not configured.');
+
+  const [quoteResult, documentResult, intakeResult, lineItemsResult] = await Promise.all([
+    supabase.from('quotes').select('id,lead_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id', leadId).maybeSingle(),
+    supabase.from('documents').select('id,status,is_current_revision').eq('organisation_id', organisationId).eq('quote_id', quoteId).eq('document_type', 'client-quote').eq('is_current_revision', true).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('technical_intakes').select('description,deliverables,deadline').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('quote_line_items').select('sequence_no,description,quantity,unit,unit_price,net_total').eq('organisation_id', organisationId).eq('quote_id', quoteId).order('sequence_no', { ascending: true }),
+  ]);
+  const { data: quote, error: quoteError } = quoteResult;
+  const { data: document, error: documentError } = documentResult;
+  const { data: intake, error: intakeError } = intakeResult;
+  const { data: lineItems, error: lineItemsError } = lineItemsResult;
+  if (quoteError) throw new Error(quoteError.message);
+  if (documentError) throw new Error(documentError.message);
+  if (!quote || !['draft','internal_review'].includes(String(quote.status))) throw new Error('Only a current draft Client Quote can be sent.');
+  if (!document || !['approved','issued','published'].includes(String(document.status))) throw new Error('Approve the current Client Quote document before sending it.');
+  if (!quote.valid_until) throw new Error('Record the quotation expiry date before sending the Client Quote.');
+  if (intakeError) throw new Error(intakeError.message);
+  if (lineItemsError) throw new Error(lineItemsError.message);
+
+  const currency = String(quote.currency || 'GBP').trim().toUpperCase();
+  const facts: Array<{label:string;value:string}> = [
+    { label: 'Quotation reference', value: `${quote.quote_number} · Revision ${quote.revision}` },
+    ...(companyName ? [{ label: 'Client', value: companyName }] : []),
+    ...(intake?.description ? [{ label: 'Scope', value: String(intake.description) }] : []),
+    ...(intake?.deliverables ? [{ label: 'Deliverables', value: String(intake.deliverables) }] : []),
+    ...(intake?.deadline ? [{ label: 'Required by', value: new Date(`${intake.deadline}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' }) }] : []),
+    ...((lineItems || []).map((item, index) => ({
+      label: `Price item ${index + 1}`,
+      value: `${item.description} · ${item.quantity} ${item.unit} · ${quoteMoney(item.net_total, currency)} net`,
+    }))),
+    { label: 'Subtotal', value: quoteMoney(quote.subtotal, currency) },
+    { label: 'VAT', value: quoteMoney(quote.vat, currency) },
+    { label: 'Total', value: quoteMoney(quote.total, currency) },
+    { label: 'Valid until', value: new Date(`${quote.valid_until}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' }) },
+  ];
+  const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
+  const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. We will confirm the agreed payment or purchase-order condition before project setup.`;
+  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts };
+  const outboxId = await queueLifecycleEmail(supabase, {
+    organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
+    actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
+    idempotencyKey: `quote:issued:${quoteId}:${quote.revision}`,
+  });
+  if (!outboxId) throw new Error('Transactional email is disabled for this recipient. The quote was not issued.');
+
+  const admin = notificationAdminClient();
+  const { data: existing, error: existingError } = await admin.from('notification_outbox').select('status,provider_message_id,attempts,locked_at').eq('id', outboxId).maybeSingle();
+  if (existingError || !existing) throw new Error(existingError?.message || 'Quotation delivery record could not be loaded.');
+  if (existing.status !== 'sent') {
+    const staleBefore = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    if (existing.status === 'processing' && (!existing.locked_at || new Date(existing.locked_at).getTime() >= Date.now() - 15 * 60 * 1000)) {
+      throw new Error('Quotation email delivery is already being processed. Wait briefly and refresh before trying again.');
+    }
+    let lockQuery = admin.from('notification_outbox').update({ status: 'processing', attempts: Number(existing.attempts || 0) + 1, locked_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_error: null }).eq('id', outboxId);
+    lockQuery = existing.status === 'processing'
+      ? lockQuery.eq('status', 'processing').lt('locked_at', staleBefore)
+      : lockQuery.in('status', ['pending','failed','cancelled']);
+    const { data: locked, error: lockError } = await lockQuery.select('id').maybeSingle();
+    if (lockError) throw new Error(`Quotation email could not be prepared: ${lockError.message}`);
+    if (!locked) throw new Error('Quotation email delivery has already started. Refresh the Case before trying again.');
+    const { html, text } = await renderNotificationEmail({
+      event_key: 'quote.issued', category: 'transactional', recipient_name: recipientName,
+      subject, template_key: 'quote', payload: { actionLabel: 'Reply about this quotation', actionUrl: publicSiteUrl(), ...payload },
+    });
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `overflow-partner-${outboxId}` },
+        body: JSON.stringify({
+          from, to: [recipientEmail], subject, html, text,
+          ...(process.env.RESEND_REPLY_TO_EMAIL ? { reply_to: process.env.RESEND_REPLY_TO_EMAIL } : {}),
+          headers: { 'X-Overflow-Partner-Event': 'quote.issued', 'X-Overflow-Partner-Outbox': outboxId },
+        }),
+      });
+      const body = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string };
+      if (!response.ok || !body.id) throw new Error(body.message || body.name || `Email provider returned HTTP ${response.status}.`);
+      const sentAt = new Date().toISOString();
+      const { error: completeError } = await admin.from('notification_outbox').update({ status: 'sent', provider_message_id: body.id, sent_at: sentAt, locked_at: null, last_error: null, updated_at: sentAt }).eq('id', outboxId);
+      if (completeError) throw new Error(`Email was accepted by the provider, but its delivery record could not be updated: ${completeError.message}`);
+      return { quote, providerMessageId: body.id };
+    } catch (error) {
+      await admin.from('notification_outbox').update({ status: 'cancelled', locked_at: null, last_error: error instanceof Error ? error.message : 'Quotation email could not be delivered.', updated_at: new Date().toISOString() }).eq('id', outboxId);
+      throw error;
+    }
+  }
+  return { quote, providerMessageId: existing.provider_message_id || outboxId };
 }
 
 export async function createIntakeShellAction(formData: FormData) {
@@ -66,21 +174,25 @@ export async function approveCommercialAction(formData: FormData) {
 export async function issueQuoteAction(formData: FormData) {
   const quoteId=required(formData,'quote_id');const leadId=required(formData,'lead_id');let destination=`/workspace/leads/${leadId}`;
   try{
-    const recipientName=required(formData,'recipient_name');const deliveryMethod=required(formData,'delivery_method');const evidenceReference=required(formData,'issue_evidence_reference');
-    const recipientEmail=String(formData.get('recipient_email')||'').trim();const issueNote=String(formData.get('issue_note')||'').trim();
-    const {supabase,organisationId,user}=await requireUserContext();
+    const recipientName=required(formData,'recipient_name');const deliveryMethod='external_email';
+    const suppliedEmail=String(formData.get('recipient_email')||'').trim();const issueNote=String(formData.get('issue_note')||'').trim();
+    const {supabase,organisationId,user,profile}=await requireUserContext();
+    assertRole(profile.role,['owner','admin','commercial','business_development']);
+    const recipient=await leadRecipient(supabase,organisationId,leadId);
+    const recipientEmail=suppliedEmail||recipient?.contact_email||'';
+    if(!recipientEmail)throw new Error('Enter the client email address before sending the Client Quote.');
+    const delivery=await sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail,recipientName,companyName:recipient?.company_name||null});
+    const evidenceReference=`Resend message ${delivery.providerMessageId}`;
     const {data:quote,error}=await supabase.rpc('op_issue_quote_with_evidence',{
       p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quoteId,p_recipient_name:recipientName,p_recipient_email:recipientEmail||null,
       p_delivery_method:deliveryMethod,p_evidence_reference:evidenceReference,p_note:issueNote||null,
     });
     if(error)throw new Error(error.message);if(!quote?.id)throw new Error('Issued Client Quote was not returned.');
 
-    const recipient=await leadRecipient(supabase,organisationId,leadId);
-    const email=recipientEmail||recipient?.contact_email||'';
-    if(email){
+    {
+      const email=recipientEmail;
       const actionUrl=publicSiteUrl();
       const payload={company:recipient?.company_name,reference:quote.quote_number,validUntil:quote.valid_until};
-      await queueLifecycleEmail(supabase,{organisationId,scenario:'quote.issued',recipientEmail:email,recipientName:recipientName||recipient?.contact_name,actionUrl,payload,entityType:'quote',entityId:quote.id,idempotencyKey:`quote:issued:${quote.id}:${quote.revision}`}).catch(()=>null);
       await queueLifecycleEmail(supabase,{organisationId,scenario:'quote.followup',recipientEmail:email,recipientName:recipientName||recipient?.contact_name,actionUrl,payload,entityType:'quote',entityId:quote.id,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`quote:followup:3d:${quote.id}:${quote.revision}`}).catch(()=>null);
       if(quote.valid_until){
         const validityReminder=new Date(`${quote.valid_until}T09:00:00Z`);validityReminder.setUTCDate(validityReminder.getUTCDate()-3);
@@ -88,7 +200,7 @@ export async function issueQuoteAction(formData: FormData) {
       }
     }
     await cancelEntityReminders(supabase,{organisationId,entityType:'lead',entityId:leadId,categories:['nurture']}).catch(()=>0);
-    refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${quote.quote_number} issued with recorded transmission evidence. Written client acceptance is now required before Project 360.`,resultStatus:'Awaiting client decision',quote:quote.id,focus:'record-next-action'});
+    refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${quote.quote_number} was emailed to ${recipientEmail} and recorded as issued. Written client acceptance is now required before Project 360.`,resultStatus:'Awaiting client decision',quote:quote.id,focus:'record-next-action'});
   }catch(error){destination=caseUrl(leadId,{error:message(error),focus:'record-next-action'});}
   redirect(destination);
 }

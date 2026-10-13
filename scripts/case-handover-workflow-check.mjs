@@ -18,6 +18,8 @@ const migration=read('supabase/migrations/20261013090000_streamline_case_and_han
 const quotePreview=read('app/workspace/documents/templates/[document]/page.tsx');
 const quoteValidityAction=read('app/workspace/orchestration/quote-validity-actions.ts');
 const quoteValidityMigration=read('supabase/migrations/20261013222800_record_draft_quote_validity.sql');
+const orchestrationActions=read('app/workspace/orchestration/actions.ts');
+const lifecycleTemplates=read('lib/notifications/templates.ts');
 
 const projectBranch=case360.indexOf('if(workflow.project)');
 const missingIntakeBranch=case360.indexOf('else if(!workflow.technicalIntake)',projectBranch);
@@ -53,6 +55,19 @@ expect(quoteValidityAction.includes("assertRole(profile.role, ['owner','admin','
   'Quote expiry changes use an authorised, audited workflow action');
 expect(quoteValidityMigration.includes("v_quote.status::text <> 'draft'")&&quoteValidityMigration.includes("d.status::text in ('draft','changes_requested')")&&quoteValidityMigration.includes('quote_validity_recorded'),
   'Quote expiry can change only on a working draft and is recorded in activity history');
+const quoteSendStart=orchestrationActions.indexOf('export async function issueQuoteAction');
+const quoteSendEnd=orchestrationActions.indexOf('export async function acceptQuoteAction',quoteSendStart);
+const quoteSendAction=orchestrationActions.slice(quoteSendStart,quoteSendEnd);
+expect(quoteSendAction.indexOf('sendClientQuoteEmail(')>=0&&quoteSendAction.indexOf('sendClientQuoteEmail(')<quoteSendAction.indexOf("rpc('op_issue_quote_with_evidence'"),
+  'Client Quote delivery is accepted by the email provider before the quote is recorded as issued');
+expect(quoteSendAction.includes('Resend message ${delivery.providerMessageId}')&&quoteSendAction.includes('recipientEmail'),
+  'Client Quote issue evidence records the provider message and actual recipient');
+expect(case360.includes('Send Client Quote by email')&&case360.includes('The approved scope, deliverables, price, VAT and expiry will be emailed now'),
+  'Case action makes immediate email delivery explicit to the operator');
+expect(case360.includes('Revise the Client Quote')&&case360.includes('The current issue will be archived and the new revision must be approved and sent'),
+  'An issued Client Quote can be revised when the client requests a change');
+expect(lifecycleTemplates.includes('payload.clientQuoteFacts'),
+  'The quotation email includes client-facing scope and commercial facts');
 
 let failed=0;
 for(const check of checks){
