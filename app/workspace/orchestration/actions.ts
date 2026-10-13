@@ -8,6 +8,8 @@ import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
+import { createClientQuotePdf } from '@/lib/quotes/clientQuotePdf';
+import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 import {
   approveCommercialAndGenerateQuote,
   approveTechnicalIntake,
@@ -90,9 +92,25 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     { label: 'Total', value: quoteMoney(quote.total, currency) },
     { label: 'Valid until', value: new Date(`${quote.valid_until}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' }) },
   ];
+  const pdf = await createClientQuotePdf({
+    reference: String(quote.quote_number), revision: Number(quote.revision), clientName: companyName, recipientName,
+    validUntil: String(quote.valid_until), scope: intake?.description ? String(intake.description) : null,
+    deliverables: intake?.deliverables ? String(intake.deliverables) : null, requiredBy: intake?.deadline ? String(intake.deadline) : null,
+    currency, subtotal: Number(quote.subtotal), vat: Number(quote.vat), total: Number(quote.total),
+    lineItems: (lineItems || []).map((item) => ({ description: String(item.description), quantity: Number(item.quantity), unit: String(item.unit), netTotal: Number(item.net_total) })),
+  });
+  const expiry = new Date(`${quote.valid_until}T23:59:59Z`).getTime();
+  const responseLinks: { label: string; url: string }[] = [
+    { label: 'Accept and proceed', response: 'accepted' },
+    { label: 'Decline quote', response: 'declined' },
+    { label: 'Need more time', response: 'more_time' },
+  ].map(({ label, response }) => {
+    const token = createClientResponseToken({ quoteId, revision: Number(quote.revision), response: response as ClientQuoteResponse, exp: expiry });
+    return { label, url: publicSiteUrl(`/quote-response?token=${encodeURIComponent(token)}`) };
+  });
   const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
   const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. We will confirm the agreed payment or purchase-order condition before project setup.`;
-  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts };
+  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts, actions: responseLinks };
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
@@ -125,6 +143,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `overflow-partner-${outboxId}` },
         body: JSON.stringify({
           from, to: [recipientEmail], subject, html, text,
+          attachments: [{ filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' }],
           ...(process.env.RESEND_REPLY_TO_EMAIL ? { reply_to: process.env.RESEND_REPLY_TO_EMAIL } : {}),
           headers: { 'X-Overflow-Partner-Event': 'quote.issued', 'X-Overflow-Partner-Outbox': outboxId },
         }),
