@@ -25,7 +25,9 @@ test.describe('Authenticated operator browser navigation (no business writes)', 
   for (const destination of pages) {
     test('renders ' + destination.path + ' without a fatal error', async ({ page }) => {
       await page.goto(destination.path);
-      const expectedHeading = test.info().project.name === 'mobile-chromium' && 'mobileHeading' in destination\n        ? destination.mobileHeading! : destination.heading;\n      await expect(page.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible();
+      const expectedHeading = test.info().project.name === 'mobile-chromium' && 'mobileHeading' in destination
+        ? destination.mobileHeading! : destination.heading;
+      await expect(page.getByRole('heading', { level: 1, name: expectedHeading })).toBeVisible();
       await expect(page.getByText('Application error', { exact: false })).toHaveCount(0);
       if (process.env.OP_E2E_CAPTURE_UI === '1') {
         await page.screenshot({
