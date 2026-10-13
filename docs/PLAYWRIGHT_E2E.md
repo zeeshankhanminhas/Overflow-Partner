@@ -28,6 +28,7 @@ set -a; source .env.e2e; set +a
 npm run test:e2e:smoke             # public homepage, login, authentication boundary
 npm run test:e2e:operator          # authenticated read-only workspace route checks
 npm run test:e2e:secure            # opt-in dedicated secure intake/partner records
+npm run test:e2e:partner-submit     # ONE-USE submission; only in isolated environment
 npm run test:e2e                   # all configured browser tests
 npx playwright show-report
 ```
@@ -46,8 +47,10 @@ The suite targets `OP_E2E_BASE_URL`; it does not automatically start a server. U
 | `OP_E2E_ALLOW_TOKEN_OPEN=1` | Explicitly permits audit/status side effects of opening secure links |
 | `OP_E2E_EXPECT_PARTNER_FILE=1` | Expects a file shared with the dedicated review and checks the signed-file redirect |
 | `OP_E2E_CAPTURE_UI=1` | Save optional full-page screenshots for a later UI audit; no UI changes |
+| `OP_E2E_ENVIRONMENT=isolated`, `OP_E2E_ALLOW_MUTATIONS=1` | Explicit opt-in to the single-use partner submission test |
+| `OP_E2E_MUTATION_ORIGIN` | Must exactly match the intended isolated OP_E2E_BASE_URL origin to enable writes |
 
-When either secure-link consent switch is absent, those tests are skipped. Tests reject secure links outside the configured origin. None of the initial tests submit forms or send messages.
+When either secure-link consent switch is absent, those tests are skipped. Tests reject secure links outside the configured origin. Only the separately gated partner-submission scenario submits a form; it is disabled unless every destructive-test safety flag is supplied. It should use a fresh disposable review token and cannot be rerun against the same token. None of the tests send direct emails intentionally, but an application-side workflow may enqueue notifications as a side effect.
 
 ## Browser coverage added
 
@@ -59,6 +62,7 @@ When either secure-link consent switch is absent, those tests are skipped. Tests
 6. Dedicated partner review: open versus response-received state
 7. Dedicated partner review: evidence link and guarded download endpoint (302)
 8. Desktop Chromium and mobile Chromium
+9. One-use partner feasibility and commercial submission, isolated and opt-in
 
 The secure-link tests validate actual browser pages and the existing authenticated file access route; they do **not** claim the commercial workflow has passed.
 
@@ -68,7 +72,7 @@ Once a disposable test tenant/database, test operator and known test records are
 
 1. Company → Contact → Opportunity records and ownership.
 2. Customer invitation, delivered notification, upload and technical submission.
-3. Partner invitation, file access, feasibility declaration and commercial response.
+3. Partner invitation, file access, feasibility declaration and commercial response (submission has an initial isolated test, but notification/database assertions remain to be added).
 4. Internal acceptance/clarification, partner quote, margin approval and customer quote.
 5. Payment evidence, Project 360, partner execution and client acceptance.
 6. Activity history, email outbox, reminder schedule, permissions, record invariants and clean-up.
