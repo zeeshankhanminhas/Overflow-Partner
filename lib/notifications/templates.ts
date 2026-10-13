@@ -97,6 +97,13 @@ function contextRows(payload: Record<string, unknown>, eventKey: string): EmailF
   add('Valid until', payload.validUntil);
   add('Completion date', payload.completionDate);
   add('Review outcome', payload.outcome);
+  if (Array.isArray(payload.clientQuoteFacts)) {
+    for (const item of payload.clientQuoteFacts) {
+      if (!item || typeof item !== 'object') continue;
+      const fact = item as { label?: unknown; value?: unknown };
+      add(text(fact.label), fact.value);
+    }
+  }
   return rows;
 }
 
