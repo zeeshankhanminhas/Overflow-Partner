@@ -2,37 +2,26 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import type { ProductTone } from '@/components/workspace/ProductUI';
 
 type MobilePriorityItem = {
   id: string;
   label: string;
   title: string;
   detail: string;
-  meta: string;
-  owner: string;
+  meta?: string;
+  owner?: string;
   href: string;
-  actionLabel: string;
-  tone?: 'critical' | 'attention' | 'waiting' | 'neutral' | 'active' | 'ready';
+  actionLabel?: string;
+  tone?: ProductTone | 'ready';
 };
 
 type MobileMissionControlProps = {
-  priorityAttention: number;
-  p1: number;
-  p2: number;
-  readyDecisions: number;
-  blockedDecisions: number;
-  dependencies: number;
-  externalDependencies: number;
-  agedDependencies: number;
-  deliveryIssues: number;
-  criticalIssues: number;
-  highIssues: number;
   waitingInternal: number;
   waitingPartner: number;
   waitingClient: number;
   primary: {
     title: string;
-    record: string;
     reason: string;
     owner: string;
     detail: string;
@@ -80,22 +69,11 @@ function compact(text: string, max = 58) {
 }
 
 function compactMeta(item: MobilePriorityItem) {
-  const first = item.meta.split(' · ').filter(Boolean)[0] || item.label;
+  const first = item.meta?.split(' · ').filter(Boolean)[0] || item.label;
   return compact(first, 34);
 }
 
 export default function MobileMissionControl({
-  priorityAttention,
-  p1,
-  p2,
-  readyDecisions,
-  blockedDecisions,
-  dependencies,
-  externalDependencies,
-  agedDependencies,
-  deliveryIssues,
-  criticalIssues,
-  highIssues,
   waitingInternal,
   waitingPartner,
   waitingClient,
@@ -137,46 +115,9 @@ export default function MobileMissionControl({
       <Link className="mobile-mission__priority-action" href={primary.href}>{primary.actionLabel}<Icon name="chevron" size={19}/></Link>
     </section>
 
-    <section className="mobile-mission__section">
-      <header className="mobile-mission__section-head">
-        <h2>Current Work</h2>
-        <Link href="/workspace/attention">View all</Link>
-      </header>
-      <div className="mobile-mission__work-grid">
-        <Link href="/workspace/attention" className="mobile-mission__work-card tone-red">
-          <span className="mobile-mission__work-icon"><Icon name="clipboard"/></span>
-          <span className="mobile-mission__work-number">{priorityAttention}</span>
-          <strong>Open delivery work</strong>
-          <small>{p1 + p2 ? `${p1} P1 · ${p2} P2 need attention` : 'Nothing urgent right now'}</small>
-          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
-        </Link>
-        <Link href="/workspace/attention" className="mobile-mission__work-card tone-amber">
-          <span className="mobile-mission__work-icon"><Icon name="users"/></span>
-          <span className="mobile-mission__work-number">{dependencies}</span>
-          <strong>Waiting on others</strong>
-          <small>{externalDependencies} external · {agedDependencies} aged</small>
-          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
-        </Link>
-        <Link href="/workspace/approvals" className="mobile-mission__work-card tone-blue">
-          <span className="mobile-mission__work-icon"><Icon name="check"/></span>
-          <span className="mobile-mission__work-number">{readyDecisions}</span>
-          <strong>Approvals</strong>
-          <small>{blockedDecisions} waiting for information</small>
-          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
-        </Link>
-        <Link href="/workspace/exceptions" className="mobile-mission__work-card tone-green">
-          <span className="mobile-mission__work-icon"><Icon name="document"/></span>
-          <span className="mobile-mission__work-number">{deliveryIssues}</span>
-          <strong>Delivery issues</strong>
-          <small>{criticalIssues} critical · {highIssues} high</small>
-          <span className="mobile-mission__work-chevron"><Icon name="chevron"/></span>
-        </Link>
-      </div>
-    </section>
-
     <section className="mobile-mission__section mobile-mission__next">
       <header className="mobile-mission__section-head">
-        <h2>Next up</h2>
+        <h2>Other open work</h2>
         <Link href="/workspace/attention">View all</Link>
       </header>
       <div className="mobile-mission__next-card">
@@ -185,7 +126,7 @@ export default function MobileMissionControl({
           <span className="mobile-mission__next-copy">
             <strong>{compact(item.title, 48)}</strong>
             <small>{compact(item.detail, 54)}</small>
-            <em>{compactMeta(item)} · {compact(item.owner, 22)}</em>
+            <em>{compactMeta(item)} · {compact(item.owner || 'Unassigned', 22)}</em>
           </span>
           <span className={`mobile-mission__status-pill ${toneClass(item.tone)}`}>{statusLabel(item)}</span>
           <span className="mobile-mission__next-chevron"><Icon name="chevron"/></span>

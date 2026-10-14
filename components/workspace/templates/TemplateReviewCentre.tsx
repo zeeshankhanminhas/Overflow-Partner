@@ -67,7 +67,7 @@ function EmailPreview({ template }: { template: EmailTemplate }) {
         <h2>{template.heading}</h2>
         <p className="tr-email-message">{template.body}</p>
         {facts.length ? <dl>{facts.map((field) => <div key={field}><dt>{words(field)}</dt><dd>{sampleValues[field] || `Sample ${words(field).toLowerCase()}`}</dd></div>)}</dl> : null}
-        <button type="button" disabled title="Preview only — no message will be sent">{template.actionLabel}</button>
+        <span className="tr-email-action-preview">{template.actionLabel}</span>
         <p className="tr-email-note">Preview only. The live message uses the controlled recipient, reference, dates and secure destination from its workflow record.</p>
       </section>
       <footer>{template.category === 'nurture' ? 'You are receiving this operational update because you previously contacted Overflow Partner. Unsubscribe preferences are available in the live message.' : 'This message relates to an active Overflow Partner workflow. Replies go to the operating team.'}</footer>

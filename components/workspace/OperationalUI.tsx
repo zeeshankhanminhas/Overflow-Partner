@@ -15,16 +15,18 @@ export type OperatingStateProps={
   href?:string;
   action?:ReactNode;
   consequence?:string;
+  showStatus?:boolean;
+  showActionSummary?:boolean;
 };
 
-export function OperatingState({eyebrow='Priority now',title,record,reason,owner,ownerDetail,status,tone='active',nextAction,href,action,consequence}:OperatingStateProps){
-  return <section className="op-ui-state" aria-label="Current operating state">
+export function OperatingState({eyebrow='Priority now',title,record,reason,owner,ownerDetail,status,tone='active',nextAction,href,action,consequence,showStatus=true,showActionSummary=true}:OperatingStateProps){
+  return <section className={`op-ui-state ${!action&&!href?'op-ui-state--summary-only':''}`} aria-label="Current operating state">
     <div className="op-ui-state__main">
-      <div className="op-ui-state__heading"><div><p className="op-ui-eyebrow">{eyebrow}</p><h2>{title}</h2><p className="op-ui-state__record">{record}</p></div>{status?<ProductStatus tone={tone}>{status}</ProductStatus>:null}</div>
+      <div className="op-ui-state__heading"><div><p className="op-ui-eyebrow">{eyebrow}</p><h2>{title}</h2><p className="op-ui-state__record">{record}</p></div>{showStatus&&status?<ProductStatus tone={tone}>{status}</ProductStatus>:null}</div>
       <p className="op-ui-state__reason">{reason}</p>
-      <div className="op-ui-state__facts"><div><small>Owner</small><strong>{owner}</strong>{ownerDetail?<span>{ownerDetail}</span>:null}</div><div><small>Next action</small><strong>{nextAction}</strong>{consequence?<span>{consequence}</span>:null}</div></div>
+      <div className={`op-ui-state__facts ${showActionSummary?'':'op-ui-state__facts--single'}`}><div><small>Owner</small><strong>{owner}</strong>{ownerDetail?<span>{ownerDetail}</span>:null}</div>{showActionSummary?<div><small>Next action</small><strong>{nextAction}</strong>{consequence?<span>{consequence}</span>:null}</div>:null}</div>
     </div>
-    <div className="op-ui-state__action">{action||href?<>{action||<Link className="button" href={href||'#'}>{nextAction}</Link>}</>:null}</div>
+    {action||href?<div className="op-ui-state__action">{action||<Link className="button" href={href!}>{nextAction}</Link>}</div>:null}
   </section>;
 }
 
@@ -64,8 +66,7 @@ export function NextActionRail({title='Next action',actionLabel,href,action,reas
 }
 
 export function WaitingOnPanel({internal,partner,client}:{internal:number;partner:number;client:number}){
-  const total=internal+partner+client;
-  return <section className="op-ui-panel op-ui-waiting"><header className="op-ui-panel__header"><div><p className="op-ui-eyebrow">Ownership</p><h3>Waiting on</h3></div><span>{total} open</span></header><div className="op-ui-waiting__grid"><div><span>Your team</span><strong>{internal}</strong></div><div><span>Delivery Partner</span><strong>{partner}</strong></div><div><span>Client</span><strong>{client}</strong></div></div></section>;
+  return <section className="op-ui-panel op-ui-waiting"><header className="op-ui-panel__header"><div><p className="op-ui-eyebrow">Ownership</p><h3>Waiting on</h3></div></header><div className="op-ui-waiting__grid"><div><span>Your team</span><strong>{internal}</strong></div><div><span>Delivery Partner</span><strong>{partner}</strong></div><div><span>Client</span><strong>{client}</strong></div></div></section>;
 }
 
 export function SignalStrip({items}:{items:Array<{label:string;value:ReactNode;detail:string;tone?:ProductTone}>}){

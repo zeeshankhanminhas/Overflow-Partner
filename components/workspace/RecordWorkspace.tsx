@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ProductProvenance } from '@/components/workspace/ProductUI';
 import { OperatingState, NextActionRail } from '@/components/workspace/OperationalUI';
 import { ContextActions, WorkspaceDrawer } from '@/components/workspace/InteractionSurface';
-import { commercialCopy, commercialStatus } from '@/lib/presentation/commercialLanguage';
+import { commercialCopy } from '@/lib/presentation/commercialLanguage';
 import type { OperatingPresentation } from '@/lib/presentation/operatingState';
 
 type RecordWorkspaceProps = {
@@ -59,7 +59,6 @@ export default function RecordWorkspace({
   const hasContext = Boolean(communications || history || olderDocuments || metadata || audit);
   const waitingOnly = Boolean(presentation?.nextAction.kind === 'wait');
   const owner = presentation ? ownerLabel(presentation) : 'Your team';
-  const primaryHref = presentation?.primaryActions.find(action => action.href)?.href;
 
   return <section data-surface="record" className={`op-surface op-surface--record record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
@@ -82,15 +81,13 @@ export default function RecordWorkspace({
       reason={commercialCopy(presentation.summary)}
       owner={owner}
       ownerDetail={presentation.waitingOn ? commercialCopy(presentation.waitingOn.label) : undefined}
-      status={commercialStatus(presentation.state, commercialCopy(presentation.state))}
       tone={presentation.tone}
       nextAction={commercialCopy(presentation.nextAction.label)}
-      href={primaryHref || (waitingOnly ? '#record-current-stage-work' : '#record-next-action')}
-      consequence={presentation.nextAction.reason ? commercialCopy(presentation.nextAction.reason) : undefined}
+      showStatus={false}
+      showActionSummary={false}
     /> : null}
 
     {hasContext ? <div className="record-workspace__context-bar">
-      <span>Context · inspect without leaving this record</span>
       <ContextActions>
         {communications ? <WorkspaceDrawer triggerLabel="Messages" eyebrow="Record context" title="Messages" description="Correspondence attached to this record. Close the drawer to return to the same operating position.">{communications}</WorkspaceDrawer> : null}
         {history ? <WorkspaceDrawer triggerLabel="Activity" eyebrow="Record context" title="Activity" description="Previous business events for this record. Current truth stays on the main surface.">{history}</WorkspaceDrawer> : null}
@@ -102,7 +99,7 @@ export default function RecordWorkspace({
 
     <section className={`record-workspace__group record-workspace__group--decision ${presentation ? 'record-workspace__group--interpreted' : ''}`} aria-labelledby="record-decision-area">
       <div className="record-workspace__group-heading">
-        <p id="record-decision-area">{presentation ? 'Current work' : 'What happens next'}</p>
+        <p id="record-decision-area">{presentation ? 'Stage control' : 'What happens next'}</p>
         <span>{presentation ? 'The checks, decision and action relevant to this stage' : 'Your next action and the evidence needed before you can take it'}</span>
       </div>
       <div className={`record-workspace__decision-grid ${waitingOnly ? 'record-workspace__decision-grid--waiting' : ''}`}>
@@ -134,7 +131,7 @@ export default function RecordWorkspace({
         <p id="record-controlled-evidence">Evidence</p>
         <span>Documents and recorded evidence supporting the current stage</span>
       </div>
-      <Slot id="record-documents" title="Current evidence" className="record-workspace__slot--evidence">{evidence}</Slot>
+      <Slot id="record-documents" title="Current documents" className="record-workspace__slot--evidence">{evidence}</Slot>
     </section> : null}
   </section>;
 }
