@@ -1,7 +1,8 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClientResponseToken, verifyClientResponseToken } from '@/lib/quotes/clientResponseToken';
+import { verifyClientResponseToken } from '@/lib/quotes/clientResponseToken';
+import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 function adminClient() {
@@ -25,6 +26,6 @@ export async function recordClientQuoteResponse(formData: FormData) {
     const status = error.message.toLowerCase().includes('already') ? 'recorded' : 'unavailable';
     redirect(`/quote-response?result=${status}`);
   }
-  const receiptToken = createClientResponseToken({ ...payload, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
-  redirect(`/quote-response?token=${encodeURIComponent(receiptToken)}&result=recorded`);
+  const portalToken = createClientPortalToken(payload.quoteId, payload.revision);
+  redirect(`/client-portal?token=${encodeURIComponent(portalToken)}`);
 }
