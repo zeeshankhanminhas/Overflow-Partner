@@ -8,7 +8,11 @@ const provider=read('components/workspace/WorkspaceInteractionProvider.tsx');
 const popover=read('components/workspace/WorkspacePopover.tsx');
 const command=read('components/workspace/CommandPalette.tsx');
 const layout=read('app/workspace/layout.tsx');
-const css=read('app/workspace/workspace-interaction-system.css');
+const css=[
+  'app/workspace/workspace-base.css',
+  'app/workspace/workspace-features.css',
+  'app/workspace/workspace-surfaces.css',
+].map(read).join('\n');
 const productContracts=read('docs/WORKSPACE_PRODUCT_CONTRACTS.md');
 const recordWorkspace=read('components/workspace/RecordWorkspace.tsx');
 const missionControl=read('app/workspace/page.tsx');
@@ -25,7 +29,8 @@ expect(command.includes("event.key==='ArrowDown'"),'Command palette supports key
 expect(css.includes(':focus-visible'),'Shared interaction surfaces have visible keyboard focus');
 expect(css.includes('prefers-reduced-motion'),'Interaction layer respects reduced motion');
 expect(css.includes('100dvh'),'Mobile work windows use viewport-safe full-screen treatment');
-expect(layout.includes("import './workspace-interaction-system.css';"),'Canonical interaction styles are mounted globally in workspace shell');
+expect(layout.includes("import './workspace-features.css';")&&css.includes('.workspace-shell-actions'),'Shared interaction styles are mounted through the workspace feature layer');
+expect((layout.match(/\.css';/g)||[]).length===3,'Workspace shell loads three ordered shared CSS layers');
 expect(productContracts.includes('# 7. System Feedback & Accessibility Contract'),'Seven-contract product standard is present');
 expect(!layout.includes('commercial-saas-ui.css'),'Legacy commercial SaaS layer is not loaded');
 expect(recordWorkspace.includes('showStatus={false}')&&recordWorkspace.includes('showActionSummary={false}')&&!recordWorkspace.includes('href={primaryHref}'),'Record state summary does not repeat its status badge or next-action control');
