@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 export type ClientQuotePdfInput = {
   reference: string; revision: number; clientName?: string | null; recipientName: string;
   validUntil: string; scope?: string | null; deliverables?: string | null; requiredBy?: string | null;
+  assumptions?: string | null; exclusions?: string | null; paymentTerms?: string | null; deliveryCommitment?: string | null;
   currency: string; subtotal: number; vat: number; total: number;
   lineItems: { description: string; quantity: number; unit: string; netTotal: number }[];
 };
@@ -37,12 +38,16 @@ export async function createClientQuotePdf(input: ClientQuotePdfInput) {
   if (input.scope) { line('Scope of work', { size: 14, bold: true, gap: 8 }); line(input.scope, { gap: 12 }); }
   if (input.deliverables) { line('Deliverables', { size: 14, bold: true, gap: 8 }); line(input.deliverables, { gap: 12 }); }
   if (input.requiredBy) line(`Required by: ${new Date(`${input.requiredBy}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', dateStyle: 'long' })}`, { color: muted, gap: 14 });
+  if (input.assumptions) { line('Assumptions', { size: 14, bold: true, gap: 8 }); line(input.assumptions, { gap: 12 }); }
+  if (input.exclusions) { line('Exclusions', { size: 14, bold: true, gap: 8 }); line(input.exclusions, { gap: 12 }); }
+  if (input.deliveryCommitment) { line('Delivery commitment', { size: 14, bold: true, gap: 8 }); line(input.deliveryCommitment, { gap: 12 }); }
   line('Price', { size: 14, bold: true, gap: 10 });
   input.lineItems.forEach((item, index) => line(`${index + 1}. ${item.description} — ${item.quantity} ${item.unit} — ${money(item.netTotal, input.currency)} net`));
   y -= 8;
   line(`Subtotal: ${money(input.subtotal, input.currency)}`, { bold: true });
   line(`VAT: ${money(input.vat, input.currency)}`);
   line(`Total: ${money(input.total, input.currency)}`, { size: 15, bold: true, color: accent, gap: 18 });
+  if (input.paymentTerms) { line('Payment terms', { size: 14, bold: true, gap: 8 }); line(input.paymentTerms, { gap: 12 }); }
   line('Client response', { size: 14, bold: true, gap: 8 });
   line('Use one of the response buttons in the accompanying email to accept, decline, or request more time. Acceptance records the client decision; project setup remains subject to confirmation of the agreed opening payment or purchase order.', { color: muted, gap: 16 });
   line('This quotation is limited to the scope, deliverables, assumptions and price stated above. Any change requires a revised quotation.', { size: 9, color: muted });

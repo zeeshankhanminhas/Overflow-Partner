@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation';
 import { assertRole, requireUserContext } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
+import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
+import { createControlledPdf, pdfEmailAttachment } from '@/lib/notifications/controlledPdf';
 import { assertCanApprovePayable, assertCanCreateInvoice, assertCanCreatePayable, assertCanIssueInvoice, assertCanPayPartner } from '@/lib/business/invariants';
 import type { BillingInvoiceType } from '@/lib/finance/state';
 
@@ -65,9 +67,12 @@ export async function issueInvoiceAction(formData:FormData){
     const guarded=await assertCanIssueInvoice(supabase,organisationId,invoiceId);projectId=guarded.project_id;
     const {data:invoice,error:readError}=await supabase.from('invoices').select('id,project_id,lead_id,invoice_number,status,due_date,total,currency,public_token').eq('organisation_id',organisationId).eq('id',invoiceId).single();if(readError||!invoice)throw new Error(readError?.message||'Invoice not found.');
     const client=await clientForLead(supabase,organisationId,invoice.lead_id);if(!client?.contact_email)throw new Error('Client email is required before an invoice can be issued.');
+    const adapted=await buildDocumentAdapter(supabase,'invoice',{organisationId,projectId:invoice.project_id,caseId:invoice.lead_id,invoiceId});
+    const invoicePdf=await createControlledPdf(`Invoice ${invoice.invoice_number}`,adapted);
+    const actionUrl=`${appUrl()}/invoice/${invoice.public_token}`;const amount=money(invoice.total,invoice.currency);const dueDate=invoice.due_date?new Date(`${invoice.due_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'';const payload={company:client.company_name,reference:invoice.invoice_number,amount,dueDate};const issuedPayload={...payload,emailAttachments:[pdfEmailAttachment(`${invoice.invoice_number}-Invoice.pdf`,invoicePdf)]};
+    const queued=await queueLifecycleEmail(supabase,{organisationId,scenario:'payment.requested',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl,payload:issuedPayload,entityType:'invoice',entityId:invoice.id,idempotencyKey:`invoice-issued:${invoice.id}`,subject:`Invoice ${invoice.invoice_number} from Overflow Partner`});
+    if(!queued)throw new Error('Invoice email could not be queued; the invoice remains in draft.');
     const issuedAt=new Date().toISOString();const {error}=await supabase.from('invoices').update({status:'issued',issued_at:issuedAt,updated_at:issuedAt}).eq('organisation_id',organisationId).eq('id',invoiceId);if(error)throw new Error(error.message);
-    const actionUrl=`${appUrl()}/invoice/${invoice.public_token}`;const amount=money(invoice.total,invoice.currency);const dueDate=invoice.due_date?new Date(`${invoice.due_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}):'';const payload={company:client.company_name,reference:invoice.invoice_number,amount,dueDate};
-    await queueLifecycleEmail(supabase,{organisationId,scenario:'payment.requested',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl,payload,entityType:'invoice',entityId:invoice.id,idempotencyKey:`invoice-issued:${invoice.id}`,subject:`Invoice ${invoice.invoice_number} from Overflow Partner`});
     if(invoice.due_date){
       await queueLifecycleEmail(supabase,{organisationId,scenario:'payment.due',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl,payload,entityType:'invoice',entityId:invoice.id,scheduledFor:scheduleAt(invoice.due_date,0),idempotencyKey:`invoice-due:${invoice.id}:${invoice.due_date}`,subject:`Reminder · Invoice ${invoice.invoice_number}`});
       await queueLifecycleEmail(supabase,{organisationId,scenario:'payment.overdue',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl,payload,entityType:'invoice',entityId:invoice.id,scheduledFor:scheduleAt(invoice.due_date,3),idempotencyKey:`invoice-overdue:${invoice.id}:${invoice.due_date}:3`,subject:`Invoice ${invoice.invoice_number} · payment overdue`});

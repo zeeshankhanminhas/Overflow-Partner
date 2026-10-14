@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { projectStages, type ProjectStage } from '@/lib/projects/stages';
 import { assertCanAdvanceProjectStage } from '@/lib/business/invariants';
-import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 
 const roles = ['owner','admin','operator','engineering','commercial'] as const;
 
@@ -15,7 +14,6 @@ function required(formData: FormData, key: string) {
   return value;
 }
 function projectUrl(projectId: string, params: Record<string,string>) { return `/workspace/projects/${projectId}?${new URLSearchParams(params).toString()}`; }
-function appUrl(){return (process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');}
 function refreshProject(projectId: string) {
   revalidatePath(`/workspace/projects/${projectId}`); revalidatePath('/workspace/projects'); revalidatePath('/workspace/leads'); revalidatePath('/workspace');
   revalidatePath('/workspace/commercial-control'); revalidatePath('/workspace/payments'); revalidatePath('/workspace/intelligence');
@@ -95,10 +93,6 @@ export async function advanceProjectStageAction(formData: FormData) {
     const { supabase, user, profile, organisationId } = await requireUserContext(); assertRole(profile.role, [...roles]);
     await assertCanAdvanceProjectStage(supabase, organisationId, projectId, targetStage);
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id:projectId,p_target_stage:targetStage,p_actor_id:user.id,p_note:note||null }); if (error) throw new Error(error.message);
-    if(targetStage==='completion'){
-      const {data:project}=await supabase.from('projects').select('project_number,title,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
-      if(project?.lead_id){const {data:client}=await supabase.from('leads').select('contact_name,contact_email,company_name').eq('organisation_id',organisationId).eq('id',project.lead_id).maybeSingle();if(client?.contact_email)await queueLifecycleEmail(supabase,{organisationId,scenario:'project.completed',recipientEmail:client.contact_email,recipientName:client.contact_name,actionUrl:appUrl(),payload:{company:client.company_name,reference:project.project_number,project:project.title},entityType:'project',entityId:projectId,idempotencyKey:`project:completed:${projectId}`}).catch(()=>null);}
-    }
     if(targetStage==='closed'){
       const {data:project}=await supabase.from('projects').select('id,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
       if(project?.lead_id){

@@ -43,6 +43,7 @@ export type LifecycleEmailScenario =
   | 'client_delivery.issued'
   | 'client_delivery.review_reminder'
   | 'client_delivery.review_outcome'
+  | 'document.client_issue'
   | 'project.completed'
   | 'partner_payment.sent'
   | 'dormant_opportunity.day30'
@@ -211,6 +212,12 @@ export const lifecycleEmailScenarios: Record<LifecycleEmailScenario, ScenarioDef
     subject:'Your delivery review has been recorded', heading:'Thank you — your review decision is recorded',
     body:'Thank you. We have recorded your review decision against the current delivery. If approved, the work will move toward completion. If changes were requested, they will be managed through a controlled revision before the next issue.',
     actionLabel:'Reply with a question',
+  },
+  'document.client_issue': {
+    family:'delivery_review', category:'transactional', dynamicMode:'transactional', dynamicFields:['reference','project','actionUrl'],
+    subject:'A controlled engineering document from Overflow Partner', heading:'Your controlled document is attached',
+    body:'The approved document revision is attached to this email. Please retain it with the identified reference. Reply with confirmation or any requested changes, quoting the document reference.',
+    actionLabel:'Reply about this document',
   },
   'project.completed': {
     family:'completion', category:'transactional', dynamicMode:'transactional', dynamicFields:['projectReference','project','completionDate','reference','actionUrl'],

@@ -59,7 +59,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   if (!apiKey || !from) throw new Error('Quotation email is unavailable because the email sender is not configured.');
 
   const [quoteResult, documentResult, intakeResult, lineItemsResult] = await Promise.all([
-    supabase.from('quotes').select('id,lead_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id', leadId).maybeSingle(),
+    supabase.from('quotes').select('id,lead_id,commercial_review_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id', leadId).maybeSingle(),
     supabase.from('documents').select('id,status,is_current_revision').eq('organisation_id', organisationId).eq('quote_id', quoteId).eq('document_type', 'client-quote').eq('is_current_revision', true).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('technical_intakes').select('description,deliverables,deadline').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('quote_line_items').select('sequence_no,description,quantity,unit,unit_price,net_total').eq('organisation_id', organisationId).eq('quote_id', quoteId).order('sequence_no', { ascending: true }),
@@ -76,6 +76,13 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   if (intakeError) throw new Error(intakeError.message);
   if (lineItemsError) throw new Error(lineItemsError.message);
 
+  let clientTerms: {commercial_assumptions?:string|null;exclusions?:string|null;payment_terms?:string|null;delivery_commitment?:string|null}|null = null;
+  if (quote.commercial_review_id) {
+    const {data:review,error:reviewError}=await supabase.from('commercial_reviews').select('partner_quote_id').eq('organisation_id',organisationId).eq('id',quote.commercial_review_id).maybeSingle();
+    if(reviewError)throw new Error(reviewError.message);
+    if(review?.partner_quote_id){const {data:terms,error:termsError}=await supabase.from('partner_quotes').select('commercial_assumptions,exclusions,payment_terms,delivery_commitment').eq('organisation_id',organisationId).eq('id',review.partner_quote_id).maybeSingle();if(termsError)throw new Error(termsError.message);clientTerms=terms;}
+  }
+
   const currency = String(quote.currency || 'GBP').trim().toUpperCase();
   const facts: Array<{label:string;value:string}> = [
     { label: 'Quotation reference', value: `${quote.quote_number} · Revision ${quote.revision}` },
@@ -83,6 +90,10 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     ...(intake?.description ? [{ label: 'Scope', value: String(intake.description) }] : []),
     ...(intake?.deliverables ? [{ label: 'Deliverables', value: String(intake.deliverables) }] : []),
     ...(intake?.deadline ? [{ label: 'Required by', value: new Date(`${intake.deadline}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' }) }] : []),
+    ...(clientTerms?.commercial_assumptions ? [{label:'Assumptions',value:String(clientTerms.commercial_assumptions)}] : []),
+    ...(clientTerms?.exclusions ? [{label:'Exclusions',value:String(clientTerms.exclusions)}] : []),
+    ...(clientTerms?.delivery_commitment ? [{label:'Delivery commitment',value:String(clientTerms.delivery_commitment)}] : []),
+    ...(clientTerms?.payment_terms ? [{label:'Payment terms',value:String(clientTerms.payment_terms)}] : []),
     ...((lineItems || []).map((item, index) => ({
       label: `Price item ${index + 1}`,
       value: `${item.description} · ${item.quantity} ${item.unit} · ${quoteMoney(item.net_total, currency)} net`,
@@ -96,6 +107,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     reference: String(quote.quote_number), revision: Number(quote.revision), clientName: companyName, recipientName,
     validUntil: String(quote.valid_until), scope: intake?.description ? String(intake.description) : null,
     deliverables: intake?.deliverables ? String(intake.deliverables) : null, requiredBy: intake?.deadline ? String(intake.deadline) : null,
+    assumptions:clientTerms?.commercial_assumptions, exclusions:clientTerms?.exclusions, paymentTerms:clientTerms?.payment_terms, deliveryCommitment:clientTerms?.delivery_commitment,
     currency, subtotal: Number(quote.subtotal), vat: Number(quote.vat), total: Number(quote.total),
     lineItems: (lineItems || []).map((item) => ({ description: String(item.description), quantity: Number(item.quantity), unit: String(item.unit), netTotal: Number(item.net_total) })),
   });

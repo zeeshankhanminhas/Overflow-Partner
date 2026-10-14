@@ -49,6 +49,7 @@ async function deliver(row: OutboxRow) {
       subject: row.subject,
       html,
       text,
+      ...(Array.isArray(row.payload?.emailAttachments) ? { attachments: row.payload.emailAttachments } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
       headers: {
         'X-Overflow-Partner-Event': row.event_key,

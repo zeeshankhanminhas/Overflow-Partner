@@ -6,6 +6,8 @@ import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
+import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
+import { createControlledPdf, pdfEmailAttachment } from '@/lib/notifications/controlledPdf';
 
 const roles=['owner','admin','operator','engineering','commercial'] as const;
 function required(formData:FormData,key:string){const value=String(formData.get(key)||'').trim();if(!value)throw new Error(`${key.replaceAll('_',' ')} is required.`);return value;}
@@ -18,17 +20,32 @@ export async function recordClientTransmittalAction(formData:FormData){
   try{
     const recipientName=required(formData,'recipient_name');const recipientEmail=required(formData,'recipient_email').toLowerCase();const deliveryMethod=required(formData,'delivery_method');const note=String(formData.get('note')||'').trim();
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
-    const {data,error}=await supabase.rpc('op_record_client_transmittal_and_issue',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_recipient_name:recipientName,p_recipient_email:recipientEmail,p_delivery_method:deliveryMethod,p_note:note||null});
+    const {data:project}=await supabase.from('projects').select('project_number,title,due_date,lead_id,quote_id,project_stage').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
+    if(project?.project_stage!=='ready_for_client_issue')throw new Error('Client delivery can only be issued from Ready for client issue.');
+    const reference=String(project?.project_number||'');const payload={reference,project:project?.title,dueDate:project?.due_date};
+    const {data:assignment}=await supabase.from('project_execution_assignments').select('id,execution_cycle').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
+    const deliveryKey=`client-delivery:${projectId}:cycle:${assignment?.execution_cycle||1}`;
+    const {data:handover}=await supabase.from('documents').select('id,reference,version,status').eq('organisation_id',organisationId).eq('project_id',projectId).eq('document_type','handover-pack').eq('is_current_revision',true).in('status',['issued','published']).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(!handover)throw new Error('An issued Handover Pack is required before client delivery.');
+    const adapted=await buildDocumentAdapter(supabase,'handover-pack',{organisationId,projectId,caseId:project?.lead_id,quoteId:project?.quote_id});
+    const handoverPdf=await createControlledPdf('Client Handover Pack',adapted);
+    let deliverableActions: {label:string;url:string}[]=[];
+    if(assignment?.id){
+      const {data:files,error:fileError}=await supabase.from('partner_delivery_submission_files').select('storage_bucket,storage_path,original_filename,submission_id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id).eq('execution_cycle',assignment.execution_cycle||1).not('submission_id','is',null).order('uploaded_at',{ascending:true});
+      if(fileError)throw new Error(`Client deliverables could not be loaded: ${fileError.message}`);
+      deliverableActions=await Promise.all((files||[]).map(async file=>{const {data:signed,error}=await supabase.storage.from(file.storage_bucket).createSignedUrl(file.storage_path,14*24*60*60);if(error||!signed?.signedUrl)throw new Error(`Secure download could not be created for ${file.original_filename}.`);return {label:`Download ${file.original_filename}`,url:signed.signedUrl};}));
+    }
+    const deliveryPayload={...payload,actions:deliverableActions,emailAttachments:[pdfEmailAttachment(`${handover.reference||reference}-R${handover.version||1}-Handover-Pack.pdf`,handoverPdf)]};
+    const queued=await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.issued',recipientEmail,recipientName,actionUrl:appUrl(),payload:deliveryPayload,entityType:'project',entityId:projectId,idempotencyKey:`${deliveryKey}:issued`});
+    if(!queued)throw new Error('Client email could not be queued; the Project remains at Ready for client issue.');
+    const {error}=await supabase.rpc('op_record_client_transmittal_and_issue',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_recipient_name:recipientName,p_recipient_email:recipientEmail,p_delivery_method:deliveryMethod,p_note:note||null});
     if(error)throw new Error(error.message);
-    const {data:project}=await supabase.from('projects').select('project_number,title,due_date').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
-    const reference=String(data?.transmittal?.transmittal_reference||project?.project_number||'');const payload={reference,project:project?.title,dueDate:project?.due_date};
     let communicationError='';
     try{
-      await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.issued',recipientEmail,recipientName,actionUrl:appUrl(),payload,entityType:'project',entityId:projectId,idempotencyKey:`client-delivery:issued:${reference||projectId}`});
-      await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.review_reminder',recipientEmail,recipientName,actionUrl:appUrl(),payload,entityType:'project',entityId:projectId,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`client-delivery:review-reminder:${reference||projectId}`});
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.review_reminder',recipientEmail,recipientName,actionUrl:appUrl(),payload,entityType:'project',entityId:projectId,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`${deliveryKey}:review-reminder`});
     }catch(emailError){communicationError=emailError instanceof Error?emailError.message:'Client notification could not be queued.';}
     refresh(projectId);
-    destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded for ${recipientName} (${recipientEmail}), but the client email could not be queued: ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Sent to ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
+    destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client email queued with the Handover Pack PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client delivery could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }
