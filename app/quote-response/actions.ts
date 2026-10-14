@@ -1,7 +1,8 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClientResponseToken, verifyClientResponseToken } from '@/lib/quotes/clientResponseToken';
+import { verifyClientResponseToken } from '@/lib/quotes/clientResponseToken';
+import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 function adminClient() {
@@ -22,9 +23,10 @@ export async function recordClientQuoteResponse(formData: FormData) {
     p_response: payload.response,
   });
   if (error) {
-    const status = error.message.toLowerCase().includes('already') ? 'recorded' : 'unavailable';
-    redirect(`/quote-response?result=${status}`);
+    // A repeated action must never mutate an already-recorded response.
+    // The status portal remains available from the original quotation email.
+    redirect('/quote-response?result=unavailable');
   }
-  const receiptToken = createClientResponseToken({ ...payload, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
-  redirect(`/quote-response?token=${encodeURIComponent(receiptToken)}&result=recorded`);
+  const portalToken = createClientPortalToken(payload.quoteId, payload.revision);
+  redirect(`/client-portal?token=${encodeURIComponent(portalToken)}`);
 }
