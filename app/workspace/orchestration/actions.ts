@@ -273,14 +273,23 @@ export async function acceptQuoteAction(formData: FormData) {
     const acceptedByName = required(formData, 'accepted_by_name');
     const acceptedByEmail = String(formData.get('accepted_by_email') || '').trim();
     const acceptanceNotes = String(formData.get('acceptance_notes') || '').trim();
-    const paymentMethod = required(formData, 'payment_method');
-    const paymentReference = required(formData, 'payment_reference');
-    const paymentConfirmedAt = required(formData, 'payment_confirmed_at');
+    const releaseBasis = required(formData, 'release_basis');
+    if (!['payment', 'purchase_order', 'no_advance_payment'].includes(releaseBasis)) throw new Error('Select the release condition stated in the issued Client Quote.');
+    const releaseReference = String(formData.get('release_reference') || '').trim();
+    const releaseNote = String(formData.get('release_note') || '').trim();
+    const paymentMethod = String(formData.get('payment_method') || '').trim();
+    const paymentReference = String(formData.get('payment_reference') || '').trim();
+    const paymentConfirmedAt = String(formData.get('payment_confirmed_at') || '').trim();
+    if (releaseBasis === 'payment' && (!paymentMethod || !paymentReference || !paymentConfirmedAt)) throw new Error('Enter the cleared opening payment details.');
+    if (releaseBasis === 'purchase_order' && !releaseReference) throw new Error('Enter the client purchase order reference.');
+    if (releaseBasis === 'no_advance_payment' && (!releaseReference || !releaseNote)) throw new Error('Reference the issued quote terms that state no advance payment is due.');
     const { supabase, organisationId, user } = await requireUserContext();
-    const { data: project, error } = await supabase.rpc('op_accept_quote_create_project_with_payment_confirmation', {
+    const { data: project, error } = await supabase.rpc('op_accept_quote_create_project_with_release_evidence', {
       p_organisation_id: organisationId, p_user_id:user.id, p_quote_id:quoteId, p_acceptance_basis:acceptanceBasis,
       p_evidence_reference:evidenceReference, p_accepted_by_name:acceptedByName, p_accepted_by_email:acceptedByEmail||null, p_notes:acceptanceNotes||null,
-      p_payment_method:paymentMethod, p_payment_reference:paymentReference, p_payment_confirmed_at:new Date(paymentConfirmedAt).toISOString(),
+      p_release_basis:releaseBasis, p_release_reference:releaseReference||null, p_release_note:releaseNote||null,
+      p_payment_method:paymentMethod||null, p_payment_reference:paymentReference||null,
+      p_payment_confirmed_at:paymentConfirmedAt?new Date(paymentConfirmedAt).toISOString():null,
     });
     if (error) throw new Error(error.message);
     if (!project?.id) throw new Error('Project 360 was not returned after recording client acceptance.');
