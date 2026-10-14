@@ -367,9 +367,9 @@
 .op-content :where(.product-metrics,.saas-metrics,.vp-compact-metrics,.op-ui-signals){overflow:hidden;border:1px solid var(--op-line)!important;border-radius:var(--op-radius)!important;background:var(--op-panel)!important;box-shadow:0 1px 1px rgba(17,17,17,.02)}
 .op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal){min-height:74px!important;padding:13px 14px!important;border:0!important;border-right:1px solid var(--op-line-soft)!important;border-radius:0!important;background:transparent!important}
 .op-content :where(.product-metric,.saas-metric,.vp-metric,.op-ui-signal):last-child{border-right:0!important}
-.op-content :where(.product-metric,.saas-metric,.vp-metric) span{font-size:10px!important;color:var(--op-muted)!important}
-.op-content :where(.product-metric,.saas-metric,.vp-metric)>strong{font-size:23px!important;line-height:1.05!important;color:var(--op-text)!important;font-weight:650!important}
-.op-content :where(.product-metric,.saas-metric,.vp-metric) small{font-size:9.5px!important;color:var(--op-subtle)!important;line-height:1.4!important}
+.op-content :where(.product-metric,.saas-metric,.vp-metric) span{font-size:var(--op-font-label)!important;color:var(--op-muted)!important}
+.op-content :where(.product-metric,.saas-metric,.vp-metric)>strong{font-size:var(--op-font-record-title)!important;line-height:1.05!important;color:var(--op-text)!important;font-weight:650!important}
+.op-content :where(.product-metric,.saas-metric,.vp-metric) small{font-size:var(--op-font-micro)!important;color:var(--op-subtle)!important;line-height:1.3!important}
 .op-content :where(.product-section-header,.saas-section__header,.record-workspace__group-heading){min-height:40px;margin:0 0 11px;padding:0 0 9px;align-items:flex-end;border-bottom:1px solid var(--op-line-soft)}
 .op-content :where(.product-section-header,.saas-section__header) h2{margin:3px 0 0!important;color:var(--op-text)!important;letter-spacing:-.02em!important}
 .op-content :where(.product-section-header__meta,.saas-section__header>span){color:var(--op-muted)!important;font-size:10px!important}
@@ -429,6 +429,17 @@
    layouts but must not redefine these primitive values. */
 
 .workspace{
+  --op-font-page-title:32px;
+  --op-font-record-title:24px;
+  --op-font-section-title:18px;
+  --op-font-emphasis:14px;
+  --op-font-body:13px;
+  --op-font-compact:12px;
+  --op-font-label:11px;
+  --op-font-micro:10px;
+  --op-line-body:1.5;
+  --op-line-compact:1.45;
+  --op-line-heading:1.25;
   --op-space-1:4px;
   --op-space-2:8px;
   --op-space-3:12px;
@@ -450,25 +461,29 @@
   --op-shadow-overlay:0 24px 70px rgba(17,17,17,.18);
 }
 
-/* A — spacing and density */
+/* A — shared spacing and density */
 .op-content{padding:var(--op-space-5) var(--op-space-6) 56px!important}
 .op-content :where(.product-panel,.saas-panel,.record-workspace__slot,.record-workspace__state,.project-os-panel,.op-ui-queue,.op-ui-state,.op-ui-next-action,.crm-relationship-card,.workspace-module-rule){padding:var(--op-space-4)!important}
 .op-content :where(.vp-fact,.interaction-fact,.product-notice,.product-empty-state,.workspace-lock-card){padding:var(--op-space-3)!important}
+.op-content :where(.op-surface--dashboard,.mission-v2,.mobile-mission,.op-surface--record,.record-workspace,.op-surface--decision,.approvals-workspace){gap:var(--op-space-5)!important}
+.op-content :where(.op-surface--register,.vp-page:has(> .product-page-header),.acquisition-workspace):not(.approvals-workspace){gap:var(--op-space-4)!important}
 .op-content :where(.product-stack,.saas-section,.workspace-module-context){gap:var(--op-space-4)!important}
 .op-content :where(.product-toolbar,.product-filter-bar,.product-toolbar__group,.product-filter-group__controls,.product-page-header__actions,.product-section-header__actions,.interaction-context-actions){gap:var(--op-space-2)!important}
 .op-content table :where(th,td){padding:var(--op-space-3)!important}
 .op-content :where(.product-register-row,.vp-row,.project-portfolio-row){padding:var(--op-space-3) var(--op-space-4)!important}
 
-/* B — typography */
-.op-content :where(.product-page-header,.saas-hero,.record-workspace__header,.project-os-header) h1{font-size:32px!important;line-height:1.1!important;font-weight:650!important;letter-spacing:-.035em!important}
-.op-content :where(.record-workspace__title,.project-title){font-size:24px!important;line-height:1.15!important;font-weight:650!important}
-.op-content :where(.product-section-header,.saas-section__header) h2,.workspace-overlay__header h2{font-size:18px!important;line-height:1.25!important;font-weight:650!important}
-.op-content :where(p,.product-description,.vp-subtitle,.saas-hero .vp-subtitle){font-size:13px!important;line-height:1.5!important}
-.op-content :where(.product-register-row,.vp-row,.project-portfolio-row) :where(h3,strong),.op-content table tbody strong{font-size:14px!important;line-height:1.45!important;font-weight:650!important}
-.op-content :where(.product-register-row,.vp-row,.project-portfolio-row) :where(p,small),.op-content table tbody :where(td,small,span){font-size:12px!important;line-height:1.45!important}
-.op-content :where(.product-eyebrow,.vp-kicker,.vp-label,.record-workspace__eyebrow,.project-os-section-label,.product-filter-group__label,.crm-relationship-card small,.crm-recipient__role){font-size:10px!important;line-height:1.3!important;font-weight:650!important;letter-spacing:.09em!important}
-.op-content table thead th{font-size:11px!important;line-height:1.3!important;font-weight:650!important;letter-spacing:.04em!important}
-.op-content :where(.product-date,.product-age){font-size:12px!important;line-height:1.45!important;font-weight:500!important}
+/* B — semantic type scale shared by current and legacy workspace components */
+.op-content :where(h1,.product-page-header h1,.saas-hero h1,.record-workspace__header h1,.project-os-header h1,.vp-header h1){font-size:var(--op-font-page-title)!important;line-height:1.1!important;font-weight:650!important;letter-spacing:-.035em!important}
+.op-content :where(.record-workspace__title,.project-title){font-size:var(--op-font-record-title)!important;line-height:1.15!important;font-weight:650!important;letter-spacing:-.025em!important}
+.op-content :where(h2,.product-section-header h2,.saas-section__header h2,.workspace-overlay__header h2){font-size:var(--op-font-section-title)!important;line-height:var(--op-line-heading)!important;font-weight:650!important;letter-spacing:-.02em!important}
+.op-content :where(h3,.product-register-row h3,.vp-row h3,.project-portfolio-row h3){font-size:var(--op-font-emphasis)!important;line-height:var(--op-line-compact)!important;font-weight:650!important}
+.op-content :where(p,.product-description,.vp-subtitle,.saas-hero .vp-subtitle){font-size:var(--op-font-body)!important;line-height:var(--op-line-body)!important}
+.op-content :where(.product-register-row,.vp-row,.project-portfolio-row) :where(strong),.op-content table tbody strong{font-size:var(--op-font-emphasis)!important;line-height:var(--op-line-compact)!important;font-weight:650!important}
+.op-content :where(.product-register-row,.vp-row,.project-portfolio-row) :where(p,small),.op-content table tbody :where(td,small,span){font-size:var(--op-font-compact)!important;line-height:var(--op-line-compact)!important}
+.op-content :where(label,.product-status,.vp-row-status,.product-filter-group__label,.product-date,.product-age,.product-section-header__meta,.saas-section__header>span){font-size:var(--op-font-label)!important;line-height:1.3!important}
+.op-content :where(.product-eyebrow,.vp-kicker,.vp-label,.record-workspace__eyebrow,.project-os-section-label,.crm-relationship-card small,.crm-recipient__role){font-size:var(--op-font-micro)!important;line-height:1.3!important;font-weight:650!important;letter-spacing:.09em!important}
+.op-content :where(.vp-fact small,.interaction-fact small,.project-os-summary dt,.project-os-document-row small,.project-os-help){font-size:var(--op-font-micro)!important;line-height:1.3!important}
+.op-content table thead th{font-size:var(--op-font-label)!important;line-height:1.3!important;font-weight:650!important;letter-spacing:.04em!important}
 
 /* C — geometry */
 .op-content :where(.product-panel,.saas-panel,.record-workspace__slot,.record-workspace__state,.project-os-panel,.op-ui-queue,.op-ui-state,.op-ui-next-action,.product-register,.project-portfolio-register,.saas-action-list){border-radius:var(--op-radius-panel)!important;border-color:var(--op-border-default)!important;box-shadow:none!important}
@@ -503,6 +518,7 @@
 
 /* Mobile is the same visual system, only the composition changes. */
 @media(max-width:720px){
+  .workspace{--op-font-page-title:28px;--op-space-5:20px}
   .op-content{padding:var(--op-space-4) var(--op-space-4) 32px!important}
   .op-content :where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page,.acquisition-workspace,.approvals-workspace,.project-os-page){gap:var(--op-space-4)!important}
   .op-content :where(.product-page-header,.saas-hero,.record-workspace__header,.project-os-header) h1{font-size:28px!important;line-height:1.1!important}
