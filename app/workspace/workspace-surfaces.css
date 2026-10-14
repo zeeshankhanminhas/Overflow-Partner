@@ -518,7 +518,7 @@
 
 /* Mobile is the same visual system, only the composition changes. */
 @media(max-width:720px){
-  .workspace{--op-font-page-title:28px;--op-space-5:20px}
+  .workspace{--op-font-page-title:28px}
   .op-content{padding:var(--op-space-4) var(--op-space-4) 32px!important}
   .op-content :where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page,.acquisition-workspace,.approvals-workspace,.project-os-page){gap:var(--op-space-4)!important}
   .op-content :where(.product-page-header,.saas-hero,.record-workspace__header,.project-os-header) h1{font-size:28px!important;line-height:1.1!important}
