@@ -62,8 +62,17 @@ expect(quoteSendAction.indexOf('sendClientQuoteEmail(')>=0&&quoteSendAction.inde
   'Client Quote delivery is accepted by the email provider before the quote is recorded as issued');
 expect(quoteSendAction.includes('Resend message ${delivery.providerMessageId}')&&quoteSendAction.includes('recipientEmail'),
   'Client Quote issue evidence records the provider message and actual recipient');
+const quoteResendStart=orchestrationActions.indexOf('export async function resendClientQuoteAction');
+const quoteResendEnd=orchestrationActions.indexOf('export async function acceptQuoteAction',quoteResendStart);
+const quoteResendAction=orchestrationActions.slice(quoteResendStart,quoteResendEnd);
+expect(quoteResendStart>=0&&quoteResendAction.includes("deliveryKind:'resend'")&&quoteResendAction.includes("p_event_type:'client_quote_resent'")&&!quoteResendAction.includes("rpc('op_issue_quote_with_evidence'"),
+  'Resending an issued quote sends a distinct delivery and audit event without issuing a duplicate revision');
+expect(quoteResendAction.includes("issue.client_response")&&quoteResendAction.includes('issue.recipient_email'),
+  'Quote resend is limited to the original recipient before a client response');
 expect(case360.includes('Send Client Quote by email')&&case360.includes('The approved scope, deliverables, price, VAT and expiry will be emailed now'),
   'Case action makes immediate email delivery explicit to the operator');
+expect(case360.includes('Resend the issued Client Quote')&&case360.includes('name="request_id"')&&case360.includes('resendClientQuoteAction'),
+  'An issued Client Quote can be safely resent from its active Case stage');
 expect(case360.includes('Revise the Client Quote')&&case360.includes('The current issue will be archived and the new revision must be approved and sent'),
   'An issued Client Quote can be revised when the client requests a change');
 expect(lifecycleTemplates.includes('payload.clientQuoteFacts'),

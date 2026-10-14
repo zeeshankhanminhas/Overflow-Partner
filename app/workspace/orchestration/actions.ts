@@ -50,9 +50,9 @@ function quoteMoney(value: unknown, currency: string) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(Number(value || 0));
 }
 
-async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId, recipientEmail, recipientName, companyName }:{
+async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId, recipientEmail, recipientName, companyName, deliveryKind = 'issue', resendRequestId }:{
   supabase: Awaited<ReturnType<typeof requireUserContext>>['supabase']; organisationId: string; quoteId: string; leadId: string;
-  recipientEmail: string; recipientName: string; companyName: string | null;
+  recipientEmail: string; recipientName: string; companyName: string | null; deliveryKind?: 'issue' | 'resend'; resendRequestId?: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
@@ -70,9 +70,18 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   const { data: lineItems, error: lineItemsError } = lineItemsResult;
   if (quoteError) throw new Error(quoteError.message);
   if (documentError) throw new Error(documentError.message);
-  if (!quote || !['draft','internal_review'].includes(String(quote.status))) throw new Error('Only a current draft Client Quote can be sent.');
+  if (!quote || (deliveryKind === 'issue' && !['draft','internal_review'].includes(String(quote.status))) || (deliveryKind === 'resend' && quote.status !== 'issued')) throw new Error(deliveryKind === 'resend' ? 'Only the current issued Client Quote can be resent.' : 'Only a current draft Client Quote can be sent.');
+  if (deliveryKind === 'resend') {
+    if (!resendRequestId || !/^[0-9a-f-]{36}$/i.test(resendRequestId)) throw new Error('Refresh the Case before resending this Client Quote.');
+    const { data: issue, error: issueError } = await supabase.from('quote_issue_records').select('quote_revision,recipient_email,client_response').eq('organisation_id', organisationId).eq('quote_id', quoteId).eq('lead_id', leadId).maybeSingle();
+    if (issueError) throw new Error(issueError.message);
+    if (!issue || Number(issue.quote_revision) !== Number(quote.revision)) throw new Error('The current quote revision has no matching issue record and cannot be resent.');
+    if (issue.client_response) throw new Error('The client has already responded to this quotation.');
+    if (String(issue.recipient_email || '').toLowerCase() !== recipientEmail.toLowerCase()) throw new Error('Resending is limited to the original quotation recipient.');
+  }
   if (!document || !['approved','issued','published'].includes(String(document.status))) throw new Error('Approve the current Client Quote document before sending it.');
   if (!quote.valid_until) throw new Error('Record the quotation expiry date before sending the Client Quote.');
+  if (deliveryKind === 'resend' && new Date(`${quote.valid_until}T23:59:59Z`).getTime() < Date.now()) throw new Error('This quotation has expired. Create and approve a new revision before sending it again.');
   if (intakeError) throw new Error(intakeError.message);
   if (lineItemsError) throw new Error(lineItemsError.message);
 
@@ -126,7 +135,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
-    idempotencyKey: `quote:issued:${quoteId}:${quote.revision}`,
+    idempotencyKey: deliveryKind === 'resend' ? `quote:resend:${quoteId}:${quote.revision}:${resendRequestId}` : `quote:issued:${quoteId}:${quote.revision}`,
   });
   if (!outboxId) throw new Error('Transactional email is disabled for this recipient. The quote was not issued.');
 
@@ -232,6 +241,24 @@ export async function issueQuoteAction(formData: FormData) {
     }
     await cancelEntityReminders(supabase,{organisationId,entityType:'lead',entityId:leadId,categories:['nurture']}).catch(()=>0);
     refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${quote.quote_number} was emailed to ${recipientEmail} and recorded as issued. Written client acceptance is now required before Project 360.`,resultStatus:'Awaiting client decision',quote:quote.id,focus:'record-next-action'});
+  }catch(error){destination=caseUrl(leadId,{error:message(error),focus:'record-next-action'});}
+  redirect(destination);
+}
+
+export async function resendClientQuoteAction(formData: FormData) {
+  const quoteId=required(formData,'quote_id');const leadId=required(formData,'lead_id');const resendRequestId=required(formData,'request_id');let destination=`/workspace/leads/${leadId}`;
+  try{
+    const {supabase,organisationId,user,profile}=await requireUserContext();
+    assertRole(profile.role,['owner','admin','commercial','business_development']);
+    const {data:issue,error:issueError}=await supabase.from('quote_issue_records').select('quote_revision,recipient_name,recipient_email,client_response').eq('organisation_id',organisationId).eq('quote_id',quoteId).eq('lead_id',leadId).maybeSingle();
+    if(issueError)throw new Error(issueError.message);
+    if(!issue||!issue.recipient_email)throw new Error('The original quotation recipient is missing from the issue record.');
+    if(issue.client_response)throw new Error('The client has already responded to this quotation. Record the next client decision instead of resending.');
+    const recipient=await leadRecipient(supabase,organisationId,leadId);
+    const delivery=await sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail:String(issue.recipient_email),recipientName:String(issue.recipient_name),companyName:recipient?.company_name||null,deliveryKind:'resend',resendRequestId});
+    const {error:auditError}=await supabase.rpc('op_record_activity',{p_organisation_id:organisationId,p_user_id:user.id,p_entity_type:'quote',p_entity_id:quoteId,p_event_type:'client_quote_resent',p_event_data:{quoteRevision:delivery.quote.revision,recipientEmail:issue.recipient_email,providerMessageId:delivery.providerMessageId}});
+    if(auditError)throw new Error(`The email provider accepted the resend, but its activity record could not be saved: ${auditError.message}`);
+    refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${delivery.quote.quote_number} R${delivery.quote.revision} was resent to ${issue.recipient_email} with the PDF and client response actions.`,resultStatus:'Awaiting client decision',quote:quoteId,focus:'record-next-action'});
   }catch(error){destination=caseUrl(leadId,{error:message(error),focus:'record-next-action'});}
   redirect(destination);
 }
