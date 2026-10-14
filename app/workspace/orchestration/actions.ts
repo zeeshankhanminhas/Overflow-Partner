@@ -9,6 +9,7 @@ import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
 import { createClientQuotePdf } from '@/lib/quotes/clientQuotePdf';
+import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 import {
   approveCommercialAndGenerateQuote,
@@ -131,7 +132,8 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   });
   const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
   const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. We will confirm the agreed payment or purchase-order condition before project setup.`;
-  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts, actions: responseLinks };
+  const portalUrl = publicSiteUrl(`/client-portal?token=${encodeURIComponent(createClientPortalToken(quoteId, Number(quote.revision)))}`);
+  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks] };
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
