@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { test, expect } = require('@playwright/test');
 
 // Read-only checks: NEVER submit a form, trigger an email, open an approval link,
