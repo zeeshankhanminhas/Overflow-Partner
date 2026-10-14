@@ -70,7 +70,7 @@ export async function createClientQuoteFormAction(formData: FormData) {
 }
 
 export async function createProjectFormAction() {
-  redirect('/workspace/projects?error=' + encodeURIComponent('Project 360 can only be created from Case 360 after written client acceptance and confirmed opening payment.'));
+  redirect('/workspace/projects?error=' + encodeURIComponent('Project 360 can only be created from Case 360 after written client acceptance and evidence of the release condition agreed in the issued quote.'));
 }
 
 export async function createTaskFormAction(formData: FormData) {
