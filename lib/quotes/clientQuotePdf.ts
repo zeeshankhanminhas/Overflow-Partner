@@ -92,7 +92,9 @@ export async function createClientQuotePdf(input: ClientQuotePdfInput) {
   field('Payment terms', input.paymentTerms);
   const acceptance = language.sections[1].entries.find(entry => entry.heading === 'Acceptance')?.body;
   if (acceptance) { field('Acceptance', acceptance); }
-  y -= 2; drawWrapped(language.closingStatement, regular, 8, muted, 4);
+  // The template's closing statement repeats the acceptance condition above.
+  // Keep it in that section instead of letting duplicate copy create a mostly
+  // empty final PDF page when the commercial terms are complete.
   footer();
   return Buffer.from(await pdf.save());
 }
