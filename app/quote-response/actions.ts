@@ -23,8 +23,9 @@ export async function recordClientQuoteResponse(formData: FormData) {
     p_response: payload.response,
   });
   if (error) {
-    const status = error.message.toLowerCase().includes('already') ? 'recorded' : 'unavailable';
-    redirect(`/quote-response?result=${status}`);
+    // A repeated action must never mutate an already-recorded response.
+    // The status portal remains available from the original quotation email.
+    redirect('/quote-response?result=unavailable');
   }
   const portalToken = createClientPortalToken(payload.quoteId, payload.revision);
   redirect(`/client-portal?token=${encodeURIComponent(portalToken)}`);
