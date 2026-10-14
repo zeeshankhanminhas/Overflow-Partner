@@ -320,9 +320,9 @@ The repository previously contained several overlapping UX/presentation document
 
 ## Implementation authority
 
-- Surface types: `components/workspace/ProductSurface.tsx` + `app/workspace/product-surfaces.css`
+- Surface types: `components/workspace/ProductSurface.tsx` + `app/workspace/workspace-surfaces.css`
 - Product primitives: `components/workspace/ProductUI.tsx`
-- Presentation contracts: `app/workspace/workspace-presentation-system.css`
+- Presentation contracts: `app/workspace/workspace-surfaces.css`
 - Interaction mechanics: `components/workspace/InteractionSurface.tsx` + `app/workspace/interaction-surfaces.css`
 - Business presentation state: `lib/presentation/`
 - CRM relationship presentation: Company/Contact master records + scoped drawers/links on owning records

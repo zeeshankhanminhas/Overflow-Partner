@@ -150,8 +150,8 @@ Rules:
 - Do not add another navigation layer to surface presentation state.
 - Do not introduce `*-polish.css`, `*-wave.css`, `*-parity.css` or replacement override layers.
 
-Canonical shared presentation CSS is `app/workspace/workspace-presentation-system.css`.
-Canonical surface CSS is `app/workspace/product-surfaces.css`.
+Canonical shared presentation CSS is `app/workspace/workspace-surfaces.css`.
+Canonical responsive shell CSS is `app/workspace/workspace-base.css`.
 
 ## 10. Change control
 

@@ -1,30 +1,7 @@
-/* Workspace CSS loading policy
-   1) semantic/core styles
-   2) active feature styles
-   3) canonical surface + product presentation
-   4) visual foundation LAST — the physical rendering authority on desktop and mobile. */
-import './workspace-responsive.css';
-import './workspace-shell.css';
-import './visual-constitution.css';
-import './stage-documents.css';
-import './mobile-document-review.css';
-import './notification-centre.css';
-import './lifecycle-sidebar.css';
-import './document-print.css';
-import './record-workspace.css';
-import './continuity.css';
-import './product-registers.css';
-import './product-states.css';
-import './phase3-document-actions.css';
-import './workspace-interaction-system.css';
-
-/* Canonical presentation layer. */
-import './product-surfaces.css';
-import './mobile-reference-rebuild.css';
-import './mobile-header-actions.css';
-import './workspace-presentation-system.css';
-import './workspace-visual-foundation.css';
-import './ui-foundation.css';
+/* Workspace CSS is split by responsibility and imported in cascade order. */
+import './workspace-base.css';
+import './workspace-features.css';
+import './workspace-surfaces.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
