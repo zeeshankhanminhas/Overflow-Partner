@@ -92,6 +92,7 @@ as $$
 declare
   v_quote public.quotes;
   v_project public.projects;
+  v_payment_terms text;
 begin
   perform public.op_assert_workspace_role(
     p_organisation_id,
@@ -125,6 +126,23 @@ begin
   for update;
   if not found then raise exception 'Quote not found.'; end if;
   if v_quote.status::text <> 'issued' then raise exception 'Only an issued Quote can be released to Project 360.'; end if;
+
+  select pq.payment_terms into v_payment_terms
+  from public.commercial_reviews cr
+  join public.partner_quotes pq
+    on pq.id = cr.partner_quote_id and pq.organisation_id = cr.organisation_id
+  where cr.organisation_id = p_organisation_id
+    and cr.id = v_quote.commercial_review_id
+    and cr.lead_id = v_quote.lead_id;
+
+  if p_release_basis = 'purchase_order'
+    and lower(coalesce(v_payment_terms, '')) !~ '(purchase[[:space:]-]+order|(^|[^a-z])po([^a-z]|$))' then
+    raise exception 'The issued quote does not state a purchase-order release condition.';
+  end if;
+  if p_release_basis = 'no_advance_payment'
+    and lower(coalesce(v_payment_terms, '')) !~ '(no[[:space:]-]+(advance[[:space:]-]+)?payment(s)?[[:space:]-]+(is[[:space:]-]+)?(due|required|requested)|no[[:space:]-]+payment[[:space:]-]+is[[:space:]-]+(due|required|requested))' then
+    raise exception 'The issued quote does not state that no advance payment is due.';
+  end if;
   if exists (
     select 1 from public.quote_payment_confirmations p
     where p.organisation_id = p_organisation_id and p.quote_id = p_quote_id
