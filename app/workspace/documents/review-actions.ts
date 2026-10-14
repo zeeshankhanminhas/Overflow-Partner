@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
 import { getWorkspaceDocument, isDormantWorkspaceDocument, type WorkspaceDocumentSlug } from '@/components/workspace/documents/documentRegistry';
+import { createControlledPdf, pdfEmailAttachment } from '@/lib/notifications/controlledPdf';
+import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 
 const ownerAuthorityRoles = ['owner', 'admin'] as const;
 const reviewRoles = ['owner', 'admin', 'engineering', 'commercial'] as const;
@@ -224,6 +226,24 @@ export async function issueControlledDocumentAction(documentId: string): Promise
     if (document.status !== 'approved') return { ok: false, message: 'Document must be approved before controlled issue.' };
     await assertDocumentEvidenceReady(supabase, organisationId, document);
 
+    const clientIssueTypes = ['client-requirements','statement-of-work','completion-report'];
+    let clientDelivery: { email:string; name:string|null; company:string|null; pdf:Buffer } | null = null;
+    if (clientIssueTypes.includes(document.document_type)) {
+      const clientLeadId = document.lead_id || (document.project_id ? (await supabase.from('projects').select('lead_id').eq('organisation_id',organisationId).eq('id',document.project_id).maybeSingle()).data?.lead_id : null);
+      const {data:client} = clientLeadId ? await supabase.from('leads').select('contact_name,contact_email,company_name').eq('organisation_id',organisationId).eq('id',clientLeadId).maybeSingle() : {data:null};
+      if (!client?.contact_email) throw new Error('Client email is required before this document can be issued.');
+      const adapted = await buildDocumentAdapter(supabase, document.document_type as WorkspaceDocumentSlug, { organisationId, caseId:clientLeadId, projectId:document.project_id, quoteId:document.quote_id });
+      clientDelivery = { email:client.contact_email, name:client.contact_name, company:client.company_name, pdf:await createControlledPdf(getWorkspaceDocument(document.document_type)?.title || document.document_type, adapted) };
+    }
+
+    if (clientDelivery) {
+      const filename = `${document.reference || document.id}-R${document.version || 1}-${document.document_type}.pdf`;
+      const queued = await queueLifecycleEmail(supabase, { organisationId, scenario:'document.client_issue', recipientEmail:clientDelivery.email, recipientName:clientDelivery.name,
+        actionUrl:process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app', payload:{ company:clientDelivery.company, reference:document.reference, emailAttachments:[pdfEmailAttachment(filename,clientDelivery.pdf)] },
+        entityType:document.project_id?'project':'lead', entityId:document.project_id || document.lead_id, idempotencyKey:`document:client-issue:${document.id}:${document.version}` });
+      if (!queued) throw new Error('Client email could not be queued; the document remains approved and has not been issued.');
+    }
+
     const issuedAt = new Date().toISOString();
     const combinedAuthority = document.approved_by === user.id;
     await persistDocumentStatus({
@@ -240,7 +260,7 @@ export async function issueControlledDocumentAction(documentId: string): Promise
       declaration: 'I authorise release of this approved revision as the controlled issue.',
     }});
     revalidateDocumentOwners(document);
-    return { ok: true, message: 'Controlled document issued under owner release authority.', status: 'issued' };
+    return { ok: true, message: clientDelivery ? 'Controlled document issued and customer email queued with the PDF.' : 'Controlled document issued under owner release authority.', status: 'issued' };
   } catch (error) { return { ok: false, message: error instanceof Error ? error.message : 'Document issue failed.' }; }
 }
 

@@ -8,6 +8,8 @@ import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
+import { createClientQuotePdf } from '@/lib/quotes/clientQuotePdf';
+import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 import {
   approveCommercialAndGenerateQuote,
   approveTechnicalIntake,
@@ -57,7 +59,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   if (!apiKey || !from) throw new Error('Quotation email is unavailable because the email sender is not configured.');
 
   const [quoteResult, documentResult, intakeResult, lineItemsResult] = await Promise.all([
-    supabase.from('quotes').select('id,lead_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id', leadId).maybeSingle(),
+    supabase.from('quotes').select('id,lead_id,commercial_review_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id', leadId).maybeSingle(),
     supabase.from('documents').select('id,status,is_current_revision').eq('organisation_id', organisationId).eq('quote_id', quoteId).eq('document_type', 'client-quote').eq('is_current_revision', true).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('technical_intakes').select('description,deliverables,deadline').eq('organisation_id', organisationId).eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('quote_line_items').select('sequence_no,description,quantity,unit,unit_price,net_total').eq('organisation_id', organisationId).eq('quote_id', quoteId).order('sequence_no', { ascending: true }),
@@ -74,6 +76,13 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   if (intakeError) throw new Error(intakeError.message);
   if (lineItemsError) throw new Error(lineItemsError.message);
 
+  let clientTerms: {commercial_assumptions?:string|null;exclusions?:string|null;payment_terms?:string|null;delivery_commitment?:string|null}|null = null;
+  if (quote.commercial_review_id) {
+    const {data:review,error:reviewError}=await supabase.from('commercial_reviews').select('partner_quote_id').eq('organisation_id',organisationId).eq('id',quote.commercial_review_id).maybeSingle();
+    if(reviewError)throw new Error(reviewError.message);
+    if(review?.partner_quote_id){const {data:terms,error:termsError}=await supabase.from('partner_quotes').select('commercial_assumptions,exclusions,payment_terms,delivery_commitment').eq('organisation_id',organisationId).eq('id',review.partner_quote_id).maybeSingle();if(termsError)throw new Error(termsError.message);clientTerms=terms;}
+  }
+
   const currency = String(quote.currency || 'GBP').trim().toUpperCase();
   const facts: Array<{label:string;value:string}> = [
     { label: 'Quotation reference', value: `${quote.quote_number} · Revision ${quote.revision}` },
@@ -81,6 +90,10 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     ...(intake?.description ? [{ label: 'Scope', value: String(intake.description) }] : []),
     ...(intake?.deliverables ? [{ label: 'Deliverables', value: String(intake.deliverables) }] : []),
     ...(intake?.deadline ? [{ label: 'Required by', value: new Date(`${intake.deadline}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' }) }] : []),
+    ...(clientTerms?.commercial_assumptions ? [{label:'Assumptions',value:String(clientTerms.commercial_assumptions)}] : []),
+    ...(clientTerms?.exclusions ? [{label:'Exclusions',value:String(clientTerms.exclusions)}] : []),
+    ...(clientTerms?.delivery_commitment ? [{label:'Delivery commitment',value:String(clientTerms.delivery_commitment)}] : []),
+    ...(clientTerms?.payment_terms ? [{label:'Payment terms',value:String(clientTerms.payment_terms)}] : []),
     ...((lineItems || []).map((item, index) => ({
       label: `Price item ${index + 1}`,
       value: `${item.description} · ${item.quantity} ${item.unit} · ${quoteMoney(item.net_total, currency)} net`,
@@ -90,9 +103,26 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     { label: 'Total', value: quoteMoney(quote.total, currency) },
     { label: 'Valid until', value: new Date(`${quote.valid_until}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' }) },
   ];
+  const pdf = await createClientQuotePdf({
+    reference: String(quote.quote_number), revision: Number(quote.revision), clientName: companyName, recipientName,
+    validUntil: String(quote.valid_until), scope: intake?.description ? String(intake.description) : null,
+    deliverables: intake?.deliverables ? String(intake.deliverables) : null, requiredBy: intake?.deadline ? String(intake.deadline) : null,
+    assumptions:clientTerms?.commercial_assumptions, exclusions:clientTerms?.exclusions, paymentTerms:clientTerms?.payment_terms, deliveryCommitment:clientTerms?.delivery_commitment,
+    currency, subtotal: Number(quote.subtotal), vat: Number(quote.vat), total: Number(quote.total),
+    lineItems: (lineItems || []).map((item) => ({ description: String(item.description), quantity: Number(item.quantity), unit: String(item.unit), netTotal: Number(item.net_total) })),
+  });
+  const expiry = new Date(`${quote.valid_until}T23:59:59Z`).getTime();
+  const responseLinks: { label: string; url: string }[] = [
+    { label: 'Accept and proceed', response: 'accepted' },
+    { label: 'Decline quote', response: 'declined' },
+    { label: 'Need more time', response: 'more_time' },
+  ].map(({ label, response }) => {
+    const token = createClientResponseToken({ quoteId, revision: Number(quote.revision), response: response as ClientQuoteResponse, exp: expiry });
+    return { label, url: publicSiteUrl(`/quote-response?token=${encodeURIComponent(token)}`) };
+  });
   const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
   const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. We will confirm the agreed payment or purchase-order condition before project setup.`;
-  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts };
+  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts, actions: responseLinks };
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
@@ -125,6 +155,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `overflow-partner-${outboxId}` },
         body: JSON.stringify({
           from, to: [recipientEmail], subject, html, text,
+          attachments: [{ filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' }],
           ...(process.env.RESEND_REPLY_TO_EMAIL ? { reply_to: process.env.RESEND_REPLY_TO_EMAIL } : {}),
           headers: { 'X-Overflow-Partner-Event': 'quote.issued', 'X-Overflow-Partner-Outbox': outboxId },
         }),
