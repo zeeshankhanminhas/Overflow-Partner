@@ -20,6 +20,8 @@ const quoteValidityAction=read('app/workspace/orchestration/quote-validity-actio
 const quoteValidityMigration=read('supabase/migrations/20261013222800_record_draft_quote_validity.sql');
 const orchestrationActions=read('app/workspace/orchestration/actions.ts');
 const lifecycleTemplates=read('lib/notifications/templates.ts');
+const documentAdapter=read('components/workspace/documents/documentAdapter.ts');
+const clientQuotePdf=read('lib/quotes/clientQuotePdf.ts');
 
 const projectBranch=case360.indexOf('if(workflow.project)');
 const missingIntakeBranch=case360.indexOf('else if(!workflow.technicalIntake)',projectBranch);
@@ -77,6 +79,13 @@ expect(case360.includes('Revise the Client Quote')&&case360.includes('The curren
   'An issued Client Quote can be revised when the client requests a change');
 expect(lifecycleTemplates.includes('payload.clientQuoteFacts'),
   'The quotation email includes client-facing scope and commercial facts');
+const clientQuoteAdapter=documentAdapter.slice(documentAdapter.indexOf("if (slug === 'client-quote')"),documentAdapter.indexOf("else if (['quote','proposal'",documentAdapter.indexOf("if (slug === 'client-quote')")));
+expect(documentAdapter.includes("slug === 'client-quote'\n    ? [{ title: 'Prepared for'")&&!clientQuoteAdapter.includes("fact('Owner'")&&!clientQuoteAdapter.includes("Partner cost")&&!clientQuoteAdapter.includes("Margin amount"),
+  'Client Quote preview excludes internal owner, partner cost and margin facts');
+expect(clientQuoteAdapter.includes("title: 'Our offer'")&&clientQuoteAdapter.includes("title: 'Price and terms'")&&clientQuoteAdapter.includes("fact('Payment terms'")&&clientQuoteAdapter.includes("fact('Exclusions'"),
+  'Client Quote preview follows the approved offer and price/terms structure');
+expect(clientQuotePdf.includes("documentLanguage['client-quote']")&&clientQuotePdf.includes("language.sections[0].title")&&clientQuotePdf.includes("language.sections[1].title")&&!clientQuotePdf.includes('Partner cost')&&!clientQuotePdf.includes('Margin'),
+  'Emailed Client Quote PDF shares the approved template language and excludes internal commercial data');
 
 let failed=0;
 for(const check of checks){
