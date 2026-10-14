@@ -10,6 +10,7 @@ const releaseFields=read('app/workspace/leads/[id]/QuoteReleaseFields.tsx');
 const projectRegister=read('app/workspace/projects/page.tsx');
 const legacyActions=read('app/workspace/workflow-actions.ts');
 const migration=read('supabase/migrations/20260903000500_project_opening_payment_gate.sql');
+const releaseMigration=read('supabase/migrations/20261014215400_quote_release_condition_gate.sql');
 const lifecycle=read('docs/BUSINESS_LIFECYCLE_CONSTITUTION.md');
 const interaction=read('scripts/workspace-interaction-check.mjs');
 
