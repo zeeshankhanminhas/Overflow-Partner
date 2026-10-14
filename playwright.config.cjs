@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { defineConfig, devices } = require('@playwright/test');
 const { assertSafeTarget } = require('./tests/smoke/target.cjs');
 const baseURL = assertSafeTarget(process.env.OPOS_TEST_BASE_URL);
