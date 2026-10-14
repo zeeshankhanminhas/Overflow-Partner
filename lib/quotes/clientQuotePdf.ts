@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from 'pdf-lib';
+import { documentLanguage } from '@/components/workspace/documents/documentLanguage';
 
 export type ClientQuotePdfInput = {
   reference: string; revision: number; clientName?: string | null; recipientName: string;
@@ -9,47 +10,89 @@ export type ClientQuotePdfInput = {
 };
 
 const money = (amount: number, currency: string) => new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(amount || 0);
+const date = (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', dateStyle: 'long' });
 
 export async function createClientQuotePdf(input: ClientQuotePdfInput) {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const ink = rgb(0.09, 0.1, 0.12); const muted = rgb(0.38, 0.4, 0.43); const accent = rgb(0.86, 0.16, 0.14);
-  let page = pdf.addPage([595.28, 841.89]);
-  let y = 790;
-  const newPage = () => { page = pdf.addPage([595.28, 841.89]); y = 790; };
-  const line = (text: string, opts: { size?: number; bold?: boolean; color?: ReturnType<typeof rgb>; gap?: number } = {}) => {
-    const size = opts.size || 11; const font = opts.bold ? bold : regular; const maxWidth = 495;
-    const words = String(text || '').replace(/\s+/g, ' ').trim().split(' '); let current = '';
-    for (const word of words) {
-      const next = current ? `${current} ${word}` : word;
-      if (current && font.widthOfTextAtSize(next, size) > maxWidth) {
-        if (y < 72) newPage();
-        page.drawText(current, { x: 50, y, size, font, color: opts.color || ink }); y -= size + 5; current = word;
-      } else current = next;
-    }
-    if (current) { if (y < 72) newPage(); page.drawText(current, { x: 50, y, size, font, color: opts.color || ink }); y -= size + (opts.gap ?? 6); }
+  const ink = rgb(0.09, 0.10, 0.10); const muted = rgb(0.25, 0.27, 0.26);
+  const rule = rgb(0.82, 0.81, 0.78); const accent = rgb(0.78, 0.29, 0.19); const paper = rgb(0.98, 0.98, 0.97);
+  const width = 595.28; const height = 841.89; const left = 62; const right = 535; const maxWidth = right - left;
+  let page!: PDFPage; let y = 0; let pageNumber = 0;
+
+  const addPage = () => {
+    page = pdf.addPage([width, height]); pageNumber += 1; y = 770;
+    page.drawRectangle({ x: 0, y: 0, width, height, color: paper });
+    page.drawRectangle({ x: 0, y: 0, width: 6, height, color: accent });
+    page.drawText('OVERFLOW PARTNER', { x: left, y, size: 10, font: bold, color: ink });
+    page.drawText('ENGINEERING CAPACITY', { x: left, y: y - 15, size: 7, font: bold, color: accent });
+    page.drawText(input.reference, { x: right - bold.widthOfTextAtSize(input.reference, 9), y, size: 9, font: bold, color: ink });
+    y -= 37; page.drawLine({ start: { x: left, y }, end: { x: right, y }, thickness: 1.5, color: ink }); y -= 35;
   };
-  page.drawText('OVERFLOW PARTNER', { x: 50, y, size: 11, font: bold, color: accent }); y -= 38;
-  line('CLIENT QUOTATION', { size: 24, bold: true, gap: 12 });
-  line(`${input.reference} · Revision ${input.revision}`, { size: 13, bold: true });
-  line(`Prepared for: ${input.clientName || input.recipientName}`, { color: muted });
-  line(`Valid until: ${new Date(`${input.validUntil}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', dateStyle: 'long' })}`, { color: muted, gap: 18 });
-  if (input.scope) { line('Scope of work', { size: 14, bold: true, gap: 8 }); line(input.scope, { gap: 12 }); }
-  if (input.deliverables) { line('Deliverables', { size: 14, bold: true, gap: 8 }); line(input.deliverables, { gap: 12 }); }
-  if (input.requiredBy) line(`Required by: ${new Date(`${input.requiredBy}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', dateStyle: 'long' })}`, { color: muted, gap: 14 });
-  if (input.assumptions) { line('Assumptions', { size: 14, bold: true, gap: 8 }); line(input.assumptions, { gap: 12 }); }
-  if (input.exclusions) { line('Exclusions', { size: 14, bold: true, gap: 8 }); line(input.exclusions, { gap: 12 }); }
-  if (input.deliveryCommitment) { line('Delivery commitment', { size: 14, bold: true, gap: 8 }); line(input.deliveryCommitment, { gap: 12 }); }
-  line('Price', { size: 14, bold: true, gap: 10 });
-  input.lineItems.forEach((item, index) => line(`${index + 1}. ${item.description} — ${item.quantity} ${item.unit} — ${money(item.netTotal, input.currency)} net`));
-  y -= 8;
-  line(`Subtotal: ${money(input.subtotal, input.currency)}`, { bold: true });
-  line(`VAT: ${money(input.vat, input.currency)}`);
-  line(`Total: ${money(input.total, input.currency)}`, { size: 15, bold: true, color: accent, gap: 18 });
-  if (input.paymentTerms) { line('Payment terms', { size: 14, bold: true, gap: 8 }); line(input.paymentTerms, { gap: 12 }); }
-  line('Client response', { size: 14, bold: true, gap: 8 });
-  line('Use one of the response buttons in the accompanying email to accept, decline, or request more time. Acceptance records the client decision; project setup remains subject to confirmation of the agreed opening payment or purchase order.', { color: muted, gap: 16 });
-  line('This quotation is limited to the scope, deliverables, assumptions and price stated above. Any change requires a revised quotation.', { size: 9, color: muted });
+  const ensure = (needed = 30) => { if (y < 74 + needed) { footer(); addPage(); } };
+  const footer = () => {
+    page.drawLine({ start: { x: left, y: 52 }, end: { x: right, y: 52 }, thickness: 1.2, color: ink });
+    page.drawText('OVERFLOW PARTNER · PRIVATE / CONTROLLED', { x: left, y: 36, size: 7, font: bold, color: muted });
+    const pageText = `PAGE ${String(pageNumber).padStart(2, '0')}`;
+    page.drawText(pageText, { x: right - bold.widthOfTextAtSize(pageText, 7), y: 36, size: 7, font: bold, color: muted });
+  };
+  const drawWrapped = (value: string, font: PDFFont, size: number, color = ink, lineGap = 5) => {
+    const words = String(value || '').replace(/\s+/g, ' ').trim().split(' '); let current = '';
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (current && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+        ensure(size + lineGap); page.drawText(current, { x: left, y, size, font, color }); y -= size + lineGap; current = word;
+      } else current = candidate;
+    }
+    if (current) { ensure(size + lineGap); page.drawText(current, { x: left, y, size, font, color }); y -= size + lineGap; }
+  };
+  const section = (number: string, title: string) => {
+    ensure(52); y -= 4;
+    page.drawText(number, { x: left, y, size: 23, font: bold, color: accent });
+    page.drawText(title.toUpperCase(), { x: left + 43, y: y + 4, size: 11, font: bold, color: ink });
+    y -= 12; page.drawLine({ start: { x: left + 43, y }, end: { x: right, y }, thickness: 1.1, color: ink }); y -= 19;
+  };
+  const field = (label: string, value?: string | null) => {
+    if (!value) return;
+    ensure(38); page.drawText(label.toUpperCase(), { x: left, y, size: 7, font: bold, color: accent }); y -= 13;
+    drawWrapped(value, regular, 10, ink, 5); y -= 5;
+  };
+
+  addPage();
+  drawWrapped('CLIENT QUOTATION', bold, 27, ink, 8); y -= 4;
+  drawWrapped(`${input.reference}  ·  REVISION ${input.revision}`, bold, 10, accent, 8);
+  drawWrapped(`Prepared for ${input.clientName || input.recipientName}`, regular, 11, muted, 6);
+  drawWrapped(`Valid until ${date(input.validUntil)}`, regular, 9, muted, 16);
+  const language = documentLanguage['client-quote'];
+  section('01', language.sections[0].title);
+  drawWrapped(language.sections[0].entries[0].body, regular, 10, muted, 6); y -= 7;
+  field('Requirement', input.scope ? undefined : input.deliverables);
+  field('Scope of work', input.scope);
+  field('Deliverables', input.deliverables);
+  field('Required by', input.requiredBy ? date(input.requiredBy) : null);
+  field('Assumptions', input.assumptions);
+  field('Exclusions', input.exclusions);
+  field('Delivery commitment', input.deliveryCommitment);
+
+  section('02', language.sections[1].title);
+  drawWrapped(language.sections[1].entries[0].body, regular, 10, muted, 6); y -= 9;
+  for (const [index, item] of input.lineItems.entries()) {
+    ensure(42); page.drawLine({ start: { x: left, y: y + 8 }, end: { x: right, y: y + 8 }, thickness: 0.6, color: rule });
+    drawWrapped(`${String(index + 1).padStart(2, '0')}  ${item.description}`, bold, 10, ink, 4);
+    drawWrapped(`${item.quantity} ${item.unit}  ·  ${money(item.netTotal, input.currency)} net`, regular, 9, muted, 6); y -= 5;
+  }
+  ensure(115); page.drawLine({ start: { x: left, y: y + 8 }, end: { x: right, y: y + 8 }, thickness: 1.2, color: ink }); y -= 8;
+  for (const [label, amount, strong] of [['Subtotal', input.subtotal, false], ['VAT', input.vat, false], ['Total', input.total, true]] as const) {
+    const value = money(amount, input.currency); const font = strong ? bold : regular; const size = strong ? 14 : 10;
+    page.drawText(label, { x: left, y, size, font, color: strong ? accent : muted });
+    page.drawText(value, { x: right - font.widthOfTextAtSize(value, size), y, size, font, color: strong ? accent : ink });
+    y -= size + (strong ? 12 : 8);
+  }
+  field('Payment terms', input.paymentTerms);
+  const acceptance = language.sections[1].entries.find(entry => entry.heading === 'Acceptance')?.body;
+  if (acceptance) { field('Acceptance', acceptance); }
+  y -= 2; drawWrapped(language.closingStatement, regular, 8, muted, 4);
+  footer();
   return Buffer.from(await pdf.save());
 }
