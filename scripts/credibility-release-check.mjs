@@ -28,6 +28,7 @@ expect(migration.includes('create table if not exists public.quote_payment_confi
 expect(migration.includes('Project 360 requires recorded written client acceptance evidence.'),'Database trigger requires acceptance evidence');
 expect(releaseMigration.includes('create table if not exists public.quote_release_confirmations')&&releaseMigration.includes("release_basis in ('purchase_order','no_advance_payment')"),'Non-payment release evidence has an authoritative record');
 expect(releaseMigration.includes('quote_payment_confirmations p')&&releaseMigration.includes('quote_release_confirmations r')&&releaseMigration.includes('evidence that the issued quote release condition has been met'),'Database guard requires payment or documented quote release evidence');
+expect(releaseMigration.includes('v_payment_terms')&&releaseMigration.includes('does not state that no advance payment is due'),'RPC verifies release basis against the issued quote terms');
 expect(migration.includes('new.quote_id is null'),'Database trigger rejects unquoted Project creation');
 expect(migration.includes("array['owner','admin','operator','commercial','business_development']"),'Payment-gated RPC has explicit role authority');
 expect(migration.includes('from public, anon, authenticated'),'Previous acceptance-only RPC is unavailable to workspace callers');
