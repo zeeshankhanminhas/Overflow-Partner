@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && next build",
+    "build": "npm run payment-signature:check && npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -14,7 +14,8 @@
     "workspace:check": "node scripts/workspace-interaction-check.mjs",
     "credibility:check": "node scripts/credibility-release-check.mjs",
     "performance:check": "node scripts/workspace-performance-check.mjs",
-    "templates:check": "node scripts/template-content-check.mjs"
+    "templates:check": "node scripts/template-content-check.mjs",
+    "payment-signature:check": "node scripts/stripe-signature-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
