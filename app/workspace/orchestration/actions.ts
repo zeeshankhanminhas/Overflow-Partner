@@ -270,10 +270,28 @@ export async function acceptQuoteAction(formData: FormData) {
   const leadId = required(formData, 'lead_id');
   let destination = `/workspace/leads/${leadId}`;
   try {
-    const acceptanceBasis = required(formData, 'acceptance_basis');
-    const evidenceReference = required(formData, 'evidence_reference');
-    const acceptedByName = required(formData, 'accepted_by_name');
-    const acceptedByEmail = String(formData.get('accepted_by_email') || '').trim();
+    // Use the authoritative recorded portal decision when present. The secure
+    // link proves control of the link, not the recipient's legal identity.
+    const { supabase, organisationId, user } = await requireUserContext();
+    const { data: issue, error: issueError } = await supabase.from('quote_issue_records')
+      .select('quote_revision,client_response,client_response_at,recipient_email')
+      .eq('organisation_id', organisationId).eq('quote_id', quoteId).eq('lead_id', leadId).maybeSingle();
+    if (issueError) throw new Error(issueError.message);
+    const { data: currentQuote, error: quoteError } = await supabase.from('quotes')
+      .select('revision').eq('organisation_id', organisationId).eq('id', quoteId).maybeSingle();
+    if (quoteError) throw new Error(quoteError.message);
+    const portalAccepted = issue?.client_response === 'accepted' &&
+      Number(issue.quote_revision) === Number(currentQuote?.revision) && !!issue.client_response_at;
+    if (issue?.client_response === 'declined') throw new Error('Client declined this quote. Revise it before progressing.');
+    if (issue?.client_response === 'more_time') throw new Error('Client requested more time. Resolve that response before releasing the quote.');
+    const acceptanceBasis = portalAccepted ? 'client_portal' : required(formData, 'acceptance_basis');
+    const evidenceReference = portalAccepted
+      ? `Client portal acceptance — quote revision ${issue.quote_revision}, recorded ${issue.client_response_at}`
+      : required(formData, 'evidence_reference');
+    const acceptedByName = portalAccepted ? 'Client via secure quotation link (identity unverified)' : required(formData, 'accepted_by_name');
+    const acceptedByEmail = portalAccepted
+      ? String(issue.recipient_email || '')
+      : String(formData.get('accepted_by_email') || '').trim();
     const acceptanceNotes = String(formData.get('acceptance_notes') || '').trim();
     const releaseBasis = required(formData, 'release_basis');
     if (!['payment', 'purchase_order', 'no_advance_payment'].includes(releaseBasis)) throw new Error('Select the release condition stated in the issued Client Quote.');
@@ -285,7 +303,6 @@ export async function acceptQuoteAction(formData: FormData) {
     if (releaseBasis === 'payment' && (!paymentMethod || !paymentReference || !paymentConfirmedAt)) throw new Error('Enter the cleared opening payment details.');
     if (releaseBasis === 'purchase_order' && !releaseReference) throw new Error('Enter the client purchase order reference.');
     if (releaseBasis === 'no_advance_payment' && (!releaseReference || !releaseNote)) throw new Error('Reference the issued quote terms that state no advance payment is due.');
-    const { supabase, organisationId, user } = await requireUserContext();
     const { data: project, error } = await supabase.rpc('op_accept_quote_create_project_with_release_evidence', {
       p_organisation_id: organisationId, p_user_id:user.id, p_quote_id:quoteId, p_acceptance_basis:acceptanceBasis,
       p_evidence_reference:evidenceReference, p_accepted_by_name:acceptedByName, p_accepted_by_email:acceptedByEmail||null, p_notes:acceptanceNotes||null,
