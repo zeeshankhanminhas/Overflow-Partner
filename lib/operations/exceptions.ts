@@ -110,7 +110,9 @@ export async function getOperationalExceptions(supabase: any, organisationId: st
   for (const document of documentsResult.data || []) {
     if (document.is_current_revision === false) continue;
     const state = String(document.control_state || document.status || 'working');
-    // Approval completes the review obligation. Approved documents are not overdue\n    // solely because they have remained approved for more than 24 hours.\n    const waiting = ['review','in_review','changes_requested','signed'].includes(state) || ['in_review','changes_requested','signed'].includes(String(document.status));
+    // Approval completes the review obligation. Approved documents are not overdue
+    // solely because they have remained approved for more than 24 hours.
+    const waiting = ['review','in_review','changes_requested','signed'].includes(state) || ['in_review','changes_requested','signed'].includes(String(document.status));
     if (!waiting) continue;
     const age = ageMinutes(document.updated_at || document.created_at);
     if (age < 24 * 60) continue;
