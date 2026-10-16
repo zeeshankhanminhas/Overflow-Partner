@@ -1,0 +1,25 @@
+name: OP Browserbase Live Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shared-preview:
+    if: github.ref == 'refs/heads/design/op-workspace-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner dependencies
+        run: npm install --no-save --ignore-scripts @browserbasehq/sdk playwright-core
+      - name: Launch read-only live browser session
+        env:
+          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+        run: node scripts/browserbase-preview-session.mjs
