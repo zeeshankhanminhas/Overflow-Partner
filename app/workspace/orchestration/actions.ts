@@ -301,6 +301,8 @@ export async function acceptQuoteAction(formData: FormData) {
     const paymentReference = String(formData.get('payment_reference') || '').trim();
     const paymentConfirmedAt = String(formData.get('payment_confirmed_at') || '').trim();
     if (releaseBasis === 'payment' && (!paymentMethod || !paymentReference || !paymentConfirmedAt)) throw new Error('Enter the cleared opening payment details.');
+    if (releaseBasis === 'payment' && !['bank_transfer', 'stripe'].includes(paymentMethod)) throw new Error('Only bank transfer or verified Stripe payments are supported.');
+    if (releaseBasis === 'payment' && paymentMethod === 'stripe') throw new Error('Stripe settlement must be reconciled from verified webhook evidence before project release; manual confirmation is not allowed.');
     if (releaseBasis === 'purchase_order' && !releaseReference) throw new Error('Enter the client purchase order reference.');
     if (releaseBasis === 'no_advance_payment' && (!releaseReference || !releaseNote)) throw new Error('Reference the issued quote terms that state no advance payment is due.');
     const { data: project, error } = await supabase.rpc('op_accept_quote_create_project_with_release_evidence', {
