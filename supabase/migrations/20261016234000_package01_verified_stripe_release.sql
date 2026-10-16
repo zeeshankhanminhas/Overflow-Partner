@@ -13,9 +13,6 @@ declare
   v_issue public.quote_issue_records%rowtype;
   v_project public.projects%rowtype;
 begin
-  if auth.role() <> 'service_role' then
-    raise exception 'Service role required for verified Stripe reconciliation.';
-  end if;
   if nullif(trim(coalesce(p_session_id,'')),'') is null then
     raise exception 'Stripe session is required.';
   end if;
@@ -65,14 +62,27 @@ begin
   end if;
   -- Release actor is the OP team member who issued the quote, not the anonymous client.
   -- Existing RPC rechecks workspace role and applies its existing project uniqueness controls.
-  v_project := public.op_accept_quote_create_project_with_payment_confirmation(
+  insert into public.quote_payment_confirmations (
+    organisation_id, quote_id, lead_id, amount, currency, payment_method,
+    payment_reference, confirmed_at, recorded_by
+  ) values (
+    v_quote.organisation_id, v_quote.id, v_quote.lead_id, v_quote.total,
+    v_quote.currency, 'stripe', v_event.stripe_session_id, v_event.verified_at,
+    v_issue.recorded_by
+  );
+  v_project := public.op_accept_quote_create_project_with_acceptance_core(
     v_quote.organisation_id, v_issue.recorded_by, v_quote.id,
     'client_portal',
     'Client portal acceptance of quote revision '||v_quote.revision||' at '||v_issue.client_response_at,
-    coalesce(nullif(v_issue.recipient_name,''),'Authorised client representative'),
+    coalesce(nullif(v_issue.recipient_name,''),'Client via secure quotation link'),
     v_issue.recipient_email,
-    'Verified Stripe test settlement, session '||v_event.stripe_session_id,
-    'stripe', v_event.stripe_session_id, v_event.verified_at
+    'Verified Stripe settlement, session '||v_event.stripe_session_id
+  );
+  perform public.op_record_activity(
+    v_quote.organisation_id, v_issue.recorded_by, 'project', v_project.id,
+    'project_opening_payment_gate_satisfied',
+    jsonb_build_object('quoteId', v_quote.id, 'paymentMethod', 'stripe',
+      'paymentReference', v_event.stripe_session_id, 'source','signed_stripe_webhook')
   );
   return v_project;
 end;
