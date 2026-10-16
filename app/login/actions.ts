@@ -44,7 +44,11 @@ export async function signIn(formData: FormData) {
     );
   }
 
-  redirect("/workspace");
+  // Keep the design preview entry point separate from production authentication.
+  const isWorkspaceV2Preview =
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "design/op-workspace-v2";
+  redirect(isWorkspaceV2Preview ? "/workspace/v2" : "/workspace");
 }
 
 export async function signOut() {
