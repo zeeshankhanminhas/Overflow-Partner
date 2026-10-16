@@ -24,28 +24,56 @@ try {
   console.log('OP production login opened in Browserbase. Sign in using the Browserbase live session viewer.');
   console.log('This run is read-only. No clicks, form submissions or payment actions are performed by the runner.');
 
-  // Wait for the operator's manual login; do not collect or transmit credentials.
-  let signedIn = false;
-  for (let i = 0; i < 48; i++) {
+  // Read-only supervision: report page routes, never page text, cookies, tokens or credentials.
+  const appendSummary = async (message) => {
+    if (!process.env.GITHUB_STEP_SUMMARY) return;
+    const { appendFile } = await import('node:fs/promises');
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, message + '\n');
+  };
+  let inspectedProject = false;
+  let loggedIn = false;
+  let lastRoute = '';
+  console.log('Watching for manual sign-in and Projects navigation for up to 12 minutes.');
+  await appendSummary('### Read-only Project 360 observation');
+  for (let i = 0; i < 144; i++) {
     await new Promise(resolve => setTimeout(resolve, 5000));
-    const url = await page.url();
-    if (new URL(url).pathname.startsWith('/workspace')) { signedIn = true; break; }
-  }
-  if (!signedIn) {
-    console.log('Login not detected. Leaving the browser available for another 8 minutes for manual inspection.');
-    await new Promise(resolve => setTimeout(resolve, 8 * 60 * 1000));
-  } else {
-    console.log('Operator sign-in detected. Stagehand is observing workspace navigation.');
-    try {
-      const result = await stagehand.observe('Identify the visible navigation controls for Quotes and Payments. Do not click, type, submit or change anything.');
-      console.log('Stagehand observation completed; navigation matches:', Array.isArray(result?.data) ? result.data.length : 0);
-    } catch (error) {
-      console.error('Stagehand observation failed:', error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
+    const openPages = await browser.context.pages();
+    const active = openPages.find(p => {
+      try { return new URL(p.url()).hostname === 'overflow-partner.vercel.app' && new URL(p.url()).pathname.startsWith('/workspace'); }
+      catch { return false; }
+    }) ?? openPages[0];
+    if (!active) continue;
+    const currentUrl = new URL(active.url());
+    // Never log query strings or fragments; they can contain sensitive tokens.
+    const route = currentUrl.pathname;
+    if (route !== lastRoute) {
+      lastRoute = route;
+      console.log('OP active route:', route);
+      await appendSummary(`- Observed route: \`${route.replaceAll('`','')}\``);
     }
-    console.log('Keeping browser open for up to 9 more minutes for supervised review.');
-    await new Promise(resolve => setTimeout(resolve, 9 * 60 * 1000));
+    if (route.startsWith('/workspace')) loggedIn = true;
+    if (!loggedIn || inspectedProject) continue;
+    const isProjects = /project/i.test(route);
+    // If the operator is on a project page, inspect it. Otherwise monitor navigation.
+    if (isProjects) {
+      console.log('Projects route detected. Stagehand read-only Project 360 inspection starting.');
+      try {
+        const observations = await stagehand.observe('Identify visible sections for Project 360, mobilisation, documents, tasks, next actions and operating alerts. Observe only: never click, type, submit, approve, upload or modify data.');
+        const count = Array.isArray(observations?.data) ? observations.data.length : 0;
+        console.log('Project 360 inspection completed. UI controls identified:', count);
+        await appendSummary(`- Project 360: inspected successfully; visible controls identified: ${count}`);
+      } catch (err) {
+        console.error('Project 360 observation failed:', err instanceof Error ? err.message : String(err));
+        await appendSummary('- Project 360: observation failed (see logs).');
+        process.exitCode = 1;
+      }
+      inspectedProject = true;
+    }
   }
+  if (!loggedIn) await appendSummary('- Sign-in: not observed during this run.');
+  if (loggedIn && !inspectedProject) await appendSummary('- Projects: no Project route observed; no project inspection performed.');
+  console.log('Read-only supervision finished. Browser session closing.');
+
 } finally {
   await stagehand?.close().catch(() => {});
   await browser.close().catch(() => {});
