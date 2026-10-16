@@ -20,7 +20,7 @@ export default function QuoteReleaseFields({ quoteReference }: Props) {
       </select>
     </label>
     {releaseBasis === 'payment' ? <div className="grid gap-4 md:grid-cols-2">
-      <label>Payment method<select name="payment_method" required defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label>
+      <label>Payment method<select name="payment_method" required defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="stripe">Stripe (verified settlement)</option></select></label>
       <label>Payment confirmed at<input name="payment_confirmed_at" type="datetime-local" required/></label>
       <label className="md:col-span-2">Payment reference<input name="payment_reference" required placeholder="Cleared bank reference, receipt or transaction ID"/></label>
     </div> : null}
