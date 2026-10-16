@@ -26,14 +26,15 @@ export async function POST(request: Request) {
   const body=await request.text();
   const signature=request.headers.get('stripe-signature')||'';
   if (!validSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
-  type StripeSession = { object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string } };
-  let event: {id?: string; type?: string; data?: {object?: StripeSession}};
+  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string } };
+  let event: {id?: string; livemode?: boolean; type?: string; data?: {object?: StripeSession}};
   try { event=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
+  if (event.livemode !== false) return new Response('Only test-mode Stripe events are accepted',{status:400});
   if (event.type!=='checkout.session.completed' && event.type!=='checkout.session.async_payment_succeeded') {
     return Response.json({received:true,ignored:true});
   }
   const session=event.data?.object;
-  if (!session || session.object!=='checkout.session' || session.payment_status!=='paid' || session.mode!=='payment') {
+  if (!session || session.livemode !== false || session.object!=='checkout.session' || session.payment_status!=='paid' || session.mode!=='payment') {
     return Response.json({received:true,ignored:true});
   }
   if (!session.id || !event.id) return new Response('Malformed event',{status:400});
@@ -59,7 +60,11 @@ export async function POST(request: Request) {
     // Fail so Stripe retries; do not acknowledge evidence we failed to store.
     return new Response('Unable to persist verified payment',{status:500});
   }
-  // Settlement is recorded, but project release remains gated by an explicitly
-  // reconciled opening payment and the approved Execution Partner lineage.
+  // Reconciliation is gated separately so the proof-of-payment table can be
+  // migrated and exercised before automatic project creation is enabled.
+  if (process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED === 'true') {
+    const {error:reconcileError}=await db.rpc('op_finalize_verified_stripe_quote_payment',{p_session_id:String(session.id)});
+    if (reconcileError) return new Response('Settlement stored but project release needs retry',{status:503});
+  }
   return Response.json({received:true});
 }
