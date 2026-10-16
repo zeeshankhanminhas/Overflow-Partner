@@ -23,7 +23,8 @@ try {
     if (new URL(url).pathname.startsWith('/workspace')) { signedIn = true; break; }
   }
   if (!signedIn) {
-    console.log('Login was not detected within four minutes. No inspection was performed.');
+    console.log('Login not detected. Leaving the browser available for another 8 minutes for manual inspection.');
+    await new Promise(resolve => setTimeout(resolve, 8 * 60 * 1000));
   } else {
     console.log('Operator sign-in detected. Stagehand is observing workspace navigation.');
     try {
@@ -33,7 +34,8 @@ try {
       console.error('Stagehand observation failed:', error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
     }
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    console.log('Keeping browser open for up to 9 more minutes for supervised review.');
+    await new Promise(resolve => setTimeout(resolve, 9 * 60 * 1000));
   }
 } finally {
   await stagehand?.close().catch(() => {});
