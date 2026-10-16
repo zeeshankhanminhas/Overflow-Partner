@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Secure payment | Overflow Partner', robots: { index: false, follow: false } };
 
 export default async function QuotePaymentPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+  if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return <main><h1>Payment page not yet available</h1></main>;
   const { token = '' } = await searchParams;
   const access = token ? verifyClientPortalToken(token) : null;
   if (!access) return <main><h1>Payment link unavailable</h1><p>Please request a fresh secure link from Overflow Partner.</p></main>;
