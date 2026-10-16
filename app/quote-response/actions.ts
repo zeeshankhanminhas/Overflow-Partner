@@ -28,5 +28,5 @@ export async function recordClientQuoteResponse(formData: FormData) {
     redirect('/quote-response?result=unavailable');
   }
   const portalToken = createClientPortalToken(payload.quoteId, payload.revision);
-  redirect(`${payload.response === 'accepted' ? '/quote-payment' : '/client-portal'}?token=${encodeURIComponent(portalToken)}`);
+  redirect(`${payload.response === 'accepted' && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true' ? '/quote-payment' : '/client-portal'}?token=${encodeURIComponent(portalToken)}`);
 }
