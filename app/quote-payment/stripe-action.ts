@@ -7,6 +7,7 @@ import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
 export async function createStripeCheckout(formData: FormData) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') throw new Error('The new payment flow is not yet enabled.');
+  if (process.env.OP_PACKAGE01_TEST_DB_ISOLATED !== 'true') throw new Error('Payment testing requires an explicitly isolated Supabase test database.');
   const token = String(formData.get('token') || '');
   const access = verifyClientPortalToken(token);
   if (!access) throw new Error('Secure payment link has expired.');
