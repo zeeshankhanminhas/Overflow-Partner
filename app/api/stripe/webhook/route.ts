@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   const body=await request.text();
   const signature=request.headers.get('stripe-signature')||'';
   if (!validSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
-  type StripeSession = { object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string } };\n  let event: {id?: string; type?: string; data?: {object?: StripeSession}};
+  type StripeSession = { object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string } };
+  let event: {id?: string; type?: string; data?: {object?: StripeSession}};
   try { event=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
   if (event.type!=='checkout.session.completed' && event.type!=='checkout.session.async_payment_succeeded') {
     return Response.json({received:true,ignored:true});
