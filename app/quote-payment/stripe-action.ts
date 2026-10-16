@@ -15,6 +15,7 @@ export async function createStripeCheckout(formData: FormData) {
   const dbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const site = process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app';
   if (!apiKey || !url || !dbKey) throw new Error('Stripe payment is not configured.');
+  if (!apiKey.startsWith('sk_test_')) throw new Error('Package 01 preview only permits Stripe test keys.');
   const db = createSupabaseClient(url, dbKey, {auth:{persistSession:false,autoRefreshToken:false}});
   const { data: issue, error: issueError } = await db.from('quote_issue_records').select('organisation_id,client_response').eq('quote_id',access.quoteId).eq('quote_revision',access.revision).maybeSingle();
   if (issueError || issue?.client_response !== 'accepted') throw new Error('Accepted quotation required.');
