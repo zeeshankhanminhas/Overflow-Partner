@@ -7,6 +7,15 @@ if (!apiKey || !projectId) throw new Error('Browserbase GitHub secrets BROWSERBA
 const browser = await browserbase.launch({ apiKey, projectId });
 let stagehand;
 try {
+  const sessionId = browser.sessionId ?? browser.session?.id;
+  const sessionUrl = sessionId ? `https://www.browserbase.com/sessions/${encodeURIComponent(sessionId)}` : 'https://www.browserbase.com/sessions';
+  console.log('Browserbase session:', sessionUrl);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const { appendFile } = await import('node:fs/promises');
+    await appendFile(process.env.GITHUB_STEP_SUMMARY,
+      `## OP Browserbase browser session\\n\\n[Open Browserbase session](${sessionUrl})\\n\\nLogin manually in the live session; Stagehand observation is read-only.\\n` .replaceAll('\\n', '\n'));
+  }
+
   stagehand = await Stagehand.create({ browser, cache: true });
   const pages = await browser.context.pages();
   const page = pages[0];
