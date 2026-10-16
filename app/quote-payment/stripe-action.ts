@@ -1,6 +1,5 @@
 'use server';
 
-import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
@@ -42,7 +41,7 @@ export async function createStripeCheckout(formData: FormData) {
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('success_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
   params.set('cancel_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
-  const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-quote-${quote.id}-r${quote.revision}-${randomUUID()}`},body:params.toString(),cache:'no-store'});
+  const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-test-quote-${quote.id}-r${quote.revision}`},body:params.toString(),cache:'no-store'});
   const session=await response.json();
   if (!response.ok || !session.url || !session.id) throw new Error('Stripe Checkout is temporarily unavailable.');
   // No payment is marked received here. A separately authenticated webhook must verify settlement.
