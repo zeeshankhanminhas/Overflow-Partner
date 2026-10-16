@@ -36,7 +36,8 @@ export async function POST(request: Request) {
   if (!session || session.object!=='checkout.session' || session.payment_status!=='paid' || session.mode!=='payment') {
     return Response.json({received:true,ignored:true});
   }
-  if (!session.id || !event.id) return new Response('Malformed event',{status:400});\n  const quoteId=String(session.metadata?.quote_id||'');
+  if (!session.id || !event.id) return new Response('Malformed event',{status:400});
+  const quoteId=String(session.metadata?.quote_id||'');
   const organisationId=String(session.metadata?.organisation_id||'');
   const revision=Number(session.metadata?.quote_revision);
   const amount=Number(session.amount_total);
