@@ -30,6 +30,37 @@ function CaseRow({ item, href }: { item: MissionCase; href: string }) {
     <span aria-hidden="true">→</span>
   </Link>;
 }
+
+function EngagementResources({ item }: { item: MissionCase }) {
+  const isProject = item.kind === 'project';
+  const isLead = item.kind === 'lead';
+  const resourceLinks = [
+    { label: 'Overview & governed actions', detail: 'All permitted stage decisions', href: item.href },
+    ...(isLead ? [
+      { label: 'Quotation register', detail: 'Revision, issue and acceptance records', href: `/workspace/quotes?lead=${encodeURIComponent(item.id)}` },
+      { label: 'Documents', detail: 'Requirements, technical assessment and controlled evidence', href: `/workspace/documents?lead=${encodeURIComponent(item.id)}` },
+      { label: 'Messages', detail: 'Customer communications', href: `/workspace/communications/lead/${encodeURIComponent(item.id)}` },
+    ] : []),
+    ...(isProject ? [
+      { label: 'Delivery control', detail: 'Partner execution and client review', href: `/workspace/projects/${encodeURIComponent(item.id)}/delivery` },
+      { label: 'Commercial control', detail: 'Finance and mobilisation authority', href: `/workspace/commercial-control?project=${encodeURIComponent(item.id)}` },
+      { label: 'Payments', detail: 'Invoices, settlement and reconciliation', href: `/workspace/payments?project=${encodeURIComponent(item.id)}` },
+      { label: 'Documents', detail: 'Controlled project files and approvals', href: `/workspace/documents?project=${encodeURIComponent(item.id)}` },
+      { label: 'Messages', detail: 'Project correspondence', href: `/workspace/communications/project/${encodeURIComponent(item.id)}` },
+    ] : []),
+  ];
+  return <section className={styles.card} aria-label="Related engagement work">
+    <h3>Related work</h3>
+    <p className={styles.muted}>Open the existing governed screen when you need to act. Nothing is duplicated here.</p>
+    <div className={styles.resourceList}>
+      {resourceLinks.map(link => <Link className={styles.resource} href={link.href} key={link.href}>
+        <span><strong>{link.label}</strong><span className={styles.meta}>{link.detail}</span></span>
+        <span aria-hidden="true">↗</span>
+      </Link>)}
+    </div>
+  </section>;
+}
+
 export default async function WorkspaceV2({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const { supabase, organisationId } = await requireUserContext();
@@ -70,6 +101,7 @@ export default async function WorkspaceV2({ searchParams }: { searchParams: Prom
         <div className={styles.detail}><div className={styles.eyebrow}>Deadline</div>{fmtDate(selected.deadline)}</div>
         {selected.amount && <div className={styles.detail}><div className={styles.eyebrow}>Indicative commercial value</div>{selected.amount}</div>}
       </section>
+      <EngagementResources item={selected} />
       <section className={styles.card}>
         <h3>Recent evidence</h3>
         {selected.timeline.length ? selected.timeline.map(event => <div key={event.id} className={styles.detail}>
