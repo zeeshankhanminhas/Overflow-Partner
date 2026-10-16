@@ -18,6 +18,7 @@ function validSignature(body: string, header: string, secret: string): boolean {
 }
 
 export async function POST(request: Request) {
+  if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return new Response('Not enabled',{status:503});
   const webhookSecret=process.env.STRIPE_WEBHOOK_SECRET;
   const dbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
