@@ -33,7 +33,7 @@ export default async function Case360Page({params,searchParams}:{params:Promise<
     supabase.from('documents').select('*').eq('organisation_id',organisationId).eq('lead_id',id).order('created_at',{ascending:false}),
     supabase.from('partner_review_requests').select('*, partner:partners(id,company_name,nda_signed), responses:partner_review_responses(*), decisions:partner_review_internal_decisions(*), files:partner_review_files(id)').eq('organisation_id',organisationId).eq('lead_id',id).order('created_at',{ascending:false}),
     supabase.from('tasks').select('*').eq('organisation_id',organisationId).eq('entity_type','lead').eq('entity_id',id).order('created_at',{ascending:false}).limit(12),
-    workflow.clientQuote?.id ? supabase.from('quote_issue_records').select('client_response,client_response_at,quote_revision,recipient_name,recipient_email').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).eq('revision',workflow.clientQuote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
+    workflow.clientQuote?.id ? supabase.from('quote_issue_records').select('client_response,client_response_at,quote_revision,recipient_name,recipient_email').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).eq('quote_revision',workflow.clientQuote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
     supabase.from('partners').select('id,company_name,email,status,nda_signed').eq('organisation_id',organisationId).eq('status','approved').eq('nda_signed',true).order('company_name'),
   ]);
 
