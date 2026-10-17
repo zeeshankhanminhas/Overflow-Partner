@@ -35,6 +35,7 @@ begin
   delete from public.quote_issue_records where lead_id=any(qa_leads);
   delete from public.document_issue_records where lead_id=any(qa_leads) or project_id=any(qa_projects);
   delete from public.documents where lead_id=any(qa_leads) or project_id=any(qa_projects) or quote_id=any(qa_quotes);
+  delete from public.partner_review_files where partner_review_request_id in (select id from public.partner_review_requests where lead_id=any(qa_leads) or prospect_id=any(qa_prospects)) or intake_file_id in (select id from public.intake_files where prospect_id=any(qa_prospects) or lead_id=any(qa_leads));
   delete from public.prospects where id=any(qa_prospects);
   delete from public.projects where id=any(qa_projects);
   delete from public.leads where id=any(qa_leads);
