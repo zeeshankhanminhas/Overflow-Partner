@@ -6,7 +6,7 @@ import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
 export async function createStripeCheckout(formData: FormData) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') throw new Error('The new payment flow is not yet enabled.');
-  if (process.env.OP_PACKAGE01_TEST_DB_ISOLATED !== 'true') throw new Error('Payment testing requires an explicitly isolated Supabase test database.');
+  if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_PACKAGE01_SANDBOX_SHARED_DB_ALLOWED !== 'true') throw new Error('Shared-database sandbox requires explicit Preview-only approval.');
   const token = String(formData.get('token') || '');
   const access = verifyClientPortalToken(token);
   if (!access) throw new Error('Secure payment link has expired.');
@@ -19,8 +19,11 @@ export async function createStripeCheckout(formData: FormData) {
   const db = createSupabaseClient(url, dbKey, {auth:{persistSession:false,autoRefreshToken:false}});
   const { data: issue, error: issueError } = await db.from('quote_issue_records').select('organisation_id,client_response').eq('quote_id',access.quoteId).eq('quote_revision',access.revision).maybeSingle();
   if (issueError || issue?.client_response !== 'accepted') throw new Error('Accepted quotation required.');
-  const {data:quote,error:quoteError}=await db.from('quotes').select('id,quote_number,revision,status,total,currency').eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
+  const {data:quote,error:quoteError}=await db.from('quotes').select('id,lead_id,quote_number,revision,status,total,currency,valid_until').eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(quote.status)) throw new Error('Current quotation unavailable.');
+  const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
+  if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
+  if (quote.valid_until && new Date(quote.valid_until).getTime() < Date.now()) throw new Error('Quotation expired.');
   const {data:paid,error:paidError}=await db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   const {data:released,error:releaseError}=await db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if (paidError || releaseError || paid || released) throw new Error('Payment is already recorded or the quote is released. Contact OP before attempting another payment.');
