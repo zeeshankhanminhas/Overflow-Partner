@@ -278,8 +278,12 @@ export async function acceptQuoteAction(formData: FormData) {
       .eq('organisation_id', organisationId).eq('quote_id', quoteId).eq('lead_id', leadId).maybeSingle();
     if (issueError) throw new Error(issueError.message);
     const { data: currentQuote, error: quoteError } = await supabase.from('quotes')
-      .select('revision').eq('organisation_id', organisationId).eq('id', quoteId).maybeSingle();
+      .select('revision,status,valid_until,lead_id').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id',leadId).maybeSingle();
     if (quoteError) throw new Error(quoteError.message);
+    if (!currentQuote || currentQuote.status !== 'issued') throw new Error('Only the currently issued Client Quote may be commercially released.');
+    if (currentQuote.valid_until && new Date(currentQuote.valid_until).getTime() < Date.now()) {
+      throw new Error('The issued quotation has expired. Revise and reissue before commercial release.');
+    }
     const portalAccepted = issue?.client_response === 'accepted' &&
       Number(issue.quote_revision) === Number(currentQuote?.revision) && !!issue.client_response_at;
     if (issue?.client_response === 'declined') throw new Error('Client declined this quote. Revise it before progressing.');
