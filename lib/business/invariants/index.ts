@@ -74,15 +74,28 @@ export async function assertCanApproveTechnical(supabase: SupabaseClient, organi
   const { data: intake, error } = await supabase.from('technical_intakes').select('id,lead_id,status').eq('organisation_id', organisationId).eq('id', intakeId).single();
   if (error || !intake) throw new Error(error?.message || 'Technical Scope not found.');
   await assertCaseIsActive(supabase, organisationId, intake.lead_id);
-  ensure(['submitted','under_review','draft'].includes(String(intake.status)), 'This Technical Scope is not in an approvable state.');
+  ensure(['submitted','under_review','clarification_required','draft'].includes(String(intake.status)), 'This Technical Scope is not in an approvable state.');
   return intake;
 }
 
 export async function assertCanCreateCommercialReview(supabase: SupabaseClient, organisationId: string, partnerQuoteId: string) {
-  const { data: quote, error } = await supabase.from('partner_quotes').select('id,lead_id,status').eq('organisation_id', organisationId).eq('id', partnerQuoteId).single();
+  const { data: quote, error } = await supabase.from('partner_quotes').select('id,lead_id,status,partner_id,partner_review_request_id').eq('organisation_id', organisationId).eq('id', partnerQuoteId).single();
   if (error || !quote) throw new Error(error?.message || 'Partner pricing not found.');
   await assertCaseIsActive(supabase, organisationId, quote.lead_id);
   ensure(['selected','received','approved'].includes(String(quote.status)), 'Commercial review requires received and accepted partner pricing.');
+  // A price alone cannot establish formal partner feasibility or capacity.
+  // The actual linked review, not a UI readiness label, is the evidence of authority.
+  ensure(Boolean(quote.partner_review_request_id), 'Formal Execution Partner Assessment must be linked to partner pricing.');
+  const { data: formalReview, error: formalReviewError } = await supabase.from('partner_review_requests')
+    .select('id,status,lead_id,partner_id')
+    .eq('organisation_id', organisationId)
+    .eq('id', quote.partner_review_request_id)
+    .eq('lead_id', quote.lead_id)
+    .eq('partner_id', quote.partner_id)
+    .maybeSingle();
+  if (formalReviewError) throw new Error(formalReviewError.message);
+  ensure(formalReview && ['approved','approved_with_conditions'].includes(String(formalReview.status)),
+    'Approved formal Execution Partner Assessment is required before commercial review.');
   const { data: existing, error: existingError } = await supabase.from('commercial_reviews').select('id,status').eq('organisation_id', organisationId).eq('lead_id', quote.lead_id).in('status', ['draft','pending_approval','approved']).limit(1).maybeSingle();
   if (existingError) throw new Error(existingError.message);
   ensure(!existing, 'An active Commercial Review already exists for this Case.');
