@@ -19,7 +19,7 @@ function validSignature(body: string, header: string, secret: string): boolean {
 
 export async function POST(request: Request) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return new Response('Not enabled',{status:503});
-  if (process.env.OP_PACKAGE01_TEST_DB_ISOLATED !== 'true') return new Response('Isolated payment-test database required',{status:503});
+  if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_PACKAGE01_SANDBOX_SHARED_DB_ALLOWED !== 'true') return new Response('Shared-database sandbox not authorised',{status:503});
   const webhookSecret=process.env.STRIPE_WEBHOOK_SECRET;
   const dbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -45,8 +45,10 @@ export async function POST(request: Request) {
   const amount=Number(session.amount_total);
   const currency=String(session.currency||'').toUpperCase();
   const db=createSupabaseClient(dbUrl,dbKey,{auth:{persistSession:false,autoRefreshToken:false}});
-  const {data:quote,error}=await db.from('quotes').select('id,organisation_id,revision,total,currency').eq('id',quoteId).eq('organisation_id',organisationId).eq('revision',revision).maybeSingle();
+  const {data:quote,error}=await db.from('quotes').select('id,lead_id,organisation_id,revision,total,currency').eq('id',quoteId).eq('organisation_id',organisationId).eq('revision',revision).maybeSingle();
   if (error || !quote) return new Response('Quote cannot be verified',{status:422});
+  const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle();
+  if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) return new Response('Sandbox evidence restricted to QA cases',{status:422});
   const expectedAmount=Math.round(Number(quote.total)*100);
   if (!Number.isSafeInteger(amount) || amount!==expectedAmount || currency!==String(quote.currency).trim().toUpperCase()) {
     return new Response('Settlement does not match quotation',{status:422});
