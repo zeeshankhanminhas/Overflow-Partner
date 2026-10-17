@@ -1,3 +1,5 @@
+import type { GovernanceTier } from '@/lib/lifecycle/commercialContract';
+
 export type CaseDocumentRequirement = {
   slug:
     | 'client-requirements'
@@ -17,6 +19,7 @@ export function getCaseDocumentRequirements(input: {
   partnerResponseReady: boolean;
   commercialApproved: boolean;
   quoteStatus?: string | null;
+  governanceTier?: GovernanceTier;
 }): { stageLabel: string; items: CaseDocumentRequirement[] } {
   const quoteExists = Boolean(input.quoteStatus);
   const stageLabel = quoteExists
@@ -43,10 +46,10 @@ export function getCaseDocumentRequirements(input: {
       {
         slug: 'partner-technical-assessment-report',
         enabled: input.partnerResponseReady,
-        requiredNow: input.partnerResponseReady && !input.commercialApproved && !quoteExists,
+        requiredNow: input.partnerResponseReady && !input.commercialApproved && !quoteExists && input.governanceTier !== 'standard',
         minimumStatus: 'approved',
-        reason: 'Publish the inherited partner feasibility, capacity, assumptions, risks and pricing-readiness evidence before commercial progression.',
-        blockedReason: 'The governed Acquisition Partner Review must be inherited first.',
+        reason: input.governanceTier === 'standard' ? 'Formal Partner assessment remains mandatory; a separate detailed technical report is optional for standard-risk work.' : 'Approve the formal Execution Partner feasibility, capacity, assumptions, risks and pricing evidence before commercial progression.',
+        blockedReason: 'Complete the formal Execution Partner assessment for this Case before commercial approval.',
       },
       {
         slug: 'client-quote',

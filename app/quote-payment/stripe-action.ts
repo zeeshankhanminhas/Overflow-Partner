@@ -1,12 +1,12 @@
 'use server';
 
-import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
 export async function createStripeCheckout(formData: FormData) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') throw new Error('The new payment flow is not yet enabled.');
+  if (process.env.OP_PACKAGE01_TEST_DB_ISOLATED !== 'true') throw new Error('Payment testing requires an explicitly isolated Supabase test database.');
   const token = String(formData.get('token') || '');
   const access = verifyClientPortalToken(token);
   if (!access) throw new Error('Secure payment link has expired.');
@@ -15,6 +15,7 @@ export async function createStripeCheckout(formData: FormData) {
   const dbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const site = process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app';
   if (!apiKey || !url || !dbKey) throw new Error('Stripe payment is not configured.');
+  if (!apiKey.startsWith('sk_test_')) throw new Error('Package 01 preview only permits Stripe test keys.');
   const db = createSupabaseClient(url, dbKey, {auth:{persistSession:false,autoRefreshToken:false}});
   const { data: issue, error: issueError } = await db.from('quote_issue_records').select('organisation_id,client_response').eq('quote_id',access.quoteId).eq('quote_revision',access.revision).maybeSingle();
   if (issueError || issue?.client_response !== 'accepted') throw new Error('Accepted quotation required.');
@@ -40,7 +41,7 @@ export async function createStripeCheckout(formData: FormData) {
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('success_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
   params.set('cancel_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
-  const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-quote-${quote.id}-r${quote.revision}-${randomUUID()}`},body:params.toString(),cache:'no-store'});
+  const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-test-quote-${quote.id}-r${quote.revision}`},body:params.toString(),cache:'no-store'});
   const session=await response.json();
   if (!response.ok || !session.url || !session.id) throw new Error('Stripe Checkout is temporarily unavailable.');
   // No payment is marked received here. A separately authenticated webhook must verify settlement.
