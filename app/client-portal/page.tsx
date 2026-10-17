@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
+import { verifyClientPortalToken, createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +42,8 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const actions: {label:string;response:ClientQuoteResponse}[] = [
     {label:'Accept quotation',response:'accepted'}, {label:'Request more time',response:'more_time'}, {label:'Decline quotation',response:'declined'},
   ];
+  const canPay = accepted && !paid && !released && !project && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
+  const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
     <section style={container}>
@@ -58,6 +60,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
       {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
+      {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
       {canDecide ? <div style={{borderTop:'1px solid #e5e4df',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#d74c2c':'#eeede9',color:response==='accepted'?'white':'#172521',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
       <p style={{...caption,marginTop:28}}>This page updates as your quotation progresses. Keep your secure link private. For a copy of your approved PDF, payment instructions or a fresh link, reply to the quotation email.</p>
     </section>
