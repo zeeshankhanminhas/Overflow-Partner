@@ -52,6 +52,9 @@ begin
   if v_quote.status::text <> 'issued' then
     raise exception 'Quotation is not in an issuable commercial state.';
   end if;
+  if v_quote.valid_until is not null and v_quote.valid_until < current_date then
+    raise exception 'Quotation has expired; project release requires a revised accepted quotation.';
+  end if;
   if exists (select 1 from public.quote_release_confirmations
              where quote_id=v_quote.id and organisation_id=v_quote.organisation_id) then
     raise exception 'Quotation already has a non-payment commercial release.';
