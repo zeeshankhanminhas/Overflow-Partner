@@ -49,6 +49,10 @@ export async function POST(request: Request) {
   if (error || !quote) return new Response('Quote cannot be verified',{status:422});
   const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle();
   if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) return new Response('Sandbox evidence restricted to QA cases',{status:422});
+  const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
+    .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',organisationId)
+    .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
+  if (authorisationError || !authorisation) return new Response('Quote is not allowlisted for shared-database sandbox reconciliation',{status:422});
   const expectedAmount=Math.round(Number(quote.total)*100);
   if (!Number.isSafeInteger(amount) || amount!==expectedAmount || currency!==String(quote.currency).trim().toUpperCase()) {
     return new Response('Settlement does not match quotation',{status:422});
