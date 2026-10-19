@@ -87,6 +87,54 @@ for each row execute function public.op_require_quote_contract_before_issue();
 
 -- An accepted quote and reconciled release evidence are prerequisites to project creation.
 -- This trigger applies across manual bank/PO paths and Stripe's service-role finalizer.
+-- Evidence of the named client's affirmative claim of signing authority. Secure-link
+-- possession alone is not treated as verified legal identity.
+create table if not exists public.quote_client_signatory_attestations (
+  quote_id uuid not null references public.quotes(id) on delete cascade,
+  organisation_id uuid not null references public.organisations(id),
+  quote_revision integer not null,
+  signatory_name text not null,
+  signatory_email text not null,
+  authority_attested_at timestamptz not null default now(),
+  primary key (quote_id,quote_revision)
+);
+alter table public.quote_client_signatory_attestations enable row level security;
+revoke all on public.quote_client_signatory_attestations from public,anon,authenticated;
+grant select,insert on public.quote_client_signatory_attestations to service_role;
+
+create or replace function public.op_record_authorised_public_quote_response(
+  p_quote_id uuid,p_quote_revision integer,p_response text,
+  p_signatory_name text default null,p_signatory_email text default null,p_authority_attested boolean default false
+) returns jsonb
+language plpgsql security definer set search_path=public as $
+declare v_contract public.quote_release_contracts%rowtype; v_issue public.quote_issue_records%rowtype;
+begin
+  if p_response='accepted' then
+    if not p_authority_attested then raise exception 'Named signing authority attestation is required.'; end if;
+    select * into v_contract from public.quote_release_contracts
+    where quote_id=p_quote_id and quote_revision=p_quote_revision;
+    if not found then raise exception 'Approved contractual terms are missing.'; end if;
+    select * into v_issue from public.quote_issue_records
+    where quote_id=p_quote_id and quote_revision=p_quote_revision;
+    if not found or v_issue.organisation_id<>v_contract.organisation_id
+      or lower(trim(v_issue.recipient_email))<>v_contract.authorised_contact_email then
+      raise exception 'Authorised recipient and quote issue records do not match.'; end if;
+    if lower(trim(coalesce(p_signatory_name,'')))<>lower(v_contract.authorised_contact_name) or
+      lower(trim(coalesce(p_signatory_email,'')))<>v_contract.authorised_contact_email then
+      raise exception 'The named signatory must match the authorised quotation contact.'; end if;
+    insert into public.quote_client_signatory_attestations(
+      quote_id,organisation_id,quote_revision,signatory_name,signatory_email
+    ) values (
+      p_quote_id,v_contract.organisation_id,p_quote_revision,
+      trim(p_signatory_name),lower(trim(p_signatory_email))
+    );
+  end if;
+  -- Both changes are one database transaction: a failed response rolls back attestation.
+  return public.op_record_public_quote_response(p_quote_id,p_quote_revision,p_response);
+end;$;
+revoke all on function public.op_record_authorised_public_quote_response(uuid,integer,text,text,text,boolean) from public,anon,authenticated;
+grant execute on function public.op_record_authorised_public_quote_response(uuid,integer,text,text,text,boolean) to service_role;
+
 create or replace function public.op_guard_project_contractual_release()
 returns trigger language plpgsql security definer set search_path=public as $$
 declare v_quote public.quotes%rowtype; v_contract public.quote_release_contracts%rowtype;
@@ -110,6 +158,20 @@ begin
       and lower(trim(coalesce(a.accepted_by_email,'')))=lower(v_contract.authorised_contact_email)
       and lower(trim(a.accepted_by_name))=lower(v_contract.authorised_contact_name)
   ) then raise exception 'Named authorised client acceptance evidence is missing.'; end if;
+  -- Automated portal acceptance requires explicit, matching named authority attestation.
+  if exists (
+    select 1 from public.quote_acceptance_records a
+    where a.quote_id=v_quote.id and a.organisation_id=v_quote.organisation_id
+      and a.acceptance_basis='client_portal'
+  ) and not exists (
+    select 1 from public.quote_client_signatory_attestations a
+    where a.quote_id=v_quote.id and a.organisation_id=v_quote.organisation_id
+      and a.quote_revision=v_quote.revision
+      and lower(trim(a.signatory_email))=v_contract.authorised_contact_email
+      and lower(trim(a.signatory_name))=lower(v_contract.authorised_contact_name)
+  ) then
+    raise exception 'Secure Client Portal acceptance lacks named signatory attestation.';
+  end if;
   if v_contract.release_basis='payment' then
     if not exists (
       select 1 from public.quote_payment_confirmations p
