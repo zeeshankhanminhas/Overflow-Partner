@@ -50,5 +50,8 @@ jobs:
       - name: Template content contracts
         run: npm run templates:check
 
+      - name: OPOS integrated lifecycle regression
+        run: npm run lifecycle-integrity:check
+
       - name: Production build
         run: npx next build
