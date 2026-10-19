@@ -79,6 +79,31 @@ for(const [condition,evidence] of [
 ])check('Verified contractual condition permits '+condition,
  policy.evaluateCommercialRelease({acceptanceVerified:true,quotationCurrent:true,conditionInAcceptedQuote:condition,evidence}).permitted===true);
 
+
+check('Mobilisation contract-to-finance handoff exists',read('supabase/migrations/20261019030000_project_financial_release_handoff.sql').includes('op_inherit_quote_release_after_project_creation'));
+check('Opening quote payments count toward mobilisation without double-counting',read('supabase/migrations/20261019030000_project_financial_release_handoff.sql').includes('greatest(v_received,coalesce(sum(qpc.amount),0))'));
+function modulePolicy(file){
+ const output=ts.transpileModule(read(file),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+ const obj={};vm.runInNewContext(output,{exports:obj,module:{exports:obj}});
+ return obj;
+}
+const casePolicy=modulePolicy('lib/cases/documentRequirements.ts');
+const standard=casePolicy.getCaseDocumentRequirements({hasIntake:true,scopeApproved:true,hasReview:true,partnerResponseReady:true,commercialApproved:false,governanceTier:'standard'});
+const enhanced=casePolicy.getCaseDocumentRequirements({hasIntake:true,scopeApproved:true,hasReview:true,partnerResponseReady:true,commercialApproved:false,governanceTier:'enhanced'});
+check('Standard-risk formal assessment does not demand redundant detailed report',standard.items.find(x=>x.slug==='partner-technical-assessment-report')?.requiredNow===false);
+check('Enhanced-risk requires formal detailed assessment report',enhanced.items.find(x=>x.slug==='partner-technical-assessment-report')?.requiredNow===true);
+const projectDocs=modulePolicy('lib/projects/documentRequirements.ts');
+check('Mobilisation requires approved statement of work',projectDocs.getProjectDocumentRequirements('mobilisation',true).some(x=>x.slug==='statement-of-work'&&x.requiredNow&&x.minimumStatus==='approved'));
+check('OP quality control requires technical review',projectDocs.getProjectDocumentRequirements('internal_review',true).some(x=>x.slug==='technical-review'&&x.requiredNow));
+check('Client release requires issued handover pack',projectDocs.getProjectDocumentRequirements('ready_for_client_issue',true).some(x=>x.slug==='handover-pack'&&x.requiredNow&&x.minimumStatus==='issued'));
+check('Closure requires completion report',projectDocs.getProjectDocumentRequirements('completion',true).some(x=>x.slug==='completion-report'&&x.requiredNow));
+const finance=modulePolicy('lib/finance/state.ts');
+check('Unauthorised mobilisation is blocked',finance.resolveFinancialGate({authorised:false,required:500,received:0}).authorised===false);
+check('Eligible settled mobilisation may proceed',finance.resolveFinancialGate({authorised:true,required:500,received:500}).authorised===true);
+check('Final invoice is blocked before completion',finance.resolveBillingEligibility({invoiceType:'final',projectStage:'in_progress'}).permitted===false);
+check('Final invoice is eligible at completion',finance.resolveBillingEligibility({invoiceType:'final',projectStage:'completion'}).permitted===true);
+check('Credit note requires an existing invoice',finance.resolveBillingEligibility({invoiceType:'credit_note',projectStage:'closed',hasEligibleSourceInvoice:false}).permitted===false);
+
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
