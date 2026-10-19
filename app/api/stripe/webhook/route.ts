@@ -53,6 +53,18 @@ export async function POST(request: Request) {
     .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',organisationId)
     .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
   if (authorisationError || !authorisation) return new Response('Quote is not allowlisted for shared-database sandbox reconciliation',{status:422});
+  const {data:contract,error:contractError}=await db.from('quote_release_contracts')
+    .select('release_basis,opening_amount,currency').eq('organisation_id',organisationId)
+    .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+  if(contractError || !contract || contract.release_basis!=='payment' ||
+     Number(contract.opening_amount)!==Number(quote.total) ||
+     String(contract.currency).toUpperCase()!==String(quote.currency).toUpperCase()){
+    return new Response('Paid event conflicts with issued contractual release terms',{status:422});
+  }
+  const {data:signatory,error:signatoryError}=await db.from('quote_client_signatory_attestations')
+    .select('quote_id').eq('organisation_id',organisationId)
+    .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+  if(signatoryError || !signatory)return new Response('Named authorised acceptance is required',{status:422});
   const expectedAmount=Math.round(Number(quote.total)*100);
   if (!Number.isSafeInteger(amount) || amount!==expectedAmount || currency!==String(quote.currency).trim().toUpperCase()) {
     return new Response('Settlement does not match quotation',{status:422});
