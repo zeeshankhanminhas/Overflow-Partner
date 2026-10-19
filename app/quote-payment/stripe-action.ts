@@ -31,6 +31,18 @@ export async function createStripeCheckout(formData: FormData) {
     .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
   if (authorisationError || !authorisation) throw new Error('Quotation not explicitly authorised for Stripe Sandbox testing.');
   if (quote.valid_until && new Date(`${quote.valid_until}T23:59:59.999Z`).getTime() < Date.now()) throw new Error('Quotation expired.');
+  const {data:contract,error:contractError}=await db.from('quote_release_contracts')
+    .select('release_basis,opening_amount,currency').eq('organisation_id',issue.organisation_id)
+    .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+  if(contractError || !contract || contract.release_basis!=='payment' ||
+     Number(contract.opening_amount)!==Number(quote.total) ||
+     String(contract.currency).toUpperCase()!==String(quote.currency).toUpperCase()){
+    throw new Error('Stripe full-amount Checkout is not authorised by the accepted quotation terms.');
+  }
+  const {data:signatory,error:signatoryError}=await db.from('quote_client_signatory_attestations')
+    .select('quote_id').eq('organisation_id',issue.organisation_id)
+    .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+  if(signatoryError || !signatory)throw new Error('Named client acceptance must be completed before Checkout.');
   const {data:paid,error:paidError}=await db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   const {data:released,error:releaseError}=await db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if (paidError || releaseError || paid || released) throw new Error('Payment is already recorded or the quote is released. Contact OP before attempting another payment.');
