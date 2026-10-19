@@ -30,6 +30,22 @@ begin
      or round(v_quote.total*100)::bigint is distinct from v_event.amount_total then
     raise exception 'Paid Stripe session does not match the current quotation revision and amount.';
   end if;
+  -- Enforce the sandbox allowlist inside the privileged finalisation transaction,
+  -- not solely at the HTTP boundary. Fail closed if the authorisation expires.
+  if not exists (
+    select 1 from public.op_sandbox_payment_authorisations a
+    where a.quote_id=v_quote.id and a.organisation_id=v_quote.organisation_id
+      and a.quote_revision=v_quote.revision and a.expires_at>now()
+  ) then raise exception 'Sandbox payment finalisation is not authorised for this quotation.'; end if;
+  if not exists (
+    select 1 from public.leads l where l.id=v_quote.lead_id
+      and l.organisation_id=v_quote.organisation_id and l.company_name like 'OP QA TEST%'
+  ) then raise exception 'Sandbox payment finalisation requires a labelled QA case.'; end if;
+  if not exists (
+    select 1 from public.quote_stripe_payment_events e
+    where e.id=v_event.id and e.stripe_payment_status='paid'
+  ) then raise exception 'No verified Stripe payment evidence.'; end if;
+
   select * into v_issue from public.quote_issue_records
   where quote_id=v_quote.id and organisation_id=v_quote.organisation_id
     and quote_revision=v_quote.revision and client_response='accepted'
