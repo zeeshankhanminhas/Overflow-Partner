@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import ts from 'typescript';
+import vm from 'node:vm';
 const read=p=>readFileSync(p,'utf8');
 const checks=[];
 function check(label,condition){checks.push({label,passed:Boolean(condition)});if(!condition)console.error('FAIL '+label);}
@@ -37,6 +39,46 @@ check('No direct manual Stripe confirmation',actions.includes('manual confirmati
 check('Client quote document is governed',caseDocs.includes("slug: 'client-quote'"));
 check('Partner quality correction loop exists',stages.includes('partner_correction')&&stages.includes('internal_review'));
 check('Payment, partner, delivery and completion notification scenarios exist',['payment.received','partner_work.released','client_delivery.issued','project.completed'].every(x=>notifications.includes(x)));
+
+const contractual=read('supabase/migrations/20261019023000_quote_contractual_release_gates.sql');
+const acceptancePage=read('app/quote-response/page.tsx');
+const issueFields=read('app/workspace/leads/[id]/QuoteIssueContractFields.tsx');
+check('Current quote revision has an immutable contractual release identity', contractual.includes('primary key (quote_id,quote_revision)'));
+check('Quote issue transition requires approved release terms',contractual.includes('op_quote_contract_issue_gate'));
+check('Commercial project insertion requires matching release evidence',contractual.includes('op_project_contractual_release_gate')&&contractual.includes('op_guard_project_contractual_release'));
+check('Project guard rejects mismatched named signatory',contractual.includes('quote_acceptance_records')&&contractual.includes('authorised_contact_email'));
+check('Portal acceptance records named authority claim atomically',contractual.includes('op_record_authorised_public_quote_response')&&response.includes('p_authority_attested'));
+check('Portal asks for explicit business signatory declaration',acceptancePage.includes('authority_attested')&&acceptancePage.includes('signatory_name'));
+check('Issue form captures supported release basis',issueFields.includes('contract_release_basis'));
+check('Issue action records terms before generating email',actions.indexOf("op_record_quote_release_contract")<actions.indexOf("sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail,recipientName,companyName:recipient?.company_name||null})"));
+check('Issue email PDF uses authorised terms rather than partner payment terms',actions.includes('paymentTerms:releaseText'));
+check('Manual project release compares chosen basis to accepted terms',actions.includes('releaseBasis!==releaseContract.release_basis'));
+check('Checkout requires matching full-upfront release terms',checkout.includes("contract.release_basis!=='payment'"));
+check('Stripe webhook requires matching terms and named signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes("contract.release_basis!=='payment'"));
+check('Payment never redirects Stripe Sandbox to production fallback',checkout.includes('const previewHost = process.env.VERCEL_URL')&&!checkout.includes("const site = process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
+check('Quote expiry remains valid until end of date',actions.includes('T23:59:59.999Z')&&checkout.includes('T23:59:59.999Z'));
+
+// Execute policy behavior independently from static source scans.
+const transpiled=ts.transpileModule(contract,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+const exportsObject={};
+vm.runInNewContext(transpiled,{exports:exportsObject,module:{exports:exportsObject}});
+const policy=exportsObject;
+check('Policy always lists nine stages',policy.OP_LIFECYCLE.length===9);
+check('Routine low-value work is proportionate',policy.classifyGovernance({contractValueGbp:350,technicalComplexity:'routine',deliveryRisk:'low',regulatedOrSafetyCritical:false})==='standard');
+check('Low-price safety critical work is enhanced',policy.classifyGovernance({contractValueGbp:350,technicalComplexity:'routine',deliveryRisk:'low',regulatedOrSafetyCritical:true})==='enhanced');
+check('High value job is enhanced at threshold',policy.classifyGovernance({contractValueGbp:5000,technicalComplexity:'routine',deliveryRisk:'low',regulatedOrSafetyCritical:false})==='enhanced');
+check('Preliminary consultation never authorises price',policy.canUsePartnerReviewForCommercialOffer('preliminary_consultation',true)===false);
+check('Approved formal assessment authorises commercial evidence',policy.canUsePartnerReviewForCommercialOffer('formal_assessment',true)===true);
+check('Expired accepted quote cannot release',policy.evaluateCommercialRelease({acceptanceVerified:true,quotationCurrent:false,conditionInAcceptedQuote:'full_advance',evidence:{paymentVerified:true}}).permitted===false);
+check('Unaccepted quote cannot release',policy.evaluateCommercialRelease({acceptanceVerified:false,quotationCurrent:true,conditionInAcceptedQuote:'full_advance',evidence:{paymentVerified:true}}).permitted===false);
+check('Full advance without verified settlement cannot release',policy.evaluateCommercialRelease({acceptanceVerified:true,quotationCurrent:true,conditionInAcceptedQuote:'full_advance',evidence:{}}).permitted===false);
+for(const [condition,evidence] of [
+ ['full_advance',{paymentVerified:true}],['deposit',{depositVerified:true}],
+ ['approved_purchase_order',{purchaseOrderApproved:true}],['approved_credit',{creditApproved:true}],
+ ['no_advance_due',{noAdvanceApproved:true}]
+])check('Verified contractual condition permits '+condition,
+ policy.evaluateCommercialRelease({acceptanceVerified:true,quotationCurrent:true,conditionInAcceptedQuote:condition,evidence}).permitted===true);
+
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
