@@ -27,7 +27,7 @@ export async function createStripeCheckout(formData: FormData) {
     .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
     .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
   if (authorisationError || !authorisation) throw new Error('Quotation not explicitly authorised for Stripe Sandbox testing.');
-  if (quote.valid_until && new Date(quote.valid_until).getTime() < Date.now()) throw new Error('Quotation expired.');
+  if (quote.valid_until && new Date(`${quote.valid_until}T23:59:59.999Z`).getTime() < Date.now()) throw new Error('Quotation expired.');
   const {data:paid,error:paidError}=await db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   const {data:released,error:releaseError}=await db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if (paidError || releaseError || paid || released) throw new Error('Payment is already recorded or the quote is released. Contact OP before attempting another payment.');
