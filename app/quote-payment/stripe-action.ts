@@ -13,7 +13,10 @@ export async function createStripeCheckout(formData: FormData) {
   const apiKey = process.env.STRIPE_SECRET_KEY;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const site = process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app';
+  // Test Checkout must return to the same Preview deployment, never the production hostname.
+  const previewHost = process.env.VERCEL_URL;
+  if (!previewHost || !/^[a-z0-9.-]+\.vercel\.app$/i.test(previewHost)) throw new Error('A verified Vercel Preview return host is required.');
+  const site = `https://${previewHost}`;
   if (!apiKey || !url || !dbKey) throw new Error('Stripe payment is not configured.');
   if (!apiKey.startsWith('sk_test_')) throw new Error('Package 01 preview only permits Stripe test keys.');
   const db = createSupabaseClient(url, dbKey, {auth:{persistSession:false,autoRefreshToken:false}});
