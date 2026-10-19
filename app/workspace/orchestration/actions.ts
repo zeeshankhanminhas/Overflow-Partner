@@ -322,13 +322,35 @@ export async function acceptQuoteAction(formData: FormData) {
     const evidenceReference = portalAccepted
       ? `Client portal acceptance — quote revision ${issue.quote_revision}, recorded ${issue.client_response_at}`
       : required(formData, 'evidence_reference');
-    const acceptedByName = portalAccepted ? 'Client via secure quotation link (identity unverified)' : required(formData, 'accepted_by_name');
-    const acceptedByEmail = portalAccepted
+    let acceptedByName = portalAccepted ? '' : required(formData, 'accepted_by_name');
+    let acceptedByEmail = portalAccepted
       ? String(issue.recipient_email || '')
       : String(formData.get('accepted_by_email') || '').trim();
     const acceptanceNotes = String(formData.get('acceptance_notes') || '').trim();
     const releaseBasis = required(formData, 'release_basis');
     if (!['payment', 'purchase_order', 'no_advance_payment'].includes(releaseBasis)) throw new Error('Select the release condition stated in the issued Client Quote.');
+    // The contractual release condition is fixed per issued quote revision,
+    // not chosen by an operator at the moment of project creation.
+    const contractAdmin=notificationAdminClient();
+    const {data:releaseContract,error:releaseContractError}=await contractAdmin.from('quote_release_contracts')
+      .select('release_basis,opening_amount,authorised_contact_name,authorised_contact_email')
+      .eq('organisation_id',organisationId).eq('quote_id',quoteId)
+      .eq('quote_revision',currentQuote.revision).maybeSingle();
+    if(releaseContractError || !releaseContract)throw new Error('The issued quotation has no approved contractual release record.');
+    if(releaseBasis!==releaseContract.release_basis)throw new Error('This release method differs from the accepted quotation. Re-quote rather than override its terms.');
+    if(portalAccepted){
+      const {data:signatory,error:signatoryError}=await contractAdmin.from('quote_client_signatory_attestations')
+        .select('signatory_name,signatory_email')
+        .eq('organisation_id',organisationId).eq('quote_id',quoteId).eq('quote_revision',currentQuote.revision).maybeSingle();
+      if(signatoryError || !signatory)throw new Error('The secure portal decision lacks a named authorised client attestation.');
+      acceptedByName=String(signatory.signatory_name);
+      acceptedByEmail=String(signatory.signatory_email);
+    }
+    if(acceptedByName.trim().toLowerCase()!==String(releaseContract.authorised_contact_name).trim().toLowerCase() ||
+       acceptedByEmail.trim().toLowerCase()!==String(releaseContract.authorised_contact_email).trim().toLowerCase()){
+      throw new Error('Acceptance evidence must identify the authorised contact named in this quote revision.');
+    }
+
     const releaseReference = String(formData.get('release_reference') || '').trim();
     const releaseNote = String(formData.get('release_note') || '').trim();
     const paymentMethod = String(formData.get('payment_method') || '').trim();
