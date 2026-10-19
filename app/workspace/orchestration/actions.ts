@@ -93,6 +93,25 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     if(review?.partner_quote_id){const {data:terms,error:termsError}=await supabase.from('partner_quotes').select('commercial_assumptions,exclusions,payment_terms,delivery_commitment').eq('organisation_id',organisationId).eq('id',review.partner_quote_id).maybeSingle();if(termsError)throw new Error(termsError.message);clientTerms=terms;}
   }
 
+  const contractDb = notificationAdminClient();
+  const { data: contract, error: contractError } = await contractDb.from('quote_release_contracts')
+    .select('release_basis,opening_amount,currency,authorised_contact_name,authorised_contact_email')
+    .eq('organisation_id',organisationId).eq('quote_id',quoteId).eq('quote_revision',quote.revision).maybeSingle();
+  if (contractError || !contract) throw new Error('Approve the quotation-specific commercial release condition before issuing the Client Quote.');
+  if (String(contract.authorised_contact_email).toLowerCase() !== recipientEmail.toLowerCase() ||
+      String(contract.authorised_contact_name).trim().toLowerCase() !== recipientName.trim().toLowerCase()) {
+    throw new Error('The quotation recipient must match its authorised signatory.');
+  }
+  const releaseText = contract.release_basis==='payment'
+    ? `Full advance of ${quoteMoney(contract.opening_amount, String(quote.currency||'GBP'))} is due before project release.`
+    : contract.release_basis==='purchase_order'
+      ? 'A verified, authorised client purchase order is required before project release; no opening payment is due.'
+      : contract.release_basis==='no_advance_payment'
+        ? 'No advance is due under this quotation; OP must verify the authorised commercial release before commencing work.'
+        : 'Deposit or credit terms are not yet supported by this quotation issue workflow.';
+  if (!['payment','purchase_order','no_advance_payment'].includes(String(contract.release_basis))) {
+    throw new Error('Unimplemented release terms cannot be issued to a client.');
+  }
   const currency = String(quote.currency || 'GBP').trim().toUpperCase();
   const facts: Array<{label:string;value:string}> = [
     { label: 'Quotation reference', value: `${quote.quote_number} · Revision ${quote.revision}` },
@@ -103,7 +122,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     ...(clientTerms?.commercial_assumptions ? [{label:'Assumptions',value:String(clientTerms.commercial_assumptions)}] : []),
     ...(clientTerms?.exclusions ? [{label:'Exclusions',value:String(clientTerms.exclusions)}] : []),
     ...(clientTerms?.delivery_commitment ? [{label:'Delivery commitment',value:String(clientTerms.delivery_commitment)}] : []),
-    ...(clientTerms?.payment_terms ? [{label:'Payment terms',value:String(clientTerms.payment_terms)}] : []),
+    {label:'Contractual payment and release terms',value:releaseText},
     ...((lineItems || []).map((item, index) => ({
       label: `Price item ${index + 1}`,
       value: `${item.description} · ${item.quantity} ${item.unit} · ${quoteMoney(item.net_total, currency)} net`,
@@ -117,7 +136,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     reference: String(quote.quote_number), revision: Number(quote.revision), clientName: companyName, recipientName,
     validUntil: String(quote.valid_until), scope: intake?.description ? String(intake.description) : null,
     deliverables: intake?.deliverables ? String(intake.deliverables) : null, requiredBy: intake?.deadline ? String(intake.deadline) : null,
-    assumptions:clientTerms?.commercial_assumptions, exclusions:clientTerms?.exclusions, paymentTerms:clientTerms?.payment_terms, deliveryCommitment:clientTerms?.delivery_commitment,
+    assumptions:clientTerms?.commercial_assumptions, exclusions:clientTerms?.exclusions, paymentTerms:releaseText, deliveryCommitment:clientTerms?.delivery_commitment,
     currency, subtotal: Number(quote.subtotal), vat: Number(quote.vat), total: Number(quote.total),
     lineItems: (lineItems || []).map((item) => ({ description: String(item.description), quantity: Number(item.quantity), unit: String(item.unit), netTotal: Number(item.net_total) })),
   });
@@ -131,7 +150,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     return { label, url: publicSiteUrl(`/quote-response?token=${encodeURIComponent(token)}`) };
   });
   const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
-  const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. We will confirm the agreed payment or purchase-order condition before project setup.`;
+  const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. The attached quotation specifies the contractual opening payment or release condition required before project setup.`;
   const portalUrl = publicSiteUrl(`/client-portal?token=${encodeURIComponent(createClientPortalToken(quoteId, Number(quote.revision)))}`);
   const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks] };
   const outboxId = await queueLifecycleEmail(supabase, {
@@ -223,6 +242,17 @@ export async function issueQuoteAction(formData: FormData) {
     const recipient=await leadRecipient(supabase,organisationId,leadId);
     const recipientEmail=suppliedEmail||recipient?.contact_email||'';
     if(!recipientEmail)throw new Error('Enter the client email address before sending the Client Quote.');
+    const contractBasis=required(formData,'contract_release_basis');
+    const contractAmount=Number(formData.get('contract_opening_amount'));
+    if(!['payment','purchase_order','no_advance_payment'].includes(contractBasis) || !Number.isFinite(contractAmount)){
+      throw new Error('Select an explicitly supported commercial release condition.');
+    }
+    const {error:contractError}=await supabase.rpc('op_record_quote_release_contract',{
+      p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quoteId,
+      p_release_basis:contractBasis,p_opening_amount:contractAmount,
+      p_authorised_contact_name:recipientName,p_authorised_contact_email:recipientEmail,
+    });
+    if(contractError)throw new Error('Unable to record authorised quotation terms: '+contractError.message);
     const delivery=await sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail,recipientName,companyName:recipient?.company_name||null});
     const evidenceReference=`Resend message ${delivery.providerMessageId}`;
     const {data:quote,error}=await supabase.rpc('op_issue_quote_with_evidence',{
