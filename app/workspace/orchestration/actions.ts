@@ -281,7 +281,7 @@ export async function acceptQuoteAction(formData: FormData) {
       .select('revision,status,valid_until,lead_id').eq('organisation_id', organisationId).eq('id', quoteId).eq('lead_id',leadId).maybeSingle();
     if (quoteError) throw new Error(quoteError.message);
     if (!currentQuote || currentQuote.status !== 'issued') throw new Error('Only the currently issued Client Quote may be commercially released.');
-    if (currentQuote.valid_until && new Date(currentQuote.valid_until).getTime() < Date.now()) {
+    if (currentQuote.valid_until && new Date(`${currentQuote.valid_until}T23:59:59.999Z`).getTime() < Date.now()) {
       throw new Error('The issued quotation has expired. Revise and reissue before commercial release.');
     }
     const portalAccepted = issue?.client_response === 'accepted' &&
