@@ -18,6 +18,14 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   if (!issue || issue.client_response !== 'accepted') return <main><h1>Quotation acceptance required</h1></main>;
   const { data: quote } = await db.from('quotes').select('id,revision,quote_number,total,currency,valid_until,status').eq('id', access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
   if (!quote || quote.status !== 'issued' && quote.status !== 'accepted') return <main><h1>Quotation unavailable</h1></main>;
+  const {data:contract,error:contractError}=await db.from('quote_release_contracts')
+    .select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id)
+    .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+  if(contractError || !contract)return <main><h1>Quotation terms unavailable</h1><p>Contact Overflow Partner to confirm the agreed release conditions.</p></main>;
+  if(contract.release_basis!=='payment')return <main style={{maxWidth:650,margin:'4rem auto',padding:30}}>
+    <h1>No online payment is due</h1><p>Quotation {quote.quote_number} is governed by its agreed
+    {contract.release_basis==='purchase_order'?' purchase-order':' no-advance'} release condition.
+    Overflow Partner will verify the required authority before mobilisation.</p></main>;
   const { data: payment } = await db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   const { data: release } = await db.from('quote_release_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   const confirmed = Boolean(payment?.confirmed_at || release?.confirmed_at);
