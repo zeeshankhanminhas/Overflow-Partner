@@ -1,0 +1,45 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>readFileSync(p,'utf8');
+const checks=[];
+function check(label,condition){checks.push({label,passed:Boolean(condition)});if(!condition)console.error('FAIL '+label);}
+const contract=read('lib/lifecycle/commercialContract.ts');
+const portal=read('app/client-portal/page.tsx');
+const payment=read('app/quote-payment/page.tsx');
+const checkout=read('app/quote-payment/stripe-action.ts');
+const webhook=read('app/api/stripe/webhook/route.ts');
+const response=read('app/quote-response/actions.ts');
+const finalizer=read('supabase/migrations/20261019010000_enforce_sandbox_finalization_scope.sql');
+const authorisations=read('supabase/migrations/20261017031000_op_sandbox_payment_allowlist.sql');
+const actions=read('app/workspace/orchestration/actions.ts');
+const invariants=read('lib/business/invariants/index.ts');
+const caseDocs=read('lib/cases/documentRequirements.ts');
+const stages=read('lib/projects/stages.ts');
+const notifications=read('lib/notifications/scenarios.ts');
+check('Nine authoritative commercial stages', (contract.match(/key: '/g)||[]).length===9);
+check('Governance uses delivery risk, safety and complexity', ['technicalComplexity','deliveryRisk','regulatedOrSafetyCritical'].every(s=>contract.includes(s)));
+check('Formal partner evidence is required before Commercial Review',invariants.includes('partner_review_request_id') && invariants.includes('formalReview.status'));
+check('Preliminary consultation cannot authorise quotation',contract.includes("purpose === 'formal_assessment' && approved"));
+check('Quotation revision and expiration guarded for manual release',actions.includes("quote_revision") && actions.includes("currentQuote.valid_until"));
+check('Portal remains persistent and can return to payment',portal.includes('createClientPortalToken')&&portal.includes('Continue to payment'));
+check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
+check('Checkout strictly Preview and test Stripe keys',checkout.includes("VERCEL_ENV !== 'preview'")&&checkout.includes("startsWith('sk_test_')"));
+check('Checkout requires explicit quote allowlist',checkout.includes("from('op_sandbox_payment_authorisations')")&&checkout.includes("quote_revision"));
+check('Webhook signature and mode validated',webhook.includes('validSignature(')&&webhook.includes('session.livemode !== false'));
+check('Webhook validates amount, currency, revision',webhook.includes('amount!==expectedAmount')&&webhook.includes("currency!==String(quote.currency)")&&webhook.includes(".eq('revision',revision)"));
+check('Webhook requires QA allowlist',webhook.includes("from('op_sandbox_payment_authorisations')"));
+check('Database finalizer independently enforces QA allowlist',finalizer.includes('op_sandbox_payment_authorisations')&&finalizer.includes("OP QA TEST%")&&finalizer.includes('a.expires_at>now()'));
+check('DB finalizer checks acceptance and amount',finalizer.includes("client_response='accepted'")&&finalizer.includes('v_event.amount_total'));
+check('DB finalizer checks project already exists before insertion',finalizer.indexOf('select * into v_project')<finalizer.indexOf('insert into public.quote_payment_confirmations'));
+check('DB finalizer limits execute to service role',finalizer.includes('from public, anon, authenticated')&&finalizer.includes('to service_role'));
+check('Allowlist empty by default and restricted by RLS',authorisations.includes('enable row level security')&&authorisations.includes('revoke all'));
+check('No direct manual Stripe confirmation',actions.includes('manual confirmation is not allowed'));
+check('Client quote document is governed',caseDocs.includes("slug: 'client-quote'"));
+check('Partner quality correction loop exists',stages.includes('partner_correction')&&stages.includes('internal_review'));
+check('Payment, partner, delivery and completion notification scenarios exist',['payment.received','partner_work.released','client_delivery.issued','project.completed'].every(x=>notifications.includes(x)));
+const failed=checks.filter(c=>!c.passed);
+console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
+for(const f of failed)console.error(' - '+f.label);
+assert.equal(failed.length,0,'Lifecycle integration regression checks failed');
+// These checks assert code wiring and deny-list invariants; live database transactions,
+// actor identity and email delivery still require dedicated integration testing.
