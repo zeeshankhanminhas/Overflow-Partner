@@ -26,10 +26,11 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   if (issueError || !issue) return unavailable();
   const {data:quote,error:quoteError} = await db.from('quotes').select('id,organisation_id,quote_number,revision,status,total,currency,valid_until').eq('id',access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(String(quote.status))) return unavailable();
-  const [paymentResult,releaseResult,projectResult] = await Promise.all([
+  const [paymentResult,releaseResult,projectResult,contractResult] = await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('release_basis,confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('projects').select('project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
   ]);
   // Fail closed on finance errors; never infer that money has arrived.
   const paid = !paymentResult.error && Boolean(paymentResult.data?.confirmed_at);
@@ -42,7 +43,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const actions: {label:string;response:ClientQuoteResponse}[] = [
     {label:'Accept quotation',response:'accepted'}, {label:'Request more time',response:'more_time'}, {label:'Decline quotation',response:'declined'},
   ];
-  const canPay = accepted && !paid && !released && !project && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
+  const canPay = accepted && !paid && !released && !project && !contractResult.error && contractResult.data?.release_basis==='payment' && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
@@ -60,6 +61,8 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
       {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
+      {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
+      {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
       {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
       {canDecide ? <div style={{borderTop:'1px solid #e5e4df',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#d74c2c':'#eeede9',color:response==='accepted'?'white':'#172521',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
       <p style={{...caption,marginTop:28}}>This page updates as your quotation progresses. Keep your secure link private. For a copy of your approved PDF, payment instructions or a fresh link, reply to the quotation email.</p>
