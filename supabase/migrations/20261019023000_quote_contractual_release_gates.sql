@@ -179,7 +179,7 @@ begin
         and p.amount>=v_contract.opening_amount
         and upper(p.currency)=upper(v_contract.currency)
         and (
-          (p.payment_method='bank_transfer' and nullif(trim(p.payment_reference),'') is not null)
+          (p.payment_method='bank_transfer' and false /* bank clearing must be verified by a separately reconciled bank feed */)
           or
           (p.payment_method='stripe' and exists (
             select 1 from public.quote_stripe_payment_events e
