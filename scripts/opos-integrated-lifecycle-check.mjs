@@ -107,6 +107,9 @@ check('Credit note requires an existing invoice',finance.resolveBillingEligibili
 check('Staged contractual migration has no malformed SQL terminators',!contractual.includes('end;'+String.fromCharCode(36)+';'));
 check('Bank-transfer release fails closed until independent reconciliation',contractual.includes("bank_transfer' and false"));
 check('Staged project mobilisation handoff migration exists',read('supabase/migrations/20261019030000_project_financial_release_handoff.sql').includes('op_inherit_quote_release_after_project_creation'));
+check('Contract approval actor must be authenticated caller',contractual.includes("auth.uid() is distinct from p_user_id"));
+check('Contract table has quote revision uniqueness',contractual.includes('primary key (quote_id,quote_revision)'));
+check('Project finance handoff has atomic after insert trigger',read('supabase/migrations/20261019030000_project_financial_release_handoff.sql').includes('after insert on public.projects'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
