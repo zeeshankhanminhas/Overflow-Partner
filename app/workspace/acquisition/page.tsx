@@ -79,7 +79,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     <section className="saas-hero">
       <div className="saas-hero__inner">
         <div className="saas-hero__copy"><p className="vp-kicker">Opportunities</p><h1>Move incoming work forward.</h1><p className="vp-subtitle">See who owns the next step, what is waiting, and which opportunity can move now.</p></div>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/prospects">All opportunities</Link><Link className="button secondary" href="/workspace/assessments?view=partner">Delivery reviews</Link><Link className="button secondary" href="/workspace/approvals">Approvals{approvalCount?` · ${approvalCount}`:''}</Link></div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/funnel">LinkedIn funnel</Link><Link className="button secondary" href="/workspace/acquisition/prospects">All opportunities</Link><Link className="button secondary" href="/workspace/assessments?view=partner">Delivery reviews</Link><Link className="button secondary" href="/workspace/approvals">Approvals{approvalCount?` · ${approvalCount}`:''}</Link></div>
       </div>
     </section>
 
