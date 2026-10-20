@@ -30,7 +30,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('release_basis,confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('projects').select('project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
-    db.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
+    process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? db.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
   ]);
   // Fail closed on finance errors; never infer that money has arrived.
   const paid = !paymentResult.error && Boolean(paymentResult.data?.confirmed_at);
