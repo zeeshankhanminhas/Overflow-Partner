@@ -44,10 +44,12 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
     }
     const parsed = prospectInputSchema.safeParse({ ...raw, company_id: company.id, company_name: company.name, contact_id: contact?.id || '', contact_name: contact?.full_name || '', job_title: contact?.job_title || '', linkedin_url: contact?.linkedin_url || '', email: contact?.email || '', phone: contact?.phone || '', industry: company.industry || '' });
     if (!parsed.success) return { ok: false, error: 'Please correct the highlighted prospect details.', fieldErrors: parsed.error.flatten().fieldErrors };
+    if (['qualified', 'converted'].includes(parsed.data.status)) return { ok: false, error: 'Technical qualification and conversion require governed review evidence.' };
     const prospect = await createProspect(supabase, organisationId, user.id, parsed.data);
     await recordActivity(supabase, { organisationId, entityType: 'prospect', entityId: prospect.id, userId: user.id, eventType: 'prospect.created', newValue: prospect });
 
-    if (parsed.data.email) {
+    // A cold LinkedIn prospect has not asked for an enquiry: never auto-email on capture.
+    if (parsed.data.email && parsed.data.source !== 'linkedin') {
       const actionUrl = siteUrl('/');
       await queueLifecycleEmail(supabase, {
         organisationId, scenario:'enquiry.received', recipientEmail:parsed.data.email,
@@ -61,7 +63,7 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
       }).catch(()=>0);
     }
 
-    revalidatePath('/workspace/acquisition'); revalidatePath(`/workspace/companies/${company.id}`); revalidatePath('/workspace');
+    revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/acquisition/funnel'); revalidatePath(`/workspace/companies/${company.id}`); revalidatePath('/workspace');
     return { ok: true, data: prospect };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : 'Unable to create prospect.' }; }
 }
@@ -83,8 +85,12 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     if (!prospectId) throw new Error('Prospect ID is required.');
     await assertCanInviteTechnicalIntake(supabase, organisationId, prospectId);
-    const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name').eq('organisation_id', organisationId).eq('id', prospectId).single();
+    const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name,source,outreach_status,response_outcome').eq('organisation_id', organisationId).eq('id', prospectId).single();
     if (prospectError || !prospect) throw new Error('Prospect not found.');
+    // Marketing interest is necessary before first technical intake for cold LinkedIn outreach.
+    if (prospect.source === 'linkedin' && !(prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested')) {
+      throw new Error('Record an interested LinkedIn reply before sending the secure requirements form. Continue the conversation in the LinkedIn funnel.');
+    }
 
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -105,7 +111,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`,subject:'Your secure requirements form expires soon'}).catch(()=>null);
     }
 
-    revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace');
+    revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/acquisition/funnel'); revalidatePath('/workspace');
     destination = acquisitionUrl(prospectId,{invitation:url,focus:'record-next-action'});
   } catch (error) {
     const text=error instanceof Error ? error.message : 'Unable to create Technical Intake invitation.';
@@ -176,6 +182,7 @@ export async function updateProspectWorkingStatusFormAction(formData: FormData) 
     if (targetStatus === 'not_a_fit') await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
     revalidatePath(`/workspace/acquisition/${prospectId}`);
     revalidatePath('/workspace/acquisition');
+    revalidatePath('/workspace/acquisition/funnel');
     revalidatePath('/workspace/acquisition/prospects');
     revalidatePath('/workspace');
     destination = acquisitionUrl(prospectId,{updated:'Opportunity status updated',focus:'record-next-action'});
@@ -212,7 +219,7 @@ export async function updateProspectOutreachAction(formData: FormData) {
     const updates={outreach_status:outreachStatus,response_outcome:responseOutcome||null,next_follow_up_at:followUp?new Date(followUp).toISOString():null,last_contacted_at:outreachStatus==='message_sent'?now:undefined,last_reply_at:outreachStatus==='replied'?now:undefined,updated_at:now};
     const {error:updateError}=await supabase.from('prospects').update(updates).eq('organisation_id',organisationId).eq('id',prospectId);if(updateError)throw new Error(updateError.message);
     await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:prospectId,userId:user.id,eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin'},oldValue:{outreachStatus:prospect.outreach_status,responseOutcome:prospect.response_outcome,nextFollowUpAt:prospect.next_follow_up_at},newValue:{outreachStatus,responseOutcome:responseOutcome||null,nextFollowUpAt:updates.next_follow_up_at}});
-    revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace');
+    revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace/acquisition/funnel');revalidatePath('/workspace');
     destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-communications'});
   }catch(error){destination=acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Outreach could not be recorded.',focus:'record-communications'});}
   redirect(destination);
