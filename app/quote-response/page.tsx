@@ -13,13 +13,15 @@ export default async function QuoteResponsePage({ searchParams }: { searchParams
   const payload = token ? verifyClientResponseToken(token) : null;
   type QuoteInfo = { quote_number: string; revision: number; valid_until: string | null };
   let quote: QuoteInfo | null = null;
+  let recipient: {name:string;email:string}|null=null;
   if (payload) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (url && key) {
       const admin = createSupabaseClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: issue } = await admin.from('quote_issue_records').select('id').eq('quote_id', payload.quoteId).eq('quote_revision', payload.revision).maybeSingle();
+      const { data: issue } = await admin.from('quote_issue_records').select('id,recipient_name,recipient_email').eq('quote_id', payload.quoteId).eq('quote_revision', payload.revision).maybeSingle();
       if (issue) {
+        recipient={name:String(issue.recipient_name||''),email:String(issue.recipient_email||'')};
         const { data } = await admin.from('quotes').select('quote_number,revision,valid_until').eq('id', payload.quoteId).eq('revision', payload.revision).maybeSingle();
         quote = data as QuoteInfo | null;
       }
@@ -38,6 +40,11 @@ export default async function QuoteResponsePage({ searchParams }: { searchParams
         <p>{decision.explanation}</p>
         <form action={recordClientQuoteResponse}>
           <input type="hidden" name="token" value={token} />
+          {payload?.response==='accepted' ? <div style={{display:'grid',gap:12,margin:'18px 0'}}>
+            <label>Full name of authorised signatory<input name="signatory_name" required defaultValue={recipient?.name||''} style={{display:'block',width:'100%',padding:10}}/></label>
+            <label>Business email of authorised signatory<input name="signatory_email" type="email" required defaultValue={recipient?.email||''} style={{display:'block',width:'100%',padding:10}}/></label>
+            <label style={{display:'flex',gap:10,alignItems:'start'}}><input type="checkbox" name="authority_attested" value="yes" required/>I confirm that I am authorised to accept this quotation, its specified scope, price and commercial release terms on behalf of the customer.</label>
+          </div> : null}
           <button type="submit" style={{ border: 0, borderRadius: 8, padding: '14px 20px', background: '#df2925', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>{decision.action}</button>
         </form>
         <p style={{ color: '#6f6a61', fontSize: 13 }}>No response means the quotation stays awaiting your decision until its validity date.</p>
