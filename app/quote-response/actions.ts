@@ -20,16 +20,16 @@ export async function recordClientQuoteResponse(formData: FormData) {
   const signatoryName=String(formData.get('signatory_name')||'').trim();
   const signatoryEmail=String(formData.get('signatory_email')||'').trim().toLowerCase();
   const authorityAttested=formData.get('authority_attested')==='yes';
-  if (payload.response==='accepted' && (!signatoryName || !signatoryEmail || !authorityAttested)) {
+  if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' && payload.response==='accepted' && (!signatoryName || !signatoryEmail || !authorityAttested)) {
     redirect('/quote-response?result=unavailable');
   }
-  const { error } = await admin.rpc('op_record_authorised_public_quote_response', {
+  const { error } = await admin.rpc(process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? 'op_record_authorised_public_quote_response' : 'op_record_public_quote_response', {
     p_quote_id: payload.quoteId,
     p_quote_revision: payload.revision,
     p_response: payload.response,
-    p_signatory_name: payload.response==='accepted' ? signatoryName : null,
+    ...(process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? {p_signatory_name: payload.response==='accepted' ? signatoryName : null,
     p_signatory_email: payload.response==='accepted' ? signatoryEmail : null,
-    p_authority_attested: payload.response==='accepted' && authorityAttested,
+    p_authority_attested: payload.response==='accepted' && authorityAttested} : {}),
   });
   if (error) {
     // A repeated action must never mutate an already-recorded response.
