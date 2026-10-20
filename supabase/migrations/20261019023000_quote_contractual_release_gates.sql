@@ -28,6 +28,9 @@ language plpgsql security definer set search_path=public
 as $$
 declare v_quote public.quotes%rowtype; v_row public.quote_release_contracts%rowtype;
 begin
+  if auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id then
+    raise exception 'Authenticated operator identity does not match requested actor.';
+  end if;
   perform public.op_assert_workspace_role(p_organisation_id,p_user_id,array['owner','admin','commercial','business_development']);
   select * into v_quote from public.quotes where id=p_quote_id and organisation_id=p_organisation_id for update;
   if not found or v_quote.status::text not in ('draft','internal_review') then
