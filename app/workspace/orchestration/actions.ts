@@ -93,6 +93,9 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     if(review?.partner_quote_id){const {data:terms,error:termsError}=await supabase.from('partner_quotes').select('commercial_assumptions,exclusions,payment_terms,delivery_commitment').eq('organisation_id',organisationId).eq('id',review.partner_quote_id).maybeSingle();if(termsError)throw new Error(termsError.message);clientTerms=terms;}
   }
 
+  const contractualReleaseEnabled = process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true';
+  let releaseText = clientTerms?.payment_terms || 'Opening payment or purchase-order requirements will be confirmed by Overflow Partner before project release.';
+  if (contractualReleaseEnabled) {
   const contractDb = notificationAdminClient();
   const { data: contract, error: contractError } = await contractDb.from('quote_release_contracts')
     .select('release_basis,opening_amount,currency,authorised_contact_name,authorised_contact_email')
@@ -102,7 +105,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
       String(contract.authorised_contact_name).trim().toLowerCase() !== recipientName.trim().toLowerCase()) {
     throw new Error('The quotation recipient must match its authorised signatory.');
   }
-  const releaseText = contract.release_basis==='payment'
+  releaseText = contract.release_basis==='payment'
     ? `Full advance of ${quoteMoney(contract.opening_amount, String(quote.currency||'GBP'))} is due before project release.`
     : contract.release_basis==='purchase_order'
       ? 'A verified, authorised client purchase order is required before project release; no opening payment is due.'
@@ -111,6 +114,8 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
         : 'Deposit or credit terms are not yet supported by this quotation issue workflow.';
   if (!['payment','purchase_order','no_advance_payment'].includes(String(contract.release_basis))) {
     throw new Error('Unimplemented release terms cannot be issued to a client.');
+  }
+
   }
   const currency = String(quote.currency || 'GBP').trim().toUpperCase();
   const facts: Array<{label:string;value:string}> = [
@@ -242,6 +247,7 @@ export async function issueQuoteAction(formData: FormData) {
     const recipient=await leadRecipient(supabase,organisationId,leadId);
     const recipientEmail=suppliedEmail||recipient?.contact_email||'';
     if(!recipientEmail)throw new Error('Enter the client email address before sending the Client Quote.');
+    if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true') {
     const contractBasis=required(formData,'contract_release_basis');
     const contractAmount=Number(formData.get('contract_opening_amount'));
     if(!['payment','purchase_order','no_advance_payment'].includes(contractBasis) || !Number.isFinite(contractAmount)){
@@ -253,6 +259,7 @@ export async function issueQuoteAction(formData: FormData) {
       p_authorised_contact_name:recipientName,p_authorised_contact_email:recipientEmail,
     });
     if(contractError)throw new Error('Unable to record authorised quotation terms: '+contractError.message);
+    }
     const delivery=await sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail,recipientName,companyName:recipient?.company_name||null});
     const evidenceReference=`Resend message ${delivery.providerMessageId}`;
     const {data:quote,error}=await supabase.rpc('op_issue_quote_with_evidence',{
@@ -329,6 +336,7 @@ export async function acceptQuoteAction(formData: FormData) {
     const acceptanceNotes = String(formData.get('acceptance_notes') || '').trim();
     const releaseBasis = required(formData, 'release_basis');
     if (!['payment', 'purchase_order', 'no_advance_payment'].includes(releaseBasis)) throw new Error('Select the release condition stated in the issued Client Quote.');
+    if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true') {
     // The contractual release condition is fixed per issued quote revision,
     // not chosen by an operator at the moment of project creation.
     const contractAdmin=notificationAdminClient();
@@ -351,6 +359,7 @@ export async function acceptQuoteAction(formData: FormData) {
       throw new Error('Acceptance evidence must identify the authorised contact named in this quote revision.');
     }
 
+    }
     const releaseReference = String(formData.get('release_reference') || '').trim();
     const releaseNote = String(formData.get('release_note') || '').trim();
     const paymentMethod = String(formData.get('payment_method') || '').trim();
