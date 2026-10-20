@@ -59,7 +59,20 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     prospectStatus:prospect.status,hasSession:Boolean(session),sessionStatus:session?.status,hasSubmission:Boolean(submission),convertedCaseId,
     hasPartnerRequest:Boolean(partnerRequest),partnerRequestStatus:partnerRequest?.status,hasPartnerResponse:Boolean(response),partnerDecision:decision?.decision,hasPartnerPricing:Boolean(partnerQuote&&Number(partnerQuote.price)>0),
   });
-  const presentation=resolveAcquisitionPresentation(acquisition);
+  const beforeLinkedInHandoff = prospect.source === 'linkedin'
+    && acquisition.actionKey === 'create_intake'
+    && !(prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested');
+  const governedPresentation = resolveAcquisitionPresentation(acquisition);
+  const presentation = beforeLinkedInHandoff ? {
+    ...governedPresentation,
+    state: 'LinkedIn outreach',
+    summary: 'Build interest through a direct conversation before opening the formal enquiry.',
+    nextAction: {
+      ...governedPresentation.nextAction,
+      label: 'Engage on LinkedIn',
+      reason: 'Send a personal message, record the reply and confirm interest first. Do not request technical requirements yet.',
+    },
+  } : governedPresentation;
   const rawInvitation=Array.isArray(query.invitation)?query.invitation[0]:query.invitation;
   const invitationUrl=typeof rawInvitation==='string'&&/^https?:\/\//.test(rawInvitation)?rawInvitation:'';
   const rawReviewUrl=Array.isArray(query.reviewUrl)?query.reviewUrl[0]:query.reviewUrl;
@@ -72,9 +85,11 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     {invitationUrl?<Step2TestLink url={invitationUrl} outreach/>:null}
   </>;
 
-  const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/acquisition">← Back to opportunities</Link><p className="vp-kicker">Opportunity · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p></div></div>;
+  const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href={prospect.source === 'linkedin' ? '/workspace/acquisition/funnel' : '/workspace/acquisition'}>← {prospect.source === 'linkedin' ? 'Back to LinkedIn funnel' : 'Back to opportunities'}</Link><p className="vp-kicker">Opportunity · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p></div></div>;
 
-  const stateStrip=<div><div className="opportunity-stage-strip" style={{display:'grid',gridTemplateColumns:`repeat(${acquisitionStages.length},minmax(0,1fr))`,gap:8}}>{acquisitionStages.map((label,index)=><div key={label} className="opportunity-stage-step" style={{padding:'10px 12px',borderTop:`2px solid ${index===acquisition.stageIndex?'var(--op-accent)':index<acquisition.stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>acquisition.stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<acquisition.stageIndex?'Complete':index===acquisition.stageIndex?'Current':'Next'}</small><strong>{opportunityStageLabel(label)}</strong></div>)}</div></div>;
+  const stateStrip=beforeLinkedInHandoff
+    ? <div className="vp-callout"><strong>Before formal enquiry · LinkedIn acquisition</strong><p>Identify → Outreach → Conversation → Interested reply → Enquiry. This prospect has not yet met the LinkedIn interest gate.</p><Link href="/workspace/acquisition/funnel">Open LinkedIn funnel</Link></div>
+    : <div><div className="opportunity-stage-strip" style={{display:'grid',gridTemplateColumns:`repeat(${acquisitionStages.length},minmax(0,1fr))`,gap:8}}>{acquisitionStages.map((label,index)=><div key={label} className="opportunity-stage-step" style={{padding:'10px 12px',borderTop:`2px solid ${index===acquisition.stageIndex?'var(--op-accent)':index<acquisition.stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>acquisition.stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<acquisition.stageIndex?'Complete':index===acquisition.stageIndex?'Current':'Next'}</small><strong>{opportunityStageLabel(label)}</strong></div>)}</div></div>;
 
   const readiness=<div className="vp-facts"><Fact label="Requirements" value={acquisition.readiness.technicalIntake}/><Fact label="Client submission" value={acquisition.readiness.technicalSubmission}/><Fact label="Delivery review" value={acquisition.readiness.partnerReview}/><Fact label="Partner cost" value={acquisition.readiness.partnerPricing}/><Fact label="Commercial decision" value={acquisition.readiness.approval}/><Fact label="Ready to progress" value={acquisition.readiness.qualification}/></div>;
 
@@ -82,7 +97,8 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const canEditWorkingStatus=['identified','contacted','conversation','not_a_fit'].includes(String(prospect.status))&&!convertedCaseId;
   const statusControl=canEditWorkingStatus?<DecisionDialog triggerLabel="Update opportunity status" triggerClassName="button secondary" eyebrow="Opportunity control" title="Update opportunity status" description="Manage early commercial engagement without bypassing technical qualification or Case conversion."><form action={updateProspectWorkingStatusFormAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Status<select name="status" defaultValue={prospect.status} required><option value="identified">Identified</option><option value="contacted">Contacted</option><option value="conversation">In conversation</option><option value="not_a_fit">Not a fit</option></select></label><label>Reason<textarea name="reason" rows={3} placeholder="Required when closing or reopening an opportunity"/></label><div className="product-notice"><strong>Governed boundaries</strong><div>Qualified status remains controlled by the approved Go / No-Go decision. Converted status remains controlled by Case 360 creation.</div></div><button className="button" type="submit">Save status</button></form></DecisionDialog>:null;
   const nextActionPanel=<div><p className="vp-kicker">Next action</p><h2 style={{marginTop:6}}>{commercialCopy(presentation.nextAction.label)}</h2><p>{commercialCopy(presentation.nextAction.reason)}</p>
-    {acquisition.actionKey==='create_intake'?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create requirements request</button></form>:null}
+    {acquisition.actionKey==='create_intake' && !beforeLinkedInHandoff?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create requirements request</button></form>:null}
+    {beforeLinkedInHandoff?<div className="vp-callout"><strong>Start with the conversation</strong><p>Use the Communications panel to record a message, follow-up and interested response before creating a secure requirements request.</p></div>:null}
     {['request_partner','wait_partner','review_partner_response','resolve_clarification'].includes(acquisition.actionKey)?partnerGate:null}
     {acquisition.actionKey==='wait_customer'?<div className="vp-callout"><strong>Waiting for client</strong><p>The requirements request is live. No internal decision is required until the client submits it.</p>{canUseDeveloperLink?<form action={generateStep2TestLinkFormAction} style={{marginTop:12}}><input type="hidden" name="prospect_id" value={id}/><button className="button secondary">Generate requirements test link</button></form>:null}</div>:null}
     {acquisition.actionKey==='create_case'?<form action={convertProspectFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Progress opportunity</button></form>:null}
