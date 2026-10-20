@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { prospectInputSchema } from '@/lib/validation/prospects';
+import { canInviteFromLinkedIn } from '@/lib/acquisition/linkedinFunnel';
 import { createProspect } from '@/lib/repositories/prospects';
 import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
@@ -88,7 +89,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name,source,outreach_status,response_outcome').eq('organisation_id', organisationId).eq('id', prospectId).single();
     if (prospectError || !prospect) throw new Error('Prospect not found.');
     // Marketing interest is necessary before first technical intake for cold LinkedIn outreach.
-    if (prospect.source === 'linkedin' && !(prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested')) {
+    if (!canInviteFromLinkedIn(prospect)) {
       throw new Error('Record an interested LinkedIn reply before sending the secure requirements form. Continue the conversation in the LinkedIn funnel.');
     }
 
