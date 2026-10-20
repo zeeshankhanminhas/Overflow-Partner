@@ -6,6 +6,7 @@
 export type LinkedInProspect = {
   id: string;
   company_name: string;
+  source?: string | null;
   contact_name?: string | null;
   status?: string | null;
   outreach_status?: string | null;
@@ -13,6 +14,11 @@ export type LinkedInProspect = {
   next_follow_up_at?: string | null;
   converted_lead_id?: string | null;
 };
+
+/** Cold LinkedIn contact only enters requirements after a recorded interested reply. */
+export function canInviteFromLinkedIn(prospect: Pick<LinkedInProspect, 'source' | 'outreach_status' | 'response_outcome'>): boolean {
+  return prospect.source !== 'linkedin' || (prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested');
+}
 
 export const linkedinFunnelStages = [
   { key: 'identified', label: 'Identified', description: 'Research the company and appropriate contact.' },
