@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
-import { linkedInFunnelStage, linkedinFunnelStages, type LinkedInProspect } from '@/lib/acquisition/linkedinFunnel';
+import { isLinkedInFollowUpDue, linkedInFunnelStage, linkedinFunnelStages, type LinkedInProspect } from '@/lib/acquisition/linkedinFunnel';
 
 function followUpLabel(value: string | null | undefined) {
   if (!value) return 'No follow-up scheduled';
@@ -25,7 +25,7 @@ export default async function LinkedInAcquisitionFunnelPage() {
   if (sessionsError) throw new Error(sessionsError.message);
   const withIntake = new Set((sessions ?? []).map(item => String(item.prospect_id)));
   const records = prospects.map(item => ({ ...item, funnelStage: linkedInFunnelStage(item, withIntake.has(item.id)) }));
-  const due = records.filter(item => !['handoff','closed','nurture'].includes(item.funnelStage) && item.next_follow_up_at && new Date(item.next_follow_up_at).getTime() <= Date.now());
+  const due = records.filter(item => isLinkedInFollowUpDue(item, item.funnelStage));
   const groups = linkedinFunnelStages.map(stage => ({ ...stage, prospects: records.filter(item => item.funnelStage === stage.key) }));
   const parked = records.filter(item => item.funnelStage === 'nurture');
   const closed = records.filter(item => item.funnelStage === 'closed');
