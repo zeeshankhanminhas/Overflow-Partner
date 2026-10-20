@@ -104,6 +104,9 @@ check('Final invoice is blocked before completion',finance.resolveBillingEligibi
 check('Final invoice is eligible at completion',finance.resolveBillingEligibility({invoiceType:'final',projectStage:'completion'}).permitted===true);
 check('Credit note requires an existing invoice',finance.resolveBillingEligibility({invoiceType:'credit_note',projectStage:'closed',hasEligibleSourceInvoice:false}).permitted===false);
 
+check('Staged contractual migration has no malformed SQL terminators',!contractual.includes('end;'+String.fromCharCode(36)+';'));
+check('Bank-transfer release fails closed until independent reconciliation',contractual.includes("bank_transfer' and false"));
+check('Staged project mobilisation handoff migration exists',read('supabase/migrations/20261019030000_project_financial_release_handoff.sql').includes('op_inherit_quote_release_after_project_creation'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
