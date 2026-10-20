@@ -131,7 +131,7 @@ begin
   end if;
   -- Both changes are one database transaction: a failed response rolls back attestation.
   return public.op_record_public_quote_response(p_quote_id,p_quote_revision,p_response);
-end;$;
+end;$$;
 revoke all on function public.op_record_authorised_public_quote_response(uuid,integer,text,text,text,boolean) from public,anon,authenticated;
 grant execute on function public.op_record_authorised_public_quote_response(uuid,integer,text,text,text,boolean) to service_role;
 
