@@ -6,6 +6,7 @@ import AcquisitionTechnicalBrief from '@/components/workspace/AcquisitionTechnic
 import Step2TestLink from '@/components/workspace/Step2TestLink';
 import AcquisitionPartnerGate from '@/components/workspace/AcquisitionPartnerGate';
 import { acquisitionStages, resolveAcquisitionState } from '@/lib/acquisition/state';
+import { canInviteFromLinkedIn } from '@/lib/acquisition/linkedinFunnel';
 import { resolveAcquisitionPresentation } from '@/lib/presentation/operatingState';
 import { commercialCopy, commercialStatus } from '@/lib/presentation/commercialLanguage';
 import { operatorErrorMessage } from '@/lib/workspace/operatorErrors';
@@ -59,9 +60,8 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     prospectStatus:prospect.status,hasSession:Boolean(session),sessionStatus:session?.status,hasSubmission:Boolean(submission),convertedCaseId,
     hasPartnerRequest:Boolean(partnerRequest),partnerRequestStatus:partnerRequest?.status,hasPartnerResponse:Boolean(response),partnerDecision:decision?.decision,hasPartnerPricing:Boolean(partnerQuote&&Number(partnerQuote.price)>0),
   });
-  const beforeLinkedInHandoff = prospect.source === 'linkedin'
-    && acquisition.actionKey === 'create_intake'
-    && !(prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested');
+  const beforeLinkedInHandoff = acquisition.actionKey === 'create_intake'
+    && !canInviteFromLinkedIn(prospect);
   const governedPresentation = resolveAcquisitionPresentation(acquisition);
   const presentation = beforeLinkedInHandoff ? {
     ...governedPresentation,
