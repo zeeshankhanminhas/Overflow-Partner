@@ -33,3 +33,10 @@ export function linkedInFunnelStage(prospect: LinkedInProspect, hasIntake = fals
   if (['message_sent','follow_up_due'].includes(String(prospect.outreach_status)) || prospect.status === 'contacted') return 'outreach';
   return 'identified';
 }
+
+/** Nurture prospects can still have an overdue follow-up; only paused, closed, and handed-off records are excluded. */
+export function isLinkedInFollowUpDue(prospect: LinkedInProspect, stage: LinkedInFunnelStage, now = Date.now()): boolean {
+  if (stage === 'handoff' || stage === 'closed' || prospect.outreach_status === 'paused' || !prospect.next_follow_up_at) return false;
+  const dueAt = new Date(prospect.next_follow_up_at).getTime();
+  return Number.isFinite(dueAt) && dueAt <= now;
+}
