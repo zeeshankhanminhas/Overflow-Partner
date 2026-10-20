@@ -8,7 +8,7 @@ const funnelSource = readFileSync(new URL('lib/acquisition/linkedinFunnel.ts', r
 const compiled = ts.transpileModule(funnelSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const cjs = { exports: {} };
 vm.runInNewContext(compiled, { module: cjs, exports: cjs.exports }, { filename: 'linkedinFunnel.js' });
-const { linkedInFunnelStage, linkedinFunnelStages, isLinkedInFollowUpDue } = cjs.exports;
+const { linkedInFunnelStage, linkedinFunnelStages, isLinkedInFollowUpDue, canInviteFromLinkedIn } = cjs.exports;
 const record = (changes = {}) => ({ id: 'prospect-1', company_name: 'Test Engineering', status: 'identified', outreach_status: 'not_contacted', response_outcome: null, ...changes });
 
 assert.equal(linkedinFunnelStages.length, 5);
@@ -27,8 +27,12 @@ assert.equal(linkedInFunnelStage(record({ status: 'converted', converted_lead_id
 assert.equal(isLinkedInFollowUpDue(record({ outreach_status: 'replied', response_outcome: 'later', next_follow_up_at: '2026-01-01T00:00:00Z' }), 'nurture', Date.parse('2026-01-02')), true, 'Nurture follow-up must remain visible');
 assert.equal(isLinkedInFollowUpDue(record({ outreach_status: 'paused', next_follow_up_at: '2026-01-01T00:00:00Z' }), 'nurture', Date.parse('2026-01-02')), false, 'Paused prospect must not prompt outreach');
 assert.equal(isLinkedInFollowUpDue(record({ next_follow_up_at: '2026-01-03T00:00:00Z' }), 'identified', Date.parse('2026-01-02')), false, 'Future follow-up is not overdue');
+assert.equal(canInviteFromLinkedIn(record({ source: 'linkedin' })), false, 'Cold LinkedIn prospect must not receive technical intake');
+assert.equal(canInviteFromLinkedIn(record({ source: 'linkedin', outreach_status: 'replied', response_outcome: 'later' })), false, 'Later response is not permission to request details');
+assert.equal(canInviteFromLinkedIn(record({ source: 'linkedin', outreach_status: 'replied', response_outcome: 'interested' })), true, 'Interested reply permits handoff');
+assert.equal(canInviteFromLinkedIn(record({ source: 'website' })), true, 'Existing inbound enquiry is unaffected');
 const actions = readFileSync(new URL('app/workspace/acquisition/actions.ts', root), 'utf8');
 assert.match(actions, /parsed\.data\.email && parsed\.data\.source !== 'linkedin'/, 'LinkedIn cold prospect must not trigger auto-enquiry email');
-assert.match(actions, /prospect\.source === 'linkedin' && !\(prospect\.outreach_status === 'replied' && prospect\.response_outcome === 'interested'\)/, 'LinkedIn requirements handoff must require interested reply');
+assert.match(actions, /if \(!canInviteFromLinkedIn\(prospect\)\)/, 'Backend invite action must enforce tested LinkedIn interest gate');
 assert.match(actions, /\['qualified', 'converted'\]\.includes\(parsed\.data\.status\)/, 'Manual intake cannot bypass governed qualification');
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');
