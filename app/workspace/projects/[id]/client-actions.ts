@@ -60,6 +60,7 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
     const changesRequested=['changes_requested','rejected','changes_needed'].includes(outcome);
     const category=String(formData.get('feedback_category')||'in_scope_correction') as ClientFeedbackCategory;
     const isPartnerDefect=formData.get('partner_defect')==='true';
+    let variationRecorded=false;
     if(changesRequested){
       if(!['in_scope_correction','revision','out_of_scope_change'].includes(category))throw new Error('Classify the feedback before recording it.');
       if(!comments)throw new Error('Provide all requested changes in one consolidated list with references.');
@@ -81,8 +82,9 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
         // A new requirement must never be sent for free partner correction or auto-accepted.
         refresh(projectId);
         destination=projectUrl(projectId,{updated:'Separate variation recorded. Technical, price and timeline approval are required before partner work.',focus:'record-next-action'});
-        return redirect(destination);
+        variationRecorded=true;
       }
+      if(!variationRecorded){
       const {count,error:historyError}=await supabase.from('activity_events')
         .select('id',{count:'exact',head:true}).eq('organisation_id',organisationId).eq('entity_type','project')
         .eq('entity_id',projectId).eq('event_type','client.included_correction_round');
@@ -91,7 +93,9 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
         category,correctionRoundsUsed:count||0,defectAgainstApprovedScope:isPartnerDefect,
       });
       if(classification==='correction_round_exhausted')throw new Error('The one included correction round is already used. Create a separately approved variation, or record evidence of a partner defect.');
+      }
     }
+    if(!variationRecorded){
     const {data,error}=await supabase.rpc('op_record_client_review_outcome',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_outcome:outcome,p_evidence_basis:evidenceBasis,p_evidence_reference:evidenceReference,p_comments:comments||null});
     if(error)throw new Error(error.message);
     if(changesRequested){
@@ -112,6 +116,7 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
       if(assignment?.partner_contact_email){const {data:session}=await supabase.from('partner_execution_sessions').select('id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id).in('status',['invited','opened','active']).order('created_at',{ascending:false}).limit(1).maybeSingle();const partnerUrl=session?.id?`${appUrl()}/execution/${createExecutionSessionToken(session.id)}`:appUrl();await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_work.action_required',recipientEmail:assignment.partner_contact_email,recipientName:assignment.partner_contact_name,actionUrl:partnerUrl,payload:{reference:project?.project_number,project:project?.title,message:comments||'Client changes have been requested.'},entityType:'project',entityId:projectId,idempotencyKey:`partner-work:client-changes:${projectId}:${evidenceReference}`}).catch(()=>null);}
     }
     refresh(projectId);const projectStage=String(data?.projectStage||'client_review');destination=projectUrl(projectId,{updated:`Client outcome recorded: ${outcome.replaceAll('_',' ')}.`,...(projectStage==='partner_correction'?{advanced:'partner_correction'}:{}),focus:'record-next-action'});
+    }
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client outcome could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }
