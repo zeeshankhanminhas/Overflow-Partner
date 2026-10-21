@@ -8,9 +8,9 @@ import ts from 'typescript';
 const require=createRequire(import.meta.url);
 const source=readFileSync(new URL('../lib/payments/stripeSignature.ts',import.meta.url),'utf8');
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const module={exports:{}};
-vm.runInNewContext(compiled,{module,exports:module.exports,require,Buffer});
-const {validStripeSignature}=module.exports;
+const sandboxModule={exports:{}};
+vm.runInNewContext(compiled,{module:sandboxModule,exports:sandboxModule.exports,require,Buffer});
+const {validStripeSignature}=sandboxModule.exports;
 
 const secret='whsec_QA_ONLY_NEVER_A_REAL_SECRET';
 const now=Date.parse('2026-10-21T14:00:00.000Z');
