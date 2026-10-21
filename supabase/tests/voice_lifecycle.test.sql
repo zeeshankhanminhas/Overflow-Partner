@@ -1,9 +1,10 @@
 -- Isolated local Supabase DB only. No live credentials, customer data or charge.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 select ok(to_regclass('public.quote_release_contracts') is not null,'Quote release contracts exist');
+select ok(exists(select 1 from pg_constraint where conrelid='public.quote_payment_confirmations'::regclass and conname='quote_payment_confirmations_payment_method_check' and pg_get_constraintdef(oid) like '%stripe%'),'Verified Stripe is a permitted payment confirmation method');
 select ok(to_regclass('public.quote_client_signatory_attestations') is not null,'Named client signer attestations exist');
 select ok(to_regclass('public.op_project_final_settlements') is not null,'Final settlement ledger exists');
 select ok(to_regclass('public.op_project_final_release_approvals') is not null,'Manual owner final release ledger exists');
