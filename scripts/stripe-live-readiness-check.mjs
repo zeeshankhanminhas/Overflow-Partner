@@ -36,11 +36,11 @@ const prodEnv={
 };
 const original={...process.env};
 let tests=0;
-function use(next){for(const k of Object.keys(prodEnv))delete process.env[k];
+function applyQaEnv(next){for(const k of Object.keys(prodEnv))delete process.env[k];
   Object.assign(process.env,next);}
 const check=(condition,description)=>{assert.ok(condition,description);tests++;console.log('PASS '+description);};
 try{
- use(prodEnv);
+ applyQaEnv(prodEnv);
  check(stripeRuntimeMode()==='live','Live mode requires every validated production gate');
  check(checkoutOrigin('live')==='https://overflow-partner.vercel.app','Live Checkout returns to approved HTTPS origin');
  for(const [key,value] of Object.entries({
@@ -50,22 +50,22 @@ try{
   STRIPE_SECRET_KEY:'sk_test_FAKE_CI_NEVER_USE',
   STRIPE_WEBHOOK_SECRET:'',NEXT_PUBLIC_SUPABASE_URL:'https://another-project.supabase.co'
  })){
-  use({...prodEnv,[key]:value});
+  applyQaEnv({...prodEnv,[key]:value});
   check(stripeRuntimeMode()===null,`Live payment disabled on unsafe ${key}`);
  }
  for(const [key,value] of Object.entries({
   OP_STRIPE_LIVE_RETURN_ORIGIN:'https://unapproved.example.invalid',
   NEXT_PUBLIC_SITE_URL:'http://overflow-partner.vercel.app'
  })){
-  use({...prodEnv,[key]:value});
+  applyQaEnv({...prodEnv,[key]:value});
   assert.throws(()=>checkoutOrigin('live'));
   check(true,`Disagreeing payment return origin rejected (${key})`);
  }
- use({...prodEnv,NEXT_PUBLIC_SITE_URL:'https://malicious.example.invalid',
+ applyQaEnv({...prodEnv,NEXT_PUBLIC_SITE_URL:'https://malicious.example.invalid',
     OP_STRIPE_LIVE_RETURN_ORIGIN:'https://malicious.example.invalid/path'});
  assert.throws(()=>checkoutOrigin('live'));
  check(true,'Payment redirects cannot include arbitrary paths');
- use({...prodEnv,VERCEL_ENV:'preview',STRIPE_SECRET_KEY:'sk_live_FAKE_CI_NEVER_USE'});
+ applyQaEnv({...prodEnv,VERCEL_ENV:'preview',STRIPE_SECRET_KEY:'sk_live_FAKE_CI_NEVER_USE'});
  check(stripeRuntimeMode()===null,'Preview cannot activate live Stripe even with live key');
  console.log('Stripe live-mode readiness: '+tests+' fail-closed offline assertions passed.');
 }finally{
