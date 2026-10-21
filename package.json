@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && next build",
+    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -16,7 +16,8 @@
     "credibility:check": "node scripts/credibility-release-check.mjs",
     "performance:check": "node scripts/workspace-performance-check.mjs",
     "templates:check": "node scripts/template-content-check.mjs",
-    "acquisition-funnel:check": "node scripts/linkedin-acquisition-funnel-check.mjs"
+    "acquisition-funnel:check": "node scripts/linkedin-acquisition-funnel-check.mjs",
+    "stripe-security:check": "node scripts/stripe-webhook-signature-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
