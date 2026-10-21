@@ -33,7 +33,7 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
   const [payment,approval]=await Promise.all([
     db.from('op_project_final_settlements').select('project_id,verified_at')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
-    db.from('op_project_final_release_approvals').select('project_id,approved_at')
+    db.from('op_project_final_release_approvals').select('project_id,approved_at,submission_id')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
   ]);
   if(payment.error||approval.error||!payment.data||!approval.data)
@@ -45,7 +45,8 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
     .eq('project_id',project.id).eq('assignment_id',assignment.id).eq('organisation_id',issue.organisation_id)
     .eq('execution_cycle',assignment.execution_cycle||1).eq('review_status','accepted')
     .order('submitted_at',{ascending:false}).limit(1).maybeSingle();
-  if(!reviewed)return denied('The latest engineering revision has not passed technical review.');
+  if(!reviewed || reviewed.id!==approval.data.submission_id)
+    return denied('The current engineering revision differs from the last authorised final release. A new OPOS approval is required.');
   const {data:files,error}=await db.from('partner_delivery_submission_files')
     .select('id,original_filename,storage_bucket,storage_path').eq('organisation_id',issue.organisation_id)
     .eq('project_id',project.id).eq('assignment_id',assignment.id).eq('submission_id',reviewed.id)
