@@ -1,23 +1,9 @@
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { validStripeSignature } from '@/lib/payments/stripeSignature';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
 
 export const runtime = 'nodejs';
-
-function validSignature(body: string, header: string, secret: string): boolean {
-  const pieces = header.split(',').map(part=>part.trim().split('='));
-  const timestamp = pieces.find(([k])=>k==='t')?.[1] || '';
-  const candidates = pieces.filter(([k])=>k==='v1').map(([,v])=>v);
-  if (!/^\d+$/.test(timestamp) || Math.abs(Date.now()/1000 - Number(timestamp)) > 300) return false;
-  const calculated = createHmac('sha256',secret).update(timestamp+'.'+body).digest('hex');
-  const expected = Buffer.from(calculated,'hex');
-  return candidates.some(v=>{
-    if (!/^[a-f0-9]{64}$/i.test(v||'')) return false;
-    const actual=Buffer.from(v,'hex');
-    return actual.length===expected.length && timingSafeEqual(actual,expected);
-  });
-}
 
 export async function POST(request: Request) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return new Response('Not enabled',{status:503});
@@ -29,7 +15,7 @@ export async function POST(request: Request) {
   if (!webhookSecret || !dbUrl || !dbKey) return new Response('Not configured',{status:503});
   const body=await request.text();
   const signature=request.headers.get('stripe-signature')||'';
-  if (!validSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
+  if (!validStripeSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
   type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string; payment_stage?: string; project_id?: string } };
   let event: {id?: string; livemode?: boolean; type?: string; data?: {object?: StripeSession}};
   try { event=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
