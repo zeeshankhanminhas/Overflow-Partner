@@ -137,6 +137,40 @@ check('Client review cannot expose partner uploaded editable files',!clientActio
 
 check('Commercial issue uses approved deposit',read('app/workspace/orchestration/actions.ts').includes("contract.release_basis==='deposit'"));
 check('Client quote defaults to 30% advance',read('app/workspace/leads/[id]/QuoteIssueContractFields.tsx').includes("('deposit')"));
+const finalContracts=read('supabase/migrations/20261021060000_final_payment_and_owner_release.sql');
+const stagedDepositFinalizer=read('supabase/migrations/20261021054100_verified_deposit_stripe_release.sql');
+const finalPage=read('app/client-final-files/page.tsx');
+const finalCheckout=read('app/project-final-payment/stripe-action.ts');
+const finalOwnerAction=read('app/workspace/projects/[id]/final-release-action.ts');
+const projectPage=read('app/workspace/projects/[id]/page.tsx');
+check('No production Stripe action without isolated Preview',checkout.includes("OP_ISOLATED_QA_BACKEND !== 'true'")&&
+  webhook.includes("OP_ISOLATED_QA_BACKEND !== 'true'")&&finalCheckout.includes("OP_ISOLATED_QA_BACKEND!=='true'"));
+check('Deposit finalizer records only frozen opening amount',stagedDepositFinalizer.includes('v_contract.opening_amount')
+  &&stagedDepositFinalizer.includes('op_accept_quote_create_project_with_acceptance_core'));
+check('Client final payment requires current accepted review and existing project',finalCheckout.includes("project_client_reviews")
+  &&finalCheckout.includes('accepted_with_comments')&&finalCheckout.includes("from('projects')"));
+check('Signed webhook discriminates opening and final events',webhook.includes("paymentStage==='final'")
+  &&webhook.includes('op_record_verified_project_final_settlement')&&webhook.includes("metadata?.payment_stage"));
+check('Final settlement RPC requires independently paid Stripe event and amount',finalContracts.includes('op_record_verified_project_final_settlement')
+  &&finalContracts.includes("stripe_payment_status='paid'")&&finalContracts.includes('v_event.amount_total is distinct from round(v_required*100)::bigint'));
+check('Owner release requires authenticated owner and settled final balance',finalContracts.includes('op_approve_project_final_release')
+  &&finalContracts.includes('auth.uid() is distinct from p_user_id')&&finalContracts.includes("array['owner','admin']")
+  &&finalContracts.includes('op_project_final_settlements'));
+check('Final approval also requires current accepted partner QC submission',finalContracts.includes("s.review_status='accepted'")
+  &&finalContracts.includes('partner_delivery_submission_files'));
+check('No signed file download before final manual release',finalPage.includes("op_project_final_settlements")
+  &&finalPage.includes("op_project_final_release_approvals")&&finalPage.indexOf('op_project_final_release_approvals')<finalPage.indexOf('createSignedUrl('));
+check('Only current accepted engineering submission can be downloaded',finalPage.includes("review_status','accepted'")
+  &&finalPage.includes("submission_id',reviewed.id"));
+check('Owner release action is separate from signed Stripe webhook',finalOwnerAction.includes("assertRole(profile.role,['owner','admin'])")
+  &&finalOwnerAction.includes('op_approve_project_final_release'));
+check('Partner payment and closure locked behind final release',finalContracts.includes('op_guard_partner_payment_after_final_release')
+  &&finalContracts.includes('op_guard_manual_voice_project_closure'));
+check('Project 360 explicitly shows manual owner release before closure',projectPage.includes('Approve final engineering file release')
+  &&projectPage.includes('readyForManualClosure'));
+check('New contractual lifecycle blocks manual quote-to-project bypass',actions.includes("Manual project creation is disabled."));
+check('Client portal exposes final balance and approved files separately',portal.includes('finalReviewAccepted&&!finalSettlementVerified')
+  &&portal.includes('finalReleaseApproved'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
