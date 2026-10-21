@@ -199,6 +199,7 @@ export async function updateProspectOutreachAction(formData: FormData) {
     if(!prospectId||!outreachStatuses.has(outreachStatus))throw new Error('Select a valid outreach action.');
     if(responseOutcome&&!responseOutcomes.has(responseOutcome))throw new Error('Select a valid reply outcome.');
     if(outreachStatus==='replied'&&!responseOutcome)throw new Error('Record the reply outcome.');
+    if(responseOutcome==='interested'&&outreachStatus!=='replied')throw new Error('Confirm the customer replied before recording interest.');
     if(outreachStatus==='follow_up_due'&&!followUp)throw new Error('Set the next follow-up date and time.');
     const {data:prospect,error:readError}=await supabase.from('prospects').select('id,status,converted_lead_id,outreach_status,response_outcome,next_follow_up_at').eq('organisation_id',organisationId).eq('id',prospectId).single();
     if(readError||!prospect)throw new Error('Prospect not found.');
@@ -206,6 +207,9 @@ export async function updateProspectOutreachAction(formData: FormData) {
     const now=new Date().toISOString();
     const updates={outreach_status:outreachStatus,response_outcome:responseOutcome||null,next_follow_up_at:followUp?new Date(followUp).toISOString():null,last_contacted_at:outreachStatus==='message_sent'?now:undefined,last_reply_at:outreachStatus==='replied'?now:undefined,updated_at:now};
     const {error:updateError}=await supabase.from('prospects').update(updates).eq('organisation_id',organisationId).eq('id',prospectId);if(updateError)throw new Error(updateError.message);
+    if((outreachStatus==='replied'&&['interested','not_interested'].includes(responseOutcome))||outreachStatus==='paused') {
+      await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId,categories:['nurture']});
+    }
     await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:prospectId,userId:user.id,eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin'},oldValue:{outreachStatus:prospect.outreach_status,responseOutcome:prospect.response_outcome,nextFollowUpAt:prospect.next_follow_up_at},newValue:{outreachStatus,responseOutcome:responseOutcome||null,nextFollowUpAt:updates.next_follow_up_at}});
     revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace/acquisition/funnel');revalidatePath('/workspace');
     destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-current-stage-work'});
