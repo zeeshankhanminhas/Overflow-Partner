@@ -28,9 +28,9 @@ check('Payment portal shows contractual opening amount instead of quote total',p
 check('Staged deposit cannot show a full-amount Stripe Checkout action',payment.includes('hasStagedPayment')&&payment.includes('stripeAvailable ?'));
 
 check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
-check('Checkout strictly Preview and test Stripe keys',checkout.includes("VERCEL_ENV !== 'preview'")&&checkout.includes("startsWith('sk_test_')"));
+check('Checkout separates test keys from gated live Stripe environment',checkout.includes('stripeRuntimeMode()')&&checkout.includes("mode==='live'?'sk_live_':'sk_test_'")&&checkout.includes('checkoutOrigin(mode)'));
 check('Checkout requires explicit quote allowlist',checkout.includes("from('op_sandbox_payment_authorisations')")&&checkout.includes("quote_revision"));
-check('Webhook signature and mode validated',webhook.includes('validStripeSignature(body,signature,webhookSecret)')&&webhook.includes('session.livemode !== false')&&read('lib/payments/stripeSignature.ts').includes('timingSafeEqual'));
+check('Webhook signature and matching signed live/test mode validated',webhook.includes('validStripeSignature(body,signature,webhookSecret)')&&webhook.includes("session.livemode !== (mode==='live')")&&read('lib/payments/stripeSignature.ts').includes('timingSafeEqual'));
 check('Webhook validates amount, currency, revision',webhook.includes('amount!==expectedAmount')&&webhook.includes("currency!==String(quote.currency)")&&webhook.includes(".eq('revision',revision)"));
 check('Webhook requires QA allowlist',webhook.includes("from('op_sandbox_payment_authorisations')"));
 check('Database finalizer independently enforces QA allowlist',finalizer.includes('op_sandbox_payment_authorisations')&&finalizer.includes("OP QA TEST%")&&finalizer.includes('a.expires_at>now()'));
@@ -143,11 +143,16 @@ const finalPage=read('app/client-final-files/page.tsx');
 const finalCheckout=read('app/project-final-payment/stripe-action.ts');
 const finalOwnerAction=read('app/workspace/projects/[id]/final-release-action.ts');
 const projectPage=read('app/workspace/projects/[id]/page.tsx');
-check('No production Stripe action without isolated Preview or loopback CI',checkout.includes("OP_ISOLATED_QA_BACKEND !== 'true'")&&
-  webhook.includes('isTrustedWebhookQaBackend()')&&
-  read('lib/qa/isolation.ts').includes("VERCEL_ENV !== 'local-qa'")&&
-  read('lib/qa/isolation.ts').includes("url.hostname==='127.0.0.1'")&&
-  finalCheckout.includes("OP_ISOLATED_QA_BACKEND!=='true'"));
+const modeCode=read('lib/payments/stripeEnvironment.ts');
+check('No live Stripe use without production flags, matching backend and checked return origin',
+  checkout.includes('stripeRuntimeMode()')&&webhook.includes('stripeRuntimeMode()')&&
+  finalCheckout.includes('stripeRuntimeMode()')&&
+  modeCode.includes("VERCEL_ENV!=='production'")&&
+  modeCode.includes("OP_STRIPE_LIVE_ENABLED!=='true'")&&
+  modeCode.includes("OP_PACKAGE01_AUTO_RELEASE_ENABLED!=='true'")&&
+  modeCode.includes("sk_live_")&&
+  modeCode.includes('OP_STRIPE_LIVE_RETURN_ORIGIN')&&
+  read('lib/qa/isolation.ts').includes("url.hostname==='127.0.0.1'"));
 check('Deposit finalizer records only frozen opening amount',stagedDepositFinalizer.includes('v_contract.opening_amount')
   &&stagedDepositFinalizer.includes('op_accept_quote_create_project_with_acceptance_core'));
 check('Client final payment requires current accepted review and existing project',finalCheckout.includes("project_client_reviews")
@@ -217,6 +222,15 @@ check('No partner work-order email in non-isolated Preview',
 const financeHandoffSql=read('supabase/migrations/20261019030000_project_financial_release_handoff.sql');
 check('Project finance handoff SQL function has complete delimiter',financeHandoffSql.trimEnd().endsWith('$function$;'));
 check('Project finance inherits exactly the accepted quotation revision',financeHandoffSql.includes('quote_revision=(select revision from public.quotes where id=new.quote_id)'));
+const liveSql=read('supabase/migrations/20261021090000_live_stripe_payment_reconciliation.sql');
+check('Live paid events are distinguished and live-only finalizers reject QA evidence',
+  liveSql.includes('add column if not exists livemode boolean not null default false')&&
+  liveSql.includes('op_finalize_live_stripe_quote_payment')&&
+  liveSql.includes('op_record_live_stripe_final_settlement')&&
+  liveSql.includes("v_event.livemode is distinct from true")&&
+  webhook.includes("livemode:mode==='live'"));
+check('Offline release-mode regression exists',
+  read('scripts/stripe-live-readiness-check.mjs').includes('Live payment disabled on unsafe'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
