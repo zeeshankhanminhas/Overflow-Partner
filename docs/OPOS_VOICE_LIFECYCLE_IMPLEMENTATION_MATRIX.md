@@ -40,6 +40,10 @@ All internal and external screens must answer **current state, responsible owner
 
 **CSS baseline (verified)**: 13 repository CSS files, 10 workspace files. More important than raw file count: overlapping selector definitions, old/new prefixes, inconsistent button scale, and mobile navigation. Target shared typography, spacing, forms, action bar, and accessible responsive breakpoints. Do not blindly delete CSS or remove working components.
 
+## Critical client review file-safety correction
+
+The original `recordClientTransmittalAction` previously generated long-lived signed download URLs to **all uploaded partner deliverables** and included them in the first client-review email, exposing editable engineering files before final payment. This violates the approved contract. On the feature branch it now sends only the controlled PDF review pack and **no partner source-file download URLs**. The new regression verifies this prohibition. The final editable handover remains **blocked** until a separate verified-final-payment + named OPOS manual-release action is implemented and tested; do not mislabel the review email as final delivery.
+
 ## Release blockers — not complete
 
 - **P0** OPOS DB has no live `quote_release_contracts` table; pending contractual release migrations must be fixed/validated and deployed in controlled order.
