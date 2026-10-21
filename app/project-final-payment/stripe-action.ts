@@ -1,3 +1,4 @@
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 'use server';
 
 import { redirect } from 'next/navigation';
@@ -9,6 +10,7 @@ export async function createFinalStripeCheckout(formData:FormData) {
   if(process.env.VERCEL_ENV!=='preview' || process.env.OP_ISOLATED_QA_BACKEND!=='true' ||
      process.env.OP_PACKAGE01_PAYMENTS_ENABLED!=='true' || process.env.OP_STRIPE_FINAL_TEST_ENABLED!=='true')
     throw new Error('Final-balance Stripe Checkout requires approved isolated Preview QA.');
+  assertIsolatedQaBackend();
   const token=String(formData.get('token')||'');
   const access=verifyClientPortalToken(token);
   if(!access)throw new Error('Your secure client portal link is no longer valid.');
