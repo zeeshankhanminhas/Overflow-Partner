@@ -1,3 +1,4 @@
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
@@ -21,6 +22,7 @@ function validSignature(body: string, header: string, secret: string): boolean {
 export async function POST(request: Request) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return new Response('Not enabled',{status:503});
   if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_ISOLATED_QA_BACKEND !== 'true') return new Response('Isolated Preview QA backend required',{status:503});
+  if(!isKnownIsolatedQaBackend())return new Response('Preview Supabase URL is not an independently configured QA project',{status:503});
   const webhookSecret=process.env.STRIPE_WEBHOOK_SECRET;
   const dbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
