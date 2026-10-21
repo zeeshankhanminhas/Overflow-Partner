@@ -314,6 +314,9 @@ export async function acceptQuoteAction(formData: FormData) {
   const quoteId = required(formData, 'quote_id');
   const leadId = required(formData, 'lead_id');
   let destination = `/workspace/leads/${leadId}`;
+  if(process.env.OP_CONTRACTUAL_RELEASE_ENABLED==='true') {
+    redirect(caseUrl(leadId,{error:'Manual project creation is disabled. Authorised portal acceptance and a verified opening payment will create Project 360 automatically. Bank transfers require independently reconciled evidence.',focus:'record-next-action'}));
+  }
   try {
     // Use the authoritative recorded portal decision when present. The secure
     // link proves control of the link, not the recipient's legal identity.
