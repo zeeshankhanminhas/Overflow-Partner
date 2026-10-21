@@ -55,9 +55,9 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
     const requestId = String(request?.id || '');
     let notificationWarning = '';
     if (partner.email) {
-      const payload={company:partner.company_name,project:`${prospect.company_name} — ${prospect.project_type||'Engineering requirement'}`,reference:request?.case_reference||requestId,dueDate:due.toLocaleDateString('en-GB')};
+      const payload={company:partner.company_name,project:prospect.project_type||'Engineering requirement',reference:request?.case_reference||requestId,dueDate:due.toLocaleDateString('en-GB')};
       try {
-        await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_review.requested',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:reviewUrl,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`prospect-partner-review:requested:${requestId}`,subject:`Delivery review requested — ${prospect.company_name}`});
+        await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_review.requested',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:reviewUrl,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`prospect-partner-review:requested:${requestId}`,subject:`Delivery review requested — ${request?.case_reference||requestId}`});
         await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_review.reminder',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:reviewUrl,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Math.max(Date.now(),due.getTime()-48*60*60*1000)).toISOString(),idempotencyKey:`prospect-partner-review:reminder:${requestId}`,subject:`Reminder: delivery review due — ${prospect.company_name}`});
       } catch (notificationError) {
         console.error('Partner review notification queue failed after request creation', notificationError);
