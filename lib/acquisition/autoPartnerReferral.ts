@@ -1,3 +1,4 @@
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
@@ -20,7 +21,7 @@ export async function autoReferSubmittedIntake(
 ): Promise<PartnerReferralResult> {
   const { organisationId, prospectId, sessionId, actorUserId } = input;
   // Preview currently points at a shared OPOS project. Never auto-invite a real partner from an unisolated preview.
-  if (process.env.VERCEL_ENV === 'preview' && process.env.OP_ISOLATED_QA_BACKEND !== 'true') {
+  if (process.env.VERCEL_ENV === 'preview' && !isKnownIsolatedQaBackend()) {
     return {status:'manual_required',reason:'Partner automation is disabled on Preview until an isolated QA backend is configured.'};
   }
   // Important: validate the actual submission and ownership, not only the caller's assertions.
