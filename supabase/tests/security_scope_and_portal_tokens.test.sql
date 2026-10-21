@@ -17,6 +17,11 @@ INSERT INTO public.leads(id,organisation_id,created_by,company_name)
 VALUES ('00000000-0000-4000-8000-000000008913',
         '00000000-0000-4000-8000-000000008912',
         '00000000-0000-4000-8000-000000008911','OP QA SCOPE');
+INSERT INTO public.technical_intakes(id,organisation_id,lead_id,description,created_by)
+VALUES ('00000000-0000-4000-8000-000000008922',
+        '00000000-0000-4000-8000-000000008912',
+        '00000000-0000-4000-8000-000000008913','Synthetic QA intake',
+        '00000000-0000-4000-8000-000000008911');
 INSERT INTO public.projects(id,organisation_id,lead_id,created_by,project_number,title,project_stage)
 VALUES ('00000000-0000-4000-8000-000000008914',
         '00000000-0000-4000-8000-000000008912',
@@ -89,11 +94,6 @@ INSERT INTO public.prospects(id,organisation_id,created_by,company_name)
 VALUES ('00000000-0000-4000-8000-000000008917',
         '00000000-0000-4000-8000-000000008912',
         '00000000-0000-4000-8000-000000008911','Security QA Prospect');
-INSERT INTO public.technical_intakes(id,organisation_id,lead_id,description,created_by)
-VALUES ('00000000-0000-4000-8000-000000008922',
-        '00000000-0000-4000-8000-000000008912',
-        '00000000-0000-4000-8000-000000008913','Synthetic QA intake',
-        '00000000-0000-4000-8000-000000008911');
 INSERT INTO public.intake_sessions(
  id,organisation_id,prospect_id,token_hash,expires_at,created_by)
 VALUES ('00000000-0000-4000-8000-000000008923',
