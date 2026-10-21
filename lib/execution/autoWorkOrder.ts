@@ -74,7 +74,15 @@ export async function releaseApprovedPartnerWorkOrder(
   if(project.project_stage!=='ready_for_execution')
     throw new Error('Mobilisation must complete before the Partner work order is released.');
   const {data:finance,error:financeError}=await db.rpc('op_project_financial_gate',{p_project_id:projectId});
-  if(financeError||finance?.authorised!==true)throw new Error('Verified opening payment authority is required before partner release.');
+  // The historic finance gate can also authorise PO, credit and manual overrides.
+  // Our agreed commercial lifecycle only releases an execution partner after
+  // a positively paid opening deposit. Never accept these alternative bases.
+  if(financeError || finance?.authorised!==true ||
+     finance?.basis!=='deposit' ||
+     !(Number(finance?.required)>0) ||
+     !(Number(finance?.received)>=Number(finance?.required))) {
+    throw new Error('Verified cleared opening deposit (not PO, credit or manual override) is required before partner work-order release.');
+  }
   const {data:assignment,error:assignmentError}=await db.from('project_execution_assignments')
     .select('id,partner_id,scope_document_id,partner_contact_email,partner_contact_name,committed_due_date,execution_state,execution_cycle')
     .eq('organisation_id',organisationId).eq('project_id',projectId).single();
