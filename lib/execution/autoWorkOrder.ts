@@ -90,6 +90,10 @@ export async function releaseApprovedPartnerWorkOrder(
     throw new Error('Partner delivery address differs from approved vendor record.');
 
   let sessionId='';
+  const {error:expiredError}=await db.from('partner_execution_sessions')
+    .update({status:'expired'}).eq('organisation_id',organisationId).eq('assignment_id',assignment.id)
+    .in('status',['invited','opened','active']).lt('expires_at',new Date().toISOString());
+  if(expiredError)throw new Error('Expired partner work-order token cleanup failed: '+expiredError.message);
   const {data:active,error:activeError}=await db.from('partner_execution_sessions')
     .select('id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id)
     .in('status',['invited','opened','active']).gt('expires_at',new Date().toISOString())
