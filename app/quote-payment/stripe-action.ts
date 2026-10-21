@@ -1,6 +1,7 @@
 'use server';
 
 import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
+import { stripeRuntimeMode, checkoutOrigin } from '@/lib/payments/stripeEnvironment';
 
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
@@ -8,32 +9,31 @@ import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
 
 export async function createStripeCheckout(formData: FormData) {
-  if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') throw new Error('The new payment flow is not yet enabled.');
-  if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_ISOLATED_QA_BACKEND !== 'true') throw new Error('Stripe testing requires an isolated Preview database.');
-  assertIsolatedQaBackend();
+  const mode=stripeRuntimeMode();
+  if(!mode)throw new Error('An approved Stripe payment environment is required.');
+  if(mode==='qa')assertIsolatedQaBackend();
   const token = String(formData.get('token') || '');
   const access = verifyClientPortalToken(token);
   if (!access) throw new Error('Secure payment link has expired.');
   const apiKey = process.env.STRIPE_SECRET_KEY;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  // Test Checkout must return to the same Preview deployment, never the production hostname.
-  const previewHost = process.env.VERCEL_URL;
-  if (!previewHost || !/^[a-z0-9.-]+\.vercel\.app$/i.test(previewHost)) throw new Error('A verified Vercel Preview return host is required.');
-  const site = `https://${previewHost}`;
+  const site=checkoutOrigin(mode);
   if (!apiKey || !url || !dbKey) throw new Error('Stripe payment is not configured.');
-  if (!apiKey.startsWith('sk_test_')) throw new Error('Package 01 preview only permits Stripe test keys.');
+  if (!apiKey.startsWith(mode==='live'?'sk_live_':'sk_test_')) throw new Error('Stripe key mode does not match the authorised deployment.');
   const db = createSupabaseClient(url, dbKey, {auth:{persistSession:false,autoRefreshToken:false}});
   const { data: issue, error: issueError } = await db.from('quote_issue_records').select('organisation_id,client_response').eq('quote_id',access.quoteId).eq('quote_revision',access.revision).maybeSingle();
   if (issueError || issue?.client_response !== 'accepted') throw new Error('Accepted quotation required.');
   const {data:quote,error:quoteError}=await db.from('quotes').select('id,lead_id,quote_number,revision,status,total,currency,valid_until').eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(quote.status)) throw new Error('Current quotation unavailable.');
-  const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
-  if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
-  const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
-    .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
-    .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
-  if (authorisationError || !authorisation) throw new Error('Quotation not explicitly authorised for Stripe Sandbox testing.');
+  if(mode==='qa'){
+    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
+    if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
+    const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
+      .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
+      .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
+    if (authorisationError || !authorisation) throw new Error('Quotation not explicitly authorised for Stripe Sandbox testing.');
+  }
   if (quote.valid_until && new Date(`${quote.valid_until}T23:59:59.999Z`).getTime() < Date.now()) throw new Error('Quotation expired.');
   const {data:contract,error:contractError}=await db.from('quote_release_contracts')
     .select('release_basis,opening_amount,currency').eq('organisation_id',issue.organisation_id)
@@ -58,9 +58,9 @@ export async function createStripeCheckout(formData: FormData) {
   const currency=String(quote.currency||'GBP').trim().toLowerCase();
   const pennies=Math.round(openingAmount*100);
   if (currency !== 'gbp' || !Number.isSafeInteger(pennies) || pennies < 50) throw new Error('Unsupported quote amount or currency.');
-  if (contract.release_basis === 'deposit' && process.env.OP_STRIPE_DEPOSIT_TEST_ENABLED !== 'true')
+  if (mode==='qa' && contract.release_basis === 'deposit' && process.env.OP_STRIPE_DEPOSIT_TEST_ENABLED !== 'true')
     throw new Error('Staged Stripe test checkout is not enabled.');
-  if (contract.release_basis === 'payment' && process.env.OP_STRIPE_FULL_PAYMENT_ONLY !== 'true')
+  if (mode==='qa' && contract.release_basis === 'payment' && process.env.OP_STRIPE_FULL_PAYMENT_ONLY !== 'true')
     throw new Error('Full-advance Stripe test checkout is not enabled.');
   const params = new URLSearchParams();
   params.set('mode','payment');
@@ -75,7 +75,7 @@ export async function createStripeCheckout(formData: FormData) {
   params.set('metadata[payment_stage]','opening');
   params.set('success_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
   params.set('cancel_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
-  const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-test-opening-${quote.id}-r${quote.revision}-${pennies}`},body:params.toString(),cache:'no-store'});
+  const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-${mode}-opening-${quote.id}-r${quote.revision}-${pennies}`},body:params.toString(),cache:'no-store'});
   const session=await response.json();
   if (!response.ok || !session.url || !session.id) throw new Error('Stripe Checkout is temporarily unavailable.');
   // No payment is marked received here. A separately authenticated webhook must verify settlement.
