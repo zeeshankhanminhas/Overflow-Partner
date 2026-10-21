@@ -69,6 +69,22 @@ export async function POST(request: Request) {
   if (!Number.isSafeInteger(amount) || amount!==expectedAmount || currency!==String(quote.currency).trim().toUpperCase()) {
     return new Response('Settlement does not match quotation',{status:422});
   }
+  // Do not accept a second paid Checkout session for the same commercial stage.
+  // Distinct Stripe event IDs for the *same* session are legitimate retries,
+  // but a different session must be escalated rather than auto-reconciled.
+  if(paymentStage==='opening'){
+    const {data:previous,error:previousError}=await db.from('quote_payment_confirmations')
+      .select('payment_reference').eq('organisation_id',organisationId).eq('quote_id',quote.id).maybeSingle();
+    if(previousError)return new Response('Unable to verify existing opening payment',{status:503});
+    if(previous && previous.payment_reference!==String(session.id))
+      return new Response('A different opening payment is already reconciled',{status:409});
+  } else {
+    const {data:previous,error:previousError}=await db.from('op_project_final_settlements')
+      .select('stripe_session_id').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
+    if(previousError)return new Response('Unable to verify existing final settlement',{status:503});
+    if(previous && previous.stripe_session_id!==String(session.id))
+      return new Response('A different final payment is already reconciled',{status:409});
+  }
   const {error:insertError}=await db.from('quote_stripe_payment_events').insert({
     stripe_event_id:String(event.id),stripe_session_id:String(session.id),
     stripe_payment_intent_id:session.payment_intent ? String(session.payment_intent) : null,
