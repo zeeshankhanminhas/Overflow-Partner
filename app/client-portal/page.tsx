@@ -43,7 +43,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const actions: {label:string;response:ClientQuoteResponse}[] = [
     {label:'Accept quotation',response:'accepted'}, {label:'Request more time',response:'more_time'}, {label:'Decline quotation',response:'declined'},
   ];
-  const canPay = accepted && !paid && !released && !project && !contractResult.error && contractResult.data?.release_basis==='payment' && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
+  const canPay = accepted && !paid && !released && !project && !contractResult.error && ['payment','deposit'].includes(String(contractResult.data?.release_basis)) && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
@@ -54,7 +54,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       <div style={{padding:20,background:'#f0f4f0',borderRadius:9,margin:'24px 0'}}>
         <p style={{...caption,margin:'0 0 8px'}}>CURRENT STATUS</p>
         <h2 style={{margin:'0 0 8px',fontSize:21}}>{status}</h2>
-        <p style={{margin:0,fontSize:14}}>{project ? 'Your project has been opened. We will share delivery details as they are agreed.' : released ? 'The agreed purchase-order or no-advance release condition has been confirmed.' : paid ? 'Your opening payment has been recorded. Project setup is the next step.' : accepted ? 'Thank you for accepting. Overflow Partner will confirm the payment or purchase-order requirements agreed in your quotation.' : 'You can review your quote and respond while it remains valid.'}</p>
+        <p style={{margin:0,fontSize:14}}>{project ? 'Your project has been opened. We will share delivery details as they are agreed.' : released ? 'The verified contractual release condition has been confirmed.' : paid ? 'Your opening payment has been recorded. Project setup is the next step.' : accepted ? 'Thank you for accepting. Your secure opening payment instructions are now available. Project setup follows only after your payment has been verified.' : 'You can review your quote and respond while it remains valid.'}</p>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:22}}>
         <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
