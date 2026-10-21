@@ -109,7 +109,7 @@ create or replace function public.op_record_authorised_public_quote_response(
   p_quote_id uuid,p_quote_revision integer,p_response text,
   p_signatory_name text default null,p_signatory_email text default null,p_authority_attested boolean default false
 ) returns jsonb
-language plpgsql security definer set search_path=public as $
+language plpgsql security definer set search_path=public as $$
 declare v_contract public.quote_release_contracts%rowtype; v_issue public.quote_issue_records%rowtype;
 begin
   if p_response='accepted' then
