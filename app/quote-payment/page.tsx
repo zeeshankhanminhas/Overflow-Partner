@@ -32,19 +32,27 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   const bankName=process.env.OP_BANK_NAME;
   const bankAccount=process.env.OP_BANK_ACCOUNT_NUMBER;
   const bankSort=process.env.OP_BANK_SORT_CODE;
-  const stripeEnabled=Boolean(process.env.STRIPE_SECRET_KEY);
-  const amount=new Intl.NumberFormat('en-GB',{style:'currency',currency:String(quote.currency || 'GBP')}).format(Number(quote.total || 0));
+  const openingAmount = Number(contract.opening_amount);
+  const quoteTotal = Number(quote.total);
+  if (!Number.isFinite(openingAmount) || openingAmount <= 0 || openingAmount > quoteTotal) {
+    return <main><h1>Payment terms need verification</h1><p>Please contact Overflow Partner before making a transfer.</p></main>;
+  }
+  const formatAmount = (value: number) => new Intl.NumberFormat('en-GB', { style:'currency', currency:String(quote.currency || 'GBP') }).format(value);
+  const amount = formatAmount(openingAmount);
+  const hasStagedPayment = Math.round(openingAmount * 100) < Math.round(quoteTotal * 100);
+  const stripeAvailable = !hasStagedPayment && process.env.OP_STRIPE_FULL_PAYMENT_ONLY === 'true' && Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'));
   const styles={maxWidth:650,margin:'4rem auto',padding:30,fontFamily:'Arial, sans-serif',border:'1px solid #ddd',borderRadius:12} as const;
   return <main style={styles}>
     <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
     <h1>{confirmed ? 'Commercial release recorded' : 'Complete your payment'}</h1>
     <p>Quotation {quote.quote_number} · Revision {quote.revision}</p>
-    <h2>{amount}</h2>
-    <p>Payment method: Stripe or bank transfer only. The agreed quotation terms determine the amount due before work starts.</p>
+    <p>Opening payment due</p><h2>{amount}</h2>
+    <p>Total quotation: {formatAmount(quoteTotal)}{hasStagedPayment ? ' · Remaining balance payable before final engineering handover.' : ''}</p>
+    <p>Only the agreed opening payment is due now. Do not transfer the full quotation total unless it is explicitly the opening amount in your accepted quotation.</p>
     {confirmed ? <p>Payment or authorised commercial release has already been recorded. No additional payment is required here.</p> : <>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Pay securely with Stripe</h3>
-        {stripeEnabled ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button style={{padding:'12px 22px',cursor:'pointer'}}>Continue to Stripe Checkout</button></form> : <p>Stripe Checkout is not yet configured. Please use bank transfer or contact OP.</p>}
+        {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button style={{padding:'12px 22px',cursor:'pointer'}}>Continue to Stripe Checkout</button></form> : <p>{hasStagedPayment ? 'Stripe staged-deposit Checkout is not yet available. Please use the agreed bank-transfer method or contact Overflow Partner.' : 'Stripe test Checkout is not available for this quotation. Please use bank transfer or contact OP.'}</p>}
       </section>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Bank transfer</h3>
