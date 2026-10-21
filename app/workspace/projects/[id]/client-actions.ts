@@ -31,13 +31,16 @@ export async function recordClientTransmittalAction(formData:FormData){
     if(!handover)throw new Error('An issued Handover Pack is required before client delivery.');
     const adapted=await buildDocumentAdapter(supabase,'handover-pack',{organisationId,projectId,caseId:project?.lead_id,quoteId:project?.quote_id});
     const handoverPdf=await createControlledPdf('Client Handover Pack',adapted);
-    let deliverableActions: {label:string;url:string}[]=[];
-    if(assignment?.id){
-      const {data:files,error:fileError}=await supabase.from('partner_delivery_submission_files').select('storage_bucket,storage_path,original_filename,submission_id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id).eq('execution_cycle',assignment.execution_cycle||1).not('submission_id','is',null).order('uploaded_at',{ascending:true});
-      if(fileError)throw new Error(`Client deliverables could not be loaded: ${fileError.message}`);
-      deliverableActions=await Promise.all((files||[]).map(async file=>{const {data:signed,error}=await supabase.storage.from(file.storage_bucket).createSignedUrl(file.storage_path,14*24*60*60);if(error||!signed?.signedUrl)throw new Error(`Secure download could not be created for ${file.original_filename}.`);return {label:`Download ${file.original_filename}`,url:signed.signedUrl};}));
-    }
-    const deliveryPayload={...payload,actions:deliverableActions,emailAttachments:[pdfEmailAttachment(`${handover.reference||reference}-R${handover.version||1}-Handover-Pack.pdf`,handoverPdf)]};
+    // CLIENT REVIEW ONLY: no signed URLs for editable partner source files at this stage.
+    // Final editable engineering deliverables require verified 100% payment and a separate
+    // explicit OPOS owner final-release decision. The existing handover PDF is read-only.
+    const deliveryPayload={
+      ...payload,
+      heading:'Your controlled engineering review package',
+      message:'Please review the attached controlled PDF. This is a review issue only; editable engineering source files will be made available separately after final settlement and Overflow Partner release approval.',
+      actions:[],
+      emailAttachments:[pdfEmailAttachment(`${handover.reference||reference}-R${handover.version||1}-Review-Handover-Pack.pdf`,handoverPdf)],
+    };
     const queued=await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.issued',recipientEmail,recipientName,actionUrl:appUrl(),payload:deliveryPayload,entityType:'project',entityId:projectId,idempotencyKey:`${deliveryKey}:issued`});
     if(!queued)throw new Error('Client email could not be queued; the Project remains at Ready for client issue.');
     const {error}=await supabase.rpc('op_record_client_transmittal_and_issue',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_recipient_name:recipientName,p_recipient_email:recipientEmail,p_delivery_method:deliveryMethod,p_note:note||null});
@@ -47,7 +50,7 @@ export async function recordClientTransmittalAction(formData:FormData){
       await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.review_reminder',recipientEmail,recipientName,actionUrl:appUrl(),payload,entityType:'project',entityId:projectId,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`${deliveryKey}:review-reminder`});
     }catch(emailError){communicationError=emailError instanceof Error?emailError.message:'Client notification could not be queued.';}
     refresh(projectId);
-    destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client email queued with the Handover Pack PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
+    destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client review-only email queued with the controlled PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client delivery could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }
