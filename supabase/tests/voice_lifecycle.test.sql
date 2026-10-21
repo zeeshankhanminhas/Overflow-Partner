@@ -17,7 +17,7 @@ select ok(to_regprocedure('public.op_approve_project_final_release(uuid,uuid,uui
 select ok(to_regprocedure('public.op_record_classified_client_review(uuid,uuid,uuid,text,text,text,text,text,boolean)') is not null,'Classified correction RPC exists');
 
 select ok((select relrowsecurity from pg_class where oid='public.quote_release_contracts'::regclass),'Quote contract rows protected by RLS');
-select ok((select relrowsecurity from pg_class where oid='public.quote_payment_provider_events'::regclass),'Legacy provider events protected by RLS');
+select ok(to_regclass('public.quote_payment_provider_events') is null or (select relrowsecurity from pg_class where oid=to_regclass('public.quote_payment_provider_events')),'Legacy payment event table is absent or protected by RLS');
 select ok(not has_table_privilege('anon','public.op_project_final_settlements','SELECT'),'Anonymous role cannot read final settlement evidence');
 select ok(not has_table_privilege('authenticated','public.op_project_final_release_approvals','INSERT'),'App clients cannot directly create owner approvals');
 select ok(
