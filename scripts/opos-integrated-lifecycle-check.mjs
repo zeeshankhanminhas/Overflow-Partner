@@ -62,7 +62,11 @@ check('Manual project release compares chosen basis to accepted terms',actions.i
 check('Checkout requires frozen deposit or full-payment terms',checkout.includes("['payment','deposit'].includes")&&checkout.includes('openingPayment(quotedTotal)'));
 check('Opening Stripe checkout uses the contract amount, never total by assumption',checkout.includes('Math.round(openingAmount*100)')&&checkout.includes("metadata[payment_stage]"));
 check('Stripe webhook validates opening deposit and signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes('openingPayment(Number(quote.total))')&&webhook.includes("metadata?.payment_stage"));
-check('Payment never redirects Stripe Sandbox to production fallback',checkout.includes('const previewHost = process.env.VERCEL_URL')&&!checkout.includes("const site = process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
+check('Payment never redirects QA Stripe Sandbox to production fallback',
+  checkout.includes('checkoutOrigin(mode)') &&
+  read('lib/payments/stripeEnvironment.ts').includes("const host=process.env.VERCEL_URL") &&
+  read('lib/payments/stripeEnvironment.ts').includes("return 'https://'+host;") &&
+  !checkout.includes("NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
 check('Quote expiry remains valid until end of date',actions.includes('T23:59:59.999Z')&&checkout.includes('T23:59:59.999Z'));
 
 // Execute policy behavior independently from static source scans.
