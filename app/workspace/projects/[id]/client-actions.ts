@@ -99,9 +99,14 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
       }
     }
     if(!variationRecorded){
-    const {data,error}=await supabase.rpc('op_record_client_review_outcome',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_outcome:outcome,p_evidence_basis:evidenceBasis,p_evidence_reference:evidenceReference,p_comments:comments||null});
+    const useAtomicCorrectionGate=process.env.OP_VOICE_CORRECTION_POLICY_ENABLED==='true';
+    const {data,error}=await supabase.rpc(useAtomicCorrectionGate?'op_record_classified_client_review':'op_record_client_review_outcome',{
+      p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,
+      p_outcome:outcome,p_evidence_basis:evidenceBasis,p_evidence_reference:evidenceReference,p_comments:comments||null,
+      ...(useAtomicCorrectionGate?{p_feedback_category:category,p_partner_defect:isPartnerDefect}:{})
+    });
     if(error)throw new Error(error.message);
-    if(changesRequested){
+    if(changesRequested&&!useAtomicCorrectionGate){
       const {error:classificationError}=await supabase.from('activity_events').insert({
         organisation_id:organisationId,user_id:user.id,entity_type:'project',entity_id:projectId,
         event_type:isPartnerDefect?'client.partner_defect_rework':'client.included_correction_round',
