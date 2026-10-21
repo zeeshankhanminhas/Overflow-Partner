@@ -1,3 +1,4 @@
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 'use server';
 
 import { redirect } from 'next/navigation';
@@ -8,6 +9,7 @@ import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
 export async function createStripeCheckout(formData: FormData) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') throw new Error('The new payment flow is not yet enabled.');
   if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_ISOLATED_QA_BACKEND !== 'true') throw new Error('Stripe testing requires an isolated Preview database.');
+  assertIsolatedQaBackend();
   const token = String(formData.get('token') || '');
   const access = verifyClientPortalToken(token);
   if (!access) throw new Error('Secure payment link has expired.');
