@@ -44,6 +44,9 @@ check('Partner quality correction loop exists',stages.includes('partner_correcti
 check('Payment, partner, delivery and completion notification scenarios exist',['payment.received','partner_work.released','client_delivery.issued','project.completed'].every(x=>notifications.includes(x)));
 
 const contractual=read('supabase/migrations/20261019023000_quote_contractual_release_gates.sql');
+const depositFinalizer=read('supabase/migrations/20261021054100_verified_deposit_stripe_release.sql');
+check('Verified opening Stripe payment creates project for deposit only',depositFinalizer.includes("v_contract.release_basis not in ('payment','deposit')")&&depositFinalizer.includes('v_contract.opening_amount')&&depositFinalizer.includes('op_accept_quote_create_project_with_acceptance_core'));
+
 const acceptancePage=read('app/quote-response/page.tsx');
 const issueFields=read('app/workspace/leads/[id]/QuoteIssueContractFields.tsx');
 check('Current quote revision has an immutable contractual release identity', contractual.includes('primary key (quote_id,quote_revision)'));
@@ -56,8 +59,9 @@ check('Issue form captures supported release basis',issueFields.includes('contra
 check('Issue action records terms before generating email',actions.indexOf("op_record_quote_release_contract")<actions.indexOf("sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail,recipientName,companyName:recipient?.company_name||null})"));
 check('Issue email PDF uses authorised terms rather than partner payment terms',actions.includes('paymentTerms:releaseText'));
 check('Manual project release compares chosen basis to accepted terms',actions.includes('releaseBasis!==releaseContract.release_basis'));
-check('Checkout requires matching full-upfront release terms',checkout.includes("contract.release_basis!=='payment'"));
-check('Stripe webhook requires matching terms and named signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes("contract.release_basis!=='payment'"));
+check('Checkout requires frozen deposit or full-payment terms',checkout.includes("['payment','deposit'].includes")&&checkout.includes('openingPayment(quotedTotal)'));
+check('Opening Stripe checkout uses the contract amount, never total by assumption',checkout.includes('Math.round(openingAmount*100)')&&checkout.includes("metadata[payment_stage]"));
+check('Stripe webhook validates opening deposit and signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes('openingPayment(Number(quote.total))')&&webhook.includes("metadata?.payment_stage"));
 check('Payment never redirects Stripe Sandbox to production fallback',checkout.includes('const previewHost = process.env.VERCEL_URL')&&!checkout.includes("const site = process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
 check('Quote expiry remains valid until end of date',actions.includes('T23:59:59.999Z')&&checkout.includes('T23:59:59.999Z'));
 
