@@ -42,6 +42,7 @@ export type LifecycleEmailScenario =
   | 'partner_work.action_required'
   | 'partner_work.delivery_received'
   | 'client_delivery.issued'
+  | 'client_delivery.final_released'
   | 'client_delivery.review_reminder'
   | 'client_delivery.review_outcome'
   | 'document.client_issue'
@@ -207,6 +208,14 @@ export const lifecycleEmailScenarios: Record<LifecycleEmailScenario, ScenarioDef
     subject:'Your engineering deliverables are ready for review', heading:'Your deliverables are ready for review',
     body:'We have completed our internal review and issued the current engineering delivery for your consideration. Please review the deliverables and supporting documents identified by the references below.\n\nReply in writing with your approval or a clear list of changes required, quoting the project and document references.',
     actionLabel:'Reply about this delivery',
+  },
+  'client_delivery.final_released': {
+    family:'delivery_review',category:'transactional',dynamicMode:'transactional',
+    dynamicFields:['projectReference','reference','actionUrl'],
+    subject:'Final engineering files released · Overflow Partner',
+    heading:'Your final engineering package is ready',
+    body:'Your final payment has been verified and Overflow Partner has approved release of the final engineering files. Use your private client portal to access the current approved source files. Please keep the secure link confidential; download links are generated when you open the portal.',
+    actionLabel:'Access approved final files',
   },
   'client_delivery.review_reminder': {
     family:'reminder', category:'reminder', dynamicMode:'transactional', dynamicFields:['projectReference','reference','dueDate','actionUrl'],
