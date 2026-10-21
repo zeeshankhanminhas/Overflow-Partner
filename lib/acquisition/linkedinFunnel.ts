@@ -15,9 +15,10 @@ export type LinkedInProspect = {
   converted_lead_id?: string | null;
 };
 
-/** Cold LinkedIn contact only enters requirements after a recorded interested reply. */
+/** Website and LinkedIn enquiries become eligible for technical Step 2 only after interested reply. */
 export function canInviteFromLinkedIn(prospect: Pick<LinkedInProspect, 'source' | 'outreach_status' | 'response_outcome'>): boolean {
-  return prospect.source !== 'linkedin' || (prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested');
+  const needsInterest = prospect.source === 'linkedin' || prospect.source === 'website';
+  return !needsInterest || (prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested');
 }
 
 export const linkedinFunnelStages = [
