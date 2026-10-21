@@ -24,6 +24,9 @@ check('Formal partner evidence is required before Commercial Review',invariants.
 check('Preliminary consultation cannot authorise quotation',contract.includes("purpose === 'formal_assessment' && approved"));
 check('Quotation revision and expiration guarded for manual release',actions.includes("quote_revision") && actions.includes("currentQuote.valid_until"));
 check('Portal remains persistent and can return to payment',portal.includes('createClientPortalToken')&&portal.includes('Continue to payment'));
+check('Payment portal shows contractual opening amount instead of quote total',payment.includes('openingAmount = Number(contract.opening_amount)')&&payment.includes('formatAmount(openingAmount)'));
+check('Staged deposit cannot show a full-amount Stripe Checkout action',payment.includes('hasStagedPayment')&&payment.includes('stripeAvailable ?'));
+
 check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
 check('Checkout strictly Preview and test Stripe keys',checkout.includes("VERCEL_ENV !== 'preview'")&&checkout.includes("startsWith('sk_test_')"));
 check('Checkout requires explicit quote allowlist',checkout.includes("from('op_sandbox_payment_authorisations')")&&checkout.includes("quote_revision"));
