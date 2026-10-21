@@ -86,3 +86,10 @@ GitHub Actions Quality Gate run `39531943345` succeeded on feature commit `c7c38
 ### Remaining operational safeguards
 
 Before first real campaign, review and test public form bot/spam protection, capture marketing-consent evidence with source/time, ensure unsubscribed contacts cannot be re-added by resubmission, and confirm notification outbox processing and error-state recovery. The website form's opt-in is optional; transactional acknowledgement is separate.
+
+## Commercial payment gate follow-up (partial audit only)
+
+- The current `app/quote-payment/stripe-action.ts` and Stripe webhook explicitly enforce **full upfront payment**: `quote_release_contracts.opening_amount === quotes.total`, test Stripe only, and allowlisted test quotations only. They do **not** implement the newly agreed 30% opening payment / 70% final payment split. The resulting deposit-first client journey is a launch blocker requiring separate payment-ledger and reconciliation work, not a superficial UI change.
+- The payment page previously highlighted the **entire quote total** even when the signed contract had a smaller opening amount, and showed a Stripe Checkout link that the action itself would reject. Feature branch now highlights `opening_amount` and hides full-amount Stripe Checkout for staged payments, while explicitly explaining when bank transfer or OP assistance is needed. **It does not process partial Stripe payments.**
+- Existing accepted-quote release contracts also support purchase-order and no-advance conditions. Those exceptional paths conflict with the newly agreed standard rule of **no Project 360 before verified client advance**; they require careful historical compatibility and server/DB policy review before disabling them.
+- Added integrated regression checks for opening amount display and staged-deposit Stripe exclusion.
