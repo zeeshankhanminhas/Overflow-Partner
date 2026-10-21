@@ -1,5 +1,6 @@
-import { ensureApprovedPartnerAssignment } from '@/lib/execution/autoWorkOrder';
 'use server';
+
+import { ensureApprovedPartnerAssignment } from '@/lib/execution/autoWorkOrder';
 
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
