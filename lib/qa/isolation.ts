@@ -19,3 +19,29 @@ export function assertIsolatedQaBackend() {
     'Safe QA is not configured: a separate Supabase project ref must match the Preview URL, and must not equal the OPOS production project.'
   );
 }
+
+
+/**
+ * LOCAL HTTP REGRESSION ONLY. This path is deliberately impossible on Vercel:
+ * it requires a GitHub CI runner, a non-Vercel environment name, a fixed
+ * loopback Supabase URL and the disposable local project identifier.
+ * Never use a public URL or a cloud Supabase project in this mode.
+ */
+export function isDisposableLocalWebhookQaBackend(): boolean {
+  if (process.env.CI !== 'true' ||
+      process.env.VERCEL_ENV !== 'local-qa' ||
+      process.env.OP_LOCAL_HTTP_QA_ENABLED !== 'true' ||
+      process.env.OP_ISOLATED_QA_BACKEND !== 'true' ||
+      process.env.OP_QA_SUPABASE_PROJECT_REF !== 'opos_ephemeral_ci') return false;
+  const value=process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  try {
+    const url=new URL(value);
+    return url.protocol==='http:' && url.hostname==='127.0.0.1' &&
+      url.port==='54321' && (url.pathname==='/' || url.pathname==='') &&
+      !url.username && !url.password;
+  } catch { return false; }
+}
+
+export function isTrustedWebhookQaBackend(): boolean {
+  return isKnownIsolatedQaBackend() || isDisposableLocalWebhookQaBackend();
+}
