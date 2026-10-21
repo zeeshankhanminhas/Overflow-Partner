@@ -2,7 +2,7 @@
 -- Never invokes Stripe or sends mail; synthetic rows are rolled back.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(14);
+SELECT plan(18);
 
 -- A bare, unapproved project must report the missing Scope of Work explicitly.
 ALTER TABLE public.projects DISABLE TRIGGER USER;
@@ -80,6 +80,69 @@ SELECT ok(
 SELECT ok(
  NOT has_function_privilege('anon','public.op_developer_delete_test_record(text,uuid)','EXECUTE'),
  'Developer deletion is not anonymously callable');
+
+-- Exercise expiry and revocation with rollback-only bearer-token fixtures.
+INSERT INTO public.partners(id,organisation_id,company_name,nda_signed)
+VALUES ('00000000-0000-4000-8000-000000008916',
+        '00000000-0000-4000-8000-000000008912','Security QA Partner',true);
+INSERT INTO public.prospects(id,organisation_id,created_by,company_name)
+VALUES ('00000000-0000-4000-8000-000000008917',
+        '00000000-0000-4000-8000-000000008912',
+        '00000000-0000-4000-8000-000000008911','Security QA Prospect');
+ALTER TABLE public.partner_review_requests DISABLE TRIGGER USER;
+INSERT INTO public.partner_review_requests(
+ id,organisation_id,lead_id,partner_id,token_hash,case_reference,status,
+ response_due_at,expires_at,scope_summary,created_by)
+VALUES
+ ('00000000-0000-4000-8000-000000008918',
+  '00000000-0000-4000-8000-000000008912',
+  '00000000-0000-4000-8000-000000008913',
+  '00000000-0000-4000-8000-000000008916',
+  'security_qa_expired_lead','SEC-QA-LEAD-1','invited',
+  now()-interval '2 days',now()-interval '1 day','QA expired review',
+  '00000000-0000-4000-8000-000000008911'),
+ ('00000000-0000-4000-8000-000000008919',
+  '00000000-0000-4000-8000-000000008912',
+  '00000000-0000-4000-8000-000000008913',
+  '00000000-0000-4000-8000-000000008916',
+  'security_qa_revoked_lead','SEC-QA-LEAD-2','revoked',
+  now()+interval '1 day',now()+interval '2 days','QA revoked review',
+  '00000000-0000-4000-8000-000000008911');
+INSERT INTO public.partner_review_requests(
+ id,organisation_id,prospect_id,partner_id,token_hash,case_reference,status,
+ response_due_at,expires_at,scope_summary,created_by)
+VALUES
+ ('00000000-0000-4000-8000-000000008920',
+  '00000000-0000-4000-8000-000000008912',
+  '00000000-0000-4000-8000-000000008917',
+  '00000000-0000-4000-8000-000000008916',
+  'security_qa_expired_prospect','SEC-QA-PROS-1','invited',
+  now()-interval '2 days',now()-interval '1 day','QA expired prospect review',
+  '00000000-0000-4000-8000-000000008911'),
+ ('00000000-0000-4000-8000-000000008921',
+  '00000000-0000-4000-8000-000000008912',
+  '00000000-0000-4000-8000-000000008917',
+  '00000000-0000-4000-8000-000000008916',
+  'security_qa_revoked_prospect','SEC-QA-PROS-2','revoked',
+  now()+interval '1 day',now()+interval '2 days','QA revoked prospect review',
+  '00000000-0000-4000-8000-000000008911');
+ALTER TABLE public.partner_review_requests ENABLE TRIGGER USER;
+SELECT throws_ok(
+ $sql$SELECT public.op_submit_partner_review_response('security_qa_expired_lead','{}'::jsonb)$sql$,
+ 'Review link has expired',
+ 'Expired partner-review token is rejected');
+SELECT throws_ok(
+ $sql$SELECT public.op_submit_partner_review_response('security_qa_revoked_lead','{}'::jsonb)$sql$,
+ 'Review is closed',
+ 'Revoked partner-review token is rejected');
+SELECT throws_ok(
+ $sql$SELECT public.op_submit_prospect_partner_review_response('security_qa_expired_prospect','{}'::jsonb)$sql$,
+ 'Review link has expired',
+ 'Expired prospect partner-review token is rejected');
+SELECT throws_ok(
+ $sql$SELECT public.op_submit_prospect_partner_review_response('security_qa_revoked_prospect','{}'::jsonb)$sql$,
+ 'Review is closed',
+ 'Revoked prospect partner-review token is rejected');
 
 SELECT * FROM finish();
 ROLLBACK;
