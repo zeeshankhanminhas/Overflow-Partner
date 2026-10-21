@@ -103,6 +103,9 @@ export async function POST(request: Request) {
         project_type: payload.project_type,
         source: payload.source,
         structured: true,
+        nurture_opt_in: payload.nurture_consent === 'true',
+        consent_recorded_at: new Date().toISOString(),
+        consent_capture: 'website_form',
       },
     }).throwOnError();
 
@@ -111,13 +114,13 @@ export async function POST(request: Request) {
     let acknowledgement = 'pending';
     const actionUrl = getPublicBaseUrl(request) + '/';
     try {
-      await queueLifecycleEmail(supabase, {
+      const acknowledgementId = await queueLifecycleEmail(supabase, {
         organisationId:owner.organisation_id,scenario:'enquiry.received',
         recipientEmail:payload.work_email,recipientName:payload.full_name,actionUrl,
         entityType:'prospect',entityId:prospect.id,
         payload:{company:payload.company},idempotencyKey:'website:ack:' + prospect.id,
       });
-      acknowledgement = 'queued';
+      acknowledgement = acknowledgementId ? 'queued' : 'suppressed';
     } catch (notificationError) {
       acknowledgement = 'failed';
       console.error('Website enquiry acknowledgement queue failed', notificationError);
@@ -130,11 +133,11 @@ export async function POST(request: Request) {
     let nurtureScheduled = false;
     if (payload.nurture_consent === 'true') {
       try {
-        await scheduleInitialEnquiryNurture(supabase, {
+        const scheduledCount = await scheduleInitialEnquiryNurture(supabase, {
           organisationId:owner.organisation_id,prospectId:prospect.id,email:payload.work_email,
           name:payload.full_name,company:payload.company,actionUrl,
         });
-        nurtureScheduled = true;
+        nurtureScheduled = scheduledCount > 0;
       } catch (notificationError) {
         console.error('Website nurture scheduling failed', notificationError);
       }
