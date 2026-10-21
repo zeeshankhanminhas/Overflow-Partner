@@ -95,7 +95,7 @@ select is(
  'Opening payment record is £300, never the full £1,000');
 
 select lives_ok(
- $$sql$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$sql$$,
+ $sql$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$sql$,
  'Replayed signed opening payment is idempotent');
 
 select is(
