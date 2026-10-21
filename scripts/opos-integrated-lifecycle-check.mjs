@@ -30,7 +30,7 @@ check('Staged deposit cannot show a full-amount Stripe Checkout action',payment.
 check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
 check('Checkout strictly Preview and test Stripe keys',checkout.includes("VERCEL_ENV !== 'preview'")&&checkout.includes("startsWith('sk_test_')"));
 check('Checkout requires explicit quote allowlist',checkout.includes("from('op_sandbox_payment_authorisations')")&&checkout.includes("quote_revision"));
-check('Webhook signature and mode validated',webhook.includes('validSignature(')&&webhook.includes('session.livemode !== false'));
+check('Webhook signature and mode validated',webhook.includes('validStripeSignature(body,signature,webhookSecret)')&&webhook.includes('session.livemode !== false')&&read('lib/payments/stripeSignature.ts').includes('timingSafeEqual'));
 check('Webhook validates amount, currency, revision',webhook.includes('amount!==expectedAmount')&&webhook.includes("currency!==String(quote.currency)")&&webhook.includes(".eq('revision',revision)"));
 check('Webhook requires QA allowlist',webhook.includes("from('op_sandbox_payment_authorisations')"));
 check('Database finalizer independently enforces QA allowlist',finalizer.includes('op_sandbox_payment_authorisations')&&finalizer.includes("OP QA TEST%")&&finalizer.includes('a.expires_at>now()'));
