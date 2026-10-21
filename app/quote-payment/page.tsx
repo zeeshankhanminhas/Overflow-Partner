@@ -22,7 +22,7 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
     .select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id)
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
   if(contractError || !contract)return <main><h1>Quotation terms unavailable</h1><p>Contact Overflow Partner to confirm the agreed release conditions.</p></main>;
-  if(contract.release_basis!=='payment')return <main style={{maxWidth:650,margin:'4rem auto',padding:30}}>
+  if(!['payment','deposit'].includes(String(contract.release_basis)))return <main style={{maxWidth:650,margin:'4rem auto',padding:30}}>
     <h1>No online payment is due</h1><p>Quotation {quote.quote_number} is governed by its agreed
     {contract.release_basis==='purchase_order'?' purchase-order':' no-advance'} release condition.
     Overflow Partner will verify the required authority before mobilisation.</p></main>;
