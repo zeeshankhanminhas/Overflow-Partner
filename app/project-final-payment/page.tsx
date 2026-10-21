@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
+import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 import { createFinalStripeCheckout } from './stripe-action';
 
 export const dynamic='force-dynamic';
@@ -36,9 +37,10 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
   const remaining=Math.round((Number(quote.total)-Number(contract.opening_amount))*100)/100;
   const money=(n:number)=>new Intl.NumberFormat('en-GB',{style:'currency',currency:String(quote.currency||'GBP')}).format(n);
-  const testCheckout=process.env.VERCEL_ENV==='preview'&&process.env.OP_ISOLATED_QA_BACKEND==='true'&&
-    process.env.OP_STRIPE_FINAL_TEST_ENABLED==='true'&&process.env.OP_PACKAGE01_PAYMENTS_ENABLED==='true'&&
-    Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'));
+  const paymentMode=stripeRuntimeMode();
+  const checkoutAvailable=paymentMode==='live' ||
+    (paymentMode==='qa' && process.env.OP_STRIPE_FINAL_TEST_ENABLED==='true' &&
+     Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')));
   return <main style={{maxWidth:660,margin:'3rem auto',padding:24}}>
     <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
     <h1>Final engineering settlement</h1>
@@ -47,7 +49,7 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     <h2>Final balance: {money(remaining)}</h2>
     {settlement ? <p>Final payment verified. {release?'The engineering package has been approved for release.':'Overflow Partner will complete the final manual handover approval.'}</p> :
       remaining>0 ? <><p>The final balance is due after your review and before the editable engineering package is released. Payment alone never automatically releases the files.</p>
-        {testCheckout?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button>Pay final balance securely with Stripe (test mode)</button></form>:
+        {checkoutAvailable?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button>Pay final balance securely with Stripe</button></form>:
           <p>Online final settlement is not enabled for this account yet. Please contact Overflow Partner to arrange a verified bank transfer.</p>}</> :
       <p>No final payment is due under this accepted quotation.</p>}
   </main>;
