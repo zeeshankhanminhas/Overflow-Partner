@@ -59,7 +59,7 @@ export async function ensureApprovedPartnerAssignment(
     if(error.code==='23505'){
       const {data:current}=await db.from('project_execution_assignments').select('id,scope_document_id,partner_id,execution_state')
         .eq('organisation_id',organisationId).eq('project_id',projectId).single();
-      if(current?.partner_id===partner.id&&current.scope_document_id===scopeDocumentId)return current;
+      if(current?.partner_id===partner.id&&current?.scope_document_id===scopeDocumentId)return current;
     }
     throw new Error(error.message);
   }
