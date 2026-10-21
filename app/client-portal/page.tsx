@@ -29,7 +29,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const [paymentResult,releaseResult,projectResult,contractResult] = await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('release_basis,confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
-    db.from('projects').select('project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('projects').select('id,project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? db.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
   ]);
   // Fail closed on finance errors; never infer that money has arrived.
@@ -45,6 +45,25 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   ];
   const canPay = accepted && !paid && !released && !project && !contractResult.error && ['payment','deposit'].includes(String(contractResult.data?.release_basis)) && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
+  let finalReviewAccepted=false;
+  let finalSettlementVerified=false;
+  let finalReleaseApproved=false;
+  if(project?.id && process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'){
+    const [review,settled,releaseApproval]=await Promise.all([
+      db.from('project_client_reviews').select('outcome')
+        .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
+        .order('recorded_at',{ascending:false}).limit(1).maybeSingle(),
+      db.from('op_project_final_settlements').select('project_id')
+        .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle(),
+      db.from('op_project_final_release_approvals').select('project_id')
+        .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle(),
+    ]);
+    finalReviewAccepted=!review.error && ['accepted','accepted_with_comments'].includes(String(review.data?.outcome));
+    finalSettlementVerified=!settled.error && Boolean(settled.data);
+    finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data) && finalSettlementVerified;
+  }
+  const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
+  const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
     <section style={container}>
@@ -64,6 +83,9 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
       {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
       {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
+      {finalReviewAccepted&&!finalSettlementVerified ? <p><Link href={finalBalanceHref}>Pay your final engineering balance →</Link></p>:null}
+      {finalSettlementVerified&&!finalReleaseApproved ? <p>Final payment received. Your approved engineering files await Overflow Partner’s manual release approval.</p>:null}
+      {finalReleaseApproved ? <p><Link href={finalFilesHref}>Download approved final engineering files →</Link></p>:null}
       {canDecide ? <div style={{borderTop:'1px solid #e5e4df',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#d74c2c':'#eeede9',color:response==='accepted'?'white':'#172521',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
       <p style={{...caption,marginTop:28}}>This page updates as your quotation progresses. Keep your secure link private. For a copy of your approved PDF, payment instructions or a fresh link, reply to the quotation email.</p>
     </section>
