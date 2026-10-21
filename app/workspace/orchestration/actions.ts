@@ -160,7 +160,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
   const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. The attached quotation specifies the contractual opening payment or release condition required before project setup.`;
   const portalUrl = publicSiteUrl(`/client-portal?token=${encodeURIComponent(createClientPortalToken(quoteId, Number(quote.revision)))}`);
-  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks] };
+  // The notification worker can claim this message before the synchronous sender does.\n  // Persist the exact approved revision PDF in the outbox so BOTH delivery paths\n  // attach the same document (including provider retries and worker recovery).\n  const quoteAttachment = { filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' };\n  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks], emailAttachments: [quoteAttachment] };
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
@@ -193,7 +193,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `overflow-partner-${outboxId}` },
         body: JSON.stringify({
           from, to: [recipientEmail], subject, html, text,
-          attachments: [{ filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' }],
+          attachments: [quoteAttachment],
           ...(process.env.RESEND_REPLY_TO_EMAIL ? { reply_to: process.env.RESEND_REPLY_TO_EMAIL } : {}),
           headers: { 'X-Overflow-Partner-Event': 'quote.issued', 'X-Overflow-Partner-Outbox': outboxId },
         }),
