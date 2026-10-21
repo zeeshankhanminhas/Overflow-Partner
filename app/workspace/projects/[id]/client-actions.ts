@@ -1,6 +1,8 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { randomUUID } from 'crypto';
+import { classifyClientFeedback, type ClientFeedbackCategory } from '@/lib/lifecycle/voiceAgreedContract';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
@@ -55,8 +57,51 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
   try{
     const outcome=required(formData,'outcome');const evidenceBasis=required(formData,'evidence_basis');const evidenceReference=required(formData,'evidence_reference');const comments=String(formData.get('comments')||'').trim();
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
+    const changesRequested=['changes_requested','rejected','changes_needed'].includes(outcome);
+    const category=String(formData.get('feedback_category')||'in_scope_correction') as ClientFeedbackCategory;
+    const isPartnerDefect=formData.get('partner_defect')==='true';
+    if(changesRequested){
+      if(!['in_scope_correction','revision','out_of_scope_change'].includes(category))throw new Error('Classify the feedback before recording it.');
+      if(!comments)throw new Error('Provide all requested changes in one consolidated list with references.');
+      if(isPartnerDefect&&category!=='in_scope_correction')throw new Error('A scope variation cannot be categorised as a partner defect.');
+      if(category==='revision'||category==='out_of_scope_change'){
+        const {data:existing,error:existingError}=await supabase.from('project_change_requests')
+          .select('id,change_reference').eq('organisation_id',organisationId).eq('project_id',projectId)
+          .eq('description',comments).in('status',['proposed','under_review','approved']).limit(1).maybeSingle();
+        if(existingError)throw new Error(existingError.message);
+        if(!existing){
+          const reference='OP-CR-'+new Date().toISOString().slice(0,10).replaceAll('-','')+'-'+randomUUID().slice(0,8).toUpperCase();
+          const {error:variationError}=await supabase.from('project_change_requests').insert({
+            organisation_id:organisationId,project_id:projectId,change_reference:reference,
+            description:comments,reason:category,scope_impact:'Await partner technical impact assessment',
+            programme_impact:'Await programme assessment',commercial_impact:null,status:'proposed',requested_by:user.id,
+          });
+          if(variationError)throw new Error(variationError.message);
+        }
+        // A new requirement must never be sent for free partner correction or auto-accepted.
+        refresh(projectId);
+        destination=projectUrl(projectId,{updated:'Separate variation recorded. Technical, price and timeline approval are required before partner work.',focus:'record-next-action'});
+        return redirect(destination);
+      }
+      const {count,error:historyError}=await supabase.from('activity_events')
+        .select('id',{count:'exact',head:true}).eq('organisation_id',organisationId).eq('entity_type','project')
+        .eq('entity_id',projectId).eq('event_type','client.included_correction_round');
+      if(historyError)throw new Error(historyError.message);
+      const classification=classifyClientFeedback({
+        category,correctionRoundsUsed:count||0,defectAgainstApprovedScope:isPartnerDefect,
+      });
+      if(classification==='correction_round_exhausted')throw new Error('The one included correction round is already used. Create a separately approved variation, or record evidence of a partner defect.');
+    }
     const {data,error}=await supabase.rpc('op_record_client_review_outcome',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_outcome:outcome,p_evidence_basis:evidenceBasis,p_evidence_reference:evidenceReference,p_comments:comments||null});
     if(error)throw new Error(error.message);
+    if(changesRequested){
+      const {error:classificationError}=await supabase.from('activity_events').insert({
+        organisation_id:organisationId,user_id:user.id,entity_type:'project',entity_id:projectId,
+        event_type:isPartnerDefect?'client.partner_defect_rework':'client.included_correction_round',
+        event_data:{evidenceReference,feedbackCategory:category,partnerDefect:isPartnerDefect,comments},
+      });
+      if(classificationError)throw new Error('Client outcome recorded but correction-round classification needs operator reconciliation: '+classificationError.message);
+    }
     await cancelEntityReminders(supabase,{organisationId,entityType:'project',entityId:projectId,categories:['reminder']}).catch(()=>0);
     const [{data:project},{data:lead}]=await Promise.all([supabase.from('projects').select('project_number,title,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle(),supabase.from('projects').select('lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle()]);
     let client:null|{contact_name?:string|null;contact_email?:string|null;company_name?:string|null}=null;
