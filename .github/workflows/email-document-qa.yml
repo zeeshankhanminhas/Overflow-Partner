@@ -10,6 +10,8 @@ on:
       - 'app/api/notifications/**'
       - 'app/workspace/orchestration/actions.ts'
       - 'scripts/qa/email-document-check.mjs'
+      - 'scripts/qa/partner-workorder-check.mjs'
+      - 'lib/execution/**'
       - '.github/workflows/email-document-qa.yml'
   pull_request:
     branches: [main]
@@ -20,6 +22,8 @@ on:
       - 'app/api/notifications/**'
       - 'app/workspace/orchestration/actions.ts'
       - 'scripts/qa/email-document-check.mjs'
+      - 'scripts/qa/partner-workorder-check.mjs'
+      - 'lib/execution/**'
       - '.github/workflows/email-document-qa.yml'
   workflow_dispatch:
 
@@ -57,3 +61,5 @@ jobs:
           fi
       - name: Render actual emails and PDFs, process fake outbox and retries
         run: node scripts/qa/email-document-check.mjs
+      - name: Validate approved-SOW partner work order and fake invitation
+        run: node scripts/qa/partner-workorder-check.mjs
