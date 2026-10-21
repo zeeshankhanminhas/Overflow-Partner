@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
+import { autoReferSubmittedIntake } from '@/lib/acquisition/autoPartnerReferral';
 
 const submissionSchema = z.object({
   description: z.string().trim().min(20).max(8000),
@@ -102,6 +103,30 @@ export async function POST(request: Request, context: { params: Promise<{ token:
         });
       }
     }
+    let partnerReferral: 'queued' | 'already_issued' | 'manual_required' | 'failed' = 'failed';
+    let partnerReferralReason = '';
+    try {
+      const result = await autoReferSubmittedIntake(supabase, {
+        organisationId:session.organisation_id,prospectId:session.prospect_id,sessionId:session.id,
+        actorUserId:session.created_by,scopeSummary:payload.description,projectType:payload.project_type,
+      });
+      partnerReferral = result.status;
+      partnerReferralReason = result.reason || '';
+    } catch (referralError) {
+      partnerReferralReason = referralError instanceof Error ? referralError.message : 'Unexpected handoff error';
+      console.error('Automatic partner referral failed',referralError);
+    }
+    if (partnerReferral === 'manual_required' || partnerReferral === 'failed') {
+      await supabase.from('prospects').update({
+        next_action:'Partner review needs attention — select eligible partner or retry notification',
+      }).eq('organisation_id',session.organisation_id).eq('id',session.prospect_id);
+      await supabase.from('activity_events').insert({
+        organisation_id:session.organisation_id,user_id:session.created_by,
+        entity_type:'prospect',entity_id:session.prospect_id,
+        event_type:'partner_referral_action_required',
+        event_data:{intakeSessionId:session.id,reason:partnerReferralReason,referralStatus:partnerReferral},
+      });
+    }
     const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
     if (ownerEmail) {
       await supabase.rpc('op_enqueue_notification', {
@@ -109,14 +134,20 @@ export async function POST(request: Request, context: { params: Promise<{ token:
         p_event_key: 'client.intake_submitted',
         p_recipient_email: ownerEmail,
         p_recipient_name: 'Overflow Partner',
-        p_subject: `Partner review required — ${session.prospects?.company_name || 'prospect'}`,
+        p_subject: `Technical assessment ${partnerReferral === 'queued' ? 'sent' : 'needs attention'} — ${session.prospects?.company_name || 'prospect'}`,
         p_template_key: 'internal_alert',
-        p_payload: { heading: 'Technical requirements submitted; partner assessment is next', message: `${session.prospects?.contact_name || 'The prospect'} at ${session.prospects?.company_name || 'the client'} completed Step 2. Issue the governed technical review to an approved NDA-ready partner; do not bypass approval or client confidentiality gates.`, actionLabel: 'Review intake', actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'}/workspace/acquisition` },
+        p_payload: {
+          heading:partnerReferral === 'queued' ? 'Partner assessment issued' : 'Partner assessment requires attention',
+          message:partnerReferral === 'queued'
+            ? 'Step 2 is complete and the approved execution partner has been invited through the secure partner portal.'
+            : 'Step 2 is complete, but automatic partner referral requires operator attention. Check Opportunity 360 before moving forward.',
+          actionLabel:'Open opportunity',actionUrl:(process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app')+'/workspace/acquisition/'+session.prospect_id,
+        },
         p_entity_type: 'prospect', p_entity_id: session.prospect_id, p_category: 'transactional',
         p_scheduled_for: now, p_idempotency_key: `intake:submitted:owner:${session.id}`,
       });
     }
-    return NextResponse.json({ success: true, submitted_at: now });
+    return NextResponse.json({ success: true, submitted_at: now, partner_referral: partnerReferral });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ message: error.issues[0]?.message || 'Please check the technical intake.' }, { status: 400 });
     console.error('Step 2 intake submission failed', error);
