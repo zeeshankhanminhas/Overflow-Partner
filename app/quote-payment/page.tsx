@@ -60,7 +60,7 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
       </section>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Bank transfer</h3>
-        {bankName && bankAccount && bankSort ? <><p>Account name: <strong>{bankName}</strong></p><p>Sort code: <strong>{bankSort}</strong></p><p>Account number: <strong>{bankAccount}</strong></p><p>Payment reference: <strong>{quote.quote_number}</strong></p><p>Your transfer will remain pending until OP verifies cleared funds. Do not send a second payment while verification is pending.</p></> : <p>Bank details will be provided by OP. Please do not transfer funds until you have verified the instructions.</p>}
+        {process.env.OP_BANK_SETTLEMENT_VERIFICATION_ENABLED === 'true' && bankName && bankAccount && bankSort ? <><p>Account name: <strong>{bankName}</strong></p><p>Sort code: <strong>{bankSort}</strong></p><p>Account number: <strong>{bankAccount}</strong></p><p>Payment reference: <strong>{quote.quote_number}</strong></p><p>Your transfer will remain pending until OP verifies cleared funds. Do not send a second payment while verification is pending.</p></> : <p>Bank transfer is available only after Overflow Partner enables independently reconciled settlement verification. Please do not transfer funds until verified payment instructions are provided.</p>}
       </section>
     </>}
   </main>;
