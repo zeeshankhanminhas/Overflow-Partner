@@ -61,4 +61,19 @@ assert.match(referral, /idempotencyKey:'auto:partner-review:'\+sessionId/, 'Part
 assert.match(referral, /status:'revoked'/, 'Undeliverable partner review must be recoverable');
 assert.match(intakeRoute, /autoReferSubmittedIntake\(supabase/, 'Step 2 handler must invoke automatic partner referral');
 assert.match(intakeRoute, /partner_referral: partnerReferral/, 'Client API must reflect referral outcome');
+// Exercise the Preview environment isolation rule using a process stub, without live DB writes.
+const isolationSource=readFileSync(new URL('lib/qa/isolation.ts',root),'utf8');
+const isolationCompiled=ts.transpileModule(isolationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+function qaGuard(env){
+  const context={exports:{},module:{exports:{}},URL,process:{env}};
+  context.module.exports=context.exports;
+  vm.runInNewContext(isolationCompiled,context);
+  return context.exports.isKnownIsolatedQaBackend();
+}
+const productionRef='klricctsxiifuduxpmzd';
+const qaRef='abcdefghijklmnopqrst';
+assert.equal(qaGuard({VERCEL_ENV:'preview',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:productionRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+productionRef+'.supabase.co'}),false,'Preview cannot accept the live OPOS production project as QA');
+assert.equal(qaGuard({VERCEL_ENV:'preview',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:qaRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+productionRef+'.supabase.co'}),false,'Mismatched QA ref cannot unlock live database');
+assert.equal(qaGuard({VERCEL_ENV:'preview',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:qaRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+qaRef+'.supabase.co'}),true,'Genuinely separate declared QA ref may allow testing');
+assert.equal(qaGuard({VERCEL_ENV:'production',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:qaRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+qaRef+'.supabase.co'}),false,'Production is never an isolated Preview test');
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');
