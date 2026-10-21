@@ -89,14 +89,27 @@ INSERT INTO public.prospects(id,organisation_id,created_by,company_name)
 VALUES ('00000000-0000-4000-8000-000000008917',
         '00000000-0000-4000-8000-000000008912',
         '00000000-0000-4000-8000-000000008911','Security QA Prospect');
+INSERT INTO public.technical_intakes(id,organisation_id,lead_id,description,created_by)
+VALUES ('00000000-0000-4000-8000-000000008922',
+        '00000000-0000-4000-8000-000000008912',
+        '00000000-0000-4000-8000-000000008913','Synthetic QA intake',
+        '00000000-0000-4000-8000-000000008911');
+INSERT INTO public.intake_sessions(
+ id,organisation_id,prospect_id,token_hash,expires_at,created_by)
+VALUES ('00000000-0000-4000-8000-000000008923',
+        '00000000-0000-4000-8000-000000008912',
+        '00000000-0000-4000-8000-000000008917',
+        'security_qa_intake_session',now()+interval '2 days',
+        '00000000-0000-4000-8000-000000008911');
 ALTER TABLE public.partner_review_requests DISABLE TRIGGER USER;
 INSERT INTO public.partner_review_requests(
- id,organisation_id,lead_id,partner_id,token_hash,case_reference,status,
+ id,organisation_id,lead_id,technical_intake_id,partner_id,token_hash,case_reference,status,
  response_due_at,expires_at,scope_summary,created_by)
 VALUES
  ('00000000-0000-4000-8000-000000008918',
   '00000000-0000-4000-8000-000000008912',
   '00000000-0000-4000-8000-000000008913',
+  '00000000-0000-4000-8000-000000008922',
   '00000000-0000-4000-8000-000000008916',
   'security_qa_expired_lead','SEC-QA-LEAD-1','invited',
   now()-interval '2 days',now()-interval '1 day','QA expired review',
@@ -104,17 +117,19 @@ VALUES
  ('00000000-0000-4000-8000-000000008919',
   '00000000-0000-4000-8000-000000008912',
   '00000000-0000-4000-8000-000000008913',
+  '00000000-0000-4000-8000-000000008922',
   '00000000-0000-4000-8000-000000008916',
   'security_qa_revoked_lead','SEC-QA-LEAD-2','revoked',
   now()+interval '1 day',now()+interval '2 days','QA revoked review',
   '00000000-0000-4000-8000-000000008911');
 INSERT INTO public.partner_review_requests(
- id,organisation_id,prospect_id,partner_id,token_hash,case_reference,status,
+ id,organisation_id,prospect_id,intake_session_id,partner_id,token_hash,case_reference,status,
  response_due_at,expires_at,scope_summary,created_by)
 VALUES
  ('00000000-0000-4000-8000-000000008920',
   '00000000-0000-4000-8000-000000008912',
   '00000000-0000-4000-8000-000000008917',
+  '00000000-0000-4000-8000-000000008923',
   '00000000-0000-4000-8000-000000008916',
   'security_qa_expired_prospect','SEC-QA-PROS-1','invited',
   now()-interval '2 days',now()-interval '1 day','QA expired prospect review',
@@ -122,6 +137,7 @@ VALUES
  ('00000000-0000-4000-8000-000000008921',
   '00000000-0000-4000-8000-000000008912',
   '00000000-0000-4000-8000-000000008917',
+  '00000000-0000-4000-8000-000000008923',
   '00000000-0000-4000-8000-000000008916',
   'security_qa_revoked_prospect','SEC-QA-PROS-2','revoked',
   now()+interval '1 day',now()+interval '2 days','QA revoked prospect review',
