@@ -1,3 +1,4 @@
+import { ensureApprovedPartnerAssignment } from '@/lib/execution/autoWorkOrder';
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -210,8 +211,18 @@ export async function approveControlledDocumentAction(documentId: string): Promi
       combined_owner_authority: combinedAuthority,
       declaration: 'I approve this document revision for controlled issue under owner-operated governance.',
     }});
+    let assignmentMessage='';
+    if(process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true' &&
+      document.document_type==='statement-of-work' && document.project_id){
+      try{
+        await ensureApprovedPartnerAssignment(supabase,organisationId,user.id,document.project_id,documentId);
+        assignmentMessage=' Controlled Partner assignment prepared; completing mobilisation will automatically issue the work order.';
+      }catch(err){
+        assignmentMessage=' Partner assignment requires attention: '+(err instanceof Error?err.message:'Unknown issue');
+      }
+    }
     revalidateDocumentOwners(document);
-    return { ok: true, message: combinedAuthority ? 'Approved using combined owner authority; the separate decision is recorded.' : 'Document approved by owner authority.', status: 'approved' };
+    return { ok: true, message: (combinedAuthority ? 'Approved using combined owner authority; the separate decision is recorded.' : 'Document approved by owner authority.')+assignmentMessage, status: 'approved' };
   } catch (error) { return { ok: false, message: error instanceof Error ? error.message : 'Document approval failed.' }; }
 }
 
