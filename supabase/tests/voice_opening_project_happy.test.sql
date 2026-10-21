@@ -2,7 +2,7 @@
 -- Never connects to remote Supabase, Stripe or customer email. Rolls back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(8);
 
 -- Controlled, synthetic acceptance fixture. Privileged quote/document triggers
 -- bypassed only for creating already-approved fixtures, never for finalizer call.
@@ -58,13 +58,29 @@ values ('evt_qa_project_opening','cs_qa_project_opening',
  '00000000-0000-4000-8000-000000009924',
  '00000000-0000-4000-8000-000000009922',1,30000,'GBP','paid');
 
+insert into public.quote_stripe_payment_events(
+ stripe_event_id,stripe_session_id,quote_id,organisation_id,quote_revision,amount_total,
+ currency,stripe_payment_status)
+values ('evt_qa_project_wrong_amount','cs_qa_project_wrong_amount',
+ '00000000-0000-4000-8000-000000009924',
+ '00000000-0000-4000-8000-000000009922',1,29900,'GBP','paid');
 alter table public.quotes enable trigger user;
 alter table public.documents enable trigger user;
 alter table public.quote_issue_records enable trigger user;
 
 select set_config('request.jwt.claim.role','service_role',true);
+select throws_ok(
+ $select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_wrong_amount')$,
+ 'Stripe payment evidence must exactly equal the frozen opening payment.',
+ '£299 test charge cannot create a project against a £300 frozen deposit');
+
+select is(
+ (select count(*)::integer from public.projects
+  where quote_id='00000000-0000-4000-8000-000000009924'),0,
+ 'Wrong opening charge creates no project');
+
 select lives_ok(
- $$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$$,
+ $select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$,
  'Paid 30% with approved signatory and current issued PDF creates governed Project 360');
 
 select is(
