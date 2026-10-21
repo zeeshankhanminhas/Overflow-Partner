@@ -1,3 +1,4 @@
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -46,7 +47,7 @@ async function sessionForToken(token: string) {
 }
 
 export async function GET(_: Request, context: { params: Promise<{ token: string }> }) {
-  if(process.env.VERCEL_ENV==='preview' && process.env.OP_ISOLATED_QA_BACKEND!=='true') return NextResponse.json({message:'Preview intake cannot access the shared production database.'},{status:503});
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({message:'Preview intake cannot access the shared production database.'},{status:503});
   const { token } = await context.params;
   const { supabase, session } = await sessionForToken(token);
   if (!session) return NextResponse.json({ message: 'This technical intake link is invalid or has expired.' }, { status: 404 });
@@ -57,7 +58,7 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
 }
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
-  if(process.env.VERCEL_ENV==='preview' && process.env.OP_ISOLATED_QA_BACKEND!=='true') return NextResponse.json({message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
   try {
     const { token } = await context.params;
     const payload = submissionSchema.parse(await request.json());
