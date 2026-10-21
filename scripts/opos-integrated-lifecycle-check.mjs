@@ -191,6 +191,26 @@ check('Review deadline persists on the client transmittal',businessCalendarMigra
   &&businessCalendarMigration.includes('op_seven_workday_client_review'));
 check('Project 360 displays seven working day due date',projectPage.includes("OP_VOICE_REVIEW_WINDOW_ENABLED==='true'")
   &&clientReviewUi.includes('Client review deadline:'));
+const autoWorkOrder=read('lib/execution/autoWorkOrder.ts');
+const documentReviewActions=read('app/workspace/documents/review-actions.ts');
+const projectStageActions=read('app/workspace/projects/[id]/actions.ts');
+const uniqueWorkOrderSessions=read('supabase/migrations/20261021082000_unique_partner_execution_session.sql');
+check('Work order partner is inherited from accepted quote commercial assessment',
+  autoWorkOrder.includes("from('commercial_reviews')")&&autoWorkOrder.includes("from('partner_quotes')"));
+check('Automatic execution partner assignment requires existing current approved SOW',
+  autoWorkOrder.includes("document_type!=='statement-of-work'")&&autoWorkOrder.includes("is_current_revision"));
+check('Approved SOW creates controlled partner assignment only when release flag enabled',
+  documentReviewActions.includes("OP_AUTO_PARTNER_RELEASE_ENABLED==='true'")&&documentReviewActions.includes('ensureApprovedPartnerAssignment'));
+check('Work order only queued after governed ready-for-execution stage and confirmed funds',
+  autoWorkOrder.includes("project_stage!=='ready_for_execution'")&&autoWorkOrder.includes("finance?.authorised!==true"));
+check('Project stage advancement triggers partner work-order issuance',
+  projectStageActions.includes('releaseApprovedPartnerWorkOrder(supabase'));
+check('Work order email never includes client company or quote margin',
+  !autoWorkOrder.includes("project:project.title")&&autoWorkOrder.includes("project:'Controlled engineering work order'"));
+check('Concurrent partner execution sessions are unique by active assignment',
+  uniqueWorkOrderSessions.includes('ux_op_one_live_partner_execution_session'));
+check('No partner work-order email in non-isolated Preview',
+  autoWorkOrder.includes('isKnownIsolatedQaBackend'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
