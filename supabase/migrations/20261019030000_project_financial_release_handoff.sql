@@ -7,7 +7,8 @@ declare v_contract public.quote_release_contracts%rowtype;
 begin
   select * into v_contract from public.quote_release_contracts
     where quote_id=new.quote_id and organisation_id=new.organisation_id
-    order by quote_revision desc limit 1;
+      and quote_revision=(select revision from public.quotes where id=new.quote_id);
+
   if not found then raise exception 'Project commercial authority must be inherited from quote release.'; end if;
   select total into v_total from public.quotes where id=new.quote_id;
   if v_contract.release_basis='purchase_order' then
@@ -103,5 +104,4 @@ begin
     'poNumber',v_terms.po_number
   );
 end;
-$function$
-
+$function$;
