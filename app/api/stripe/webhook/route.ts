@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +20,7 @@ function validSignature(body: string, header: string, secret: string): boolean {
 
 export async function POST(request: Request) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return new Response('Not enabled',{status:503});
-  if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_PACKAGE01_SANDBOX_SHARED_DB_ALLOWED !== 'true') return new Response('Shared-database sandbox not authorised',{status:503});
+  if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_ISOLATED_QA_BACKEND !== 'true') return new Response('Isolated Preview QA backend required',{status:503});
   const webhookSecret=process.env.STRIPE_WEBHOOK_SECRET;
   const dbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   const body=await request.text();
   const signature=request.headers.get('stripe-signature')||'';
   if (!validSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
-  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string } };
+  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string; payment_stage?: string } };
   let event: {id?: string; livemode?: boolean; type?: string; data?: {object?: StripeSession}};
   try { event=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
   if (event.livemode !== false) return new Response('Only test-mode Stripe events are accepted',{status:400});
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     return Response.json({received:true,ignored:true});
   }
   if (!session.id || !event.id) return new Response('Malformed event',{status:400});
+  if(session.metadata?.payment_stage!=='opening') return new Response('Unexpected payment stage',{status:422});
   const quoteId=String(session.metadata?.quote_id||'');
   const organisationId=String(session.metadata?.organisation_id||'');
   const revision=Number(session.metadata?.quote_revision);
@@ -56,16 +58,17 @@ export async function POST(request: Request) {
   const {data:contract,error:contractError}=await db.from('quote_release_contracts')
     .select('release_basis,opening_amount,currency').eq('organisation_id',organisationId)
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
-  if(contractError || !contract || contract.release_basis!=='payment' ||
-     Number(contract.opening_amount)!==Number(quote.total) ||
-     String(contract.currency).toUpperCase()!==String(quote.currency).toUpperCase()){
+  if(contractError || !contract || !['deposit','payment'].includes(String(contract.release_basis)) ||
+     String(contract.currency).toUpperCase()!==String(quote.currency).toUpperCase()) {
     return new Response('Paid event conflicts with issued contractual release terms',{status:422});
   }
   const {data:signatory,error:signatoryError}=await db.from('quote_client_signatory_attestations')
     .select('quote_id').eq('organisation_id',organisationId)
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
   if(signatoryError || !signatory)return new Response('Named authorised acceptance is required',{status:422});
-  const expectedAmount=Math.round(Number(quote.total)*100);
+  const agreed = contract.release_basis==='deposit' ? openingPayment(Number(quote.total)) : Number(quote.total);
+  if(Math.abs(Number(contract.opening_amount)-agreed)>0.01) return new Response('Frozen deposit amount differs from contract',{status:422});
+  const expectedAmount=Math.round(Number(contract.opening_amount)*100);
   if (!Number.isSafeInteger(amount) || amount!==expectedAmount || currency!==String(quote.currency).trim().toUpperCase()) {
     return new Response('Settlement does not match quotation',{status:422});
   }
