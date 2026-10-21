@@ -1,0 +1,59 @@
+name: Email and Document QA (fake inbox)
+
+on:
+  push:
+    branches: [feat/linkedin-acquisition-funnel]
+    paths:
+      - 'lib/notifications/**'
+      - 'lib/quotes/clientQuotePdf.ts'
+      - 'components/workspace/documents/documentLanguage.ts'
+      - 'app/api/notifications/**'
+      - 'app/workspace/orchestration/actions.ts'
+      - 'scripts/qa/email-document-check.mjs'
+      - '.github/workflows/email-document-qa.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/notifications/**'
+      - 'lib/quotes/clientQuotePdf.ts'
+      - 'components/workspace/documents/documentLanguage.ts'
+      - 'app/api/notifications/**'
+      - 'app/workspace/orchestration/actions.ts'
+      - 'scripts/qa/email-document-check.mjs'
+      - '.github/workflows/email-document-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: email-document-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fake-inbox-documents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      # Never provide production credentials to this suite.
+      SUPABASE_ACCESS_TOKEN: ''
+      DATABASE_URL: ''
+      RESEND_API_KEY: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Ensure PDF text extractor exists
+        shell: bash
+        run: |
+          if ! command -v pdftotext >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y poppler-utils
+          fi
+      - name: Render actual emails and PDFs, process fake outbox and retries
+        run: node scripts/qa/email-document-check.mjs
