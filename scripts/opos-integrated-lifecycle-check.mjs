@@ -143,8 +143,11 @@ const finalPage=read('app/client-final-files/page.tsx');
 const finalCheckout=read('app/project-final-payment/stripe-action.ts');
 const finalOwnerAction=read('app/workspace/projects/[id]/final-release-action.ts');
 const projectPage=read('app/workspace/projects/[id]/page.tsx');
-check('No production Stripe action without isolated Preview',checkout.includes("OP_ISOLATED_QA_BACKEND !== 'true'")&&
-  webhook.includes("OP_ISOLATED_QA_BACKEND !== 'true'")&&finalCheckout.includes("OP_ISOLATED_QA_BACKEND!=='true'"));
+check('No production Stripe action without isolated Preview or loopback CI',checkout.includes("OP_ISOLATED_QA_BACKEND !== 'true'")&&
+  webhook.includes('isTrustedWebhookQaBackend()')&&
+  read('lib/qa/isolation.ts').includes("VERCEL_ENV !== 'local-qa'")&&
+  read('lib/qa/isolation.ts').includes("url.hostname==='127.0.0.1'")&&
+  finalCheckout.includes("OP_ISOLATED_QA_BACKEND!=='true'"));
 check('Deposit finalizer records only frozen opening amount',stagedDepositFinalizer.includes('v_contract.opening_amount')
   &&stagedDepositFinalizer.includes('op_accept_quote_create_project_with_acceptance_core'));
 check('Client final payment requires current accepted review and existing project',finalCheckout.includes("project_client_reviews")
