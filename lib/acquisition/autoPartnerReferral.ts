@@ -19,6 +19,10 @@ export async function autoReferSubmittedIntake(
   input: { organisationId:string; prospectId:string; sessionId:string; actorUserId:string; scopeSummary:string; projectType:string }
 ): Promise<PartnerReferralResult> {
   const { organisationId, prospectId, sessionId, actorUserId } = input;
+  // Preview currently points at a shared OPOS project. Never auto-invite a real partner from an unisolated preview.
+  if (process.env.VERCEL_ENV === 'preview' && process.env.OP_ISOLATED_QA_BACKEND !== 'true') {
+    return {status:'manual_required',reason:'Partner automation is disabled on Preview until an isolated QA backend is configured.'};
+  }
   // Important: validate the actual submission and ownership, not only the caller's assertions.
   const { data: session, error: sessionError } = await db.from('intake_sessions')
     .select('id,status,organisation_id,prospect_id').eq('id',sessionId).eq('organisation_id',organisationId)
