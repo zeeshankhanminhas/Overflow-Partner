@@ -70,3 +70,19 @@ After audit pass 1, the following changes were committed to PR #104 **without de
 **Additional release requirements:** audited opt-in text/privacy disclosure; a real browser test of both routes using an isolated database and non-production email provider; partner clarification; and quote/project/payment gates. Do not equate passing source-code checks with a proven integrated lifecycle.
 
 The initial findings table below is retained as historical pre-fix evidence; the bullets above supersede it for current feature-branch status.
+
+## Verified backend follow-up
+
+- Inspected live PostgreSQL function definitions: `op_enqueue_notification` calls `op_assert_current_workspace_role`, which accepts a legitimate `service_role` request. The website and public Step 2 service-role handlers therefore **do not have the initially suspected notification-RPC authorization failure**. Notification sending is still pending isolated integration testing; successful queueing has not been observed in a new test.
+- The separate partner review RPC delegates to `op_create_prospect_partner_review_request_core`, which explicitly requires `p_user_id IS NOT DISTINCT FROM auth.uid()`. A public token submission cannot call it using service role and the creator's UUID. **Do not bypass this**; a separately authorized automatic partner-referral mechanism is required.
+- Live database has **one currently approved and NDA-signed partner**, which simplifies partner routing but is not itself authorization to bypass the controlled RPC.
+- Scope of CSS files on audited branch: **13 CSS files in repository**, **10 under `app/workspace/`**, with **217,482 bytes** of workspace CSS source. `workspace-features.css` (~59 KiB) and `workspace-surfaces.css` (~55 KiB) dominate. Selector-specific conflicts and actual mobile visual parity remain to be tested, not assumed from file count.
+- Manual partner-assessment email no longer inserts the customer's company into the partner email subject/payload by default. Partner portal's existing `show_client_identity` flag remains governed by operator choice; attached technical files still require privacy review.
+
+### Release-validation evidence
+
+GitHub Actions Quality Gate run `39531943345` succeeded on feature commit `c7c385b`, and Vercel Preview for the same commit reached READY. Subsequent consent-evidence and partner notification-privacy commits require a new successful latest-head run. These are **build/contract** checks, not authenticated end-to-end proof.
+
+### Remaining operational safeguards
+
+Before first real campaign, review and test public form bot/spam protection, capture marketing-consent evidence with source/time, ensure unsubscribed contacts cannot be re-added by resubmission, and confirm notification outbox processing and error-state recovery. The website form's opt-in is optional; transactional acknowledgement is separate.
