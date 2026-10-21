@@ -211,6 +211,9 @@ check('Concurrent partner execution sessions are unique by active assignment',
   uniqueWorkOrderSessions.includes('ux_op_one_live_partner_execution_session'));
 check('No partner work-order email in non-isolated Preview',
   autoWorkOrder.includes('isKnownIsolatedQaBackend'));
+const financeHandoffSql=read('supabase/migrations/20261019030000_project_financial_release_handoff.sql');
+check('Project finance handoff SQL function has complete delimiter',financeHandoffSql.trimEnd().endsWith('$function$;'));
+check('Project finance inherits exactly the accepted quotation revision',financeHandoffSql.includes('quote_revision=(select revision from public.quotes where id=new.quote_id)'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
