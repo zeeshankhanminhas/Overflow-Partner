@@ -1,4 +1,4 @@
-import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isTrustedWebhookQaBackend } from '@/lib/qa/isolation';
 import { validStripeSignature } from '@/lib/payments/stripeSignature';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
@@ -7,8 +7,7 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return new Response('Not enabled',{status:503});
-  if (process.env.VERCEL_ENV !== 'preview' || process.env.OP_ISOLATED_QA_BACKEND !== 'true') return new Response('Isolated Preview QA backend required',{status:503});
-  if(!isKnownIsolatedQaBackend())return new Response('Preview Supabase URL is not an independently configured QA project',{status:503});
+  if(!isTrustedWebhookQaBackend()) return new Response('An isolated Preview or disposable localhost CI database is required',{status:503});
   const webhookSecret=process.env.STRIPE_WEBHOOK_SECRET;
   const dbUrl=process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const dbKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -79,6 +78,19 @@ export async function POST(request: Request) {
   if (insertError && insertError.code!=='23505') {
     // Fail so Stripe retries; do not acknowledge evidence we failed to store.
     return new Response('Unable to persist verified payment',{status:500});
+  }
+  if(insertError?.code==='23505'){
+    // A conflicting event ID/session is not automatically a successful replay.
+    // Fetch and validate the immutable evidence before invoking either finalizer.
+    const {data:existing,error:existingError}=await db.from('quote_stripe_payment_events')
+      .select('stripe_session_id,quote_id,organisation_id,quote_revision,amount_total,currency,stripe_payment_status')
+      .eq('stripe_session_id',String(session.id)).maybeSingle();
+    if(existingError || !existing) return new Response('Stripe replay conflicts with existing evidence',{status:409});
+    if(existing.quote_id!==quoteId || existing.organisation_id!==organisationId ||
+       Number(existing.quote_revision)!==revision || Number(existing.amount_total)!==amount ||
+       String(existing.currency).toUpperCase()!==currency || existing.stripe_payment_status!=='paid'){
+      return new Response('Stripe replay changes original payment evidence',{status:409});
+    }
   }
   if(paymentStage==='final'){
     if(process.env.OP_STRIPE_FINAL_TEST_ENABLED!=='true')
