@@ -56,3 +56,11 @@ The original `recordClientTransmittalAction` previously generated long-lived sig
 - **P1** Full two-source E2E including negative, retry, concurrent, data-integrity, outbox and document/PDF checks.
 
 **Release decision:** feature branch only; no production migration, customer email, bank transaction or live Stripe payment. PR #104 stays unmerged until these release gates are closed. Never claim this document is proof of live DB completeness.
+
+## Extended implementation update — 21 October (feature branch)
+
+- Staged **atomic** client correction RPC and `op_client_correction_entitlements` unique project record; partner defects do not consume the included round. Server action switches through `OP_VOICE_CORRECTION_POLICY_ENABLED` only after migration/QA.
+- Staged seven England/Wales working-day client review deadline, with official 2026–2028 holiday dates, server-side insertion trigger and Project 360 read-only window. Requires `OP_VOICE_REVIEW_WINDOW_ENABLED`, migration and calendar maintenance beyond 2028. Source: https://www.gov.uk/bank-holidays.
+- Staged automatic partner execution assignment from the **existing approved current SOW** after its governed document approval. When mobilisation legitimately advances to `ready_for_execution`, `OP_AUTO_PARTNER_RELEASE_ENABLED` queues an idempotent signed partner work order to the commercially selected NDA-approved execution partner. No partner email is queued on mere project creation or while the SOW remains draft. Existing manual partner workflow is the fallback, and transaction-level QA is required.
+- The work-order automation and public intake/Stripe Preview operations check the *actual* `OP_QA_SUPABASE_PROJECT_REF` and do not trust only a boolean toggle. Production ref is rejected.
+- Additional migrations staged for unique concurrent partner sessions and defense-in-depth payment-event RLS. No migrations applied to shared OPOS.
