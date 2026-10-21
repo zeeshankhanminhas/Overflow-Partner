@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
+import { scheduleInitialEnquiryNurture } from '@/lib/notifications/schedules';
 
 const intakeSchema = z.object({
   full_name: z.string().trim().min(2).max(160),
@@ -11,6 +13,7 @@ const intakeSchema = z.object({
   source: z.string().trim().max(80).optional().default('Website'),
   pageUrl: z.string().trim().url().optional().or(z.literal('')),
   lead_id: z.string().trim().max(160).optional().or(z.literal('')),
+  nurture_consent: z.enum(['true','false']).optional().default('false'),
 });
 
 function getAdminClient() {
@@ -32,11 +35,6 @@ export async function POST(request: Request) {
   try {
     const payload = intakeSchema.parse(await request.json());
     const supabase = getAdminClient();
-    const orchestrationSecret = process.env.STEP2_ORCHESTRATION_SECRET;
-    if (!orchestrationSecret) {
-      throw new Error('STEP2_ORCHESTRATION_SECRET is not configured in Vercel.');
-    }
-
     const { data: owners, error: ownerError } = await supabase.from('profiles')
       .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true).limit(2);
     if (ownerError) throw ownerError;
@@ -65,6 +63,15 @@ export async function POST(request: Request) {
       if(created.error)throw created.error;contact=created.data;
     }
 
+    // Repeated submissions of the same active requirement must not create parallel opportunities.
+    const { data: existing, error: existingError } = await supabase.from('prospects')
+      .select('id,created_at').eq('organisation_id', owner.organisation_id)
+      .eq('company_id', company.id).eq('contact_id', contact.id).eq('source', 'website')
+      .eq('project_type', payload.project_type).eq('requirement_summary', payload.brief_requirement)
+      .in('status', ['identified','contacted','conversation']).order('created_at', { ascending:false }).limit(1).maybeSingle();
+    if (existingError) throw existingError;
+    if (existing) return NextResponse.json({ success:true, submissionId:existing.id, timestamp:existing.created_at, reused:true });
+
     const { data: prospect, error: prospectError } = await supabase.from('prospects').insert({
       organisation_id: owner.organisation_id,
       created_by: owner.id,
@@ -79,7 +86,7 @@ export async function POST(request: Request) {
       requirement_summary: payload.brief_requirement,
       website_submission_id: payload.lead_id || null,
       status: 'identified',
-      next_action: 'Step 2 technical intake invitation pending',
+      next_action: 'Await customer interest before sending secure requirements form',
       notes: notes || null,
     }).select('id, created_at').single();
     if (prospectError) throw prospectError;
@@ -99,54 +106,41 @@ export async function POST(request: Request) {
       },
     }).throwOnError();
 
-    let step2: { created: boolean; emailStatus: string; error?: string } = {
-      created: false,
-      emailStatus: 'pending',
-    };
-
+    // Website Step 1 is not yet permission to request detailed technical intake.
+    // Send an acknowledgement. Schedule up to five nurture messages only on explicit opt-in.
+    let acknowledgement = 'pending';
+    const actionUrl = getPublicBaseUrl(request) + '/';
     try {
-      const { data, error } = await supabase.functions.invoke('send-step-2-invitation', {
-        headers: {
-          'x-internal-secret': orchestrationSecret,
-        },
-        body: {
-          prospectId: prospect.id,
-          organisationId: owner.organisation_id,
-          actorUserId: owner.id,
-          recipientEmail: payload.work_email,
-          recipientName: payload.full_name,
-          companyName: payload.company,
-          projectType: payload.project_type,
-          publicBaseUrl: getPublicBaseUrl(request),
-        },
+      await queueLifecycleEmail(supabase, {
+        organisationId:owner.organisation_id,scenario:'enquiry.received',
+        recipientEmail:payload.work_email,recipientName:payload.full_name,actionUrl,
+        entityType:'prospect',entityId:prospect.id,
+        payload:{company:payload.company},idempotencyKey:'website:ack:' + prospect.id,
       });
-      if (error) throw error;
-      step2 = {
-        created: Boolean(data?.sessionId),
-        emailStatus: String(data?.emailStatus || 'pending'),
-      };
-    } catch (orchestrationError) {
-      const message = orchestrationError instanceof Error ? orchestrationError.message : 'Step 2 orchestration failed.';
-      console.error('Step 2 orchestration failed after prospect creation', orchestrationError);
-      await supabase.from('prospects').update({
-        next_action: 'Create and send Step 2 technical intake invitation manually',
-      }).eq('id', prospect.id);
+      acknowledgement = 'queued';
+    } catch (notificationError) {
+      acknowledgement = 'failed';
+      console.error('Website enquiry acknowledgement queue failed', notificationError);
       await supabase.from('activity_events').insert({
-        organisation_id: owner.organisation_id,
-        user_id: owner.id,
-        entity_type: 'prospect',
-        entity_id: prospect.id,
-        event_type: 'step_2_orchestration_failed',
-        event_data: { error: message },
+        organisation_id:owner.organisation_id,user_id:owner.id,
+        entity_type:'prospect',entity_id:prospect.id,event_type:'website_acknowledgement_failed',
+        event_data:{retryRequired:true},
       });
-      step2 = { created: false, emailStatus: 'failed', error: message };
     }
-
+    if (payload.nurture_consent === 'true') {
+      try {
+        await scheduleInitialEnquiryNurture(supabase, {
+          organisationId:owner.organisation_id,prospectId:prospect.id,email:payload.work_email,
+          name:payload.full_name,company:payload.company,actionUrl,
+        });
+      } catch (notificationError) {
+        console.error('Website nurture scheduling failed', notificationError);
+      }
+    }
     return NextResponse.json({
-      success: true,
-      submissionId: prospect.id,
-      timestamp: prospect.created_at,
-      step2,
+      success:true,submissionId:prospect.id,timestamp:prospect.created_at,
+      acknowledgement,nurtureScheduled:payload.nurture_consent === 'true',
+      step2:{created:false,emailStatus:'awaiting_interest'},
     });
   } catch (error) {
     console.error('Website intake failed', error);
