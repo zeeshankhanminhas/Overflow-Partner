@@ -16,6 +16,13 @@ export function stripeRuntimeMode(): 'qa' | 'live' | null {
   const key=process.env.STRIPE_SECRET_KEY||'';
   const secret=process.env.STRIPE_WEBHOOK_SECRET||'';
   if(!key.startsWith('sk_live_') || !secret.startsWith('whsec_'))return null;
+  const origin=process.env.OP_STRIPE_LIVE_RETURN_ORIGIN||'';
+  if(!origin || origin!==process.env.NEXT_PUBLIC_SITE_URL)return null;
+  try{
+    const p=new URL(origin);
+    if(p.protocol!=='https:' || p.username || p.password || p.search || p.hash ||
+       p.pathname!=='/' || !/^[a-z0-9.-]+$/i.test(p.hostname))return null;
+  }catch{return null;}
   return 'live';
 }
 
