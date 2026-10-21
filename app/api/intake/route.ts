@@ -1,3 +1,4 @@
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
@@ -32,7 +33,7 @@ function getPublicBaseUrl(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if(process.env.VERCEL_ENV==='preview' && process.env.OP_ISOLATED_QA_BACKEND!=='true') return NextResponse.json({success:false,message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({success:false,message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
   try {
     const payload = intakeSchema.parse(await request.json());
     const supabase = getAdminClient();
