@@ -171,6 +171,26 @@ check('Project 360 explicitly shows manual owner release before closure',project
 check('New contractual lifecycle blocks manual quote-to-project bypass',actions.includes("Manual project creation is disabled."));
 check('Client portal exposes final balance and approved files separately',portal.includes('finalReviewAccepted&&!finalSettlementVerified')
   &&portal.includes('finalReleaseApproved'));
+const correctionMigration=read('supabase/migrations/20261021080000_atomic_client_correction_gate.sql');
+const businessCalendarMigration=read('supabase/migrations/20261021081000_seven_workday_client_review.sql');
+const clientReviewUi=read('app/workspace/projects/[id]/ProjectClientDecisionActions.tsx');
+check('Exactly one included correction is locked by project primary key',correctionMigration.includes('project_id uuid primary key')
+  &&correctionMigration.includes('op_client_correction_entitlements'));
+check('Correction entitlement and governed stage transition share one transaction',correctionMigration.includes('op_record_client_review_outcome_core')
+  &&correctionMigration.indexOf('insert into public.op_client_correction_entitlements')<correctionMigration.indexOf('v_result:=public.op_record_client_review_outcome_core'));
+check('Partner defect never consumes included correction',correctionMigration.includes('if not p_partner_defect then'));
+check('Out of scope and revision are excluded from free correction flow',correctionMigration.includes("p_feedback_category<>'in_scope_correction'"));
+check('Active scope variation uniquely keyed by description',correctionMigration.includes('ux_op_active_variation_per_description'));
+check('Feature flag uses database-atomic classified review',clientActions.includes("OP_VOICE_CORRECTION_POLICY_ENABLED==='true'")
+  &&clientActions.includes('op_record_classified_client_review'));
+check('Seven-workday deadline accounts for England/Wales bank holidays',businessCalendarMigration.includes('op_ew_bank_holidays')
+  &&businessCalendarMigration.includes("Europe/London")&&businessCalendarMigration.includes('extract(isodow from v_date)'));
+check('England/Wales bank holiday calendar seeded through 2028',businessCalendarMigration.includes("'2026-12-28'")
+  &&businessCalendarMigration.includes("'2027-01-01'")&&businessCalendarMigration.includes("'2028-12-26'"));
+check('Review deadline persists on the client transmittal',businessCalendarMigration.includes('add column if not exists review_due_at')
+  &&businessCalendarMigration.includes('op_seven_workday_client_review'));
+check('Project 360 displays seven working day due date',projectPage.includes("OP_VOICE_REVIEW_WINDOW_ENABLED==='true'")
+  &&clientReviewUi.includes('Client review deadline:'));
 const failed=checks.filter(c=>!c.passed);
 console.log('OPOS lifecycle integration checks: '+(checks.length-failed.length)+'/'+checks.length+' passed');
 for(const f of failed)console.error(' - '+f.label);
