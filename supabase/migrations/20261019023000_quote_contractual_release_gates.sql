@@ -109,7 +109,7 @@ create or replace function public.op_record_authorised_public_quote_response(
   p_quote_id uuid,p_quote_revision integer,p_response text,
   p_signatory_name text default null,p_signatory_email text default null,p_authority_attested boolean default false
 ) returns jsonb
-language plpgsql security definer set search_path=public as $
+language plpgsql security definer set search_path=public as $$
 declare v_contract public.quote_release_contracts%rowtype; v_issue public.quote_issue_records%rowtype;
 begin
   if p_response='accepted' then
@@ -175,7 +175,7 @@ begin
   ) then
     raise exception 'Secure Client Portal acceptance lacks named signatory attestation.';
   end if;
-  if v_contract.release_basis='payment' then
+  if v_contract.release_basis in ('payment','deposit') then
     if not exists (
       select 1 from public.quote_payment_confirmations p
       where p.quote_id=v_quote.id and p.organisation_id=v_quote.organisation_id
@@ -193,15 +193,9 @@ begin
               and upper(e.currency)=upper(v_contract.currency)
           ))
         )
-    ) then raise exception 'Full advance has not been verified against accepted contractual terms.'; end if;
-  elsif v_contract.release_basis in ('purchase_order','no_advance_payment') then
-    if not exists (
-      select 1 from public.quote_release_confirmations r
-      where r.quote_id=v_quote.id and r.organisation_id=v_quote.organisation_id
-        and r.release_basis=v_contract.release_basis and nullif(trim(r.evidence_reference),'') is not null
-    ) then raise exception 'Authorised contractual release evidence is missing.'; end if;
+    ) then raise exception 'Opening payment has not been verified against accepted contractual terms.'; end if;
   else
-    raise exception 'Deposit and credit release require separately governed settlement workflows.';
+    raise exception 'This OPOS lifecycle requires a verified opening payment. PO, credit and no-advance cannot create a new project.';
   end if;
   return new;
 end;$$;

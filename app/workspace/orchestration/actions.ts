@@ -9,6 +9,7 @@ import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
 import { createClientQuotePdf } from '@/lib/quotes/clientQuotePdf';
+import { openingPayment, finalBalance, OPOS_POLICY } from '@/lib/lifecycle/voiceAgreedContract';
 import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 import {
@@ -107,12 +108,14 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   }
   releaseText = contract.release_basis==='payment'
     ? `Full advance of ${quoteMoney(contract.opening_amount, String(quote.currency||'GBP'))} is due before project release.`
+    : contract.release_basis==='deposit'
+      ? `Opening payment: ${quoteMoney(contract.opening_amount,String(quote.currency||'GBP'))} (30%) after accepting this quotation, before the project starts. The remaining balance of ${quoteMoney(finalBalance(Number(quote.total),Number(contract.opening_amount)),String(quote.currency||'GBP'))} must be verified before the final editable engineering files are released.`
     : contract.release_basis==='purchase_order'
       ? 'A verified, authorised client purchase order is required before project release; no opening payment is due.'
       : contract.release_basis==='no_advance_payment'
         ? 'No advance is due under this quotation; OP must verify the authorised commercial release before commencing work.'
         : 'Deposit or credit terms are not yet supported by this quotation issue workflow.';
-  if (!['payment','purchase_order','no_advance_payment'].includes(String(contract.release_basis))) {
+  if (!['payment','deposit'].includes(String(contract.release_basis))) {
     throw new Error('Unimplemented release terms cannot be issued to a client.');
   }
 
@@ -157,7 +160,11 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   const subject = `Client Quote ${quote.quote_number} · Overflow Partner`;
   const message = `This email contains the approved Client Quote for ${companyName || 'your requirement'}. The scope, deliverables, price and validity below form the quotation.\n\nReply to this email with written acceptance before the expiry date, or tell us what you would like changed. The attached quotation specifies the contractual opening payment or release condition required before project setup.`;
   const portalUrl = publicSiteUrl(`/client-portal?token=${encodeURIComponent(createClientPortalToken(quoteId, Number(quote.revision)))}`);
-  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks] };
+  // The notification worker can claim this message before the synchronous sender does.
+  // Persist the exact approved revision PDF in the outbox so BOTH delivery paths
+  // attach the same document (including provider retries and worker recovery).
+  const quoteAttachment = { filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' };
+  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks], emailAttachments: [quoteAttachment] };
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
@@ -190,7 +197,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `overflow-partner-${outboxId}` },
         body: JSON.stringify({
           from, to: [recipientEmail], subject, html, text,
-          attachments: [{ filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' }],
+          attachments: [quoteAttachment],
           ...(process.env.RESEND_REPLY_TO_EMAIL ? { reply_to: process.env.RESEND_REPLY_TO_EMAIL } : {}),
           headers: { 'X-Overflow-Partner-Event': 'quote.issued', 'X-Overflow-Partner-Outbox': outboxId },
         }),
@@ -232,7 +239,7 @@ export async function createCommercialReviewAction(formData: FormData) {
 
 export async function approveCommercialAction(formData: FormData) {
   const reviewId = required(formData, 'commercial_review_id'); const leadId = required(formData, 'lead_id'); let destination = `/workspace/leads/${leadId}`;
-  try { const { supabase, organisationId, user } = await requireUserContext(); const quote = await approveCommercialAndGenerateQuote(supabase, organisationId, user.id, reviewId, 'GBP', 20); refreshCase(leadId); destination = caseUrl(leadId, { success: `Draft quote ${quote.quote_number} generated with its canonical controlled Client Quote document. Approve that document before commercial issue.`, resultStatus: 'Controlled quotation required', quote: quote.id, focus:'record-documents' }); }
+  try { const { supabase, organisationId, user } = await requireUserContext(); const quote = await approveCommercialAndGenerateQuote(supabase, organisationId, user.id, reviewId, 'GBP', 20); const expiry=new Date(); expiry.setUTCDate(expiry.getUTCDate()+OPOS_POLICY.quotationValidityDays); const {error:validityError}=await supabase.rpc('op_set_draft_quote_validity',{p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quote.id,p_valid_until:expiry.toISOString().slice(0,10)}); if(validityError)throw new Error('Draft created, but 14-day validity could not be set: '+validityError.message); refreshCase(leadId); destination = caseUrl(leadId, { success: `Draft quote ${quote.quote_number} generated with its canonical controlled Client Quote document. Approve that document before commercial issue.`, resultStatus: 'Controlled quotation required', quote: quote.id, focus:'record-documents' }); }
   catch (error) { destination = caseUrl(leadId, { error: message(error), focus:'record-next-action' }); }
   redirect(destination);
 }
@@ -247,12 +254,17 @@ export async function issueQuoteAction(formData: FormData) {
     const recipient=await leadRecipient(supabase,organisationId,leadId);
     const recipientEmail=suppliedEmail||recipient?.contact_email||'';
     if(!recipientEmail)throw new Error('Enter the client email address before sending the Client Quote.');
-    if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true') {
+    if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED !== 'true') throw new Error('Controlled quotation release terms are not enabled. This quotation cannot be issued until the governed payment contract is deployed.');
+    {
     const contractBasis=required(formData,'contract_release_basis');
     const contractAmount=Number(formData.get('contract_opening_amount'));
-    if(!['payment','purchase_order','no_advance_payment'].includes(contractBasis) || !Number.isFinite(contractAmount)){
+    if(!['payment','deposit'].includes(contractBasis) || !Number.isFinite(contractAmount)){
       throw new Error('Select an explicitly supported commercial release condition.');
     }
+    const {data:quoteTerms,error:quoteTermsError}=await supabase.from('quotes').select('total').eq('organisation_id',organisationId).eq('id',quoteId).single();
+    if(quoteTermsError || !quoteTerms)throw new Error('Quotation total is unavailable.');
+    const expectedOpening=contractBasis==='deposit'?openingPayment(Number(quoteTerms.total)):Number(quoteTerms.total);
+    if(Math.abs(expectedOpening-contractAmount)>0.01)throw new Error('Opening amount must match the agreed 30% deposit or fully prepaid terms.');
     const {error:contractError}=await supabase.rpc('op_record_quote_release_contract',{
       p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quoteId,
       p_release_basis:contractBasis,p_opening_amount:contractAmount,
@@ -306,6 +318,9 @@ export async function acceptQuoteAction(formData: FormData) {
   const quoteId = required(formData, 'quote_id');
   const leadId = required(formData, 'lead_id');
   let destination = `/workspace/leads/${leadId}`;
+  if(process.env.OP_CONTRACTUAL_RELEASE_ENABLED==='true') {
+    redirect(caseUrl(leadId,{error:'Manual project creation is disabled. Authorised portal acceptance and a verified opening payment will create Project 360 automatically. Bank transfers require independently reconciled evidence.',focus:'record-next-action'}));
+  }
   try {
     // Use the authoritative recorded portal decision when present. The secure
     // link proves control of the link, not the recipient's legal identity.

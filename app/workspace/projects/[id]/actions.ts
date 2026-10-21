@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { releaseApprovedPartnerWorkOrder } from '@/lib/execution/autoWorkOrder';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { projectStages, type ProjectStage } from '@/lib/projects/stages';
 import { assertCanAdvanceProjectStage } from '@/lib/business/invariants';
@@ -93,6 +94,19 @@ export async function advanceProjectStageAction(formData: FormData) {
     const { supabase, user, profile, organisationId } = await requireUserContext(); assertRole(profile.role, [...roles]);
     await assertCanAdvanceProjectStage(supabase, organisationId, projectId, targetStage);
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id:projectId,p_target_stage:targetStage,p_actor_id:user.id,p_note:note||null }); if (error) throw new Error(error.message);
+    let workOrderIssue='';
+    if(targetStage==='ready_for_execution' && process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'){
+      try{
+        await releaseApprovedPartnerWorkOrder(supabase,organisationId,user.id,projectId);
+      }catch(workOrderError){
+        workOrderIssue=workOrderError instanceof Error?workOrderError.message:'Partner work order could not be queued.';
+        await supabase.from('activity_events').insert({
+          organisation_id:organisationId,entity_type:'project',entity_id:projectId,
+          user_id:user.id,event_type:'partner_work_order_action_required',
+          event_data:{message:workOrderIssue,retryRequired:true},
+        });
+      }
+    }
     if(targetStage==='closed'){
       const {data:project}=await supabase.from('projects').select('id,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
       if(project?.lead_id){
@@ -106,7 +120,7 @@ export async function advanceProjectStageAction(formData: FormData) {
         }
       }
     }
-    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,focus:targetStage==='closed'?'record-summary':'record-next-action'});
+    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced but automatic partner work order needs attention: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'?'Partner work order queued for the approved execution partner.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
   } catch (error) { destination = projectUrl(projectId,{error:error instanceof Error ? error.message : 'Project stage could not be advanced.',focus:'record-next-action'}); }
   redirect(destination);
 }

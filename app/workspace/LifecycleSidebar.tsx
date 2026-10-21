@@ -12,7 +12,7 @@ type RecordContext =
 
 function recordContext(pathname: string, searchParams: URLSearchParams): RecordContext | null {
   const acquisitionMatch = pathname.match(/^\/workspace\/acquisition\/([^/]+)$/);
-  if (acquisitionMatch && !['prospects', 'intake'].includes(acquisitionMatch[1])) return { type: 'acquisition', id: acquisitionMatch[1] };
+  if (acquisitionMatch && !['prospects', 'intake', 'funnel'].includes(acquisitionMatch[1])) return { type: 'acquisition', id: acquisitionMatch[1] };
   const caseMatch = pathname.match(/^\/workspace\/leads\/([^/]+)/);
   if (caseMatch) return { type: 'case', id: caseMatch[1] };
   const projectMatch = pathname.match(/^\/workspace\/projects\/([^/]+)/);
@@ -82,7 +82,8 @@ export default function LifecycleSidebar() {
     <NavSection title="CRM">
       <Link className={isActive(pathname, n.companies.href) ? 'active' : ''} href={n.companies.href}>{n.companies.label}</Link>
       <Link className={isActive(pathname, n.contacts.href) ? 'active' : ''} href={n.contacts.href}>{n.contacts.label}</Link>
-      <Link className={pathname.startsWith('/workspace/acquisition') || pathname.startsWith('/workspace/leads') || pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
+      <Link className={isActive(pathname, n.linkedinFunnel.href) ? 'active' : ''} href={n.linkedinFunnel.href}>{n.linkedinFunnel.label}</Link>
+      <Link className={(pathname.startsWith('/workspace/acquisition') && !pathname.startsWith(n.linkedinFunnel.href)) || pathname.startsWith('/workspace/leads') || pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
     </NavSection>
 
     <NavSection title="Commercial">

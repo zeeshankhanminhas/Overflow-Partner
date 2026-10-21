@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
+import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 import { createStripeCheckout } from './stripe-action';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
     .select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id)
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
   if(contractError || !contract)return <main><h1>Quotation terms unavailable</h1><p>Contact Overflow Partner to confirm the agreed release conditions.</p></main>;
-  if(contract.release_basis!=='payment')return <main style={{maxWidth:650,margin:'4rem auto',padding:30}}>
+  if(!['payment','deposit'].includes(String(contract.release_basis)))return <main style={{maxWidth:650,margin:'4rem auto',padding:30}}>
     <h1>No online payment is due</h1><p>Quotation {quote.quote_number} is governed by its agreed
     {contract.release_basis==='purchase_order'?' purchase-order':' no-advance'} release condition.
     Overflow Partner will verify the required authority before mobilisation.</p></main>;
@@ -32,23 +33,35 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   const bankName=process.env.OP_BANK_NAME;
   const bankAccount=process.env.OP_BANK_ACCOUNT_NUMBER;
   const bankSort=process.env.OP_BANK_SORT_CODE;
-  const stripeEnabled=Boolean(process.env.STRIPE_SECRET_KEY);
-  const amount=new Intl.NumberFormat('en-GB',{style:'currency',currency:String(quote.currency || 'GBP')}).format(Number(quote.total || 0));
+  const openingAmount = Number(contract.opening_amount);
+  const quoteTotal = Number(quote.total);
+  if (!Number.isFinite(openingAmount) || openingAmount <= 0 || openingAmount > quoteTotal) {
+    return <main><h1>Payment terms need verification</h1><p>Please contact Overflow Partner before making a transfer.</p></main>;
+  }
+  const formatAmount = (value: number) => new Intl.NumberFormat('en-GB', { style:'currency', currency:String(quote.currency || 'GBP') }).format(value);
+  const amount = formatAmount(openingAmount);
+  const hasStagedPayment = Math.round(openingAmount * 100) < Math.round(quoteTotal * 100);
+  const paymentMode=stripeRuntimeMode();
+  const stripeAvailable=paymentMode==='live' ||
+    (paymentMode==='qa' && Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) &&
+     (hasStagedPayment ? process.env.OP_STRIPE_DEPOSIT_TEST_ENABLED==='true' :
+      process.env.OP_STRIPE_FULL_PAYMENT_ONLY==='true'));
   const styles={maxWidth:650,margin:'4rem auto',padding:30,fontFamily:'Arial, sans-serif',border:'1px solid #ddd',borderRadius:12} as const;
   return <main style={styles}>
     <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
     <h1>{confirmed ? 'Commercial release recorded' : 'Complete your payment'}</h1>
     <p>Quotation {quote.quote_number} · Revision {quote.revision}</p>
-    <h2>{amount}</h2>
-    <p>Payment method: Stripe or bank transfer only. The agreed quotation terms determine the amount due before work starts.</p>
+    <p>Opening payment due</p><h2>{amount}</h2>
+    <p>Total quotation: {formatAmount(quoteTotal)}{hasStagedPayment ? ' · Remaining balance payable before final engineering handover.' : ''}</p>
+    <p>Only the agreed opening payment is due now. Do not transfer the full quotation total unless it is explicitly the opening amount in your accepted quotation.</p>
     {confirmed ? <p>Payment or authorised commercial release has already been recorded. No additional payment is required here.</p> : <>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Pay securely with Stripe</h3>
-        {stripeEnabled ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button style={{padding:'12px 22px',cursor:'pointer'}}>Continue to Stripe Checkout</button></form> : <p>Stripe Checkout is not yet configured. Please use bank transfer or contact OP.</p>}
+        {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button style={{padding:'12px 22px',cursor:'pointer'}}>Continue to Stripe Checkout</button></form> : <p>{hasStagedPayment ? 'Secure Stripe deposit Checkout is not currently available for this quotation. Please contact Overflow Partner before transferring funds.' : 'Secure online Checkout is not yet enabled. Contact Overflow Partner for verified payment instructions.'}</p>}
       </section>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Bank transfer</h3>
-        {bankName && bankAccount && bankSort ? <><p>Account name: <strong>{bankName}</strong></p><p>Sort code: <strong>{bankSort}</strong></p><p>Account number: <strong>{bankAccount}</strong></p><p>Payment reference: <strong>{quote.quote_number}</strong></p><p>Your transfer will remain pending until OP verifies cleared funds. Do not send a second payment while verification is pending.</p></> : <p>Bank details will be provided by OP. Please do not transfer funds until you have verified the instructions.</p>}
+        {process.env.OP_BANK_SETTLEMENT_VERIFICATION_ENABLED === 'true' && bankName && bankAccount && bankSort ? <><p>Account name: <strong>{bankName}</strong></p><p>Sort code: <strong>{bankSort}</strong></p><p>Account number: <strong>{bankAccount}</strong></p><p>Payment reference: <strong>{quote.quote_number}</strong></p><p>Your transfer will remain pending until OP verifies cleared funds. Do not send a second payment while verification is pending.</p></> : <p>Bank transfer is available only after Overflow Partner enables independently reconciled settlement verification. Please do not transfer funds until verified payment instructions are provided.</p>}
       </section>
     </>}
   </main>;

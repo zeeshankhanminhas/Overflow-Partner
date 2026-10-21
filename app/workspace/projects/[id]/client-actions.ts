@@ -1,6 +1,8 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { randomUUID } from 'crypto';
+import { classifyClientFeedback, type ClientFeedbackCategory } from '@/lib/lifecycle/voiceAgreedContract';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
@@ -29,13 +31,16 @@ export async function recordClientTransmittalAction(formData:FormData){
     if(!handover)throw new Error('An issued Handover Pack is required before client delivery.');
     const adapted=await buildDocumentAdapter(supabase,'handover-pack',{organisationId,projectId,caseId:project?.lead_id,quoteId:project?.quote_id});
     const handoverPdf=await createControlledPdf('Client Handover Pack',adapted);
-    let deliverableActions: {label:string;url:string}[]=[];
-    if(assignment?.id){
-      const {data:files,error:fileError}=await supabase.from('partner_delivery_submission_files').select('storage_bucket,storage_path,original_filename,submission_id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id).eq('execution_cycle',assignment.execution_cycle||1).not('submission_id','is',null).order('uploaded_at',{ascending:true});
-      if(fileError)throw new Error(`Client deliverables could not be loaded: ${fileError.message}`);
-      deliverableActions=await Promise.all((files||[]).map(async file=>{const {data:signed,error}=await supabase.storage.from(file.storage_bucket).createSignedUrl(file.storage_path,14*24*60*60);if(error||!signed?.signedUrl)throw new Error(`Secure download could not be created for ${file.original_filename}.`);return {label:`Download ${file.original_filename}`,url:signed.signedUrl};}));
-    }
-    const deliveryPayload={...payload,actions:deliverableActions,emailAttachments:[pdfEmailAttachment(`${handover.reference||reference}-R${handover.version||1}-Handover-Pack.pdf`,handoverPdf)]};
+    // CLIENT REVIEW ONLY: no signed URLs for editable partner source files at this stage.
+    // Final editable engineering deliverables require verified 100% payment and a separate
+    // explicit OPOS owner final-release decision. The existing handover PDF is read-only.
+    const deliveryPayload={
+      ...payload,
+      heading:'Your controlled engineering review package',
+      message:'Please review the attached controlled PDF. This is a review issue only; editable engineering source files will be made available separately after final settlement and Overflow Partner release approval.',
+      actions:[],
+      emailAttachments:[pdfEmailAttachment(`${handover.reference||reference}-R${handover.version||1}-Review-Handover-Pack.pdf`,handoverPdf)],
+    };
     const queued=await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.issued',recipientEmail,recipientName,actionUrl:appUrl(),payload:deliveryPayload,entityType:'project',entityId:projectId,idempotencyKey:`${deliveryKey}:issued`});
     if(!queued)throw new Error('Client email could not be queued; the Project remains at Ready for client issue.');
     const {error}=await supabase.rpc('op_record_client_transmittal_and_issue',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_recipient_name:recipientName,p_recipient_email:recipientEmail,p_delivery_method:deliveryMethod,p_note:note||null});
@@ -45,7 +50,7 @@ export async function recordClientTransmittalAction(formData:FormData){
       await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.review_reminder',recipientEmail,recipientName,actionUrl:appUrl(),payload,entityType:'project',entityId:projectId,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`${deliveryKey}:review-reminder`});
     }catch(emailError){communicationError=emailError instanceof Error?emailError.message:'Client notification could not be queued.';}
     refresh(projectId);
-    destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client email queued with the Handover Pack PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
+    destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client review-only email queued with the controlled PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client delivery could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }
@@ -55,8 +60,60 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
   try{
     const outcome=required(formData,'outcome');const evidenceBasis=required(formData,'evidence_basis');const evidenceReference=required(formData,'evidence_reference');const comments=String(formData.get('comments')||'').trim();
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
-    const {data,error}=await supabase.rpc('op_record_client_review_outcome',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_outcome:outcome,p_evidence_basis:evidenceBasis,p_evidence_reference:evidenceReference,p_comments:comments||null});
+    const changesRequested=['changes_requested','rejected','changes_needed'].includes(outcome);
+    const category=String(formData.get('feedback_category')||'in_scope_correction') as ClientFeedbackCategory;
+    const isPartnerDefect=formData.get('partner_defect')==='true';
+    let variationRecorded=false;
+    if(changesRequested){
+      if(!['in_scope_correction','revision','out_of_scope_change'].includes(category))throw new Error('Classify the feedback before recording it.');
+      if(!comments)throw new Error('Provide all requested changes in one consolidated list with references.');
+      if(isPartnerDefect&&category!=='in_scope_correction')throw new Error('A scope variation cannot be categorised as a partner defect.');
+      if(category==='revision'||category==='out_of_scope_change'){
+        const {data:existing,error:existingError}=await supabase.from('project_change_requests')
+          .select('id,change_reference').eq('organisation_id',organisationId).eq('project_id',projectId)
+          .eq('description',comments).in('status',['proposed','under_review','approved']).limit(1).maybeSingle();
+        if(existingError)throw new Error(existingError.message);
+        if(!existing){
+          const reference='OP-CR-'+new Date().toISOString().slice(0,10).replaceAll('-','')+'-'+randomUUID().slice(0,8).toUpperCase();
+          const {error:variationError}=await supabase.from('project_change_requests').insert({
+            organisation_id:organisationId,project_id:projectId,change_reference:reference,
+            description:comments,reason:category,scope_impact:'Await partner technical impact assessment',
+            programme_impact:'Await programme assessment',commercial_impact:null,status:'proposed',requested_by:user.id,
+          });
+          if(variationError)throw new Error(variationError.message);
+        }
+        // A new requirement must never be sent for free partner correction or auto-accepted.
+        refresh(projectId);
+        destination=projectUrl(projectId,{updated:'Separate variation recorded. Technical, price and timeline approval are required before partner work.',focus:'record-next-action'});
+        variationRecorded=true;
+      }
+      if(!variationRecorded){
+      const {count,error:historyError}=await supabase.from('activity_events')
+        .select('id',{count:'exact',head:true}).eq('organisation_id',organisationId).eq('entity_type','project')
+        .eq('entity_id',projectId).eq('event_type','client.included_correction_round');
+      if(historyError)throw new Error(historyError.message);
+      const classification=classifyClientFeedback({
+        category,correctionRoundsUsed:count||0,defectAgainstApprovedScope:isPartnerDefect,
+      });
+      if(classification==='correction_round_exhausted')throw new Error('The one included correction round is already used. Create a separately approved variation, or record evidence of a partner defect.');
+      }
+    }
+    if(!variationRecorded){
+    const useAtomicCorrectionGate=process.env.OP_VOICE_CORRECTION_POLICY_ENABLED==='true';
+    const {data,error}=await supabase.rpc(useAtomicCorrectionGate?'op_record_classified_client_review':'op_record_client_review_outcome',{
+      p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,
+      p_outcome:outcome,p_evidence_basis:evidenceBasis,p_evidence_reference:evidenceReference,p_comments:comments||null,
+      ...(useAtomicCorrectionGate?{p_feedback_category:category,p_partner_defect:isPartnerDefect}:{})
+    });
     if(error)throw new Error(error.message);
+    if(changesRequested&&!useAtomicCorrectionGate){
+      const {error:classificationError}=await supabase.from('activity_events').insert({
+        organisation_id:organisationId,user_id:user.id,entity_type:'project',entity_id:projectId,
+        event_type:isPartnerDefect?'client.partner_defect_rework':'client.included_correction_round',
+        event_data:{evidenceReference,feedbackCategory:category,partnerDefect:isPartnerDefect,comments},
+      });
+      if(classificationError)throw new Error('Client outcome recorded but correction-round classification needs operator reconciliation: '+classificationError.message);
+    }
     await cancelEntityReminders(supabase,{organisationId,entityType:'project',entityId:projectId,categories:['reminder']}).catch(()=>0);
     const [{data:project},{data:lead}]=await Promise.all([supabase.from('projects').select('project_number,title,lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle(),supabase.from('projects').select('lead_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle()]);
     let client:null|{contact_name?:string|null;contact_email?:string|null;company_name?:string|null}=null;
@@ -67,6 +124,7 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
       if(assignment?.partner_contact_email){const {data:session}=await supabase.from('partner_execution_sessions').select('id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id).in('status',['invited','opened','active']).order('created_at',{ascending:false}).limit(1).maybeSingle();const partnerUrl=session?.id?`${appUrl()}/execution/${createExecutionSessionToken(session.id)}`:appUrl();await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_work.action_required',recipientEmail:assignment.partner_contact_email,recipientName:assignment.partner_contact_name,actionUrl:partnerUrl,payload:{reference:project?.project_number,project:project?.title,message:comments||'Client changes have been requested.'},entityType:'project',entityId:projectId,idempotencyKey:`partner-work:client-changes:${projectId}:${evidenceReference}`}).catch(()=>null);}
     }
     refresh(projectId);const projectStage=String(data?.projectStage||'client_review');destination=projectUrl(projectId,{updated:`Client outcome recorded: ${outcome.replaceAll('_',' ')}.`,...(projectStage==='partner_correction'?{advanced:'partner_correction'}:{}),focus:'record-next-action'});
+    }
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client outcome could not be recorded.',focus:'record-next-action'});}
   redirect(destination);
 }

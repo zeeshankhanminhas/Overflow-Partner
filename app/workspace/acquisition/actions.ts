@@ -5,13 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { prospectInputSchema } from '@/lib/validation/prospects';
+import { canInviteFromLinkedIn } from '@/lib/acquisition/linkedinFunnel';
 import { createProspect } from '@/lib/repositories/prospects';
 import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
-import { scheduleInitialEnquiryNurture } from '@/lib/notifications/schedules';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
@@ -44,24 +44,14 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
     }
     const parsed = prospectInputSchema.safeParse({ ...raw, company_id: company.id, company_name: company.name, contact_id: contact?.id || '', contact_name: contact?.full_name || '', job_title: contact?.job_title || '', linkedin_url: contact?.linkedin_url || '', email: contact?.email || '', phone: contact?.phone || '', industry: company.industry || '' });
     if (!parsed.success) return { ok: false, error: 'Please correct the highlighted prospect details.', fieldErrors: parsed.error.flatten().fieldErrors };
+    if (['qualified', 'converted'].includes(parsed.data.status)) return { ok: false, error: 'Technical qualification and conversion require governed review evidence.' };
     const prospect = await createProspect(supabase, organisationId, user.id, parsed.data);
     await recordActivity(supabase, { organisationId, entityType: 'prospect', entityId: prospect.id, userId: user.id, eventType: 'prospect.created', newValue: prospect });
 
-    if (parsed.data.email) {
-      const actionUrl = siteUrl('/');
-      await queueLifecycleEmail(supabase, {
-        organisationId, scenario:'enquiry.received', recipientEmail:parsed.data.email,
-        recipientName:parsed.data.contact_name || null, actionUrl,
-        payload:{company:parsed.data.company_name}, entityType:'prospect', entityId:prospect.id,
-        idempotencyKey:`prospect:ack:${prospect.id}`,
-      }).catch(()=>null);
-      await scheduleInitialEnquiryNurture(supabase, {
-        organisationId, prospectId:prospect.id, email:parsed.data.email, name:parsed.data.contact_name,
-        company:parsed.data.company_name, actionUrl,
-      }).catch(()=>0);
-    }
+    // Manual prospect capture never authorizes unsolicited email or nurture.
+    // Website enquiries use their own public submission route with a transactional receipt and optional nurture consent.
 
-    revalidatePath('/workspace/acquisition'); revalidatePath(`/workspace/companies/${company.id}`); revalidatePath('/workspace');
+    revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/acquisition/funnel'); revalidatePath(`/workspace/companies/${company.id}`); revalidatePath('/workspace');
     return { ok: true, data: prospect };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : 'Unable to create prospect.' }; }
 }
@@ -83,8 +73,12 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     if (!prospectId) throw new Error('Prospect ID is required.');
     await assertCanInviteTechnicalIntake(supabase, organisationId, prospectId);
-    const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name').eq('organisation_id', organisationId).eq('id', prospectId).single();
+    const { data: prospect, error: prospectError } = await supabase.from('prospects').select('id,status,email,contact_name,company_name,source,outreach_status,response_outcome').eq('organisation_id', organisationId).eq('id', prospectId).single();
     if (prospectError || !prospect) throw new Error('Prospect not found.');
+    // Marketing interest is necessary before first technical intake for cold LinkedIn outreach.
+    if (!canInviteFromLinkedIn(prospect)) {
+      throw new Error("Record the customer's interested response before sending the secure technical form. Cold LinkedIn and initial website enquiries are not yet eligible.");
+    }
 
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -105,7 +99,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`,subject:'Your secure requirements form expires soon'}).catch(()=>null);
     }
 
-    revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace');
+    revalidatePath(`/workspace/acquisition/${prospectId}`); revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/acquisition/funnel'); revalidatePath('/workspace');
     destination = acquisitionUrl(prospectId,{invitation:url,focus:'record-next-action'});
   } catch (error) {
     const text=error instanceof Error ? error.message : 'Unable to create Technical Intake invitation.';
@@ -176,6 +170,7 @@ export async function updateProspectWorkingStatusFormAction(formData: FormData) 
     if (targetStatus === 'not_a_fit') await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId}).catch(()=>0);
     revalidatePath(`/workspace/acquisition/${prospectId}`);
     revalidatePath('/workspace/acquisition');
+    revalidatePath('/workspace/acquisition/funnel');
     revalidatePath('/workspace/acquisition/prospects');
     revalidatePath('/workspace');
     destination = acquisitionUrl(prospectId,{updated:'Opportunity status updated',focus:'record-next-action'});
@@ -204,17 +199,21 @@ export async function updateProspectOutreachAction(formData: FormData) {
     if(!prospectId||!outreachStatuses.has(outreachStatus))throw new Error('Select a valid outreach action.');
     if(responseOutcome&&!responseOutcomes.has(responseOutcome))throw new Error('Select a valid reply outcome.');
     if(outreachStatus==='replied'&&!responseOutcome)throw new Error('Record the reply outcome.');
+    if(responseOutcome==='interested'&&outreachStatus!=='replied')throw new Error('Confirm the customer replied before recording interest.');
     if(outreachStatus==='follow_up_due'&&!followUp)throw new Error('Set the next follow-up date and time.');
-    const {data:prospect,error:readError}=await supabase.from('prospects').select('id,status,converted_lead_id,outreach_status,response_outcome,next_follow_up_at').eq('organisation_id',organisationId).eq('id',prospectId).single();
+    const {data:prospect,error:readError}=await supabase.from('prospects').select('id,status,source,converted_lead_id,outreach_status,response_outcome,next_follow_up_at').eq('organisation_id',organisationId).eq('id',prospectId).single();
     if(readError||!prospect)throw new Error('Prospect not found.');
     if(prospect.converted_lead_id||prospect.status==='converted')throw new Error('Converted opportunities are managed through the client account.');
     const now=new Date().toISOString();
     const updates={outreach_status:outreachStatus,response_outcome:responseOutcome||null,next_follow_up_at:followUp?new Date(followUp).toISOString():null,last_contacted_at:outreachStatus==='message_sent'?now:undefined,last_reply_at:outreachStatus==='replied'?now:undefined,updated_at:now};
     const {error:updateError}=await supabase.from('prospects').update(updates).eq('organisation_id',organisationId).eq('id',prospectId);if(updateError)throw new Error(updateError.message);
-    await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:prospectId,userId:user.id,eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin'},oldValue:{outreachStatus:prospect.outreach_status,responseOutcome:prospect.response_outcome,nextFollowUpAt:prospect.next_follow_up_at},newValue:{outreachStatus,responseOutcome:responseOutcome||null,nextFollowUpAt:updates.next_follow_up_at}});
-    revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace');
-    destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-communications'});
-  }catch(error){destination=acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Outreach could not be recorded.',focus:'record-communications'});}
+    if((outreachStatus==='replied'&&['interested','not_interested'].includes(responseOutcome))||outreachStatus==='paused') {
+      await cancelEntityReminders(supabase,{organisationId,entityType:'prospect',entityId:prospectId,categories:['nurture']});
+    }
+    await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:prospectId,userId:user.id,eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:prospect.source==='website'?'email':prospect.source||'manual'},oldValue:{outreachStatus:prospect.outreach_status,responseOutcome:prospect.response_outcome,nextFollowUpAt:prospect.next_follow_up_at},newValue:{outreachStatus,responseOutcome:responseOutcome||null,nextFollowUpAt:updates.next_follow_up_at}});
+    revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace/acquisition/funnel');revalidatePath('/workspace');
+    destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-current-stage-work'});
+  }catch(error){destination=acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Outreach could not be recorded.',focus:'record-current-stage-work'});}
   redirect(destination);
 }
 

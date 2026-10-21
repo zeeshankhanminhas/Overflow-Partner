@@ -25,6 +25,7 @@ export type LifecycleEmailScenario =
   | 'enquiry.nurture.day18'
   | 'enquiry.nurture.day30'
   | 'requirements.requested'
+  | 'requirements.received'
   | 'requirements.reminder'
   | 'partner_review.requested'
   | 'partner_review.reminder'
@@ -41,6 +42,7 @@ export type LifecycleEmailScenario =
   | 'partner_work.action_required'
   | 'partner_work.delivery_received'
   | 'client_delivery.issued'
+  | 'client_delivery.final_released'
   | 'client_delivery.review_reminder'
   | 'client_delivery.review_outcome'
   | 'document.client_issue'
@@ -104,6 +106,12 @@ export const lifecycleEmailScenarios: Record<LifecycleEmailScenario, ScenarioDef
     subject:'Please complete your engineering requirements', heading:'A few details will help us assess your requirement',
     body:'Please use the secure requirements form to provide the scope, expected deliverables, available files and required timescale.\n\nWe will use this information to assess technical feasibility, identify any important gaps and establish the basis for delivery review and pricing.\n\nCompleting this form does not create a project or commit either party to proceed.\n\nIf you have a question before completing the form, reply directly to this email.',
     actionLabel:'Complete secure requirements form',
+  },
+  'requirements.received': {
+    family:'acknowledgement', category:'transactional', dynamicMode:'transactional', dynamicFields:['company','reference'],
+    subject:'We have received your engineering requirements', heading:'Your requirements have been received',
+    body:'Thank you for completing your secure requirements form. We have received the details and are reviewing the scope, technical feasibility and available delivery capacity. If the engineering team needs clarification, Overflow Partner will contact you. We will be in touch shortly with the next step.',
+    actionLabel:'Reply with a question',
   },
   'requirements.reminder': {
     family:'reminder', category:'reminder', dynamicMode:'contextual', dynamicFields:['reference','dueDate','actionUrl'],
@@ -200,6 +208,14 @@ export const lifecycleEmailScenarios: Record<LifecycleEmailScenario, ScenarioDef
     subject:'Your engineering deliverables are ready for review', heading:'Your deliverables are ready for review',
     body:'We have completed our internal review and issued the current engineering delivery for your consideration. Please review the deliverables and supporting documents identified by the references below.\n\nReply in writing with your approval or a clear list of changes required, quoting the project and document references.',
     actionLabel:'Reply about this delivery',
+  },
+  'client_delivery.final_released': {
+    family:'delivery_review',category:'transactional',dynamicMode:'transactional',
+    dynamicFields:['projectReference','reference','actionUrl'],
+    subject:'Final engineering files released · Overflow Partner',
+    heading:'Your final engineering package is ready',
+    body:'Your final payment has been verified and Overflow Partner has approved release of the final engineering files. Use your private client portal to access the current approved source files. Please keep the secure link confidential; download links are generated when you open the portal.',
+    actionLabel:'Access approved final files',
   },
   'client_delivery.review_reminder': {
     family:'reminder', category:'reminder', dynamicMode:'transactional', dynamicFields:['projectReference','reference','dueDate','actionUrl'],

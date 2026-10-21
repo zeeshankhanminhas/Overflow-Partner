@@ -83,8 +83,10 @@ export async function recordPartnerPaymentFromLedgerAction(formData: FormData) {
     if(amount<=0) throw new Error('Payment amount must be greater than zero.');
     const remaining=Math.max(0,Number(payable.total||0)-Number(payable.amount_paid||0));
     if(amount>remaining) throw new Error(`Payment exceeds the outstanding partner balance of ${money(remaining,payable.currency)}.`);
-    const reference=String(formData.get('reference')||'').trim()||null;
-    const {error}=await supabase.from('partner_payments').insert({organisation_id:organisationId,payable_id:payableId,project_id:payable.project_id,amount,currency:payable.currency,payment_method:String(formData.get('payment_method')||'bank_transfer'),status:'cleared',reference,paid_at:String(formData.get('paid_at')||'')||new Date().toISOString(),recorded_by:user.id});
+    const reference=String(formData.get('reference')||'').trim();
+    if(!reference)throw new Error('Actual partner bank transfer reference is required before recording a payment.');
+    if(String(formData.get('payment_method')||'bank_transfer')!=='bank_transfer')throw new Error('Only actual bank transfers can be recorded for partner settlement.');
+    const {error}=await supabase.from('partner_payments').insert({organisation_id:organisationId,payable_id:payableId,project_id:payable.project_id,amount,currency:payable.currency,payment_method:'bank_transfer',status:'cleared',reference,paid_at:String(formData.get('paid_at')||'')||new Date().toISOString(),recorded_by:user.id});
     if(error) throw new Error(error.message);
     const partner=await partnerForId(supabase,organisationId,payable.partner_id);
     if(partner?.email) await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_payment.sent',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:appUrl(),payload:{company:partner.company_name,reference:reference||payable.payable_number,amount:money(amount,payable.currency)},entityType:'project',entityId:payable.project_id,idempotencyKey:`partner-payment:${payableId}:${amount}:${reference||'cleared'}`}).catch(()=>null);

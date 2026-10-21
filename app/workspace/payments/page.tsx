@@ -118,8 +118,8 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
                 <PendingActionForm action={recordPartnerPaymentFromLedgerAction} className="stack">
                   <input type="hidden" name="payable_id" value={payable.id}/><input type="hidden" name="project_id" value={payable.project_id}/>
                   <label>Amount<input name="amount" type="number" step="0.01" min="0.01" max={state.balance||undefined} required defaultValue={state.balance||undefined}/></label>
-                  <label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="other">Other</option></select></label>
-                  <label>Reference<input name="reference" placeholder="Bank or payment reference"/></label>
+                  <label>Method<select name="payment_method" defaultValue="bank_transfer"><option value="bank_transfer">Bank transfer</option></select></label>
+                  <label>Bank payment reference<input name="reference" required placeholder="Actual cleared transfer reference"/></label>
                   <button className="button">Confirm Partner payment</button>
                 </PendingActionForm>
               </DecisionDialog>:null}

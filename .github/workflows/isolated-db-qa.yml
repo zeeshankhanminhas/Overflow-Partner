@@ -1,0 +1,54 @@
+name: Isolated Database QA (no Supabase subscription)
+
+on:
+  push:
+    branches: [feat/linkedin-acquisition-funnel]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/isolated-db-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-db-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ephemeral-db:
+    name: Fresh local Supabase migrations and pgTAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Runs with GitHub-hosted ephemeral Docker; no production credentials.
+    # Never link to or migrate the remote OPOS project.
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+      DATABASE_URL: ''
+      OP_ISOLATED_QA_BACKEND: 'false'
+      OP_PACKAGE01_PAYMENTS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+      - name: Prepare a strictly local Supabase project
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The repo's existing config specifies only the function JWT exception.
+          # A stable CI-only project id is not a cloud project ref or billing ID.
+          sed -i '1i project_id = "opos_ephemeral_ci"' supabase/config.toml
+          test -z "${SUPABASE_ACCESS_TOKEN}"
+          test -z "${DATABASE_URL}"
+      - name: Start fresh local Postgres and apply every migration
+        run: supabase db start
+      - name: Assert lifecycle SQL/RLS contracts via pgTAP
+        run: supabase test db
+      - name: Stop ephemeral database
+        if: always()
+        run: supabase stop --no-backup || true

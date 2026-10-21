@@ -1,0 +1,107 @@
+name: Stripe HTTP → Project 360 (disposable QA)
+
+on:
+  push:
+    branches: [feat/linkedin-acquisition-funnel]
+    paths:
+      - 'app/api/stripe/**'
+      - 'lib/payments/**'
+      - 'lib/qa/**'
+      - 'scripts/qa/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/stripe-http-e2e.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/api/stripe/**'
+      - 'lib/payments/**'
+      - 'lib/qa/**'
+      - 'scripts/qa/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/stripe-http-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-http-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stripe-http:
+    name: Signed HTTP, local PostgREST, governed SQL finalizers
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      # Deliberately no remote Supabase or Stripe credentials in this job.
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+      DATABASE_URL: ''
+      OP_PACKAGE01_PAYMENTS_ENABLED: 'true'
+      OP_PACKAGE01_AUTO_RELEASE_ENABLED: 'true'
+      OP_STRIPE_FINAL_TEST_ENABLED: 'true'
+      OP_ISOLATED_QA_BACKEND: 'true'
+      OP_LOCAL_HTTP_QA_ENABLED: 'true'
+      OP_QA_SUPABASE_PROJECT_REF: 'opos_ephemeral_ci'
+      VERCEL_ENV: 'local-qa'
+      STRIPE_WEBHOOK_SECRET: 'whsec_qa_http_disposable_20261021'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install app dependencies
+        run: npm ci
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+      - name: Start disposable local Supabase DB + REST endpoint (no cloud project)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test -z "$DATABASE_URL"
+          sed -i '1i project_id = "opos_ephemeral_ci"' supabase/config.toml
+          supabase start -x studio,inbucket,analytics,vector,edge-runtime,realtime,storage,imgproxy
+          supabase status -o env > "$RUNNER_TEMP/opos-supabase-local.env"
+          set -a
+          source "$RUNNER_TEMP/opos-supabase-local.env"
+          set +a
+          test "${API_URL:-}" = 'http://127.0.0.1:54321'
+          test -n "${SERVICE_ROLE_KEY:-}"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+      - name: Seed approved synthetic quotation (local Postgres only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker ps --format '{{.Names}}' | grep -x 'supabase_db_opos_ephemeral_ci'
+          docker exec -i supabase_db_opos_ephemeral_ci psql -U postgres -d postgres             -v ON_ERROR_STOP=1 < scripts/qa/stripe-http-fixture.sql
+      - name: Start real Next.js webhook HTTP server
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- -H 127.0.0.1 -p 3211 > "$RUNNER_TEMP/opos-webhook-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opos-next-server.pid"
+      - name: Signed HTTP webhook and stateful database integration
+        run: node scripts/qa/stripe-http-e2e.mjs
+      - name: Diagnostic Next.js logs on failure
+        if: failure()
+        shell: bash
+        run: tail -120 "$RUNNER_TEMP/opos-webhook-server.log" || true
+      - name: Dispose local stack
+        if: always()
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/opos-next-server.pid"; then
+            kill "$(cat "$RUNNER_TEMP/opos-next-server.pid")" || true
+          fi
+          supabase stop --no-backup || true
