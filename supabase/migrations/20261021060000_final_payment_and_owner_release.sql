@@ -192,3 +192,37 @@ end;$$;
 drop trigger if exists op_manual_voice_project_closure on public.projects;
 create trigger op_manual_voice_project_closure before update of project_stage on public.projects
 for each row execute function public.op_guard_manual_voice_project_closure();
+
+-- Read-only authenticated state projection for the four questions in Project 360.
+create or replace function public.op_project_voice_final_release_status(
+  p_organisation_id uuid,p_user_id uuid,p_project_id uuid
+) returns jsonb
+language plpgsql stable security definer set search_path=public as $$
+declare v_paid boolean;v_approved boolean;v_partner_paid boolean;v_review boolean;
+begin
+  if auth.uid() is distinct from p_user_id then raise exception 'Authenticated workspace actor required.'; end if;
+  perform public.op_assert_workspace_role(p_organisation_id,p_user_id,
+    array['owner','admin','operator','engineering','commercial']);
+  if not exists(select 1 from public.projects where id=p_project_id and organisation_id=p_organisation_id)
+  then raise exception 'Project not found in organisation.'; end if;
+  select exists(select 1 from public.op_project_final_settlements s
+    where s.project_id=p_project_id and s.organisation_id=p_organisation_id) into v_paid;
+  select exists(select 1 from public.op_project_final_release_approvals a
+    where a.project_id=p_project_id and a.organisation_id=p_organisation_id) into v_approved;
+  select exists(select 1 from public.partner_payments p
+    where p.project_id=p_project_id and p.organisation_id=p_organisation_id
+       and p.status='cleared' and nullif(trim(p.reference),'') is not null)
+    and not exists(select 1 from public.partner_payables b
+       where b.project_id=p_project_id and b.organisation_id=p_organisation_id
+         and (b.total>b.amount_paid or b.status<>'paid')) into v_partner_paid;
+  select exists(select 1 from public.project_client_reviews r where
+    r.project_id=p_project_id and r.organisation_id=p_organisation_id
+    and r.outcome in ('accepted','accepted_with_comments')
+    and r.recorded_at=(select max(x.recorded_at) from public.project_client_reviews x
+       where x.project_id=p_project_id and x.organisation_id=p_organisation_id)) into v_review;
+  return jsonb_build_object('clientAccepted',v_review,'finalPaid',v_paid,
+    'ownerApproved',v_approved,'partnerPaid',v_partner_paid,
+    'readyForManualClosure',v_review and v_paid and v_approved and v_partner_paid);
+end;$$;
+revoke all on function public.op_project_voice_final_release_status(uuid,uuid,uuid) from public,anon;
+grant execute on function public.op_project_voice_final_release_status(uuid,uuid,uuid) to authenticated;
