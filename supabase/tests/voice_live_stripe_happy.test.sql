@@ -2,7 +2,7 @@
 -- Disposable Github local Supabase only. Every mutation is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(9);
 
 alter table public.quotes disable trigger user;
 alter table public.documents disable trigger user;
