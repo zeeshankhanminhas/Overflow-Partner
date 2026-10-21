@@ -49,6 +49,7 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
   const { token } = await context.params;
   const { supabase, session } = await sessionForToken(token);
   if (!session) return NextResponse.json({ message: 'This technical intake link is invalid or has expired.' }, { status: 404 });
+  if(process.env.VERCEL_ENV==='preview' && process.env.OP_ISOLATED_QA_BACKEND!=='true') return NextResponse.json({message:'Preview intake cannot access the shared production database.'},{status:503});
   if (session.status === 'invited') await supabase.from('intake_sessions').update({ status: 'opened', opened_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', session.id);
   const { data: submission } = await supabase.from('intake_submissions').select('*').eq('intake_session_id', session.id).maybeSingle();
   const { data: files } = await supabase.from('intake_files').select('id,original_filename,size_bytes,file_category,uploaded_at').eq('intake_session_id', session.id).order('uploaded_at');
@@ -56,6 +57,7 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
 }
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
+  if(process.env.VERCEL_ENV==='preview' && process.env.OP_ISOLATED_QA_BACKEND!=='true') return NextResponse.json({message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
   try {
     const { token } = await context.params;
     const payload = submissionSchema.parse(await request.json());
