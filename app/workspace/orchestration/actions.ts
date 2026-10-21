@@ -9,6 +9,7 @@ import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
 import { createClientQuotePdf } from '@/lib/quotes/clientQuotePdf';
+import { openingPayment, finalBalance } from '@/lib/lifecycle/voiceAgreedContract';
 import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 import {
@@ -107,12 +108,14 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   }
   releaseText = contract.release_basis==='payment'
     ? `Full advance of ${quoteMoney(contract.opening_amount, String(quote.currency||'GBP'))} is due before project release.`
+    : contract.release_basis==='deposit'
+      ? `Opening payment: ${quoteMoney(contract.opening_amount,String(quote.currency||'GBP'))} (30%) after accepting this quotation, before the project starts. The remaining balance of ${quoteMoney(finalBalance(Number(quote.total),Number(contract.opening_amount)),String(quote.currency||'GBP'))} must be verified before the final editable engineering files are released.`
     : contract.release_basis==='purchase_order'
       ? 'A verified, authorised client purchase order is required before project release; no opening payment is due.'
       : contract.release_basis==='no_advance_payment'
         ? 'No advance is due under this quotation; OP must verify the authorised commercial release before commencing work.'
         : 'Deposit or credit terms are not yet supported by this quotation issue workflow.';
-  if (!['payment','purchase_order','no_advance_payment'].includes(String(contract.release_basis))) {
+  if (!['payment','deposit'].includes(String(contract.release_basis))) {
     throw new Error('Unimplemented release terms cannot be issued to a client.');
   }
 
@@ -247,12 +250,17 @@ export async function issueQuoteAction(formData: FormData) {
     const recipient=await leadRecipient(supabase,organisationId,leadId);
     const recipientEmail=suppliedEmail||recipient?.contact_email||'';
     if(!recipientEmail)throw new Error('Enter the client email address before sending the Client Quote.');
-    if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true') {
+    if (process.env.OP_CONTRACTUAL_RELEASE_ENABLED !== 'true') throw new Error('Controlled quotation release terms are not enabled. This quotation cannot be issued until the governed payment contract is deployed.');
+    {
     const contractBasis=required(formData,'contract_release_basis');
     const contractAmount=Number(formData.get('contract_opening_amount'));
-    if(!['payment','purchase_order','no_advance_payment'].includes(contractBasis) || !Number.isFinite(contractAmount)){
+    if(!['payment','deposit'].includes(contractBasis) || !Number.isFinite(contractAmount)){
       throw new Error('Select an explicitly supported commercial release condition.');
     }
+    const {data:quoteTerms,error:quoteTermsError}=await supabase.from('quotes').select('total').eq('organisation_id',organisationId).eq('id',quoteId).single();
+    if(quoteTermsError || !quoteTerms)throw new Error('Quotation total is unavailable.');
+    const expectedOpening=contractBasis==='deposit'?openingPayment(Number(quoteTerms.total)):Number(quoteTerms.total);
+    if(Math.abs(expectedOpening-contractAmount)>0.01)throw new Error('Opening amount must match the agreed 30% deposit or fully prepaid terms.');
     const {error:contractError}=await supabase.rpc('op_record_quote_release_contract',{
       p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quoteId,
       p_release_basis:contractBasis,p_opening_amount:contractAmount,
