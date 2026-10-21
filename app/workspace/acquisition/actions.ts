@@ -12,7 +12,6 @@ import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
-import { scheduleInitialEnquiryNurture } from '@/lib/notifications/schedules';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
@@ -49,20 +48,8 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
     const prospect = await createProspect(supabase, organisationId, user.id, parsed.data);
     await recordActivity(supabase, { organisationId, entityType: 'prospect', entityId: prospect.id, userId: user.id, eventType: 'prospect.created', newValue: prospect });
 
-    // A cold LinkedIn prospect has not asked for an enquiry: never auto-email on capture.
-    if (parsed.data.email && parsed.data.source !== 'linkedin') {
-      const actionUrl = siteUrl('/');
-      await queueLifecycleEmail(supabase, {
-        organisationId, scenario:'enquiry.received', recipientEmail:parsed.data.email,
-        recipientName:parsed.data.contact_name || null, actionUrl,
-        payload:{company:parsed.data.company_name}, entityType:'prospect', entityId:prospect.id,
-        idempotencyKey:`prospect:ack:${prospect.id}`,
-      }).catch(()=>null);
-      await scheduleInitialEnquiryNurture(supabase, {
-        organisationId, prospectId:prospect.id, email:parsed.data.email, name:parsed.data.contact_name,
-        company:parsed.data.company_name, actionUrl,
-      }).catch(()=>0);
-    }
+    // Manual prospect capture never authorizes unsolicited email or nurture.
+    // Website enquiries use their own public submission route with a transactional receipt and optional nurture consent.
 
     revalidatePath('/workspace/acquisition'); revalidatePath('/workspace/acquisition/funnel'); revalidatePath(`/workspace/companies/${company.id}`); revalidatePath('/workspace');
     return { ok: true, data: prospect };
@@ -90,7 +77,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     if (prospectError || !prospect) throw new Error('Prospect not found.');
     // Marketing interest is necessary before first technical intake for cold LinkedIn outreach.
     if (!canInviteFromLinkedIn(prospect)) {
-      throw new Error('Record an interested LinkedIn reply before sending the secure requirements form. Continue the conversation in the LinkedIn funnel.');
+      throw new Error('Record the customer's interested response before sending the secure technical form. Cold LinkedIn and initial website enquiries are not yet eligible.');
     }
 
     const token = randomBytes(32).toString('base64url');
@@ -221,8 +208,8 @@ export async function updateProspectOutreachAction(formData: FormData) {
     const {error:updateError}=await supabase.from('prospects').update(updates).eq('organisation_id',organisationId).eq('id',prospectId);if(updateError)throw new Error(updateError.message);
     await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:prospectId,userId:user.id,eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin'},oldValue:{outreachStatus:prospect.outreach_status,responseOutcome:prospect.response_outcome,nextFollowUpAt:prospect.next_follow_up_at},newValue:{outreachStatus,responseOutcome:responseOutcome||null,nextFollowUpAt:updates.next_follow_up_at}});
     revalidatePath(`/workspace/acquisition/${prospectId}`);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');revalidatePath('/workspace/acquisition/funnel');revalidatePath('/workspace');
-    destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-communications'});
-  }catch(error){destination=acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Outreach could not be recorded.',focus:'record-communications'});}
+    destination=acquisitionUrl(prospectId,{updated:'Outreach activity recorded',focus:'record-current-stage-work'});
+  }catch(error){destination=acquisitionUrl(prospectId,{error:error instanceof Error?error.message:'Outreach could not be recorded.',focus:'record-current-stage-work'});}
   redirect(destination);
 }
 
