@@ -14,6 +14,7 @@ import { DecisionDialog } from '@/components/workspace/InteractionSurface';
 import { convertProspectFormAction, createStep2InvitationFormAction, updateProspectWorkingStatusFormAction } from '../actions';
 import { generateStep2TestLinkFormAction } from '../test-link-actions';
 import ProspectOutreachTools from '@/components/workspace/ProspectOutreachTools';
+import ProspectConversationPanel from '@/components/workspace/ProspectConversationPanel';
 import { updateProspectOutreachAction } from '../actions';
 
 function dateTime(value: string | null | undefined) {
@@ -54,6 +55,24 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
       supabase.from('partner_quotes').select('*').eq('organisation_id',organisationId).eq('partner_review_request_id',partnerRequest.id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     ]);
     response=responseResult.data;decision=decisionResult.data;partnerQuote=quoteResult.data;
+  }
+  // Conversation import stays opt-in until its scoped schema and RLS are QA verified.
+  const conversationEnabled = prospect.source === 'linkedin'
+    && process.env.OP_LINKEDIN_CONVERSATION_IMPORT_ENABLED === 'true';
+  const [conversationMessageResult, conversationImportResult] = conversationEnabled
+    ? await Promise.all([
+        supabase.from('prospect_conversation_messages')
+          .select('id,source,speaker,body,sent_at,imported_at')
+          .eq('organisation_id',organisationId).eq('prospect_id',id)
+          .order('imported_at',{ascending:false}).limit(500),
+        supabase.from('prospect_conversation_imports')
+          .select('id,source,source_url,original_text,created_at')
+          .eq('organisation_id',organisationId).eq('prospect_id',id)
+          .order('created_at',{ascending:false}).limit(25),
+      ])
+    : [{data:[],error:null},{data:[],error:null}];
+  if (conversationMessageResult.error || conversationImportResult.error) {
+    throw new Error('Conversation history is unavailable. Check that the isolated QA migration has been applied.');
   }
   const events=activityResult.data??[];const convertedCaseId=String(prospect.converted_lead_id||'');
   const acquisition=resolveAcquisitionState({
@@ -111,8 +130,14 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const evidence=<div style={{display:'grid',gap:20}}>{submission?<AcquisitionTechnicalBrief submission={submission}/>:<div className="vp-empty">No requirements have been submitted yet.</div>}{intakeFiles.length?<div><p className="vp-kicker">Client files</p>{intakeFiles.map((file:any)=><div key={file.id} className="project-os-history-row"><span>↳</span><div><strong>{file.original_filename}</strong><small>{Math.max(1,Math.round(Number(file.size_bytes||0)/1024))} KB · {dateTime(file.uploaded_at)}</small></div></div>)}</div>:null}{response?<div className="vp-callout"><strong>Delivery partner response received</strong><p>{response.reviewer_name}{response.reviewer_role?` · ${response.reviewer_role}`:''} · {commercialStatus(response.feasibility,commercialCopy(response.feasibility))} · {response.confidence_percent}% confidence.</p></div>:null}</div>;
   const activitySummary=<div className="vp-facts"><Fact label="Requirements sent" value={dateTime(session?.sent_at)}/><Fact label="Client submitted" value={dateTime(session?.submitted_at)}/><Fact label="Delivery review sent" value={dateTime(partnerRequest?.sent_at)}/><Fact label="Partner responded" value={dateTime(partnerRequest?.submitted_at)}/><Fact label="Response due" value={dateTime(partnerRequest?.response_due_at)}/></div>;
   const approvedMessage=`Hello${prospect.contact_name?` ${String(prospect.contact_name).split(' ')[0]}`:''}, I help engineering teams add dependable CAD and technical delivery capacity when internal workload is constrained. I would be glad to understand whether ${prospect.company_name} ever uses external support for overflow work.`;
+  const conversationPanel = conversationEnabled
+    ? <ProspectConversationPanel prospectId={id}
+        messages={conversationMessageResult.data??[]}
+        imports={conversationImportResult.data??[]}
+        canImport={['owner','admin','business_development','operator'].includes(String(profile.role))}/>
+    : null;
   const outreachStatus=String(prospect.outreach_status||'not_contacted');
-  const outreachTools=<div className="outreach-panel"><p style={{color:'var(--op-muted)',lineHeight:1.6}}>{prospect.source === 'website' ? 'Record the customer’s email response or follow-up here. Only invite Step 2 after the customer confirms interest.' : 'Run the conversation on LinkedIn, which remains the sending channel. Never email a cold LinkedIn prospect.'}</p>{prospect.source === 'linkedin' ? <ProspectOutreachTools linkedinUrl={prospect.linkedin_url} message={approvedMessage}/> : null}{prospect.source === 'linkedin' ? <div className="outreach-message"><small>Approved opening message</small><p>{approvedMessage}</p></div> : null}<form action={updateProspectOutreachAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Outreach action<select name="outreach_status" defaultValue={outreachStatus}><option value="not_contacted">Not contacted</option><option value="message_sent">Mark message sent</option><option value="follow_up_due">Set follow-up</option><option value="replied">Record reply</option><option value="no_response">No response</option><option value="paused">Pause outreach</option></select></label><label>Reply outcome<select name="response_outcome" defaultValue={prospect.response_outcome||''}><option value="">Not applicable</option><option value="interested">Interested</option><option value="later">Possible later requirement</option><option value="referred">Referred internally</option><option value="not_interested">Not interested</option><option value="no_response">No response</option></select></label><label>Next follow-up<input type="datetime-local" name="next_follow_up_at" defaultValue={prospect.next_follow_up_at?new Date(prospect.next_follow_up_at).toISOString().slice(0,16):''}/></label><label>Conversation note<textarea name="outreach_note" rows={3} placeholder="Record the commercial substance of the reply or follow-up"/></label><button className="button" type="submit">Record outreach</button></form>{acquisition.actionKey==='create_intake'?null:<div className="product-notice"><strong>Secure intake</strong><div>{session?'A requirements request already exists. For security, its raw link is not retained after creation.':'The secure link becomes available when this opportunity is ready for requirements intake.'}</div></div>}{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Open client account</Link>:null}</div>;
+  const outreachTools=<div className="outreach-panel"><p style={{color:'var(--op-muted)',lineHeight:1.6}}>{prospect.source === 'website' ? 'Record the customer’s email response or follow-up here. Only invite Step 2 after the customer confirms interest.' : 'Run the conversation on LinkedIn, which remains the sending channel. Never email a cold LinkedIn prospect.'}</p>{prospect.source === 'linkedin' ? <ProspectOutreachTools linkedinUrl={prospect.linkedin_url} message={approvedMessage}/> : null}{prospect.source === 'linkedin' ? <div className="outreach-message"><small>Approved opening message</small><p>{approvedMessage}</p></div> : null}<form action={updateProspectOutreachAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Outreach action<select name="outreach_status" defaultValue={outreachStatus}><option value="not_contacted">Not contacted</option><option value="message_sent">Mark message sent</option><option value="follow_up_due">Set follow-up</option><option value="replied">Record reply</option><option value="no_response">No response</option><option value="paused">Pause outreach</option></select></label><label>Reply outcome<select name="response_outcome" defaultValue={prospect.response_outcome||''}><option value="">Not applicable</option><option value="interested">Interested</option><option value="later">Possible later requirement</option><option value="referred">Referred internally</option><option value="not_interested">Not interested</option><option value="no_response">No response</option></select></label><label>Next follow-up<input type="datetime-local" name="next_follow_up_at" defaultValue={prospect.next_follow_up_at?new Date(prospect.next_follow_up_at).toISOString().slice(0,16):''}/></label><label>Conversation note<textarea name="outreach_note" rows={3} placeholder="Record the commercial substance of the reply or follow-up"/></label><button className="button" type="submit">Record outreach</button></form>{acquisition.actionKey==='create_intake'?null:<div className="product-notice"><strong>Secure intake</strong><div>{session?'A requirements request already exists. For security, its raw link is not retained after creation.':'The secure link becomes available when this opportunity is ready for requirements intake.'}</div></div>}{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Open client account</Link>:null}{conversationPanel}</div>;
   // Before interest, prospect outreach is the primary work, not a hidden Messages drawer.
   const activities = beforeInterestHandoff ? outreachTools : activitySummary;
   const communications = beforeInterestHandoff ? undefined : outreachTools;
