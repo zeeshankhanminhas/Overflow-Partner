@@ -56,5 +56,8 @@ jobs:
       - name: LinkedIn funnel regression
         run: npm run acquisition-funnel:check
 
+      - name: Stripe signed-webhook security regression (offline)
+        run: npm run stripe-security:check
+
       - name: Production build
         run: npx next build
