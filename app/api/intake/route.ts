@@ -127,19 +127,21 @@ export async function POST(request: Request) {
         event_data:{retryRequired:true},
       });
     }
+    let nurtureScheduled = false;
     if (payload.nurture_consent === 'true') {
       try {
         await scheduleInitialEnquiryNurture(supabase, {
           organisationId:owner.organisation_id,prospectId:prospect.id,email:payload.work_email,
           name:payload.full_name,company:payload.company,actionUrl,
         });
+        nurtureScheduled = true;
       } catch (notificationError) {
         console.error('Website nurture scheduling failed', notificationError);
       }
     }
     return NextResponse.json({
       success:true,submissionId:prospect.id,timestamp:prospect.created_at,
-      acknowledgement,nurtureScheduled:payload.nurture_consent === 'true',
+      acknowledgement,nurtureScheduled,
       step2:{created:false,emailStatus:'awaiting_interest'},
     });
   } catch (error) {
