@@ -54,3 +54,11 @@ These staged files are not proof that SQL has been parsed, applied, or that all 
 - The staged security RLS migration requires consumer verification; currently anon/authenticated have no direct SELECT/INSERT grant on legacy `quote_payment_provider_events`.
 
 **Release decision:** keep PR #104 unmerged until an isolated transaction-level regression suite passes. No tests should send actual client/partner emails or use production funds.
+
+## Additional staged migrations (after the ordered payment/release files)
+
+7. `20261021080000_atomic_client_correction_gate.sql`: one included consolidated correction, separate partner defects, nonduplicated active variations.
+8. `20261021081000_seven_workday_client_review.sql`: 2026–2028 England/Wales business calendar, `review_due_at` on transmittal and Project 360 window status.
+9. `20261021082000_unique_partner_execution_session.sql`: one active Partner execution portal session per assignment. Verify legacy sessions for duplicates before application.
+
+Only set `OP_AUTO_PARTNER_RELEASE_ENABLED=true` **after** the controlled SOW approval and end-to-end payment-to-work-order flow have been tested in isolated QA. Work order after SOW approval does not bypass milestone or financial gates.
