@@ -95,6 +95,7 @@ create table if not exists public.op_project_final_release_approvals (
   project_id uuid primary key references public.projects(id) on delete restrict,
   organisation_id uuid not null references public.organisations(id),
   settlement_project_id uuid not null references public.op_project_final_settlements(project_id),
+  submission_id uuid not null references public.partner_delivery_submissions(id),
   approved_by uuid not null references auth.users(id),
   approved_at timestamptz not null default now(),
   note text,
@@ -114,6 +115,7 @@ declare
   v_project public.projects%rowtype;
   v_row public.op_project_final_release_approvals%rowtype;
   v_cycle integer;
+  v_submission_id uuid;
 begin
   if auth.uid() is distinct from p_user_id then raise exception 'Authenticated OPOS owner approval is required.'; end if;
   perform public.op_assert_workspace_role(p_organisation_id,p_user_id,array['owner','admin']);
@@ -136,17 +138,22 @@ begin
   ) then raise exception 'Current controlled Handover Pack is not issued.'; end if;
   select coalesce(max(execution_cycle),1) into v_cycle from public.project_execution_assignments
     where project_id=v_project.id and organisation_id=p_organisation_id;
-  if not exists(
-    select 1 from public.partner_delivery_submissions s where s.project_id=v_project.id
-      and s.organisation_id=p_organisation_id and s.execution_cycle=v_cycle and s.review_status='accepted'
+  select s.id into v_submission_id from public.partner_delivery_submissions s
+    where s.project_id=v_project.id and s.organisation_id=p_organisation_id
+      and s.execution_cycle=v_cycle and s.review_status='accepted'
       and exists(select 1 from public.partner_delivery_submission_files f where f.submission_id=s.id
         and f.project_id=v_project.id and f.organisation_id=p_organisation_id)
-  ) then raise exception 'Current partner engineering submission and senior technical review evidence are required.'; end if;
+    order by s.submitted_at desc limit 1;
+  if v_submission_id is null then
+    raise exception 'Current partner engineering submission and senior technical review evidence are required.'; end if;
   insert into public.op_project_final_release_approvals(
-    project_id,organisation_id,settlement_project_id,approved_by,note
-  ) values(p_project_id,p_organisation_id,p_project_id,p_user_id,nullif(trim(coalesce(p_note,'')),''))
+    project_id,organisation_id,settlement_project_id,submission_id,approved_by,note
+  ) values(p_project_id,p_organisation_id,p_project_id,v_submission_id,p_user_id,nullif(trim(coalesce(p_note,'')),''))
   on conflict (project_id) do nothing;
   select * into v_row from public.op_project_final_release_approvals where project_id=p_project_id;
+  if v_row.submission_id is distinct from v_submission_id then
+    raise exception 'Final approved engineering revision differs from the current reviewed submission. A new controlled approval cycle is required.';
+  end if;
   return v_row;
 end;
 $$;
