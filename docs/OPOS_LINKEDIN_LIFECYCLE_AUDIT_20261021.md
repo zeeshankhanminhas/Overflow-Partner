@@ -51,3 +51,22 @@ These are target rules; this audit does **not** claim that all are implemented.
 ## Release decision
 
 **HOLD PR #104.** Its LinkedIn pre-enquiry logic and CI look promising, but agreed Step 2 convergence, website route, duplicate handling and isolated portal testing remain unresolved. Do not interpret a green CI/build as full business-lifecycle acceptance. Protect production and existing records; first implement and test the missing business gates in an isolated environment, then reassess the merge.
+
+## Implementation update — 21 Oct 2026 (feature branch only)
+
+After audit pass 1, the following changes were committed to PR #104 **without deploying any production DB change or sending live emails**:
+
+- Website `/api/intake` no longer automatically sends Step 2. It enqueues a transactional `enquiry.received` acknowledgement, and schedules the existing five-message nurture sequence **only with explicit optional consent** collected on the website form.
+- The website API checks for an already active prospect for the same company, contact, project type and exact requirement, returning its existing reference. This is an application-level dedupe; **it is not yet a database-enforced unique constraint**, and the two pre-existing live records remain untouched.
+- `canInviteFromLinkedIn` now applies the affirmative interested-reply gate to **website and LinkedIn**. The normal authenticated invitation action and the alternate Supabase Step 2 email function both check this gate.
+- Manually created prospects no longer automatically receive an acknowledgement or nurture. Unsolicited prospect capture is not consent to email.
+- Step 2 submission now queues the dedicated `requirements.received` transactional customer confirmation template for either acquisition source. The internal operator notification uses `internal_alert`, not `system_failure`.
+- When customer interest, disinterest or paused outreach is recorded, outstanding nurture reminders are canceled.
+- Pre-enquiry website and LinkedIn records surface the communication/outreach interaction in Current work rather than a hidden drawer.
+- The linked regression script now asserts the website consent gate, no premature step 2, the customer receipt template and the alternate Edge invitation guard.
+
+**Remaining P0 blocker:** automatic partner referral is **not implemented**. The existing RPC `op_create_prospect_partner_review_request_core` requires `p_user_id = auth.uid()`, making it incompatible with an unauthenticated Step 2 submission called with service-role credentials. Do not bypass this operator authorization silently; define a separately permissioned, idempotent internal referral path and test it against isolated Supabase before release.
+
+**Additional release requirements:** audited opt-in text/privacy disclosure; a real browser test of both routes using an isolated database and non-production email provider; partner clarification; and quote/project/payment gates. Do not equate passing source-code checks with a proven integrated lifecycle.
+
+The initial findings table below is retained as historical pre-fix evidence; the bullets above supersede it for current feature-branch status.
