@@ -129,6 +129,8 @@ check('Partner payment needs bank reference and human approval',!voice.canRecord
 check('Project closure is manual',!voice.canCloseProject({clientPaid:true,partnerPaid:true,deliveryRecorded:true,controlledDocsComplete:true,ownerApproved:false}));
 const clientActions=read('app/workspace/projects/[id]/client-actions.ts');
 check('Client variations do not trigger free partner correction',clientActions.includes("project_change_requests")&&clientActions.includes('variationRecorded'));
+check('Client review cannot expose partner uploaded editable files',!clientActions.includes('createSignedUrl(')&&clientActions.includes('review-only')||!clientActions.includes('createSignedUrl(')&&clientActions.includes('Review-Handover-Pack.pdf'));
+
 check('Commercial issue uses approved deposit',read('app/workspace/orchestration/actions.ts').includes("contract.release_basis==='deposit'"));
 check('Client quote defaults to 30% advance',read('app/workspace/leads/[id]/QuoteIssueContractFields.tsx').includes("('deposit')"));
 const failed=checks.filter(c=>!c.passed);
