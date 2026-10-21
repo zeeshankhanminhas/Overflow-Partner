@@ -9,6 +9,7 @@ export function stripeRuntimeMode(): 'qa' | 'live' | null {
   if(process.env.VERCEL_ENV!=='production' ||
     process.env.OP_STRIPE_LIVE_ENABLED!=='true' ||
     process.env.OP_CONTRACTUAL_RELEASE_ENABLED!=='true' ||
+    process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED!=='true' ||
     process.env.OP_VOICE_FINAL_RELEASE_ENABLED!=='true')return null;
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL||'';
   if(url!==`https://${PRODUCTION_PROJECT}.supabase.co`)return null;
