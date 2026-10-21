@@ -40,7 +40,11 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   const formatAmount = (value: number) => new Intl.NumberFormat('en-GB', { style:'currency', currency:String(quote.currency || 'GBP') }).format(value);
   const amount = formatAmount(openingAmount);
   const hasStagedPayment = Math.round(openingAmount * 100) < Math.round(quoteTotal * 100);
-  const stripeAvailable = !hasStagedPayment && process.env.OP_STRIPE_FULL_PAYMENT_ONLY === 'true' && Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'));
+  const stripeAvailable = process.env.VERCEL_ENV === 'preview' &&
+    process.env.OP_ISOLATED_QA_BACKEND === 'true' &&
+    process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true' &&
+    Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) &&
+    (hasStagedPayment ? process.env.OP_STRIPE_DEPOSIT_TEST_ENABLED === 'true' : process.env.OP_STRIPE_FULL_PAYMENT_ONLY === 'true');
   const styles={maxWidth:650,margin:'4rem auto',padding:30,fontFamily:'Arial, sans-serif',border:'1px solid #ddd',borderRadius:12} as const;
   return <main style={styles}>
     <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
@@ -52,7 +56,7 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
     {confirmed ? <p>Payment or authorised commercial release has already been recorded. No additional payment is required here.</p> : <>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Pay securely with Stripe</h3>
-        {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button style={{padding:'12px 22px',cursor:'pointer'}}>Continue to Stripe Checkout</button></form> : <p>{hasStagedPayment ? 'Stripe staged-deposit Checkout is not yet available. Please use the agreed bank-transfer method or contact Overflow Partner.' : 'Stripe test Checkout is not available for this quotation. Please use bank transfer or contact OP.'}</p>}
+        {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button style={{padding:'12px 22px',cursor:'pointer'}}>Continue to Stripe Checkout</button></form> : <p>{hasStagedPayment ? 'Secure Stripe deposit Checkout is not currently available for this quotation. Please contact Overflow Partner before transferring funds.' : 'Stripe test Checkout is not available for this quotation. Please use bank transfer or contact OP.'}</p>}
       </section>
       <section style={{padding:'16px 0',borderTop:'1px solid #ddd'}}>
         <h3>Bank transfer</h3>
