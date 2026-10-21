@@ -1,5 +1,6 @@
-import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 'use server';
+
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
