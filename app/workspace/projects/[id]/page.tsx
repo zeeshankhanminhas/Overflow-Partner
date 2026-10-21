@@ -19,6 +19,7 @@ import { InteractionFact, InteractionFacts, WorkspaceDrawer } from '@/components
 import { getWorkspaceDocument } from '@/components/workspace/documents/documentRegistry';
 import { advanceProjectStageAction, updateProjectMobilisationAction } from './actions';
 import { ClientDeliveryRecordAction, ClientReviewOutcomeAction } from './ProjectClientDecisionActions';
+import { approveFinalEngineeringReleaseAction } from './final-release-action';
 
 function value(record:Record<string,unknown>|null|undefined,key:string,fallback='Not recorded'){const entry=record?.[key];return entry===null||entry===undefined||entry===''?fallback:String(entry)}
 function money(amount:unknown,currency:unknown){const number=Number(amount??0);try{return new Intl.NumberFormat('en-GB',{style:'currency',currency:String(currency||'GBP')}).format(number)}catch{return `${String(currency||'GBP')} ${number.toFixed(2)}`}}
@@ -27,7 +28,7 @@ function stateLabel(input:unknown){return String(input||'not_released').replaceA
 type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number;activityOpen:number;approvedDocuments?:number;issuedDocuments?:number;executionMode?:string;partnerCommencement?:boolean;deliveryItems?:number;deliveryWorkOpen?:number;deliveryCloseOpen?:number;openPartnerExceptions?:number;executionCycle?:number;clientTransmittals?:number;clientOutcome?:string|null};
 
 export default async function ProjectWorkspacePage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|undefined>>}){
-  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
+  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
   let project;try{project=await getProjectById(supabase,organisationId,id)}catch(error){if(isRecordNotFoundError(error))notFound();throw error;}
 
   const [tasksResult,documentsResult,activityResult,membersResult,readinessResult,financialGateResult,executionAssignmentResult]=await Promise.all([
@@ -91,7 +92,51 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const transmittalOnlyReason=(reason:string)=>reason.toLowerCase().includes('client transmittal record');const preTransmittalBlockers=blockers.filter(reason=>!transmittalOnlyReason(reason));
   const clientTransmittalAction=<ClientDeliveryRecordAction projectId={id} recipientName={contactName==='Not recorded'?'':contactName} recipientEmail={contactEmail==='Not recorded'?'':contactEmail} blocked={preTransmittalBlockers.length>0} blocker={preTransmittalBlockers[0]?humaniseOperatingReason(preTransmittalBlockers[0]):undefined}/>;
   const clientReviewAction=<ClientReviewOutcomeAction projectId={id}/>;
-  let nextAction:React.ReactNode;if(stage==='ready_for_client_issue')nextAction=clientTransmittalAction;else if(stage==='client_review'&&!readiness.clientOutcome)nextAction=clientReviewAction;else {const blockerHref=partnerCommencementPending?executionHref:(readiness.openPartnerExceptions||0)>0?executionHref:(readiness.deliveryWorkOpen||0)>0?deliveryHref:financialBlocker?financeHref:evidenceBlockers.length?documentsHref:'#record-readiness';nextAction=<GovernedAction state={actionState} blockedAction={<Link className="button secondary" href={blockerHref}>Resolve blocker{blockers.length===1?'':'s'} →</Link>}>{standardTransition}</GovernedAction>;}
+  type FinalStatus={clientAccepted:boolean;finalPaid:boolean;ownerApproved:boolean;partnerPaid:boolean;readyForManualClosure:boolean};
+  let finalStatus:FinalStatus|null=null;
+  let finalStatusError='';
+  if(stage==='completion' && process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'){
+    const {data,error}=await supabase.rpc('op_project_voice_final_release_status',{
+      p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id
+    });
+    if(error)finalStatusError=error.message;
+    else finalStatus=data as FinalStatus;
+  }
+  let nextAction:React.ReactNode;
+  if(stage==='ready_for_client_issue')nextAction=clientTransmittalAction;
+  else if(stage==='client_review'&&!readiness.clientOutcome)nextAction=clientReviewAction;
+  else if(stage==='completion'){
+    nextAction=<div className="stack">
+      <h3>Final release and settlement</h3>
+      {process.env.OP_VOICE_FINAL_RELEASE_ENABLED!=='true'
+        ? <p>Final engineering handover remains blocked until the verified-payment and owner-release gates are deployed.</p>
+        : finalStatusError||!finalStatus
+          ? <p>Final release status is unavailable: {finalStatusError||'Please check the payment/release migration.'}</p>
+          : <>
+            <div className="vp-facts">
+              <div className="vp-fact"><small>Client final review</small><strong>{finalStatus.clientAccepted?'Accepted':'Pending'}</strong></div>
+              <div className="vp-fact"><small>Final balance</small><strong>{finalStatus.finalPaid?'Verified':'Awaiting payment'}</strong></div>
+              <div className="vp-fact"><small>OPOS file release</small><strong>{finalStatus.ownerApproved?'Approved':'Manual approval required'}</strong></div>
+              <div className="vp-fact"><small>Partner payment</small><strong>{finalStatus.partnerPaid?'Paid':'Awaiting settlement'}</strong></div>
+            </div>
+            {!finalStatus.ownerApproved
+              ? <form action={approveFinalEngineeringReleaseAction} className="stack">
+                  <input type="hidden" name="project_id" value={id}/>
+                  <label>Final release approval note<textarea name="approval_note" rows={3} placeholder="Confirm approved current engineering revision and complete client payment evidence."/></label>
+                  <button className="button" disabled={!finalStatus.clientAccepted||!finalStatus.finalPaid}>
+                    Approve final engineering file release
+                  </button>
+                  <p>This manual owner action is unavailable until cleared final funds and current client review acceptance are both recorded. The database checks partner senior technical QC and the approved handover pack separately.</p>
+                </form>
+              : <p>Final editable engineering files are authorised. Secure links are generated on the client portal only after this approval.</p>}
+            {finalStatus.readyForManualClosure
+              ? <GovernedAction state={actionState} blockedAction={<p>Resolve remaining document or financial blockers before manual closure.</p>}>{standardTransition}</GovernedAction>
+              : <p>Project closure remains manual and blocked until partner settlement and all governed readiness checks are complete.</p>}
+          </>}
+    </div>;
+  }
+  else {const blockerHref=partnerCommencementPending?executionHref:(readiness.openPartnerExceptions||0)>0?executionHref:(readiness.deliveryWorkOpen||0)>0?deliveryHref:financialBlocker?financeHref:evidenceBlockers.length?documentsHref:'#record-readiness';nextAction=<GovernedAction state={actionState} blockedAction={<Link className="button secondary" href={blockerHref}>Resolve blocker{blockers.length===1?'':'s'} →</Link>}>{standardTransition}</GovernedAction>;}
+
 
   const summary=<dl className="project-os-summary" style={{margin:0}}><div><dt>Primary contact</dt><dd>{clientContact?.id?<Link href={`/workspace/contacts/${clientContact.id}`}>{contactName}</Link>:contactName}</dd></div><div><dt>Project manager</dt><dd>{value(manager,'full_name')}</dd></div><div><dt>Due</dt><dd>{formatDate(project.due_date)}</dd></div><div><dt>Value</dt><dd>{quote?money(quote.total,quote.currency):'Not recorded'}</dd></div></dl>;
   const activities=partnerControlled?<div className="stack operating-work-summary" style={{gap:12}}><div className="vp-facts"><div className="vp-fact"><small>Execution Partner</small><strong>{value(executionPartner,'company_name','Not recorded')}</strong></div><div className="vp-fact"><small>Delivery health</small><strong>{(readiness.openPartnerExceptions||0)>0?'Blocked':deliveryHealthLabel(latestPartnerProgress?.progress_state)}</strong></div><div className="vp-fact"><small>Partner update</small><strong>{latestPartnerProgress?formatDate(latestPartnerProgress.submitted_at):'Not received yet'}</strong></div></div>{latestPartnerProgress?<div className="project-os-check-row"><div><strong>{deliveryHealthLabel(latestPartnerProgress.progress_state)}</strong><small>{value(latestPartnerProgress,'work_in_progress','No current-work note')}</small></div><span>{latestPartnerProgress.percent_complete===null||latestPartnerProgress.percent_complete===undefined?'Partner reported':`${latestPartnerProgress.percent_complete}%`}</span></div>:null}<div style={{display:'flex',gap:10,flexWrap:'wrap'}}><Link className="button secondary" href={executionHref}>Open Partner workspace →</Link><Link className="button secondary" href={deliveryHref}>Open delivery work →</Link></div></div>:<div className="stack" style={{gap:12}}><div className="vp-facts"><div className="vp-fact"><small>Open activities</small><strong>{readiness.activityOpen}</strong></div><div className="vp-fact"><small>Total activities</small><strong>{tasks.length}</strong></div></div>{tasks.filter(t=>!['completed','cancelled'].includes(t.status)).slice(0,3).map(task=><div className="project-os-check-row" key={task.id}><div><strong>{task.title}</strong><small>{workspaceLabel(task.status,'task')} · {task.due_at?formatDate(task.due_at):'No due date'}</small></div></div>)}<Link className="button secondary" href={deliveryHref}>Open delivery work →</Link></div>;
