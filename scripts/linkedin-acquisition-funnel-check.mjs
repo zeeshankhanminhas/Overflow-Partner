@@ -76,4 +76,36 @@ assert.equal(qaGuard({VERCEL_ENV:'preview',OP_ISOLATED_QA_BACKEND:'true',OP_QA_S
 assert.equal(qaGuard({VERCEL_ENV:'preview',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:qaRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+productionRef+'.supabase.co'}),false,'Mismatched QA ref cannot unlock live database');
 assert.equal(qaGuard({VERCEL_ENV:'preview',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:qaRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+qaRef+'.supabase.co'}),true,'Genuinely separate declared QA ref may allow testing');
 assert.equal(qaGuard({VERCEL_ENV:'production',OP_ISOLATED_QA_BACKEND:'true',OP_QA_SUPABASE_PROJECT_REF:qaRef,NEXT_PUBLIC_SUPABASE_URL:'https://'+qaRef+'.supabase.co'}),false,'Production is never an isolated Preview test');
+
+const conversationSource = readFileSync(new URL('lib/acquisition/conversationImport.ts', root), 'utf8');
+const conversationCompiled = ts.transpileModule(conversationSource, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText;
+const conversationCjs = { exports: {} };
+vm.runInNewContext(conversationCompiled, { module: conversationCjs, exports: conversationCjs.exports, URL, Date });
+const { parseConversationTranscript, isLinkedInConversationUrl } = conversationCjs.exports;
+const parsed = parseConversationTranscript('[2026-10-20T10:15:00Z] You: Hello\\nProspect: We use overflow CAD support.\\nAdditional details here.');
+assert.equal(parsed.length, 2, 'Labelled messages must become a two-message timeline');
+assert.equal(parsed[0].speaker, 'you');
+assert.equal(parsed[0].sentAt, '2026-10-20T10:15:00.000Z');
+assert.equal(parsed[1].speaker, 'prospect');
+assert.match(parsed[1].body, /Additional details here/);
+const duplicateReplies = parseConversationTranscript('Prospect: Thanks\\nProspect: Thanks');
+assert.equal(duplicateReplies[0].occurrence, 1);
+assert.equal(duplicateReplies[1].occurrence, 2, 'Repeated identical replies in a complete transcript must remain separate');
+assert.equal(parseConversationTranscript('A raw unlabelled archive')[0].speaker, 'unknown', 'Do not invent attribution');
+assert.equal(isLinkedInConversationUrl('https://www.linkedin.com/messaging/'), true);
+assert.equal(isLinkedInConversationUrl('https://linkedin.com.evil.example/'), false);
+assert.equal(isLinkedInConversationUrl('javascript:alert(1)'), false);
+const conversationActions = readFileSync(new URL('app/workspace/acquisition/conversation-actions.ts', root), 'utf8');
+assert.match(conversationActions, /OP_LINKEDIN_CONVERSATION_IMPORT_ENABLED/, 'Feature must fail closed before approved rollout');
+assert.match(conversationActions, /prospect.source !== 'linkedin'/, 'Only LinkedIn prospects can accept archived conversations');
+assert.match(conversationActions, /ignoreDuplicates: true/g, 'Transcript and message inserts must dedupe');
+assert.doesNotMatch(conversationActions, /update\\(\\{\\s*(?:outreach_status|response_outcome|status)/, 'Import must never auto-confirm interest');
+const conversationMigration = readFileSync(new URL('supabase/migrations/20261022001000_prospect_conversation_import.sql', root), 'utf8');
+assert.match(conversationMigration, /enable row level security/g);
+assert.match(conversationMigration, /conversation imports created by authorised operators/);
+assert.match(conversationMigration, /conversation messages created by authorised operators/);
+assert.doesNotMatch(conversationMigration, /create policy[^;]*for delete/i, 'Archived conversation must be append only');
+
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');
