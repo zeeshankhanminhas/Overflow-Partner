@@ -91,7 +91,16 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const standardTransition=stageMeta.next?<form action={advanceProjectStageAction}><input type="hidden" name="project_id" value={project.id}/><input type="hidden" name="target_stage" value={stageMeta.next}/><label>Optional note<textarea name="note" rows={3} placeholder="Add context if needed"/></label><button className="button">{transitionLabel}</button>{stage==='internal_review'?<button className="button secondary" name="target_stage" value="partner_correction">Request Partner correction</button>:null}</form>:<div><strong>Project closed</strong><p>Delivery is complete.</p></div>;
   const transmittalOnlyReason=(reason:string)=>reason.toLowerCase().includes('client transmittal record');const preTransmittalBlockers=blockers.filter(reason=>!transmittalOnlyReason(reason));
   const clientTransmittalAction=<ClientDeliveryRecordAction projectId={id} recipientName={contactName==='Not recorded'?'':contactName} recipientEmail={contactEmail==='Not recorded'?'':contactEmail} blocked={preTransmittalBlockers.length>0} blocker={preTransmittalBlockers[0]?humaniseOperatingReason(preTransmittalBlockers[0]):undefined}/>;
-  const clientReviewAction=<ClientReviewOutcomeAction projectId={id}/>;
+  let reviewWindow:{issued:boolean;dueAt?:string;expired?:boolean}|null=null;
+  if(stage==='client_review' && process.env.OP_VOICE_REVIEW_WINDOW_ENABLED==='true'){
+    const {data,error}=await supabase.rpc('op_get_client_review_window',{
+      p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id,
+    });
+    if(!error)reviewWindow=data as {issued:boolean;dueAt?:string;expired?:boolean};
+  }
+  const clientReviewAction=<ClientReviewOutcomeAction projectId={id}
+    dueAt={reviewWindow?.dueAt} overdue={reviewWindow?.expired}/>;
+
   type FinalStatus={clientAccepted:boolean;finalPaid:boolean;ownerApproved:boolean;partnerPaid:boolean;readyForManualClosure:boolean};
   let finalStatus:FinalStatus|null=null;
   let finalStatusError='';
