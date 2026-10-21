@@ -25,6 +25,7 @@ export type LifecycleEmailScenario =
   | 'enquiry.nurture.day18'
   | 'enquiry.nurture.day30'
   | 'requirements.requested'
+  | 'requirements.received'
   | 'requirements.reminder'
   | 'partner_review.requested'
   | 'partner_review.reminder'
@@ -104,6 +105,12 @@ export const lifecycleEmailScenarios: Record<LifecycleEmailScenario, ScenarioDef
     subject:'Please complete your engineering requirements', heading:'A few details will help us assess your requirement',
     body:'Please use the secure requirements form to provide the scope, expected deliverables, available files and required timescale.\n\nWe will use this information to assess technical feasibility, identify any important gaps and establish the basis for delivery review and pricing.\n\nCompleting this form does not create a project or commit either party to proceed.\n\nIf you have a question before completing the form, reply directly to this email.',
     actionLabel:'Complete secure requirements form',
+  },
+  'requirements.received': {
+    family:'acknowledgement', category:'transactional', dynamicMode:'transactional', dynamicFields:['company','reference'],
+    subject:'We have received your engineering requirements', heading:'Your requirements have been received',
+    body:'Thank you for completing your secure requirements form. We have received the details and are reviewing the scope, technical feasibility and available delivery capacity. If the engineering team needs clarification, Overflow Partner will contact you. We will be in touch shortly with the next step.',
+    actionLabel:'Reply with a question',
   },
   'requirements.reminder': {
     family:'reminder', category:'reminder', dynamicMode:'contextual', dynamicFields:['reference','dueDate','actionUrl'],
