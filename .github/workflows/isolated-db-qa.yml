@@ -1,6 +1,8 @@
 name: Isolated Database QA (no Supabase subscription)
 
 on:
+  push:
+    branches: [feat/linkedin-acquisition-funnel]
   pull_request:
     branches: [main]
     paths:
