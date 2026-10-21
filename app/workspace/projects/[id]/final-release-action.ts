@@ -1,3 +1,4 @@
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 'use server';
 
 import { redirect } from 'next/navigation';
@@ -15,6 +16,7 @@ export async function approveFinalEngineeringReleaseAction(formData:FormData) {
       throw new Error('The governed final-release gate is not enabled yet.');
     if(process.env.VERCEL_ENV==='preview'&&process.env.OP_ISOLATED_QA_BACKEND!=='true')
       throw new Error('Preview cannot release final files against the shared production database.');
+    if(process.env.VERCEL_ENV==='preview')assertIsolatedQaBackend();
     const {supabase,user,profile,organisationId}=await requireUserContext();
     assertRole(profile.role,['owner','admin']);
     const note=String(formData.get('approval_note')||'').trim();
