@@ -1,3 +1,4 @@
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
@@ -14,6 +15,7 @@ const denied=(message:string)=><main style={{maxWidth:720,margin:'3rem auto',pad
 export default async function ClientFinalFiles({searchParams}:{searchParams:Promise<{token?:string}>}) {
   if(process.env.OP_VOICE_FINAL_RELEASE_ENABLED!=='true')
     return denied('The controlled final handover service has not been enabled yet.');
+  if(process.env.VERCEL_ENV==='preview'&&!isKnownIsolatedQaBackend()) return denied('Preview is not configured with an isolated QA database.');
   const {token=''}=await searchParams;
   const access=token?verifyClientPortalToken(token):null;
   if(!access)return denied('Your private client portal link has expired. Please request a fresh link.');
