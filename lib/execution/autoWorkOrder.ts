@@ -1,3 +1,4 @@
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createHash,randomBytes } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
@@ -31,6 +32,7 @@ async function governedPartner(db:SupabaseClient,organisationId:string,projectId
 export async function ensureApprovedPartnerAssignment(
  db:SupabaseClient,organisationId:string,userId:string,projectId:string,scopeDocumentId:string
 ){
+  if(process.env.VERCEL_ENV==='preview'&&!isKnownIsolatedQaBackend())throw new Error('Automatic partner work-order QA requires a genuinely isolated database.');
   const {project,partner}=await governedPartner(db,organisationId,projectId);
   const {data:scope}=await db.from('documents').select('id,document_type,project_id,status,is_current_revision')
     .eq('organisation_id',organisationId).eq('id',scopeDocumentId).single();
@@ -67,6 +69,7 @@ export async function ensureApprovedPartnerAssignment(
 export async function releaseApprovedPartnerWorkOrder(
  db:SupabaseClient,organisationId:string,userId:string,projectId:string
 ){
+  if(process.env.VERCEL_ENV==='preview'&&!isKnownIsolatedQaBackend())throw new Error('Automatic partner work-order QA requires a genuinely isolated database.');
   const {project,partner}=await governedPartner(db,organisationId,projectId);
   if(project.project_stage!=='ready_for_execution')
     throw new Error('Mobilisation must complete before the Partner work order is released.');
