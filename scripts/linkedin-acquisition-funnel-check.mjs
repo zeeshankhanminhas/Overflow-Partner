@@ -51,4 +51,14 @@ assert.match(edgeSender, /prospect.source === 'website'/, 'Alternative sender mu
 assert.match(edgeSender, /prospect.source === 'linkedin'/, 'Alternative sender must enforce LinkedIn interest gate');
 assert.match(actions, /if \(!canInviteFromLinkedIn\(prospect\)\)/, 'Backend invite action must enforce tested LinkedIn interest gate');
 assert.match(actions, /\['qualified', 'converted'\]\.includes\(parsed\.data\.status\)/, 'Manual intake cannot bypass governed qualification');
+const referral = readFileSync(new URL('lib/acquisition/autoPartnerReferral.ts', root), 'utf8');
+assert.match(referral, /session.status !== 'submitted'/, 'Partner referral must verify submitted Step 2');
+assert.match(referral, /partners.length !== 1/, 'Automatic routing must have exactly one eligible partner');
+assert.match(referral, /\.eq\('status','approved'\)\.eq\('nda_signed',true\)/, 'Partner must be approved and NDA-signed');
+assert.match(referral, /show_client_identity:false,show_commercial_identity:false/, 'Automatic partner pack must hide client and commercial identity');
+assert.match(referral, /\.in\('status',activeStatuses\)/, 'Duplicate review guard required');
+assert.match(referral, /idempotencyKey:'auto:partner-review:'\+sessionId/, 'Partner invitation must be idempotent');
+assert.match(referral, /status:'revoked'/, 'Undeliverable partner review must be recoverable');
+assert.match(intakeRoute, /autoReferSubmittedIntake\(supabase/, 'Step 2 handler must invoke automatic partner referral');
+assert.match(intakeRoute, /partner_referral: partnerReferral/, 'Client API must reflect referral outcome');
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');
