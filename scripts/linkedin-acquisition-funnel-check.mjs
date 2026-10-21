@@ -30,7 +30,9 @@ assert.equal(isLinkedInFollowUpDue(record({ next_follow_up_at: '2026-01-03T00:00
 assert.equal(canInviteFromLinkedIn(record({ source: 'linkedin' })), false, 'Cold LinkedIn prospect must not receive technical intake');
 assert.equal(canInviteFromLinkedIn(record({ source: 'linkedin', outreach_status: 'replied', response_outcome: 'later' })), false, 'Later response is not permission to request details');
 assert.equal(canInviteFromLinkedIn(record({ source: 'linkedin', outreach_status: 'replied', response_outcome: 'interested' })), true, 'Interested reply permits handoff');
-assert.equal(canInviteFromLinkedIn(record({ source: 'website' })), true, 'Existing inbound enquiry is unaffected');
+assert.equal(canInviteFromLinkedIn(record({ source: 'website' })), false, 'Website form capture alone is not Step 2 interest');
+assert.equal(canInviteFromLinkedIn(record({ source: 'website', outreach_status: 'replied', response_outcome: 'interested' })), true, 'Website customer interest permits Step 2');
+assert.equal(canInviteFromLinkedIn(record({ source: 'email' })), true, 'Other governed manually initiated invitations are unaffected');
 const actions = readFileSync(new URL('app/workspace/acquisition/actions.ts', root), 'utf8');
 assert.match(actions, /parsed\.data\.email && parsed\.data\.source !== 'linkedin'/, 'LinkedIn cold prospect must not trigger auto-enquiry email');
 assert.match(actions, /if \(!canInviteFromLinkedIn\(prospect\)\)/, 'Backend invite action must enforce tested LinkedIn interest gate');
