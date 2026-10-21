@@ -70,7 +70,7 @@ alter table public.quote_issue_records enable trigger user;
 
 select set_config('request.jwt.claim.role','service_role',true);
 select throws_ok(
- $select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_wrong_amount')$,
+ $sql$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_wrong_amount')$sql$,
  'Stripe payment evidence must exactly equal the frozen opening payment.',
  '£299 test charge cannot create a project against a £300 frozen deposit');
 
@@ -80,7 +80,7 @@ select is(
  'Wrong opening charge creates no project');
 
 select lives_ok(
- $select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$,
+ $sql$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$sql$,
  'Paid 30% with approved signatory and current issued PDF creates governed Project 360');
 
 select is(
@@ -95,7 +95,7 @@ select is(
  'Opening payment record is £300, never the full £1,000');
 
 select lives_ok(
- $$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$$,
+ $$sql$select public.op_finalize_verified_stripe_quote_payment('cs_qa_project_opening')$sql$$,
  'Replayed signed opening payment is idempotent');
 
 select is(
