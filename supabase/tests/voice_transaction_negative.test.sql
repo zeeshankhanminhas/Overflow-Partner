@@ -4,20 +4,22 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(16);
 
--- Seed private dummy organisation, actor, opportunity and project with triggers
--- disabled ONLY for fixture creation. All tested actions run with triggers ON.
-select set_config('session_replication_role','replica',true);
+-- Seed private dummy organisation, actor, opportunity and project.
+-- Disable *only user-created project triggers* during fixture setup, keeping FK
+-- integrity intact. ALTER TABLE and all data are rolled back with this test.
+alter table public.projects disable trigger user;
 insert into auth.users(id,email)
 values ('00000000-0000-4000-8000-000000009901','qa-transaction-actor@example.invalid');
 insert into public.organisations(id,name)
 values ('00000000-0000-4000-8000-000000009902','OP QA TRANSACTION ISOLATED');
 insert into public.profiles(id,organisation_id,role,full_name)
-values ('00000000-0000-4000-8000-000000009901','00000000-0000-4000-8000-000000009902','owner','QA Owner');
+values ('00000000-0000-4000-8000-000000009901','00000000-0000-4000-8000-000000009902','owner','QA Owner')
+on conflict(id) do update set organisation_id=excluded.organisation_id,role='owner',full_name='QA Owner';
 insert into public.leads(id,organisation_id,created_by,company_name)
 values ('00000000-0000-4000-8000-000000009903','00000000-0000-4000-8000-000000009902','00000000-0000-4000-8000-000000009901','OP QA TEST · isolated contract');
 insert into public.projects(id,organisation_id,lead_id,created_by,project_number,title,project_stage)
 values ('00000000-0000-4000-8000-000000009904','00000000-0000-4000-8000-000000009902','00000000-0000-4000-8000-000000009903','00000000-0000-4000-8000-000000009901','OP-QA-TRANS-01','Isolated payment gate negative tests','completion');
-select set_config('session_replication_role','origin',true);
+alter table public.projects enable trigger user;
 
 select throws_ok(
   $$ select public.op_record_verified_project_final_settlement('00000000-0000-4000-8000-000000009904'::uuid,'fake-paid-session') $$,
