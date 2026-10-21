@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 
 const submissionSchema = z.object({
   description: z.string().trim().min(20).max(8000),
@@ -81,6 +82,26 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       event_data: { intakeSessionId: session.id, drawingCount: payload.drawing_count ?? null, deadline: payload.deadline || null, timeline: payload.timeline || null, complexity: payload.complexity || null, filesAvailability: payload.files_availability || null } });
 
     await supabase.rpc('op_cancel_notifications_for_entity', { p_organisation_id: session.organisation_id, p_entity_type: 'prospect', p_entity_id: session.prospect_id, p_categories: ['reminder','nurture'] });
+    // The two acquisition routes converge on the same customer receipt after Step 2.
+    const recipientEmail = session.recipient_email || session.prospects?.email;
+    if (recipientEmail) {
+      try {
+        await queueLifecycleEmail(supabase, {
+          organisationId:session.organisation_id,scenario:'requirements.received',
+          recipientEmail,recipientName:session.prospects?.contact_name || null,
+          entityType:'prospect',entityId:session.prospect_id,
+          payload:{company:session.prospects?.company_name || ''},
+          idempotencyKey:'intake:received:client:' + session.id,
+        });
+      } catch (notificationError) {
+        console.error('Technical intake customer receipt could not be queued', notificationError);
+        await supabase.from('activity_events').insert({
+          organisation_id:session.organisation_id,user_id:session.created_by,
+          entity_type:'prospect',entity_id:session.prospect_id,event_type:'intake_customer_receipt_queue_failed',
+          event_data:{intakeSessionId:session.id,retryRequired:true},
+        });
+      }
+    }
     const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
     if (ownerEmail) {
       await supabase.rpc('op_enqueue_notification', {
@@ -88,9 +109,9 @@ export async function POST(request: Request, context: { params: Promise<{ token:
         p_event_key: 'client.intake_submitted',
         p_recipient_email: ownerEmail,
         p_recipient_name: 'Overflow Partner',
-        p_subject: `Technical intake received — ${session.prospects?.company_name || 'prospect'}`,
-        p_template_key: 'system_failure',
-        p_payload: { heading: 'A new technical intake has been submitted', message: `${session.prospects?.contact_name || 'The prospect'} at ${session.prospects?.company_name || 'the client'} completed Step 2.`, actionLabel: 'Review intake', actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'}/workspace/acquisition` },
+        p_subject: `Partner review required — ${session.prospects?.company_name || 'prospect'}`,
+        p_template_key: 'internal_alert',
+        p_payload: { heading: 'Technical requirements submitted; partner assessment is next', message: `${session.prospects?.contact_name || 'The prospect'} at ${session.prospects?.company_name || 'the client'} completed Step 2. Issue the governed technical review to an approved NDA-ready partner; do not bypass approval or client confidentiality gates.`, actionLabel: 'Review intake', actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'}/workspace/acquisition` },
         p_entity_type: 'prospect', p_entity_id: session.prospect_id, p_category: 'transactional',
         p_scheduled_for: now, p_idempotency_key: `intake:submitted:owner:${session.id}`,
       });
