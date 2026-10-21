@@ -1,8 +1,12 @@
--- STAGED SECURITY REMEDIATION — verify consumers and deploy after isolated regression.
--- Live OPOS currently has RLS disabled on this legacy payment-event table.
--- Read-only inspection shows anon/authenticated lack direct SELECT/INSERT grants;
--- enabling RLS is defence in depth, not evidence of an existing public leak.
-alter table public.quote_payment_provider_events enable row level security;
-revoke all on public.quote_payment_provider_events from public,anon,authenticated;
--- Keep the payment reconciliation service working; no permissive client policies.
-grant select,insert,update on public.quote_payment_provider_events to service_role;
+-- Conditional security hardening for older live installations.
+-- Some clean migration-built databases do not contain this legacy table.
+-- No table is created and no user-visible finance behavior is changed.
+do $opos_guard$
+begin
+  if to_regclass('public.quote_payment_provider_events') is not null then
+    execute 'alter table public.quote_payment_provider_events enable row level security';
+    execute 'revoke all on public.quote_payment_provider_events from public,anon,authenticated';
+    execute 'grant select,insert,update on public.quote_payment_provider_events to service_role';
+  end if;
+end
+$opos_guard$;
