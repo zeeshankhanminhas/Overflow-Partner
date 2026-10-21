@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const body=await request.text();
   const signature=request.headers.get('stripe-signature')||'';
   if (!validSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
-  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string; payment_stage?: string } };
+  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string; payment_stage?: string; project_id?: string } };
   let event: {id?: string; livemode?: boolean; type?: string; data?: {object?: StripeSession}};
   try { event=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
   if (event.livemode !== false) return new Response('Only test-mode Stripe events are accepted',{status:400});
@@ -40,7 +40,8 @@ export async function POST(request: Request) {
     return Response.json({received:true,ignored:true});
   }
   if (!session.id || !event.id) return new Response('Malformed event',{status:400});
-  if(session.metadata?.payment_stage!=='opening') return new Response('Unexpected payment stage',{status:422});
+  const paymentStage=String(session.metadata?.payment_stage||'');
+  if(!['opening','final'].includes(paymentStage)) return new Response('Unexpected payment stage',{status:422});
   const quoteId=String(session.metadata?.quote_id||'');
   const organisationId=String(session.metadata?.organisation_id||'');
   const revision=Number(session.metadata?.quote_revision);
@@ -68,7 +69,16 @@ export async function POST(request: Request) {
   if(signatoryError || !signatory)return new Response('Named authorised acceptance is required',{status:422});
   const agreed = contract.release_basis==='deposit' ? openingPayment(Number(quote.total)) : Number(quote.total);
   if(Math.abs(Number(contract.opening_amount)-agreed)>0.01) return new Response('Frozen deposit amount differs from contract',{status:422});
-  const expectedAmount=Math.round(Number(contract.opening_amount)*100);
+  let projectId='';
+  if(paymentStage==='final'){
+    projectId=String(session.metadata?.project_id||'');
+    const {data:project,error:projectError}=await db.from('projects')
+      .select('id').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('id',projectId).maybeSingle();
+    if(projectError || !project) return new Response('Final settlement has no valid existing project',{status:422});
+  }
+  const expectedAmount=Math.round((paymentStage==='opening'
+    ? Number(contract.opening_amount)
+    : Number(quote.total)-Number(contract.opening_amount))*100);
   if (!Number.isSafeInteger(amount) || amount!==expectedAmount || currency!==String(quote.currency).trim().toUpperCase()) {
     return new Response('Settlement does not match quotation',{status:422});
   }
@@ -82,8 +92,16 @@ export async function POST(request: Request) {
     // Fail so Stripe retries; do not acknowledge evidence we failed to store.
     return new Response('Unable to persist verified payment',{status:500});
   }
-  // Reconciliation is gated separately so the proof-of-payment table can be
-  // migrated and exercised before automatic project creation is enabled.
+  if(paymentStage==='final'){
+    if(process.env.OP_STRIPE_FINAL_TEST_ENABLED!=='true')
+      return new Response('Final payment QA reconciliation disabled',{status:503});
+    const {error:finalError}=await db.rpc('op_record_verified_project_final_settlement',{
+      p_project_id:projectId,p_session_id:String(session.id),
+    });
+    if(finalError) return new Response('Final payment evidence stored but settlement needs retry',{status:503});
+    return Response.json({received:true,stage:'final'});
+  }
+  // Opening settlement can create the Project only through the governed DB finalizer.
   if (process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED === 'true') {
     const {error:reconcileError}=await db.rpc('op_finalize_verified_stripe_quote_payment',{p_session_id:String(session.id)});
     if (reconcileError) return new Response('Settlement stored but project release needs retry',{status:503});
