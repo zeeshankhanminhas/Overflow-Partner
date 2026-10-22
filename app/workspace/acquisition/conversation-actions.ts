@@ -120,7 +120,8 @@ export async function importProspectConversationAction(formData: FormData) {
       ? `Conversation archived: ${added} new message${added === 1 ? '' : 's'}, ${messages.length - added} already on record.`
       : 'Conversation already archived; no new messages added.';
     success = true;
-    revalidatePath(`/workspace/acquisition/${prospectId}`);\n    revalidatePath(`/outreach/${prospectId}`);
+    revalidatePath(`/workspace/acquisition/${prospectId}`);
+    revalidatePath(`/outreach/${prospectId}`);
     revalidatePath('/outreach');
   } catch (error) {
     status = error instanceof Error ? error.message : status;
