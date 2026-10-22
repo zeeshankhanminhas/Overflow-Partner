@@ -1,80 +1,71 @@
-import { notFound, redirect } from 'next/navigation';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
-import { canInviteFromLinkedIn, linkedInFunnelStage } from '@/lib/acquisition/linkedinFunnel';
-import LinkedInProspectWorkspace from '@/components/workspace/LinkedInProspectWorkspace';
+import { promoteOutreachToCrmAction } from '@/app/outreach/actions';
+import OutreachDisposition from '@/components/workspace/OutreachDisposition';
 import OutreachConversationJournal from '@/components/workspace/OutreachConversationJournal';
-import ProspectConversationPanel from '@/components/workspace/ProspectConversationPanel';
+import styles from '@/app/workspace/acquisition/LinkedInFlow.module.css';
 
-export default async function OutreachConversationPage({
-  params,searchParams,
+export default async function OutreachThreadPage({
+ params,searchParams,
 }:{
-  params:Promise<{id:string}>;
-  searchParams?:Promise<{note?:string;updated?:string;error?:string;created?:string}>;
+ params:Promise<{id:string}>;
+ searchParams?:Promise<{error?:string;updated?:string}>;
 }) {
-  const {id}=await params;
-  const query=searchParams?await searchParams:{};
-  const {supabase,organisationId,profile}=await requireUserContext();
-  const [prospectResult,intakeResult,activityResult]=await Promise.all([
-    supabase.from('prospects').select('*').eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
-    supabase.from('intake_sessions').select('id').eq('organisation_id',organisationId)
-      .eq('prospect_id',id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-    supabase.from('activity_events').select('id,event_type,event_data,created_at')
-      .eq('organisation_id',organisationId).eq('entity_type','prospect').eq('entity_id',id)
-      .order('created_at',{ascending:false}).limit(100),
-  ]);
-  const prospect=prospectResult.data;
-  if(prospectResult.error||!prospect||prospect.source!=='linkedin')notFound();
-  if(intakeResult.error||activityResult.error)throw new Error('Unable to load prospect conversation.');
-
-  // A structured technical enquiry belongs to the governed OPOS workspace.
-  // Never substitute this lightweight screen for intake, partner review or approval.
-  if(intakeResult.data||prospect.converted_lead_id
-    ||['qualified','converted'].includes(String(prospect.status))) {
-    redirect('/workspace/acquisition/'+id);
-  }
-
-  const canWrite=['owner','admin','business_development','operator'].includes(String(profile.role));
-  const importerEnabled=canWrite&&process.env.OP_LINKEDIN_CONVERSATION_IMPORT_ENABLED==='true';
-  let conversation;
-  if(importerEnabled){
-    const [messages,imports]=await Promise.all([
-      supabase.from('prospect_conversation_messages')
-        .select('id,source,speaker,body,sent_at,imported_at,original_order')
-        .eq('organisation_id',organisationId).eq('prospect_id',id)
-        .order('imported_at',{ascending:true}).order('original_order',{ascending:true}).limit(500),
-      supabase.from('prospect_conversation_imports')
-        .select('id,source,source_url,original_text,created_at')
-        .eq('organisation_id',organisationId).eq('prospect_id',id)
-        .order('created_at',{ascending:false}).limit(25),
-    ]);
-    if(messages.error||imports.error)throw new Error('Conversation archive needs its scoped database migration.');
-    conversation=<>
-      <ProspectConversationPanel prospectId={id} messages={messages.data||[]} imports={imports.data||[]} canImport={canWrite}/>
-      <OutreachConversationJournal prospectId={id} events={activityResult.data||[]} canWrite={false}/>
-    </>;
-  } else {
-    conversation=<OutreachConversationJournal prospectId={id} events={activityResult.data||[]} canWrite={canWrite}/>;
-  }
-  const stage=linkedInFunnelStage(prospect,false);
-  const closed=stage==='closed';
-  const interested=canInviteFromLinkedIn(prospect)&&!closed;
-  const decision=closed?'closed':interested?'interested':prospect.next_follow_up_at?'followup':'waiting';
-  const alert=String(query.note||query.updated||query.error||query.created||'').slice(0,350);
-  const approvedMessage=`Hello${prospect.contact_name?' '+String(prospect.contact_name).split(' ')[0]:''}, I help engineering teams add dependable CAD and technical delivery capacity when internal workload is constrained. Would you be open to a brief conversation about whether ${prospect.company_name} ever uses external overflow support?`;
-  return <LinkedInProspectWorkspace
-    id={id}
-    companyName={prospect.company_name}
-    contactName={prospect.contact_name}
-    jobTitle={prospect.job_title}
-    linkedInUrl={prospect.linkedin_url}
-    openingMessage={approvedMessage}
-    followUpAt={prospect.next_follow_up_at}
-    interested={interested}
-    closed={closed}
-    decision={decision}
-    conversation={conversation}
-    events={[]}
-    notices={alert?<p role="status">{alert}</p>:null}
-    canDecide={canWrite}
-  />;
+ const {id}=await params;
+ const query=searchParams?await searchParams:{};
+ const {supabase,organisationId,profile}=await requireUserContext();
+ const [threadResult,messageResult]=await Promise.all([
+  supabase.from('linkedin_outreach_threads')
+    .select('id,company_name,contact_name,job_title,linkedin_url,state,next_follow_up_at,crm_prospect_id')
+    .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
+  supabase.from('linkedin_outreach_messages')
+    .select('id,source,body,created_at')
+    .eq('organisation_id',organisationId).eq('outreach_id',id)
+    .order('created_at',{ascending:true}).order('id',{ascending:true}).limit(200),
+ ]);
+ if(threadResult.error||!threadResult.data)notFound();
+ if(messageResult.error)throw new Error('Could not read outreach messages.');
+ const t=threadResult.data;
+ const canWrite=['owner','admin','business_development','operator'].includes(String(profile.role));
+ const stage=t.state;
+ const converted=stage==='converted';
+ const stateLabel=stage==='interested'?'Interest confirmed':stage==='converted'?'In CRM':
+   stage==='followup'?'Follow up':stage==='waiting'?'Waiting for reply':
+   stage==='closed'?'Closed':'New conversation';
+ const feedback=String(query.error||query.updated||'').slice(0,500);
+ const isError=Boolean(query.error);
+ return <article className={`${styles.record} ${styles.simpleRecord}`}>
+  <header className={styles.recordTop}>
+   <div>
+    <Link className={styles.back} href="/outreach">← All outreach conversations</Link>
+    <h1>{t.company_name}</h1>
+    <p>{t.contact_name}{t.job_title?' · '+t.job_title:''}</p>
+   </div>
+   <div className={styles.threadActions}>
+    <span className={styles.pill}>{stateLabel}</span>
+    {t.linkedin_url?<a className={styles.sourceLink} href={t.linkedin_url} target="_blank" rel="noopener noreferrer">Open LinkedIn ↗</a>:null}
+   </div>
+  </header>
+  {feedback?<p role={isError?'alert':'status'} className={styles.actionHint}>{feedback}</p>:null}
+  {stage==='interested'&&canWrite?<section className={styles.simpleNext}>
+   <div><strong>Ready to enter CRM</strong>
+    <p>Only now will OPOS create or reuse a Company, Contact and Prospect. All technical and commercial approvals stay governed.</p>
+   </div>
+   <form action={promoteOutreachToCrmAction}>
+    <input type="hidden" name="id" value={id}/>
+    <button type="submit" className="button">Convert to CRM ↗</button>
+   </form>
+  </section>:null}
+  {converted&&t.crm_prospect_id?<section className={styles.simpleNext}>
+    <div><strong>Handed over to CRM</strong><p>This conversation remains available here as an independent history.</p></div>
+    <Link className="button" href={`/workspace/acquisition/${t.crm_prospect_id}`}>Open Prospect ↗</Link>
+   </section>:null}
+  <OutreachConversationJournal outreachId={id} entries={messageResult.data||[]} canWrite={canWrite&&!converted}/>
+  {canWrite&&!converted&&stage!=='closed'&&stage!=='interested'?<section className={styles.simpleDecision}>
+   <div><p className={styles.eyebrow}>NEXT ACTION</p><h2>What happened next?</h2></div>
+   <OutreachDisposition id={id} state={stage} nextFollowUp={t.next_follow_up_at}/>
+  </section>:null}
+  {stage==='interested'?<p className={styles.nextNote}>Interest is confirmed. CRM records still do not exist for this conversation until you select Convert to CRM.</p>:null}
+ </article>;
 }
