@@ -98,7 +98,7 @@ export async function recordLinkedInDecisionAction(formData: FormData) {
   const id = String(formData.get('prospect_id') || '').trim();
   const decision = String(formData.get('decision') || '').trim();
   const note = String(formData.get('note') || '').trim();
-  const followUp = String(formData.get('next_follow_up_at') || '').trim();
+  const followUp = String(formData.get('next_follow_up_at_iso') || '').trim();
   let destination = '/workspace/acquisition/funnel';
   try {
     const {supabase,user,profile,organisationId} = await requireUserContext();
