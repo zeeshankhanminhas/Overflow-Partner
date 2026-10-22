@@ -36,7 +36,7 @@ function priority(stage: LinkedInFunnelStage, due:boolean) {
 export default async function LinkedInAcquisitionFunnelPage({
   searchParams,
 }:{
-  searchParams?:Promise<{view?:string,error?:string}>,
+  searchParams?:Promise<{view?:string,error?:string,add?:string}>,
 }) {
   const query = searchParams ? await searchParams : {};
   const view = views.some(item=>item.key===query.view) ? query.view : 'work';
@@ -78,7 +78,7 @@ export default async function LinkedInAcquisitionFunnelPage({
         <p className={styles.muted}>Work on the next prospect, record what happened, and hand over genuine interest. LinkedIn remains the messaging channel.</p>
       </div>
       <div className={styles.topActions}>
-        {canAdd?<a className="button" href="#add-prospect">+ Add prospect</a>:null}
+        {canAdd?<a className="button" href="/workspace/acquisition/funnel?add=1#add-prospect">+ Add prospect</a>:null}
         <Link className="button secondary" href="/workspace/acquisition">Formal acquisition</Link>
       </div>
     </div>
@@ -127,7 +127,7 @@ export default async function LinkedInAcquisitionFunnelPage({
       {records.length>=500?<p className={styles.small}>Showing a maximum of 500 recently created LinkedIn prospects. Use the main Prospect register for older records.</p>:null}
     </div>
 
-    {canAdd?<details id="add-prospect" className={styles.newProspect} open={Boolean(query.error)}>
+    {canAdd?<details id="add-prospect" className={styles.newProspect} open={query.add==='1'||Boolean(query.error)}>
       <summary>+ Add a LinkedIn prospect <span>One step · existing company/contact records are reused</span></summary>
       <form action={quickAddLinkedInProspectAction} className={styles.quickForm}>
         <label>Company <input name="company_name" minLength={2} maxLength={180} required placeholder="Engineering company name"/></label>
