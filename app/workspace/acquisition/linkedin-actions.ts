@@ -143,7 +143,7 @@ export async function recordLinkedInDecisionAction(formData: FormData) {
       eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin',decision},
       oldValue:previous,newValue:{...next}});
     revalidatePath('/outreach');
-    revalidatePath('/workspace/acquisition');\n    revalidatePath('/outreach');
+    revalidatePath('/workspace/acquisition');
     revalidatePath('/outreach/' + id);
     destination = '/outreach/' + id + '?updated=' + encodeURIComponent('Next action saved.');
   } catch(error) {
