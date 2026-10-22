@@ -120,11 +120,11 @@ export async function importProspectConversationAction(formData: FormData) {
       ? `Conversation archived: ${added} new message${added === 1 ? '' : 's'}, ${messages.length - added} already on record.`
       : 'Conversation already archived; no new messages added.';
     success = true;
-    revalidatePath(`/workspace/acquisition/${prospectId}`);
-    revalidatePath('/workspace/acquisition/funnel');
+    revalidatePath(`/workspace/acquisition/${prospectId}`);\n    revalidatePath(`/outreach/${prospectId}`);
+    revalidatePath('/outreach');
   } catch (error) {
     status = error instanceof Error ? error.message : status;
   }
   const query = new URLSearchParams({ [success ? 'updated' : 'error']: status, focus: 'record-current-stage-work' });
-  redirect(`/workspace/acquisition/${encodeURIComponent(prospectId)}?${query.toString()}`);
+  redirect(`/outreach/${encodeURIComponent(prospectId)}?${query.toString()}`);
 }
