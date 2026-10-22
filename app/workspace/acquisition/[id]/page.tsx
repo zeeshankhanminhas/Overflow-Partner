@@ -57,7 +57,8 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     response=responseResult.data;decision=decisionResult.data;partnerQuote=quoteResult.data;
   }
   // Conversation import stays opt-in until its scoped schema and RLS are QA verified.
-  const conversationEnabled = prospect.source === 'linkedin'
+  const canAccessConversation = ['owner','admin','business_development','operator'].includes(String(profile.role));
+  const conversationEnabled = canAccessConversation && prospect.source === 'linkedin'
     && process.env.OP_LINKEDIN_CONVERSATION_IMPORT_ENABLED === 'true';
   const [conversationMessageResult, conversationImportResult] = conversationEnabled
     ? await Promise.all([
@@ -134,7 +135,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     ? <ProspectConversationPanel prospectId={id}
         messages={conversationMessageResult.data??[]}
         imports={conversationImportResult.data??[]}
-        canImport={['owner','admin','business_development','operator'].includes(String(profile.role))}/>
+        canImport={canAccessConversation}/>
     : null;
   const outreachStatus=String(prospect.outreach_status||'not_contacted');
   const outreachTools=<div className="outreach-panel"><p style={{color:'var(--op-muted)',lineHeight:1.6}}>{prospect.source === 'website' ? 'Record the customer’s email response or follow-up here. Only invite Step 2 after the customer confirms interest.' : 'Run the conversation on LinkedIn, which remains the sending channel. Never email a cold LinkedIn prospect.'}</p>{prospect.source === 'linkedin' ? <ProspectOutreachTools linkedinUrl={prospect.linkedin_url} message={approvedMessage}/> : null}{prospect.source === 'linkedin' ? <div className="outreach-message"><small>Approved opening message</small><p>{approvedMessage}</p></div> : null}<form action={updateProspectOutreachAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Outreach action<select name="outreach_status" defaultValue={outreachStatus}><option value="not_contacted">Not contacted</option><option value="message_sent">Mark message sent</option><option value="follow_up_due">Set follow-up</option><option value="replied">Record reply</option><option value="no_response">No response</option><option value="paused">Pause outreach</option></select></label><label>Reply outcome<select name="response_outcome" defaultValue={prospect.response_outcome||''}><option value="">Not applicable</option><option value="interested">Interested</option><option value="later">Possible later requirement</option><option value="referred">Referred internally</option><option value="not_interested">Not interested</option><option value="no_response">No response</option></select></label><label>Next follow-up<input type="datetime-local" name="next_follow_up_at" defaultValue={prospect.next_follow_up_at?new Date(prospect.next_follow_up_at).toISOString().slice(0,16):''}/></label><label>Conversation note<textarea name="outreach_note" rows={3} placeholder="Record the commercial substance of the reply or follow-up"/></label><button className="button" type="submit">Record outreach</button></form>{acquisition.actionKey==='create_intake'?null:<div className="product-notice"><strong>Secure intake</strong><div>{session?'A requirements request already exists. For security, its raw link is not retained after creation.':'The secure link becomes available when this opportunity is ready for requirements intake.'}</div></div>}{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Open client account</Link>:null}{conversationPanel}</div>;
