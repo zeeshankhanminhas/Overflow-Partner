@@ -35,7 +35,7 @@ create index if not exists prospect_conversation_messages_timeline
 
 alter table public.prospect_conversation_imports enable row level security;
 alter table public.prospect_conversation_messages enable row level security;
-revoke all on public.prospect_conversation_imports, public.prospect_conversation_messages from public, anon;
+revoke all on public.prospect_conversation_imports, public.prospect_conversation_messages from public, anon, authenticated;
 grant select, insert on public.prospect_conversation_imports, public.prospect_conversation_messages to authenticated;
 
 -- RLS checks BOTH the signed-in, active organisation membership and the parent
