@@ -27,7 +27,7 @@ export default function LinkedInProspectWorkspace({
   return <section className={`${styles.record} ${styles.simpleRecord}`}>
     <header className={styles.recordTop}>
       <div>
-        <Link href="/workspace/acquisition/funnel" className={styles.back}>← All LinkedIn prospects</Link>
+        <Link href="/outreach" className={styles.back}>← All conversations</Link>
         <h1>{companyName}</h1>
         <p>{contactName||'Contact'}{jobTitle?' · '+jobTitle:''}</p>
       </div>

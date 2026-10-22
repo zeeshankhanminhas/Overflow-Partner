@@ -57,6 +57,10 @@ export default function LifecycleSidebar() {
   const contextListLabel = context?.type === 'project' ? 'All projects' : 'All opportunities';
 
   return <nav aria-label="Workspace navigation" className="lifecycle-nav">
+    <NavSection title="Outreach">
+      <Link className={pathname.startsWith('/outreach') || isActive(pathname,n.linkedinFunnel.href) ? 'active' : ''} href={n.linkedinFunnel.href}>LinkedIn conversations</Link>
+    </NavSection>
+
     <NavSection title="Home">
       <Link className={pathname === n.missionControl.href ? 'active' : ''} href={n.missionControl.href}>{n.missionControl.label}</Link>
       <Link className={isActive(pathname, n.approvals.href) ? 'active' : ''} href={n.approvals.href}>{n.approvals.label}</Link>
@@ -80,10 +84,9 @@ export default function LifecycleSidebar() {
     </section> : null}
 
     <NavSection title="CRM">
+      <Link className={(pathname.startsWith('/workspace/acquisition') && !pathname.startsWith(n.linkedinFunnel.href)) || pathname.startsWith('/workspace/leads') || pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
       <Link className={isActive(pathname, n.companies.href) ? 'active' : ''} href={n.companies.href}>{n.companies.label}</Link>
       <Link className={isActive(pathname, n.contacts.href) ? 'active' : ''} href={n.contacts.href}>{n.contacts.label}</Link>
-      <Link className={isActive(pathname, n.linkedinFunnel.href) ? 'active' : ''} href={n.linkedinFunnel.href}>{n.linkedinFunnel.label}</Link>
-      <Link className={(pathname.startsWith('/workspace/acquisition') && !pathname.startsWith(n.linkedinFunnel.href)) || pathname.startsWith('/workspace/leads') || pathname.startsWith(n.assessments.href) ? 'active' : ''} href={n.enquiries.href}>{n.enquiries.label}</Link>
     </NavSection>
 
     <NavSection title="Commercial">

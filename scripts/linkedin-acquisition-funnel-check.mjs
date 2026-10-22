@@ -108,27 +108,45 @@ assert.match(conversationMigration, /conversation imports created by authorised 
 assert.match(conversationMigration, /conversation messages created by authorised operators/);
 assert.doesNotMatch(conversationMigration, /create policy[^;]*for delete/i, 'Archived conversation must be append only');
 
-// The simplified UI must reuse governed records and must not create an alternative funnel.
-const linkedinDashboard = readFileSync(new URL('app/workspace/acquisition/funnel/page.tsx', root),'utf8');
-const quickActions = readFileSync(new URL('app/workspace/acquisition/linkedin-actions.ts',root),'utf8');
-const linkedInRecord = readFileSync(new URL('app/workspace/acquisition/[id]/page.tsx',root),'utf8');
-const reviewedImport = readFileSync(new URL('components/workspace/LinkedInConversationImportForm.tsx',root),'utf8');
-assert.match(linkedinDashboard,/quickAddLinkedInProspectAction/, 'One-step prospect capture must be on the funnel worklist');
-assert.match(linkedinDashboard,/isLinkedInFollowUpDue/, 'Worklist uses the canonical follow-up definition');
-assert.match(quickActions,/createProspectAction\(data\)/, 'Quick add must use governed prospect capture');
-assert.match(quickActions,/communication_status === 'do_not_contact'/, 'Do-not-contact CRM records are respected');
-assert.match(quickActions,/\.not\('status','in','\(converted,not_a_fit\)'\)/, 'Quick add must check for active duplicate prospects');
-assert.match(quickActions,/\.from\('intake_sessions'\)/, 'Decision updates cannot change a prospect after secure intake begins');
-assert.match(quickActions,/decision === 'interested' \? 'interested'/, 'Interested status must be explicit and manually selected');
-assert.doesNotMatch(quickActions,/queueLifecycleEmail|functions\.invoke|fetch\('https:\/\/www.linkedin.com/, 'Quick actions cannot send unsolicited email or LinkedIn messages');
-assert.match(linkedInRecord,/LinkedInProspectWorkspace/, 'Early LinkedIn work must use a focused conversation view');
-assert.match(linkedInRecord,/RecordWorkspace/, 'After intake, governed acquisition workspace remains authoritative');
-assert.match(reviewedImport,/reviewed_messages/, 'Conversation must be reviewed before importing');
-const rawParagraphs=parseConversationTranscript('Initial unlabelled paragraph\n\nA second unlabelled reply');
-assert.equal(rawParagraphs.length,2, 'Unlabelled paragraphs are separate review candidates');
-assert.equal(rawParagraphs[0].speaker,'unknown', 'Unlabelled text must not be attributed without review');
-assert.match(conversationActions,/JSON\.parse\(reviewRaw\)/, 'Backend requires reviewed messages');
-assert.match(conversationActions,/reviewed\.length !== preview\.length/, 'Backend rejects stale or inconsistent review payloads');
-assert.doesNotMatch(conversationActions,/update\(\{\s*(?:outreach_status|response_outcome|status)/, 'Import never determines interest automatically');
+// Cold LinkedIn acquisition must remain a pre-CRM system, not a second Prospect form.
+const outreachPage=readFileSync(new URL('app/outreach/page.tsx',root),'utf8');
+const outreachRecord=readFileSync(new URL('app/outreach/[id]/page.tsx',root),'utf8');
+const outreachActions=readFileSync(new URL('app/outreach/actions.ts',root),'utf8');
+const outreachNotes=readFileSync(new URL('app/outreach/note-actions.ts',root),'utf8');
+const outreachLayout=readFileSync(new URL('app/outreach/layout.tsx',root),'utf8');
+const outreachProxy=readFileSync(new URL('proxy.ts',root),'utf8');
+const legacyFunnel=readFileSync(new URL('app/workspace/acquisition/funnel/page.tsx',root),'utf8');
+const outreachList=readFileSync(new URL('components/workspace/LinkedInProspectList.tsx',root),'utf8');
+const outreachNav=readFileSync(new URL('app/workspace/LifecycleSidebar.tsx',root),'utf8');
+const precrmMigration=readFileSync(new URL('supabase/migrations/20261022235800_linkedin_precrm_outreach.sql',root),'utf8');
+assert.match(outreachPage,/linkedin_outreach_threads/, 'Outreach inbox reads separate pre-CRM threads');
+assert.doesNotMatch(outreachPage,/\.from\('prospects'\)/, 'Uninterested contacts must not enter the Prospect table');
+assert.match(outreachPage,/addOutreachThreadAction/, 'Pre-CRM add action is separate from CRM capture');
+assert.match(outreachActions,/\.from\('linkedin_outreach_threads'\)/, 'Creation uses only the outreach inbox');
+assert.doesNotMatch(outreachActions,/createProspect\(|createCompany\(|createContact\(/, 'Cold contact capture must not create CRM records');
+assert.match(outreachActions,/state!=='interested'&&thread.state!=='converted'/, 'Only confirmed interest permits CRM promotion');
+assert.match(outreachActions,/rpc\('op_promote_linkedin_outreach'/, 'Atomic promotion is the only CRM creation path');
+const crmCapture=readFileSync(new URL('app/workspace/acquisition/actions.ts',root),'utf8');
+const crmForm=readFileSync(new URL('components/workspace/ProspectForm.tsx',root),'utf8');
+assert.match(crmCapture,/raw.source === 'linkedin'/, 'Direct cold LinkedIn creation must be refused by the server');
+assert.doesNotMatch(crmForm,/<option value="linkedin">/, 'CRM form must not offer cold LinkedIn capture');
+
+assert.match(precrmMigration,/if v.state <> 'interested'/, 'Database promotion enforces confirmed interest');
+assert.match(precrmMigration,/for update;/, 'Promotion locks the outreach record for idempotency');
+assert.match(precrmMigration,/security invoker/, 'Promotion honours standard RLS and operator table permissions');
+assert.match(precrmMigration,/enable row level security/g, 'Both pre-CRM tables must enforce RLS');
+assert.match(outreachNotes,/\.from\('linkedin_outreach_messages'\)/, 'Copied messages stay outside Prospect activity');
+assert.doesNotMatch(outreachNotes,/\.from\('prospects'\)/, 'Copying messages cannot pollute CRM');
+assert.match(outreachRecord,/OutreachConversationJournal/, 'Cold conversations are stored before CRM qualification');
+assert.match(outreachRecord,/promoteOutreachToCrmAction/, 'Confirmed interest presents a manual CRM handoff');
+const governedRecord=readFileSync(new URL('app/workspace/acquisition/[id]/page.tsx',root),'utf8');
+assert.match(governedRecord,/LinkedIn conversation history/, 'Converted CRM Prospect links back to its original Outreach history');
+assert.match(outreachLayout,/requireUserContext/, 'Outreach requires authentication');
+assert.doesNotMatch(outreachLayout,/LifecycleSidebar|WorkspaceShellActions|MobileWorkspaceNav/, 'Outreach avoids the crowded OPOS chrome');
+assert.match(outreachProxy,/\/outreach\/:path\*/, 'Session refresh covers outreach routes');
+assert.match(legacyFunnel,/redirect\('\/outreach'/, 'Old LinkedIn bookmarks redirect');
+assert.match(outreachList,/href=\{\`\/outreach\/\$\{item.id\}\`\}/, 'Outreach list opens a pre-CRM conversation');
+assert.ok(outreachNav.indexOf('<NavSection title="Outreach">') < outreachNav.indexOf('<NavSection title="Home">'),'Outreach is visibly above the OS in desktop navigation');
+assert.doesNotMatch(outreachActions,/queueLifecycleEmail|functions\.invoke\(/, 'Cold outreach cannot send automatic communications');
 
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');

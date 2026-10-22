@@ -34,8 +34,8 @@ export default function MobileWorkspaceNav({
 }) {
   const pathname = usePathname();
   const items = [
+    { label: 'Outreach', href: '/outreach', icon: 'opportunities' as const },
     { label: 'Home', href: home, icon: 'home' as const },
-    { label: 'Opportunities', href: opportunities, icon: 'opportunities' as const },
     { label: 'Projects', href: projects, icon: 'projects' as const },
     { label: 'Approvals', href: approvals, icon: 'approvals' as const },
     { label: 'Documents', href: documents, icon: 'documents' as const },

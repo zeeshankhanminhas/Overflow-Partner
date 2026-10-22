@@ -19,12 +19,12 @@ function safeLinkedInUrl(value: string) {
 }
 
 function returnError(message: string) {
-  return '/workspace/acquisition/funnel?error=' + encodeURIComponent(message) + '#add-prospect';
+  return '/outreach?error=' + encodeURIComponent(message) + '#add-prospect';
 }
 
 /** Single operator action; existing CRM Company and Contact remain authoritative. */
 export async function quickAddLinkedInProspectAction(formData: FormData) {
-  let destination = '/workspace/acquisition/funnel';
+  let destination = '/outreach';
   try {
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
@@ -73,7 +73,7 @@ export async function quickAddLinkedInProspectAction(formData: FormData) {
       .not('status','in','(converted,not_a_fit)').limit(1).maybeSingle();
     if (duplicateError) throw new Error(duplicateError.message);
     if (duplicate?.id) {
-      destination = '/workspace/acquisition/' + duplicate.id + '?updated='
+      destination = '/outreach/' + duplicate.id + '?updated='
         + encodeURIComponent('This prospect already exists; continue the existing conversation.');
     } else {
       const data = new FormData();
@@ -84,9 +84,9 @@ export async function quickAddLinkedInProspectAction(formData: FormData) {
       data.set('notes','');
       const result = await createProspectAction(data);
       if (!result.ok) throw new Error(result.error);
-      destination = '/workspace/acquisition/' + result.data.id + '?created=Prospect%20added';
+      destination = '/outreach/' + result.data.id + '?created=Prospect%20added';
     }
-    revalidatePath('/workspace/acquisition/funnel');
+    revalidatePath('/outreach');
   } catch (error) {
     destination = returnError(error instanceof Error ? error.message : 'Unable to add this prospect.');
   }
@@ -99,7 +99,7 @@ export async function recordLinkedInDecisionAction(formData: FormData) {
   const decision = String(formData.get('decision') || '').trim();
   const note = String(formData.get('note') || '').trim();
   const followUp = String(formData.get('next_follow_up_at_iso') || '').trim();
-  let destination = '/workspace/acquisition/funnel';
+  let destination = '/outreach';
   try {
     const {supabase,user,profile,organisationId} = await requireUserContext();
     assertRole(profile.role,['owner','admin','business_development','operator']);
@@ -142,12 +142,12 @@ export async function recordLinkedInDecisionAction(formData: FormData) {
     await recordActivity(supabase,{organisationId,entityType:'prospect',entityId:id,userId:user.id,
       eventType:'prospect.outreach_updated',eventData:{note:note||null,channel:'linkedin',decision},
       oldValue:previous,newValue:{...next}});
-    revalidatePath('/workspace/acquisition/funnel');
+    revalidatePath('/outreach');
     revalidatePath('/workspace/acquisition');
-    revalidatePath('/workspace/acquisition/' + id);
-    destination = '/workspace/acquisition/' + id + '?updated=' + encodeURIComponent('Next action saved.');
+    revalidatePath('/outreach/' + id);
+    destination = '/outreach/' + id + '?updated=' + encodeURIComponent('Next action saved.');
   } catch(error) {
-    destination = '/workspace/acquisition/' + encodeURIComponent(id) + '?error='
+    destination = '/outreach/' + encodeURIComponent(id) + '?error='
       + encodeURIComponent(error instanceof Error ? error.message : 'Unable to update this prospect.');
   }
   redirect(destination);
