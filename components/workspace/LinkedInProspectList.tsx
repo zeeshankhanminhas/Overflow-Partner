@@ -33,7 +33,7 @@ export default function LinkedInProspectList({items}:{items:LinkedInWorkItem[]})
     </div>
     {filtered.length?<ul className={styles.prospectList}>
       {filtered.map(item=><li key={item.id}>
-        <Link className={styles.prospectRow} href={`/workspace/acquisition/${item.id}`}>
+        <Link className={styles.prospectRow} href={`/outreach/${item.id}`}>
           <div className={styles.prospectText}>
             <strong>{item.company}</strong>
             <small>{item.contact||'Contact not recorded'}</small>
