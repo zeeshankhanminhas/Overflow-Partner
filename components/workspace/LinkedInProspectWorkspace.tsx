@@ -24,54 +24,44 @@ export default function LinkedInProspectWorkspace({
     const data=event.event_data as {note?:unknown}|null;
     return data && typeof data.note==='string' && Boolean(data.note.trim());
   });
-  return <section className={styles.record}>
+  return <section className={`${styles.record} ${styles.simpleRecord}`}>
     <header className={styles.recordTop}>
       <div>
-        <Link href="/workspace/acquisition/funnel" className={styles.back}>← LinkedIn worklist</Link>
+        <Link href="/workspace/acquisition/funnel" className={styles.back}>← All LinkedIn prospects</Link>
         <h1>{companyName}</h1>
         <p>{contactName||'Contact'}{jobTitle?' · '+jobTitle:''}</p>
       </div>
       <ProspectOutreachTools linkedinUrl={linkedInUrl} message={openingMessage}/>
     </header>
     {notices?<div className={styles.alert}>{notices}</div>:null}
-    <div className={styles.profileGrid}>
-      <div>
-        {conversation||<section className={styles.paper}>
-          <h2>Conversation</h2>
-          <p>Conversation importing becomes available once its secure archive is enabled. You can still record your outcome on the right.</p>
-        </section>}
-        <section className={styles.activity}>
-          <details>
-            <summary>Recent conversation notes ({notes.length})</summary>
-            {notes.length?<ul>{notes.map(event=><li key={event.id}>
-              <small>{date(event.created_at)}</small>
-              <p>{String((event.event_data as {note:string}).note)}</p>
-            </li>)}</ul>:<p>No additional notes recorded.</p>}
-          </details>
-        </section>
+    {interested?<section className={styles.simpleNext}>
+      <div><strong>Interested — ready for requirements</strong>
+        <p>Confirming interest allows a secure requirements request. It does not qualify the project.</p>
       </div>
-      <aside className={styles.actionPanel}>
-        <section className={styles.paper}>
-          <p className={styles.eyebrow}>Next action</p>
-          {closed?<><h2>Closed</h2><p>Excluded from the active campaign. The conversation and decision history remain on this record.</p></>
-            :interested?<><h2>Ready for requirements</h2>
-              <p>Interest is confirmed. Create the secure requirements request to begin the governed technical enquiry. This is not technical qualification.</p>
-              <form action={createStep2InvitationFormAction}>
-                <input type="hidden" name="prospect_id" value={id}/>
-                <button className="button" type="submit">Create requirements request ↗</button>
-              </form>
-            </>:<><h2>{followUpAt?'Follow up':'Keep the conversation moving'}</h2>
-              <p>{followUpAt?'Next follow-up: '+date(followUpAt):'Send a personal message on LinkedIn, then record the next action.'}</p>
-              <p>No automatic messages are sent from OPOS.</p>
-            </>}
-        </section>
-        {canDecide&&!closed?<section className={styles.paper}>
-          <p className={styles.eyebrow}>Record progress</p>
-          <h2>What happened?</h2>
-          <p>One decision replaces multiple status dropdowns.</p>
-          <LinkedInDecisionForm prospectId={id} initialDecision={decision} followUpAt={followUpAt}/>
-        </section>:null}
-      </aside>
-    </div>
+      <form action={createStep2InvitationFormAction}>
+        <input type="hidden" name="prospect_id" value={id}/>
+        <button className="button" type="submit">Start requirements →</button>
+      </form>
+    </section>:null}
+    {closed?<p className={styles.actionHint}>This prospect is closed. The conversation remains available for reference.</p>:null}
+    {conversation||<section className={styles.paper}>
+      <h2>Conversation</h2>
+      <p>Manual LinkedIn conversation importing is not enabled in this preview. Your prospect record and next actions are still available.</p>
+    </section>}
+    {canDecide&&!closed?<section className={styles.simpleDecision}>
+      <div>
+        <p className={styles.eyebrow}>Next step</p>
+        <h2>{interested?'Record another update':'What happened next?'}</h2>
+        {followUpAt?<p>Follow up: {date(followUpAt)}</p>:null}
+      </div>
+      <LinkedInDecisionForm prospectId={id} initialDecision={decision} followUpAt={followUpAt}/>
+    </section>:null}
+    {notes.length?<details className={styles.simpleNotes}>
+      <summary>Earlier notes ({notes.length})</summary>
+      <ul>{notes.map(event=><li key={event.id}>
+        <small>{date(event.created_at)}</small>
+        <p>{String((event.event_data as {note:string}).note)}</p>
+      </li>)}</ul>
+    </details>:null}
   </section>;
 }
