@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ProspectForm from '@/components/workspace/ProspectForm';
+import { linkedInFunnelStage, isLinkedInFollowUpDue } from '@/lib/acquisition/linkedinFunnel';
 import CompanyForm from '@/components/workspace/CompanyForm';
 import ContactForm from '@/components/workspace/ContactForm';
 import { requireUserContext } from '@/lib/auth/context';
@@ -59,7 +60,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
   });
   const approvalCount=rows.filter(row=>row.presentation.approval?.required).length;
   const now=Date.now();
-  const followUpsDue=prospects.filter((item:any)=>item.next_follow_up_at&&new Date(item.next_follow_up_at).getTime()<=now&&!['paused','replied'].includes(String(item.outreach_status))).length;
+  const followUpsDue=prospects.filter((item:any)=>item.source==='linkedin' && isLinkedInFollowUpDue(item, linkedInFunnelStage(item, sessionByProspect.has(item.id)), now)).length;
   const repliesWaiting=prospects.filter((item:any)=>item.outreach_status==='replied'&&item.response_outcome==='interested').length;
   const linksSent=(sessionsResult.data||[]).filter((item:any)=>item.sent_at).length;
   const outreachStarted=prospects.filter((item:any)=>item.outreach_status&&item.outreach_status!=='not_contacted').length;

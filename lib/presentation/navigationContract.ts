@@ -25,10 +25,10 @@ export const primaryNavigation = {
     interactionPattern: 'Decision queue linked back to the owning work.',
   },
   linkedinFunnel: {
-    label: 'LinkedIn funnel', href: '/workspace/acquisition/funnel', group: 'crm', placement: 'primary',
+    label: 'LinkedIn', href: '/workspace/acquisition/funnel', group: 'crm', placement: 'primary',
     operatorJob: 'Run cold LinkedIn acquisition, manual outreach, follow-ups, and interest-to-enquiry handoff.',
     authoritativeModel: 'Existing organisation-scoped prospect outreach and intake evidence.',
-    interactionPattern: 'Campaign stages into governed Prospect record; never automatic external messaging.',
+    interactionPattern: 'One searchable prospect list into conversation and next action; never automatic external messaging.',
   },
   enquiries: {
     label: 'Prospects', href: '/workspace/acquisition/prospects', group: 'crm', placement: 'primary',

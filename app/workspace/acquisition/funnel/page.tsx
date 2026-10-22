@@ -1,72 +1,80 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
-import { isLinkedInFollowUpDue, linkedInFunnelStage, linkedinFunnelStages, type LinkedInProspect } from '@/lib/acquisition/linkedinFunnel';
+import { isLinkedInFollowUpDue, linkedInFunnelStage, type LinkedInProspect } from '@/lib/acquisition/linkedinFunnel';
+import { quickAddLinkedInProspectAction } from '../linkedin-actions';
+import LinkedInProspectList, { type LinkedInWorkItem } from '@/components/workspace/LinkedInProspectList';
+import styles from '../LinkedInFlow.module.css';
 
-function followUpLabel(value: string | null | undefined) {
-  if (!value) return 'No follow-up scheduled';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'No follow-up scheduled' : new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+function dateLabel(value:string|null|undefined) {
+  if(!value)return '';
+  const date=new Date(value);
+  return Number.isFinite(date.getTime())
+    ? new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/London'}).format(date)
+    : '';
 }
 
-export default async function LinkedInAcquisitionFunnelPage() {
-  const { supabase, organisationId } = await requireUserContext();
-  const { data, error } = await supabase.from('prospects')
+export default async function LinkedInAcquisitionFunnelPage({
+  searchParams,
+}:{searchParams?:Promise<{error?:string,add?:string}>}) {
+  const query=searchParams?await searchParams:{};
+  const {supabase,organisationId,profile}=await requireUserContext();
+  const {data,error}=await supabase.from('prospects')
     .select('id,company_name,contact_name,status,source,outreach_status,response_outcome,next_follow_up_at,converted_lead_id')
-    .eq('organisation_id', organisationId)
-    .eq('source', 'linkedin')
-    .order('created_at', { ascending: false }).limit(500);
-  if (error) throw new Error(error.message);
+    .eq('organisation_id',organisationId).eq('source','linkedin')
+    .order('created_at',{ascending:false}).limit(500);
+  if(error)throw new Error(error.message);
+  const prospects=(data??[]) as LinkedInProspect[];
+  const ids=prospects.map(item=>item.id);
+  const {data:sessions,error:sessionsError}=ids.length
+    ? await supabase.from('intake_sessions').select('prospect_id')
+      .eq('organisation_id',organisationId).in('prospect_id',ids)
+    : {data:[] as {prospect_id:string}[],error:null};
+  if(sessionsError)throw new Error(sessionsError.message);
+  const withIntake=new Set((sessions??[]).map(item=>String(item.prospect_id)));
+  let dueCount=0;
+  const items:LinkedInWorkItem[]=prospects.map(item=>{
+    const stage=linkedInFunnelStage(item,withIntake.has(item.id));
+    const due=isLinkedInFollowUpDue(item,stage);
+    if(due)dueCount++;
+    const archived=stage==='closed'||stage==='handoff';
+    let action='Waiting for reply';
+    let detail='';
+    let priority=4;
+    if(stage==='interested'){action='Ready for requirements';priority=0;}
+    else if(due){action='Follow up now';priority=1;detail=dateLabel(item.next_follow_up_at);}
+    else if(stage==='conversation'){action='Review conversation';priority=2;}
+    else if(stage==='identified'){action='Send first message';priority=3;}
+    else if(stage==='nurture'){action='Follow up later';priority=5;}
+    else if(stage==='handoff'){action='Handed over';priority=6;}
+    else if(stage==='closed'){action='Closed';priority=7;}
+    if(!detail&&item.next_follow_up_at&&!archived&&!due)detail='Follow up '+dateLabel(item.next_follow_up_at);
+    return {id:item.id,company:item.company_name,contact:item.contact_name||'',action,detail,archived,priority};
+  });
+  const canAdd=['owner','admin','business_development','operator'].includes(String(profile.role));
 
-  const prospects = (data ?? []) as LinkedInProspect[];
-  const ids = prospects.map(item => item.id);
-  const { data: sessions, error: sessionsError } = ids.length
-    ? await supabase.from('intake_sessions').select('prospect_id').eq('organisation_id', organisationId).in('prospect_id', ids)
-    : { data: [] as { prospect_id: string }[], error: null };
-  if (sessionsError) throw new Error(sessionsError.message);
-  const withIntake = new Set((sessions ?? []).map(item => String(item.prospect_id)));
-  const records = prospects.map(item => ({ ...item, funnelStage: linkedInFunnelStage(item, withIntake.has(item.id)) }));
-  const due = records.filter(item => isLinkedInFollowUpDue(item, item.funnelStage));
-  const groups = linkedinFunnelStages.map(stage => ({ ...stage, prospects: records.filter(item => item.funnelStage === stage.key) }));
-  const parked = records.filter(item => item.funnelStage === 'nurture');
-  const closed = records.filter(item => item.funnelStage === 'closed');
-
-  return <section className="saas-page acquisition-workspace linkedin-funnel">
-    <div className="saas-hero"><div className="saas-hero__inner"><div className="saas-hero__copy">
-      <p className="vp-kicker">Customer acquisition · LinkedIn</p>
-      <h1>From first conversation to enquiry.</h1>
-      <p className="vp-subtitle">Track cold outreach before requesting detailed engineering requirements. Marketing interest is not technical qualification or commercial approval.</p>
-    </div><div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      <Link className="button" href="/workspace/acquisition#manual-prospect">Add prospect</Link>
-      <Link className="button secondary" href="/workspace/acquisition/prospects">Formal enquiries</Link>
-    </div></div></div>
-
-    <div className="linkedin-funnel__summary" aria-label="LinkedIn acquisition summary">
-      <div><strong>{records.length}</strong><span>LinkedIn prospects</span></div>
-      <div><strong>{due.length}</strong><span>Follow-ups due</span></div>
-      <div><strong>{groups.find(group => group.key === 'interested')?.prospects.length ?? 0}</strong><span>Ready for enquiry</span></div>
-      <div><strong>{groups.find(group => group.key === 'handoff')?.prospects.length ?? 0}</strong><span>Handed off</span></div>
-    </div>
-
-    <section aria-labelledby="linkedin-path" className="linkedin-funnel__path">
-      <div><p className="vp-kicker">Separate acquisition workflow</p><h2 id="linkedin-path">Prospect → outreach → conversation → interest → enquiry</h2>
-        <p>Send LinkedIn messages manually and log the response. Only after a recorded interested reply can a LinkedIn prospect receive a secure requirements invitation. The existing partner review, technical qualification and commercial lifecycle remain unchanged.</p>
+  return <section className={`saas-page acquisition-workspace ${styles.flow}`}>
+    <header className={styles.top}>
+      <div>
+        <p className="vp-kicker">OPOS / LinkedIn</p>
+        <h1>Prospects</h1>
+        <p className={styles.muted}>Find a person, continue the conversation, record what happens next.</p>
       </div>
-      <ol className="linkedin-funnel__stages">
-        {groups.map((stage, index) => <li key={stage.key}><small>0{index + 1}</small><strong>{stage.label}</strong><span>{stage.description}</span><b aria-label={`${stage.prospects.length} prospects`}>{stage.prospects.length}</b></li>)}
-      </ol>
-    </section>
-
-    <section className="linkedin-funnel__work" aria-label="Prospect work queues">
-      {due.length > 0 ? <div className="vp-callout"><strong>{due.length} follow-up{due.length === 1 ? '' : 's'} due</strong><p>{due.slice(0, 5).map((item, index) => <span key={item.id}>{index ? ' · ' : ''}<Link href={`/workspace/acquisition/${item.id}`}>{item.company_name}</Link></span>)} — open each prospect to log a LinkedIn action.</p></div> : null}
-      {groups.map(group => <section className="linkedin-funnel__group" key={group.key} aria-label={group.label}>
-        <header><div><h3>{group.label}</h3><p>{group.description}</p></div><strong>{group.prospects.length}</strong></header>
-        {group.prospects.length ? <ul>{group.prospects.slice(0, 25).map(item => <li key={item.id}>
-          <div><strong>{item.company_name}</strong><small>{item.contact_name || 'Contact not recorded'} · {followUpLabel(item.next_follow_up_at)}</small></div>
-          <Link className="button secondary" href={`/workspace/acquisition/${item.id}`}>{group.key === 'interested' ? 'Start enquiry' : 'Open prospect'}</Link>
-        </li>)}</ul> : <p className="linkedin-funnel__empty">No prospects at this stage.</p>}
-        {group.prospects.length > 25 ? <small>Showing the most recent 25 of {group.prospects.length}. Use the Prospect register for other records.</small> : null}
-      </section>)}
-      <div className="linkedin-funnel__aside"><strong>Nurture / paused: {parked.length}</strong><span>Keep future opportunities available without forcing technical intake.</span><strong>Closed / not a fit: {closed.length}</strong><span>Excluded from the active campaign; historic evidence stays in the Prospect record.</span></div>
-    </section>
+      {canAdd?<Link className="button" href="/workspace/acquisition/funnel?add=1#add-prospect">+ Add prospect</Link>:null}
+    </header>
+    {query.error?<div className="vp-callout" role="alert"><strong>Prospect not added</strong><p>{query.error}</p></div>:null}
+    {dueCount>0?<p className={styles.actionHint}>{dueCount} follow-up{dueCount===1?'':'s'} need your attention.</p>:null}
+    <LinkedInProspectList items={items}/>
+    {canAdd?<details id="add-prospect" className={styles.newProspect} open={query.add==='1'||Boolean(query.error)}>
+      <summary>Add someone new</summary>
+      <form action={quickAddLinkedInProspectAction} className={styles.quickForm}>
+        <label>Company<input name="company_name" minLength={2} maxLength={180} required placeholder="Company name"/></label>
+        <label>Person<input name="contact_name" minLength={2} maxLength={180} required placeholder="Contact name"/></label>
+        <label>LinkedIn profile (optional)<input name="linkedin_url" type="url" placeholder="https://www.linkedin.com/in/…"/></label>
+        <label>Job title (optional)<input name="job_title" maxLength={180}/></label>
+        <p>OPOS creates or reuses the company and contact automatically. It never sends a message on your behalf.</p>
+        <button className="button" type="submit">Save prospect →</button>
+      </form>
+    </details>:null}
+    {prospects.length===500?<p className={styles.small}>Showing up to 500 recent records. The full Prospect register retains older records.</p>:null}
   </section>;
 }
