@@ -1,49 +1,44 @@
 import { addOutreachNoteAction } from '@/app/outreach/note-actions';
 import styles from '@/app/workspace/acquisition/LinkedInFlow.module.css';
 
-type Event = {
- id:string;event_type:string;created_at:string;
- event_data?:unknown;
-};
-const fmt=(value:string)=>new Intl.DateTimeFormat('en-GB',{
+type Entry = { id:string;source:string;body:string;created_at:string };
+const fmt=(v:string)=>new Intl.DateTimeFormat('en-GB',{
  dateStyle:'medium',timeStyle:'short',timeZone:'Europe/London',
-}).format(new Date(value));
-
-/** First useful conversation workflow without writing new database tables.
- * A structured sender-labelled importer can replace this after DB rollout. */
+}).format(new Date(v));
 export default function OutreachConversationJournal({
- prospectId,events,canWrite,
-}:{prospectId:string;events:Event[];canWrite:boolean}) {
- const notes=events.filter(e=>{
-  const d=e.event_data as {note?:unknown}|null;
-  return d&&typeof d.note==='string'&&Boolean(d.note.trim());
- });
- return <section className={styles.paper} aria-label="Conversation history">
+ outreachId,entries,canWrite,
+}:{outreachId:string;entries:Entry[];canWrite:boolean}) {
+ return <section className={styles.paper} aria-label="LinkedIn conversation history">
    <div className={styles.panelTop}>
-     <div>
-       <p className={styles.eyebrow}>LinkedIn / Sales Navigator</p>
-       <h2>Conversation</h2>
-     </div>
-     <span className={styles.pill}>{notes.length} note{notes.length===1?'':'s'}</span>
+     <div><p className={styles.eyebrow}>LINKEDIN / SALES NAVIGATOR</p><h2>Conversation</h2></div>
+     <span className={styles.pill}>{entries.length} entr{entries.length===1?'y':'ies'}</span>
    </div>
-   {notes.length?<ol className={styles.historyList}>
-     {notes.map(e=><li key={e.id}>
-       <strong>{e.event_type==='prospect.linkedin_conversation_note'?'Copied conversation':'Conversation update'}</strong>
-       <small> · {fmt(e.created_at)}</small>
-       <p>{(e.event_data as {note:string}).note}</p>
-     </li>)}
+   {entries.length?<ol className={styles.historyList}>
+    {entries.map(e=><li key={e.id}>
+      <strong>{e.source==='sales_navigator'?'Sales Navigator':e.source==='linkedin'?'LinkedIn':'Internal note'}</strong>
+      <small> · Saved {fmt(e.created_at)}</small>
+      <p>{e.body}</p>
+    </li>)}
    </ol>:<div className={styles.emptyConversation}>
-     <strong>No conversation notes yet</strong>
-     <p>Continue talking on LinkedIn, then paste the relevant exchange here so you have its context when following up.</p>
+     <strong>Start the conversation on LinkedIn.</strong>
+     <p>Copy the relevant exchange into this record as it develops. It stays outside CRM until confirmed interest.</p>
    </div>}
    {canWrite?<form action={addOutreachNoteAction} className={styles.journalForm}>
-     <input type="hidden" name="prospect_id" value={prospectId}/>
-     <label>Paste a conversation excerpt or add a note
-       <textarea required rows={5} maxLength={6000} name="body" placeholder={'You: Hello, do you work with overflow CAD support?\nProspect: Yes, occasionally.'}/>
+     <input type="hidden" name="outreach_id" value={outreachId}/>
+     <label>Source
+       <select name="source" defaultValue="linkedin">
+        <option value="linkedin">LinkedIn</option>
+        <option value="sales_navigator">Sales Navigator</option>
+        <option value="note">Internal note</option>
+       </select>
+     </label>
+     <label>Paste conversation or add note
+       <textarea name="body" maxLength={60000} required rows={6}
+         placeholder={'You: Hello, do you outsource CAD capacity?\nProspect: Yes, sometimes.'}/>
      </label>
      <div className={styles.journalFooter}>
-       <span>Manual notes are stored in the Prospect activity history. Copy only relevant business correspondence.</span>
-       <button className="button" type="submit">Save note ↗</button>
+       <span>Manual archive; original pasted text is kept. No messages sent or interest inferred.</span>
+       <button className="button" type="submit">Save to conversation ↗</button>
      </div>
    </form>:null}
  </section>;
