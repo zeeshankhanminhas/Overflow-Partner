@@ -1,5 +1,5 @@
 /** Manual LinkedIn conversation import: preserves original text and parses only
- * explicitly labelled messages. This does not infer intent or trigger outreach. */
+ * explicitly labelled messages or reviewable unlabelled paragraphs. This never infers who spoke or sends outreach. */
 export type ConversationSource = 'linkedin' | 'sales_navigator';
 export type ConversationSpeaker = 'you' | 'prospect' | 'unknown';
 export type ParsedConversationMessage = {
@@ -36,18 +36,26 @@ export function parseConversationTranscript(input: string): ParsedConversationMe
   // Example: [2026-10-20T10:15:00Z] You: Hello
   // Or: Prospect: We occasionally need CAD support.
   const marker = /^(?:\[([^\]]{1,40})\]\s*)?(You|Me|Prospect|Contact):\s*(.*)$/i;
+  let unlabelledBreak = false;
   for (const line of lines) {
     const hit = line.match(marker);
     if (hit) {
       parts.push({
-        speaker: /^(you|me)$/i.test(hit[2]) ? 'you' : 'prospect',
-        body: hit[3],
-        sentAt: parsedTimestamp(hit[1]),
+        speaker:/^(you|me)$/i.test(hit[2])?'you':'prospect',
+        body:hit[3],
+        sentAt:parsedTimestamp(hit[1]),
       });
-    } else if (parts.length) {
-      parts[parts.length - 1].body += '\n' + line;
+      unlabelledBreak = false;
+    } else if (!line.trim()) {
+      // Unlabelled pasted paragraphs are review candidates, not confident messages.
+      unlabelledBreak = parts.length>0 && parts[parts.length-1].speaker==='unknown';
+      if (parts.length && parts[parts.length-1].speaker!=='unknown')
+        parts[parts.length-1].body += '\n';
+    } else if (parts.length && !unlabelledBreak) {
+      parts[parts.length-1].body += '\n'+line;
     } else {
       parts.push({speaker:'unknown',body:line,sentAt:null});
+      unlabelledBreak = false;
     }
   }
   const counts = new Map<string,number>();
