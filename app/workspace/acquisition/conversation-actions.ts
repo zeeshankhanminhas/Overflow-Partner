@@ -98,14 +98,14 @@ export async function importProspectConversationAction(formData: FormData) {
       sent_at: msg.sentAt,
       original_order: msg.originalOrder,
       message_fingerprint: digest([
-        source, msg.speaker, msg.sentAt || '',
+        msg.speaker, msg.sentAt || '',
         msg.body.replace(/\s+/g, ' ').trim().toLowerCase(), String(msg.occurrence),
       ].join('|')),
       imported_by: user.id,
     }));
     const { data: inserted, error: messageError } = await supabase
       .from('prospect_conversation_messages')
-      .upsert(rows, { onConflict: 'prospect_id,source,message_fingerprint', ignoreDuplicates: true })
+      .upsert(rows, { onConflict: 'prospect_id,message_fingerprint', ignoreDuplicates: true })
       .select('id');
     if (messageError) throw new Error('Archive saved; retry to finish message import: ' + messageError.message);
     const added = inserted?.length ?? 0;
