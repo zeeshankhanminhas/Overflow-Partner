@@ -89,7 +89,8 @@ create policy "outreach messages append" on public.linkedin_outreach_messages
 -- Invoker privileges + table RLS remain in force (no privileged bypass).
 create or replace function public.op_promote_linkedin_outreach(p_outreach_id uuid)
 returns uuid language plpgsql security invoker set search_path = ''
-as $$
+as $
+#variable_conflict use_variable
 declare
   v public.linkedin_outreach_threads%rowtype;
   company_id uuid;
