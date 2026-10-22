@@ -2,7 +2,7 @@
 -- No live prospect records or external services are touched.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(12);
+SELECT plan(14);
 
 SELECT ok(to_regclass('public.prospect_conversation_imports') IS NOT NULL,
   'Conversation import table was migrated');
@@ -22,13 +22,15 @@ SELECT ok(
 
 INSERT INTO auth.users(id,email) VALUES
  ('00000000-0000-4000-8000-000000006201','conversation-user-a@example.invalid'),
- ('00000000-0000-4000-8000-000000006202','conversation-user-b@example.invalid');
+ ('00000000-0000-4000-8000-000000006202','conversation-user-b@example.invalid'),
+ ('00000000-0000-4000-8000-000000006203','conversation-user-viewer@example.invalid');
 INSERT INTO public.organisations(id,name) VALUES
  ('00000000-0000-4000-8000-000000006211','Conversation QA Organisation A'),
  ('00000000-0000-4000-8000-000000006212','Conversation QA Organisation B');
 INSERT INTO public.profiles(id,organisation_id,role,full_name) VALUES
  ('00000000-0000-4000-8000-000000006201','00000000-0000-4000-8000-000000006211','owner','QA Owner A'),
- ('00000000-0000-4000-8000-000000006202','00000000-0000-4000-8000-000000006212','owner','QA Owner B');
+ ('00000000-0000-4000-8000-000000006202','00000000-0000-4000-8000-000000006212','owner','QA Owner B'),
+ ('00000000-0000-4000-8000-000000006203','00000000-0000-4000-8000-000000006211','viewer','QA Viewer A');
 INSERT INTO public.prospects(id,organisation_id,created_by,company_name,source) VALUES
  ('00000000-0000-4000-8000-000000006221','00000000-0000-4000-8000-000000006211','00000000-0000-4000-8000-000000006201','QA LinkedIn A','linkedin'),
  ('00000000-0000-4000-8000-000000006222','00000000-0000-4000-8000-000000006212','00000000-0000-4000-8000-000000006202','QA LinkedIn B','linkedin');
@@ -100,6 +102,21 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000006202'
 SELECT is(
  (SELECT count(*)::integer FROM public.prospect_conversation_messages),0,
  'Organisation B cannot see organisation A message');
+
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000006203',true);
+SELECT is(
+ (SELECT count(*)::integer FROM public.prospect_conversation_messages),0,
+ 'Same-organisation viewer cannot read private sales conversation');
+
+SELECT throws_like($sql$
+ INSERT INTO public.prospect_conversation_imports
+  (organisation_id,prospect_id,source,original_text,content_hash,imported_by)
+ VALUES
+  ('00000000-0000-4000-8000-000000006211',
+   '00000000-0000-4000-8000-000000006221',
+   'linkedin','Viewer cannot import',repeat('e',64),
+   '00000000-0000-4000-8000-000000006203')
+$sql$, '%row-level security%', 'Viewer cannot write conversation archive');
 
 SELECT * FROM finish();
 ROLLBACK;
