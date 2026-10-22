@@ -109,9 +109,9 @@ assert.match(conversationMigration, /conversation messages created by authorised
 assert.doesNotMatch(conversationMigration, /create policy[^;]*for delete/i, 'Archived conversation must be append only');
 
 // The simplified UI must reuse governed records and must not create an alternative funnel.
-const linkedinDashboard = readFileSync(new URL('app/workspace/acquisition/funnel/page.tsx', root),'utf8');
+const linkedinDashboard = readFileSync(new URL('app/outreach/page.tsx', root),'utf8');
 const quickActions = readFileSync(new URL('app/workspace/acquisition/linkedin-actions.ts',root),'utf8');
-const linkedInRecord = readFileSync(new URL('app/workspace/acquisition/[id]/page.tsx',root),'utf8');
+const linkedInRecord = readFileSync(new URL('app/outreach/[id]/page.tsx',root),'utf8');
 const reviewedImport = readFileSync(new URL('components/workspace/LinkedInConversationImportForm.tsx',root),'utf8');
 assert.match(linkedinDashboard,/quickAddLinkedInProspectAction/, 'One-step prospect capture must be on the funnel worklist');
 assert.match(linkedinDashboard,/isLinkedInFollowUpDue/, 'Worklist uses the canonical follow-up definition');
@@ -122,7 +122,7 @@ assert.match(quickActions,/\.from\('intake_sessions'\)/, 'Decision updates canno
 assert.match(quickActions,/decision === 'interested' \? 'interested'/, 'Interested status must be explicit and manually selected');
 assert.doesNotMatch(quickActions,/queueLifecycleEmail|functions\.invoke|fetch\('https:\/\/www.linkedin.com/, 'Quick actions cannot send unsolicited email or LinkedIn messages');
 assert.match(linkedInRecord,/LinkedInProspectWorkspace/, 'Early LinkedIn work must use a focused conversation view');
-assert.match(linkedInRecord,/RecordWorkspace/, 'After intake, governed acquisition workspace remains authoritative');
+assert.match(linkedInRecord,/redirect\('\/workspace\/acquisition\/'\+id\)/, 'On intake, prospect must redirect into authoritative governed acquisition workspace');
 assert.match(reviewedImport,/reviewed_messages/, 'Conversation must be reviewed before importing');
 const rawParagraphs=parseConversationTranscript('Initial unlabelled paragraph\n\nA second unlabelled reply');
 assert.equal(rawParagraphs.length,2, 'Unlabelled paragraphs are separate review candidates');
@@ -130,5 +130,21 @@ assert.equal(rawParagraphs[0].speaker,'unknown', 'Unlabelled text must not be at
 assert.match(conversationActions,/JSON\.parse\(reviewRaw\)/, 'Backend requires reviewed messages');
 assert.match(conversationActions,/reviewed\.length !== preview\.length/, 'Backend rejects stale or inconsistent review payloads');
 assert.doesNotMatch(conversationActions,/update\(\{\s*(?:outreach_status|response_outcome|status)/, 'Import never determines interest automatically');
+
+
+// Outreach is a distinct authenticated shell rather than the full OPOS sidebar.
+const outreachLayout=readFileSync(new URL('app/outreach/layout.tsx',root),'utf8');
+const outreachProxy=readFileSync(new URL('proxy.ts',root),'utf8');
+const oldFunnel=readFileSync(new URL('app/workspace/acquisition/funnel/page.tsx',root),'utf8');
+const outreachJournal=readFileSync(new URL('app/outreach/note-actions.ts',root),'utf8');
+const outreachList=readFileSync(new URL('components/workspace/LinkedInProspectList.tsx',root),'utf8');
+assert.match(outreachLayout,/requireUserContext/, 'Outreach shell requires a signed-in user');
+assert.doesNotMatch(outreachLayout,/LifecycleSidebar|WorkspaceShellActions|MobileWorkspaceNav/, 'Outreach must not mount the dense OPOS operations chrome');
+assert.match(outreachProxy,/\/outreach\/:path\*/, 'Supabase session refresh must cover the standalone outreach route');
+assert.match(oldFunnel,/redirect\('\/outreach'/, 'Old LinkedIn bookmarks must enter the new route');
+assert.match(outreachList,/href=\{\`\/outreach\/\$\{item.id\}\`\}/, 'Prospect worklist opens the lightweight conversation route');
+assert.match(outreachJournal,/recordActivity/, 'Manual excerpts use the existing activity history');
+assert.doesNotMatch(outreachJournal,/update\(\{\s*(?:outreach_status|response_outcome|status)/, 'Pasting conversation must not affect prospect qualification');
+assert.match(linkedInRecord,/OutreachConversationJournal/, 'Conversation notes are usable before the structured importer is enabled');
 
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');
