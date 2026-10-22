@@ -29,7 +29,34 @@ export async function importProspectConversationAction(formData: FormData) {
     if (source !== 'linkedin' && source !== 'sales_navigator') throw new Error('Select LinkedIn or Sales Navigator.');
     if (!raw || raw.length > MAX_TRANSCRIPT) throw new Error('Paste up to 60,000 characters of conversation.');
     if (sourceUrl.length > 2048 || !isLinkedInConversationUrl(sourceUrl)) throw new Error('Enter a valid HTTPS LinkedIn URL, or leave it blank.');
-    const messages = parseConversationTranscript(raw);
+    const preview = parseConversationTranscript(raw);
+    const reviewRaw = String(formData.get('reviewed_messages') || '');
+    if (!reviewRaw || reviewRaw.length > 90000) throw new Error('Review the messages before importing.');
+    let reviewed: unknown;
+    try { reviewed=JSON.parse(reviewRaw); } catch { throw new Error('Message preview is invalid; paste and review again.'); }
+    if (!Array.isArray(reviewed) || reviewed.length !== preview.length) {
+      throw new Error('Message review is out of date. Paste and review the conversation again.');
+    }
+    const occurrenceCounts=new Map<string,number>();
+    const messages = reviewed.map((item:unknown,index:number)=>{
+      if (!item || typeof item!=='object') throw new Error('Message review contains an invalid entry.');
+      const record=item as {speaker?:unknown;body?:unknown;sentAt?:unknown};
+      const speaker=String(record.speaker||'');
+      const body=String(record.body||'').replace(/\r\n?/g,'\n').trim();
+      const stamp=record.sentAt == null || record.sentAt === '' ? null : String(record.sentAt);
+      if (!['you','prospect','unknown'].includes(speaker) || !body || body.length>20000)
+        throw new Error('Review each message: choose a speaker and keep the text under 20,000 characters.');
+      let sentAt:string|null=null;
+      if(stamp){
+        if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?\.\d{3}Z$/.test(stamp) || !Number.isFinite(Date.parse(stamp)))
+          throw new Error('A message contains an invalid timestamp.');
+        sentAt=new Date(stamp).toISOString();
+      }
+      const key=speaker+'|'+(sentAt||'')+'|'+body.replace(/\s+/g,' ').toLowerCase();
+      const occurrence=(occurrenceCounts.get(key)||0)+1;
+      occurrenceCounts.set(key,occurrence);
+      return {speaker: speaker as 'you'|'prospect'|'unknown',body,sentAt,originalOrder:index,occurrence};
+    });
     const { data: prospect, error: prospectError } = await supabase.from('prospects')
       .select('id,source,converted_lead_id').eq('organisation_id', organisationId).eq('id', prospectId).maybeSingle();
     if (prospectError || !prospect || prospect.source !== 'linkedin') throw new Error('This LinkedIn prospect was not found.');
