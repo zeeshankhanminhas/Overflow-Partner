@@ -29,6 +29,9 @@ export async function createProspectAction(formData: FormData): Promise<ActionRe
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     const raw = Object.fromEntries(formData.entries());
+    if (raw.source === 'linkedin') {
+      return { ok: false, error: 'LinkedIn contacts belong in Outreach. Confirm interest there, then select Convert to CRM.' };
+    }
     const companyId = String(raw.company_id || '');
     if (!companyId) return { ok: false, error: 'Select a company.' };
     const company = await getCompanyById(supabase, organisationId, companyId);
