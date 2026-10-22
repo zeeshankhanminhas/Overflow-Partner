@@ -45,7 +45,8 @@ on public.prospect_conversation_imports for select to authenticated
 using (
   exists (select 1 from public.profiles pr
     where pr.id = (select auth.uid()) and pr.is_active
-      and pr.organisation_id = prospect_conversation_imports.organisation_id)
+      and pr.organisation_id = prospect_conversation_imports.organisation_id
+      and pr.role::text in ('owner','admin','business_development','operator'))
   and exists (select 1 from public.prospects p
     where p.id = prospect_conversation_imports.prospect_id
       and p.organisation_id = prospect_conversation_imports.organisation_id)
@@ -68,7 +69,8 @@ on public.prospect_conversation_messages for select to authenticated
 using (
   exists (select 1 from public.profiles pr
     where pr.id = (select auth.uid()) and pr.is_active
-      and pr.organisation_id = prospect_conversation_messages.organisation_id)
+      and pr.organisation_id = prospect_conversation_messages.organisation_id
+      and pr.role::text in ('owner','admin','business_development','operator'))
   and exists (select 1 from public.prospect_conversation_imports i
     where i.id = prospect_conversation_messages.import_id
       and i.prospect_id = prospect_conversation_messages.prospect_id
