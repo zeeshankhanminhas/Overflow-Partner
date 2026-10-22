@@ -160,7 +160,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
 
   // Cold LinkedIn engagement is a conversation, not a technical assessment.
   // Switch to the existing governed RecordWorkspace as soon as intake begins.
-  if(prospect.source==='linkedin' && !session && !partnerRequest && !convertedCaseId && !['qualified','converted'].includes(String(prospect.status))) {
+  if(prospect.source==='linkedin' && !linkedOutreach.data?.id && !session && !partnerRequest && !convertedCaseId && !['qualified','converted'].includes(String(prospect.status))) {
     const interested=canInviteFromLinkedIn(prospect);
     const closed=prospect.status==='not_a_fit'||prospect.response_outcome==='not_interested';
     const decision=closed?'closed':interested?'interested':prospect.next_follow_up_at?'followup':'waiting';
