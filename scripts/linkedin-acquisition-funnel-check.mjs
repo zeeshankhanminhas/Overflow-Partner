@@ -126,6 +126,11 @@ assert.match(outreachActions,/\.from\('linkedin_outreach_threads'\)/, 'Creation 
 assert.doesNotMatch(outreachActions,/createProspect\(|createCompany\(|createContact\(/, 'Cold contact capture must not create CRM records');
 assert.match(outreachActions,/state!=='interested'&&thread.state!=='converted'/, 'Only confirmed interest permits CRM promotion');
 assert.match(outreachActions,/rpc\('op_promote_linkedin_outreach'/, 'Atomic promotion is the only CRM creation path');
+const crmCapture=readFileSync(new URL('app/workspace/acquisition/actions.ts',root),'utf8');
+const crmForm=readFileSync(new URL('components/workspace/ProspectForm.tsx',root),'utf8');
+assert.match(crmCapture,/raw.source === 'linkedin'/, 'Direct cold LinkedIn creation must be refused by the server');
+assert.doesNotMatch(crmForm,/<option value="linkedin">/, 'CRM form must not offer cold LinkedIn capture');
+
 assert.match(precrmMigration,/if v.state <> 'interested'/, 'Database promotion enforces confirmed interest');
 assert.match(precrmMigration,/for update;/, 'Promotion locks the outreach record for idempotency');
 assert.match(precrmMigration,/security invoker/, 'Promotion honours standard RLS and operator table permissions');
