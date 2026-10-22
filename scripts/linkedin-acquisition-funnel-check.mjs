@@ -139,6 +139,8 @@ assert.match(outreachNotes,/\.from\('linkedin_outreach_messages'\)/, 'Copied mes
 assert.doesNotMatch(outreachNotes,/\.from\('prospects'\)/, 'Copying messages cannot pollute CRM');
 assert.match(outreachRecord,/OutreachConversationJournal/, 'Cold conversations are stored before CRM qualification');
 assert.match(outreachRecord,/promoteOutreachToCrmAction/, 'Confirmed interest presents a manual CRM handoff');
+const governedRecord=readFileSync(new URL('app/workspace/acquisition/[id]/page.tsx',root),'utf8');
+assert.match(governedRecord,/LinkedIn conversation history/, 'Converted CRM Prospect links back to its original Outreach history');
 assert.match(outreachLayout,/requireUserContext/, 'Outreach requires authentication');
 assert.doesNotMatch(outreachLayout,/LifecycleSidebar|WorkspaceShellActions|MobileWorkspaceNav/, 'Outreach avoids the crowded OPOS chrome');
 assert.match(outreachProxy,/\/outreach\/:path\*/, 'Session refresh covers outreach routes');
