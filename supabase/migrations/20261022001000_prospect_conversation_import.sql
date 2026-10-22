@@ -28,7 +28,7 @@ create table if not exists public.prospect_conversation_messages (
   message_fingerprint text not null check (message_fingerprint ~ '^[a-f0-9]{64}$'),
   imported_by uuid not null references public.profiles(id),
   imported_at timestamptz not null default now(),
-  unique (prospect_id, source, message_fingerprint)
+  unique (prospect_id, message_fingerprint)
 );
 create index if not exists prospect_conversation_messages_timeline
   on public.prospect_conversation_messages (organisation_id, prospect_id, sent_at asc nulls last, imported_at asc);
