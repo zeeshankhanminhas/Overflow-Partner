@@ -1,0 +1,19 @@
+/* Separate, calm acquisition space. The governed OPOS workspace is unchanged. */
+.surface { min-height:100dvh; background:#fafaf8; color:#20221f; }
+.header { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:24px; border-bottom:1px solid #e7e7e3; padding:16px max(22px, calc((100vw - 1260px) / 2)); background:#fff; }
+.brand { display:inline-flex; align-items:center; gap:16px; justify-self:start; color:inherit; text-decoration:none; }
+.mark { display:grid; place-items:center; width:39px; height:39px; color:#fff; border-radius:10px; background:#1e221f; font-weight:760; letter-spacing:-.09em; font-size:14px; }
+.mark span { color:#c6c8c2; padding-inline:2px; }
+.brandName { font-weight:660; font-size:17px; letter-spacing:-.035em; }
+.nav { display:flex; align-items:center; gap:24px; }
+.nav a { color:#525752; font-size:13px; font-weight:550; text-decoration:none; white-space:nowrap; }
+.nav a:first-child { color:#20221f; font-weight:700; }
+.nav a:hover,.signout:hover { text-decoration:underline; text-underline-offset:5px; }
+.account { display:flex; align-items:center; justify-self:end; gap:15px; }
+.user { color:#777c75; font-size:12px; white-space:nowrap; }
+.signout { width:auto; padding:8px 0; cursor:pointer; color:#525752; font-size:12px; background:none; border:0; }
+.main { width:min(100%,1300px); min-height:calc(100dvh - 175px); margin:auto; padding:15px 0 52px; }
+.footer { border-top:1px solid #e7e7e3; padding:17px max(22px, calc((100vw - 1260px) / 2)); display:flex; align-items:center; justify-content:space-between; gap:20px; color:#777c75; font-size:11px; }
+.footer a { color:#484d48; font-size:12px; font-weight:580; }
+@media(max-width:800px) { .header { grid-template-columns:1fr auto; padding:14px 18px; } .nav { grid-row:2; grid-column:1 / -1; border-top:1px solid #eee; padding-top:13px; } .user { display:none; } .main { min-height:calc(100dvh - 185px); } .footer { padding:17px 18px; } }
+@media(max-width:500px) { .header { gap:14px; } .nav { gap:20px; } .footer { display:block; line-height:1.8; } .footer a { display:block; margin-top:4px; } }
