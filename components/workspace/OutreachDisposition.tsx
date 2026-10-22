@@ -13,7 +13,7 @@ function localValue(iso:string|null) {
 export default function OutreachDisposition({id,state,nextFollowUp}:{
  id:string;state:State;nextFollowUp:string|null;
 }){
- const [next,setNext]=useState(state==='new'?'waiting':state);
+ const [next,setNext]=useState<State>(state==='new'?'waiting':state);
  const [when,setWhen]=useState(localValue(nextFollowUp));
  const timestamp=when&&Number.isFinite(new Date(when).getTime())?new Date(when).toISOString():'';
  return <form action={updateOutreachThreadAction} className={styles.outcomeForm}>
@@ -21,7 +21,7 @@ export default function OutreachDisposition({id,state,nextFollowUp}:{
   <input type="hidden" name="state" value={next}/>
   <input type="hidden" name="follow_up_iso" value={next==='followup'?timestamp:''}/>
   <label>What happens next?
-   <select value={next} onChange={e=>setNext(e.target.value)}>
+   <select value={next} onChange={e=>setNext(e.target.value as State)}>
     <option value="waiting">Await a reply</option>
     <option value="followup">Follow up later</option>
     <option value="interested">Interest confirmed</option>
