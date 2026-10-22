@@ -1,7 +1,7 @@
 -- Isolated, transaction-rolled-back proof that cold LinkedIn names never enter CRM.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(15);
+SELECT plan(16);
 
 SELECT ok(to_regclass('public.linkedin_outreach_threads') is not null,
  'Separate pre-CRM thread table exists');
