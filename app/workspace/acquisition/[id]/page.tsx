@@ -15,6 +15,8 @@ import { convertProspectFormAction, createStep2InvitationFormAction, updateProsp
 import { generateStep2TestLinkFormAction } from '../test-link-actions';
 import ProspectOutreachTools from '@/components/workspace/ProspectOutreachTools';
 import ProspectConversationPanel from '@/components/workspace/ProspectConversationPanel';
+import LinkedInProspectWorkspace from '@/components/workspace/LinkedInProspectWorkspace';
+import flowStyles from '../LinkedInFlow.module.css';
 import { updateProspectOutreachAction } from '../actions';
 
 function dateTime(value: string | null | undefined) {
@@ -63,9 +65,9 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const [conversationMessageResult, conversationImportResult] = conversationEnabled
     ? await Promise.all([
         supabase.from('prospect_conversation_messages')
-          .select('id,source,speaker,body,sent_at,imported_at')
+          .select('id,source,speaker,body,sent_at,imported_at,original_order')
           .eq('organisation_id',organisationId).eq('prospect_id',id)
-          .order('imported_at',{ascending:false}).limit(500),
+          .order('imported_at',{ascending:true}).order('original_order',{ascending:true}).limit(500),
         supabase.from('prospect_conversation_imports')
           .select('id,source,source_url,original_text,created_at')
           .eq('organisation_id',organisationId).eq('prospect_id',id)
@@ -138,7 +140,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
         canImport={canAccessConversation}/>
     : null;
   const outreachStatus=String(prospect.outreach_status||'not_contacted');
-  const outreachTools=<div className="outreach-panel"><p style={{color:'var(--op-muted)',lineHeight:1.6}}>{prospect.source === 'website' ? 'Record the customer’s email response or follow-up here. Only invite Step 2 after the customer confirms interest.' : 'Run the conversation on LinkedIn, which remains the sending channel. Never email a cold LinkedIn prospect.'}</p>{prospect.source === 'linkedin' ? <ProspectOutreachTools linkedinUrl={prospect.linkedin_url} message={approvedMessage}/> : null}{prospect.source === 'linkedin' ? <div className="outreach-message"><small>Approved opening message</small><p>{approvedMessage}</p></div> : null}<form action={updateProspectOutreachAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Outreach action<select name="outreach_status" defaultValue={outreachStatus}><option value="not_contacted">Not contacted</option><option value="message_sent">Mark message sent</option><option value="follow_up_due">Set follow-up</option><option value="replied">Record reply</option><option value="no_response">No response</option><option value="paused">Pause outreach</option></select></label><label>Reply outcome<select name="response_outcome" defaultValue={prospect.response_outcome||''}><option value="">Not applicable</option><option value="interested">Interested</option><option value="later">Possible later requirement</option><option value="referred">Referred internally</option><option value="not_interested">Not interested</option><option value="no_response">No response</option></select></label><label>Next follow-up<input type="datetime-local" name="next_follow_up_at" defaultValue={prospect.next_follow_up_at?new Date(prospect.next_follow_up_at).toISOString().slice(0,16):''}/></label><label>Conversation note<textarea name="outreach_note" rows={3} placeholder="Record the commercial substance of the reply or follow-up"/></label><button className="button" type="submit">Record outreach</button></form>{acquisition.actionKey==='create_intake'?null:<div className="product-notice"><strong>Secure intake</strong><div>{session?'A requirements request already exists. For security, its raw link is not retained after creation.':'The secure link becomes available when this opportunity is ready for requirements intake.'}</div></div>}{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Open client account</Link>:null}{conversationPanel}</div>;
+  const outreachTools=<div className="outreach-panel"><p style={{color:'var(--op-muted)',lineHeight:1.6}}>{prospect.source === 'website' ? 'Record the customer’s email response or follow-up here. Only invite Step 2 after the customer confirms interest.' : 'Run the conversation on LinkedIn, which remains the sending channel. Never email a cold LinkedIn prospect.'}</p>{prospect.source === 'linkedin' ? <ProspectOutreachTools linkedinUrl={prospect.linkedin_url} message={approvedMessage}/> : null}{prospect.source === 'linkedin' ? <div className="outreach-message"><small>Approved opening message</small><p>{approvedMessage}</p></div> : null}<form action={updateProspectOutreachAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Outreach action<select name="outreach_status" defaultValue={outreachStatus}><option value="not_contacted">Not contacted</option><option value="message_sent">Mark message sent</option><option value="follow_up_due">Set follow-up</option><option value="replied">Record reply</option><option value="no_response">No response</option><option value="paused">Pause outreach</option></select></label><label>Reply outcome<select name="response_outcome" defaultValue={prospect.response_outcome||''}><option value="">Not applicable</option><option value="interested">Interested</option><option value="later">Possible later requirement</option><option value="referred">Referred internally</option><option value="not_interested">Not interested</option><option value="no_response">No response</option></select></label><label>Next follow-up<input type="datetime-local" name="next_follow_up_at" defaultValue={prospect.next_follow_up_at?new Date(prospect.next_follow_up_at).toISOString().slice(0,16):''}/></label><label>Conversation note<textarea name="outreach_note" rows={3} placeholder="Record the commercial substance of the reply or follow-up"/></label><button className="button" type="submit">Record outreach</button></form>{acquisition.actionKey==='create_intake'?null:<div className="product-notice"><strong>Secure intake</strong><div>{session?'A requirements request already exists. For security, its raw link is not retained after creation.':'The secure link becomes available when this opportunity is ready for requirements intake.'}</div></div>}{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Open client account</Link>:null}</div>;
   // Before interest, prospect outreach is the primary work, not a hidden Messages drawer.
   const activities = beforeInterestHandoff ? outreachTools : activitySummary;
   const communications = beforeInterestHandoff ? undefined : outreachTools;
@@ -147,5 +149,24 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const metadata=<div className="vp-facts"><Fact label="Opportunity ID" value={prospect.id}/><Fact label="Created" value={dateTime(prospect.created_at)}/><Fact label="Updated" value={dateTime(prospect.updated_at)}/><Fact label="Delivery review ref" value={partnerRequest?.case_reference}/></div>;
   const audit=<p style={{color:'var(--op-muted)',lineHeight:1.6}}>Client submission, delivery-partner response, partner cost and the commercial decision remain separately recorded for traceability. The opportunity can progress only when the required evidence is complete.</p>;
 
-  return <RecordWorkspace className="opportunity-reference-workspace" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readiness} nextAction={nextActionPanel} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>;
+  // Cold LinkedIn engagement is a conversation, not a technical assessment.
+  // Switch to the existing governed RecordWorkspace as soon as intake begins.
+  if(prospect.source==='linkedin' && !session && !partnerRequest && !convertedCaseId && !['qualified','converted'].includes(String(prospect.status))) {
+    const interested=canInviteFromLinkedIn(prospect);
+    const closed=prospect.status==='not_a_fit'||prospect.response_outcome==='not_interested';
+    const decision=closed?'closed':interested?'interested':prospect.next_follow_up_at?'followup':'waiting';
+    return <LinkedInProspectWorkspace
+      id={id} companyName={prospect.company_name}
+      contactName={prospect.contact_name} jobTitle={prospect.job_title}
+      linkedInUrl={prospect.linkedin_url} openingMessage={approvedMessage}
+      followUpAt={prospect.next_follow_up_at}
+      interested={interested} closed={closed} decision={decision}
+      conversation={conversationPanel} notices={notices}
+      events={events} canDecide={canAccessConversation}
+    />;
+  }
+  return <>
+    {prospect.source==='linkedin' && conversationPanel?<div className={flowStyles.record}>{conversationPanel}</div>:null}
+    <RecordWorkspace className="opportunity-reference-workspace" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readiness} nextAction={nextActionPanel} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>
+  </>;
 }
