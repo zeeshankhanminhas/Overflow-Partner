@@ -111,3 +111,34 @@
   .paper{padding:17px}
   .recordTop{flex-direction:column}
 }
+
+/* One-list / one-conversation experience: deliberately no stage strip or KPI cards. */
+.simpleListHeader{display:flex;align-items:center;flex-wrap:wrap;gap:16px;padding:19px 23px;border-bottom:1px solid var(--op-line,#ddd)}
+.searchLabel{flex:1;min-width:180px}
+.searchLabel input{width:100%;min-height:43px;border:1px solid var(--op-line,#ddd);border-radius:8px;background:var(--op-panel,#fff);color:var(--op-ink,#252720);padding:11px 14px;font-size:14px}
+.showArchived{display:flex;align-items:center;gap:8px;color:var(--op-muted,#696d69);font-size:12px;white-space:nowrap;cursor:pointer}
+.showArchived input{accent-color:var(--op-ink,#252720)}
+.actionHint{padding:12px 16px;border-left:3px solid var(--op-accent,#252720);background:var(--op-panel,#fff);font-size:13px;margin:0 0 18px;color:var(--op-ink,#252720)}
+.simpleRecord{max-width:900px}
+.simpleRecord .recordTop{align-items:center;margin-bottom:25px}
+.simpleNext{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:var(--op-surface,#f8f8f5);border:1px solid var(--op-line,#ddd);padding:21px 22px;border-radius:10px;margin-bottom:20px}
+.simpleNext strong{font-size:16px}
+.simpleNext p{max-width:510px;color:var(--op-muted,#696d69);font-size:13px;line-height:1.6;margin:7px 0 0}
+.simpleDecision{margin-top:20px;border:1px solid var(--op-line,#ddd);border-radius:12px;background:var(--op-panel,#fff);padding:24px}
+.simpleDecision h2{margin:0 0 8px;font-size:22px;letter-spacing:-.035em}
+.simpleDecision > div > p:not(.eyebrow){font-size:13px;color:var(--op-muted,#696d69)}
+.simpleDecision .outcomeForm{max-width:610px;margin-top:15px}
+.simpleNotes{margin:24px 0 0;border-top:1px solid var(--op-line,#ddd);padding:17px 3px;color:var(--op-muted,#696d69)}
+.simpleNotes summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--op-ink,#252720)}
+.simpleNotes ul{list-style:none;padding:0}
+.simpleNotes li{padding:12px 0;border-bottom:1px solid var(--op-line,#ddd)}
+.simpleNotes small{font-size:11px}
+.simpleNotes p{margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+@media(max-width:650px){
+  .simpleListHeader{gap:11px;padding:14px}
+  .searchLabel{flex:1 1 100%}
+  .showArchived{flex:1}
+  .simpleNext{padding:16px}
+  .simpleDecision{padding:17px}
+  .simpleRecord .recordTop{align-items:flex-start}
+}
