@@ -78,7 +78,7 @@ export default async function LinkedInAcquisitionFunnelPage({
         <p className={styles.muted}>Work on the next prospect, record what happened, and hand over genuine interest. LinkedIn remains the messaging channel.</p>
       </div>
       <div className={styles.topActions}>
-        {canAdd?<a className="button" href="/workspace/acquisition/funnel?add=1#add-prospect">+ Add prospect</a>:null}
+        {canAdd?<Link className="button" href="/workspace/acquisition/funnel?add=1#add-prospect">+ Add prospect</Link>:null}
         <Link className="button secondary" href="/workspace/acquisition">Formal acquisition</Link>
       </div>
     </div>
