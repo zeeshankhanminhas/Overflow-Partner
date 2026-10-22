@@ -41,6 +41,14 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     supabase.from('partners').select('id,company_name,rating,email').eq('organisation_id',organisationId).eq('status','approved').eq('nda_signed',true).order('company_name'),
   ]);
   const prospect=prospectResult.data;if(!prospect)notFound();
+  // Conversation history stays in the independent Outreach archive even after promotion.
+  const linkedOutreach = prospect.source === 'linkedin'
+    ? await supabase.from('linkedin_outreach_threads').select('id')
+        .eq('organisation_id',organisationId).eq('crm_prospect_id',id).limit(1).maybeSingle()
+    : {data:null,error:null};
+  if(linkedOutreach.error && linkedOutreach.error.code!=='42P01') {
+    throw new Error('Unable to resolve LinkedIn outreach origin.');
+  }
   const session=sessionResult.data;const partnerRequest:any=partnerRequestResult.data;const partners:any[]=(partnersResult.data||[]) as any[];
   let submission:any=null;let response:any=null;let decision:any=null;let partnerQuote:any=null;let intakeFiles:any[]=[];
   if(session?.id){
@@ -102,6 +110,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const canUseDeveloperLink=['owner','admin'].includes(String(profile.role));
 
   const notices=<>
+    {linkedOutreach.data?.id?<div className="vp-callout"><strong>LinkedIn conversation history</strong><p>This Prospect was created only after interest was confirmed in Outreach.</p><Link href={`/outreach/${linkedOutreach.data.id}`}>Read the original conversation ↗</Link></div>:null}
     {query.created||query.updated||query.qualified||query.partnerReviewCreated||query.partnerDecision?<div className="vp-callout"><strong>Opportunity updated</strong><p>{query.partnerReviewCreated?'Delivery review sent.':query.partnerDecision?`Commercial decision: ${commercialStatus(String(query.partnerDecision),commercialCopy(String(query.partnerDecision)))}.`:display(query.created||query.updated||query.qualified)}</p></div>:null}
     {query.error?<div className="vp-callout"><strong>Action could not be completed</strong><p>{operatorErrorMessage(String(query.error))}</p></div>:null}
     {invitationUrl?<Step2TestLink url={invitationUrl} outreach/>:null}
