@@ -68,6 +68,17 @@ expect(nav.includes("label: 'Outreach', href: '/outreach', group: 'outreach'"),
   'Cold outreach is explicitly outside the CRM navigation contract');
 expect(nav.includes("href: '/workspace/opportunities'") && nav.includes("href: '/workspace/attention'"),
   'Canonical Opportunities and My Work entrypoints are defined');
+for (const key of ['approvals','enquiries','companies','contacts','quotes','payments','partners','issues','executive']) {
+  const section=nav.slice(nav.indexOf('  '+key+': {'),nav.indexOf('  },',nav.indexOf('  '+key+': {')));
+  expect(section.includes("placement: 'contextual'"),
+    'Old permanent navigation placement retired for '+key);
+}
+for (const key of ['linkedinFunnel','missionControl','opportunities','projects','finance','documents']) {
+  const section=nav.slice(nav.indexOf('  '+key+': {'),nav.indexOf('  },',nav.indexOf('  '+key+': {')));
+  expect(section.includes("placement: 'primary'"),
+    'Current primary destination remains authoritative: '+key);
+}
+
 expect(sidebar.includes("lifecycle-nav--simplified") &&
   sidebar.includes('href={n.opportunities.href}') &&
   sidebar.includes('href={n.myWork.href}') &&
