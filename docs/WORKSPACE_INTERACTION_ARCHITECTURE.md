@@ -1,6 +1,6 @@
 # Overflow Partner Workspace Interaction Architecture
 
-Status: **Normative**
+Status: **ACTIVE for interaction mechanics**, subject to [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md) for current navigation, progressive disclosure and optional Inspect.
 
 This document defines how work is opened and completed across the Overflow Partner workspace. It applies to the full operator product, not only Case 360 or Project 360.
 
@@ -18,9 +18,9 @@ Use a full page only when the operator is changing operating area, selecting fro
 Use a page when the operator deliberately changes operating area or primary business object.
 
 Examples:
-- Mission Control
-- Enquiries
-- Cases
+- Home (single priority)
+- Opportunities (Enquiries and Cases in one navigation worklist)
+- My Work (canonical filtered priority queue)
 - Case 360
 - Projects
 - Project 360
@@ -75,9 +75,7 @@ Examples:
 A Work Window may occupy most of the viewport, but it must still make the parent operating context obvious.
 
 ### Disclosure — reveal small local detail
-Use inline disclosure only for low-frequency, short, local material where opening it does not distort the page composition.
-
-Do not use disclosure as a substitute for a Drawer, Dialog or Work Window.
+Use semantic disclosure for supporting requirements, evidence, history and tasks when a focused record warrants it. Genuine blockers, record identity, ownership and the current next action must remain visible. Use Drawers for cross-record inspection, Dialogs for bounded decisions and Work Windows for substantial governed work.
 
 ## One-layer rule
 
@@ -110,7 +108,7 @@ A register is for finding and prioritising records.
 
 Normal register journey:
 
-`Register → Inspect drawer → Open authoritative record only if action is required`
+`Register → Open authoritative record` as the default. Optional `Inspect` is only for meaningful previews; never require two clicks to reach the owning record.
 
 A row should not force navigation just to answer basic questions such as:
 - what state is this in?
@@ -176,7 +174,7 @@ Canonical components:
   - `DecisionDialog`
   - `WorkWindow`
   - `ContextActions`
-- `app/workspace/interaction-surfaces.css`
+- Active shared workspace CSS; retired `interaction-surfaces.css` is not to be reintroduced
 
 Do not create page-specific replacements such as `ProjectDrawer`, `PaymentsModal`, `CasePopup` unless a domain-specific content component is being placed **inside** one of the canonical interaction primitives.
 
