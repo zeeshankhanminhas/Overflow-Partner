@@ -2,6 +2,7 @@
 import './workspace-base.css';
 import './workspace-features.css';
 import './workspace-surfaces.css';
+import './focus-first.css';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
