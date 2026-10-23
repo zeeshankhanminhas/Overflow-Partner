@@ -43,7 +43,7 @@ export const primaryNavigation = {
     interactionPattern: 'Prioritised operating brief linked to authoritative work.',
   },
   approvals: {
-    label: 'Approvals', href: '/workspace/approvals', group: 'home', placement: 'primary',
+    label: 'Approvals', href: '/workspace/approvals', group: 'home', placement: 'contextual',
     operatorJob: 'Make decisions that are ready for approval.',
     authoritativeModel: 'Canonical approval queue over authoritative decision records.',
     interactionPattern: 'Decision queue linked back to the owning work.',
@@ -55,19 +55,19 @@ export const primaryNavigation = {
     interactionPattern: 'Cold conversation → operator confirms interest → explicit Convert to CRM; never automatic external messaging.',
   },
   enquiries: {
-    label: 'Enquiries', href: '/workspace/acquisition/prospects', group: 'crm', placement: 'primary',
+    label: 'Enquiries', href: '/workspace/acquisition/prospects', group: 'crm', placement: 'contextual',
     operatorJob: 'Qualify and progress pre-project opportunities.',
     authoritativeModel: 'Acquisition and pre-project opportunity state.',
     interactionPattern: 'Opportunity queue into the current commercial record.',
   },
   companies: {
-    label: 'Companies', href: '/workspace/companies', group: 'crm', placement: 'primary',
+    label: 'Companies', href: '/workspace/companies', group: 'crm', placement: 'contextual',
     operatorJob: 'Maintain prospect and client account master records.',
     authoritativeModel: 'Company master and recurring account relationship.',
     interactionPattern: 'Company register into Company 360.',
   },
   contacts: {
-    label: 'Contacts', href: '/workspace/contacts', group: 'crm', placement: 'primary',
+    label: 'Contacts', href: '/workspace/contacts', group: 'crm', placement: 'contextual',
     operatorJob: 'Maintain decision-maker and technical-contact records.',
     authoritativeModel: 'Contact master linked to one company.',
     interactionPattern: 'Contact register into contact relationship history.',
@@ -91,13 +91,13 @@ export const primaryNavigation = {
     interactionPattern: 'Portfolio register into Project Overview.',
   },
   quotes: {
-    label: 'Quotes', href: '/workspace/quotes', group: 'commercial', placement: 'primary',
+    label: 'Quotes', href: '/workspace/quotes', group: 'commercial', placement: 'contextual',
     operatorJob: 'Inspect client quotations and their current outcome.',
     authoritativeModel: 'Quote state with issue and acceptance evidence.',
     interactionPattern: 'Quote register linked to Opportunity.',
   },
   payments: {
-    label: 'Payments', href: '/workspace/payments', group: 'commercial', placement: 'primary',
+    label: 'Payments', href: '/workspace/payments', group: 'commercial', placement: 'contextual',
     operatorJob: 'Track receivable and payable settlement activity.',
     authoritativeModel: 'Canonical financial settlement view.',
     interactionPattern: 'Financial register with evidence-backed actions.',
@@ -109,13 +109,13 @@ export const primaryNavigation = {
     interactionPattern: 'Project-scoped commercial workspace.',
   },
   partners: {
-    label: 'Delivery Partners', href: '/workspace/partners', group: 'delivery', placement: 'primary',
+    label: 'Delivery Partners', href: '/workspace/partners', group: 'delivery', placement: 'contextual',
     operatorJob: 'Maintain delivery partner capability and availability context.',
     authoritativeModel: 'Delivery Partner master record.',
     interactionPattern: 'Partner register into partner record.',
   },
   issues: {
-    label: 'Issues', href: '/workspace/exceptions', group: 'delivery', placement: 'primary',
+    label: 'Issues', href: '/workspace/exceptions', group: 'delivery', placement: 'contextual',
     operatorJob: 'Resolve off-plan operational issues.',
     authoritativeModel: 'Canonical operational issue model.',
     interactionPattern: 'Intervention queue linked to the owning work.',
@@ -139,7 +139,7 @@ export const primaryNavigation = {
     interactionPattern: 'Contextual message timeline linked to owning work.',
   },
   executive: {
-    label: 'Management', href: '/workspace/intelligence', group: 'management', placement: 'primary',
+    label: 'Management', href: '/workspace/intelligence', group: 'management', placement: 'contextual',
     operatorJob: 'Review business performance and management signals.',
     authoritativeModel: 'Management snapshot.',
     interactionPattern: 'Management summary with drill-through.',
