@@ -2,17 +2,23 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import ProjectRealtimeRefresh from '@/components/workspace/ProjectRealtimeRefresh';
 
+/** Tools remain reachable; overview is the only always-visible destination. */
 export default async function ProjectLayout({children,params}:{children:ReactNode;params:Promise<{id:string}>}){
   const {id}=await params;
   return <>
     <ProjectRealtimeRefresh projectId={id}/>
-    <nav aria-label="Project 360 navigation" style={{display:'flex',gap:6,overflowX:'auto',padding:'0 0 12px',marginBottom:4,scrollbarWidth:'thin'}}>
-      <Link className="button secondary" href={`/workspace/projects/${id}`}>Overview</Link>
-      <Link className="button secondary" href={`/workspace/projects/${id}/delivery`}>Delivery</Link>
-      <Link className="button secondary" href={`/workspace/projects/${id}/execution`}>Execution</Link>
-      <Link className="button secondary" href={`/workspace/documents?project=${id}`}>Documents</Link>
-      <Link className="button secondary" href={`/workspace/payments?project=${id}`}>Payments</Link>
-      <Link className="button secondary" href={`/workspace/communications/project/${id}`}>Messages</Link>
+    <nav className="op-focus-project-nav" aria-label="Project 360 navigation">
+      <Link className="op-focus-project-nav__overview" href={`/workspace/projects/${id}`}>Project overview</Link>
+      <details className="op-focus-project-nav__tools">
+        <summary>Project tools</summary>
+        <div>
+          <Link href={`/workspace/projects/${id}/delivery`}>Delivery</Link>
+          <Link href={`/workspace/projects/${id}/execution`}>Execution</Link>
+          <Link href={`/workspace/documents?project=${id}`}>Documents</Link>
+          <Link href={`/workspace/payments?project=${id}`}>Payments</Link>
+          <Link href={`/workspace/communications/project/${id}`}>Messages</Link>
+        </div>
+      </details>
     </nav>
     {children}
   </>;
