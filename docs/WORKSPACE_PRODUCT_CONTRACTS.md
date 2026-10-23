@@ -59,9 +59,9 @@ A register is a productivity surface for finding, prioritising and opening recor
 
 Desktop anatomy:
 
-`# | Object | State | Owner | Due/Age | Business context | Next action | More`
+`Object | State / stage | Attention or next action | Optional supporting detail`
 
-A domain may omit columns that do not help the operator, but column order and visual hierarchy should remain familiar.
+A domain may omit columns or adapt to a readable mobile row. Never add columns solely to satisfy a legacy dense-register diagram; show only information needed to choose work.
 
 Rules:
 
