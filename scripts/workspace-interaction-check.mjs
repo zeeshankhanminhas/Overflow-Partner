@@ -108,6 +108,43 @@ expect(focusCss.includes('op-unified-page__directory') &&
 expect(outreachCss.includes('color:#555b55'), 'Outreach secondary text meets improved contrast baseline');
 expect(recordWorkspace.includes('op-focus__stage'), 'Case and Project 360 expose current position above next action');
 
+
+// Enforce supersession of overlapping historical presentation contracts.
+// These checks are UI/IA-only and never weaken business, RLS, audit, quote
+// acceptance, advance-payment or partner-work-order gate assertions.
+const operatorContract=read('docs/OPOS_OPERATOR_EXPERIENCE_CONTRACT.md');
+const navigationContract=read('docs/PRIMARY_NAV_PRODUCT_CONTRACT.md');
+const visualContract=read('docs/VISUAL_FOUNDATION_SPECIFICATION.md');
+const languageContract=read('docs/UI_LANGUAGE_CONSTITUTION.md');
+const interactionsContract=read('docs/WORKSPACE_INTERACTION_ARCHITECTURE.md');
+const legacyArchitecture=read('docs/OVERFLOW_PARTNER_PRODUCT_ARCHITECTURE.md');
+const opdsContract=read('docs/OPDS.md');
+expect(operatorContract.includes('Status: ACTIVE') &&
+  operatorContract.includes('OPOS_COMMERCIAL_LIFECYCLE_CONTRACT.md') &&
+  operatorContract.includes('RPC_SECURITY_CONTRACT.md'),
+  'One active operator contract preserves commercial and security authorities');
+expect(operatorContract.includes('**Desktop:** Outreach · Home · Opportunities · Projects · Finance · Documents') &&
+  operatorContract.includes('**Mobile:** Outreach · Home · Opportunities · Projects · More'),
+  'Operator contract owns current desktop and mobile destinations');
+expect(navigationContract.includes('old Home / Operate / Control / Reference rail') &&
+  navigationContract.includes('**retired**'),
+  'Prior permanent-navigation model is explicitly retired');
+expect(visualContract.includes('**44px**') &&
+  visualContract.includes('14–16px') &&
+  visualContract.includes('Old mandatory 32/36/40px interactive control targets are retired'),
+  'Older tiny UI and narrow tap-target mandates cannot supersede accessibility');
+expect(productContracts.includes('not a compulsory extra hop') &&
+  interactionsContract.includes('never require two clicks'),
+  'Old mandatory Inspect-first double-action pattern is retired');
+expect(languageContract.includes('**Outreach, Home, Opportunities, Projects, Finance, Documents**'),
+  'UI language uses current IA rather than the old route vocabulary');
+expect(legacyArchitecture.includes('Status: ARCHITECTURE HISTORY') &&
+  opdsContract.includes('OPOS Operator Experience Contract'),
+  'Historical architecture and OPDS geometry cannot override current workspace UI');
+expect(!layout.includes('interaction-surfaces.css') &&
+  (layout.match(/\.css';/g)||[]).length===4,
+  'Retired interaction stylesheet cannot creep back as a fifth global layer');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
