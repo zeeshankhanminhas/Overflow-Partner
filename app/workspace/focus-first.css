@@ -484,3 +484,95 @@
 }
 
 .workspace .op-focus__stage{margin:0;color:#525a53;font-weight:650;font-size:13px;line-height:1.5}
+
+/* Record-level consolidation: child pages use the same legibility and action
+   hierarchy as Home and 360, while their governed forms remain unchanged. */
+.workspace :where(.vp-page,.op-child-workflow) {
+  min-width:0;
+  width:100%;
+  max-width:1180px;
+  margin-inline:auto;
+}
+.workspace .vp-page > .product-page-header {
+  align-items:flex-start;
+  gap:20px;
+  margin-bottom:clamp(18px,2.2vw,28px);
+}
+.workspace .vp-page .product-page-header__copy { min-width:0; }
+.workspace .vp-page .product-page-header h1 {
+  font-size:clamp(27px,3.2vw,40px);
+  line-height:1.16;
+  letter-spacing:-.03em;
+}
+.workspace .vp-page .product-page-header__actions {
+  max-width:100%;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+.workspace .vp-page :where(.product-page-header,.product-section-header,.product-panel,.product-register,.product-filter-bar,.product-metrics) { min-width:0; }
+.workspace .vp-page .product-section-header { margin-block:18px 12px;gap:12px; }
+.workspace .vp-page .product-section-header h2 { font-size:clamp(18px,2vw,24px);line-height:1.3; }
+.workspace .vp-page .product-register-row {
+  gap:clamp(12px,1.4vw,20px);
+  padding:clamp(15px,1.6vw,20px);
+  align-items:center;
+}
+.workspace .vp-page .product-register-row :is(p,small) { overflow-wrap:anywhere; }
+.workspace .vp-page .product-register-row p { font-size:14px;line-height:1.55; }
+.workspace .vp-page .product-register-row small { font-size:12px;line-height:1.5; }
+.workspace .vp-page .product-register-row strong { font-size:14px;line-height:1.45; }
+.workspace .vp-page .product-status { font-size:12px;line-height:1.35;white-space:normal; }
+.workspace .vp-page .product-panel p:not(.product-eyebrow) { font-size:14px;line-height:1.65; }
+.workspace .vp-page :where(.product-description,.product-section-header__meta,.interaction-summary__lead) { line-height:1.65; }
+.workspace :where(.vp-page,.op-child-workflow) :is(input,select,textarea) {
+  max-width:100%;
+  min-height:44px;
+  font-size:16px;
+}
+.workspace :where(.vp-page,.op-child-workflow) :is(button,.button,[role="button"]) {
+  min-height:44px;
+}
+.workspace .vp-page :is(a,button,input,select,textarea,summary):focus-visible,
+.workspace .op-child-workflow :is(a,button,input,select,textarea,summary):focus-visible {
+  outline:2px solid #343a34;
+  outline-offset:3px;
+}
+.workspace .vp-page .op-record-primary-link,
+.workspace .project-portfolio-row .op-record-primary-link {
+  display:inline-flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:5px;
+  width:fit-content;
+  max-width:100%;
+  color:var(--op-text,#20231f);
+  text-decoration:none;
+  text-underline-offset:3px;
+}
+.workspace .vp-page .op-record-primary-link:hover,
+.workspace .project-portfolio-row .op-record-primary-link:hover {
+  text-decoration:underline;
+}
+.workspace .vp-page .op-record-primary-link:focus-visible,
+.workspace .project-portfolio-row .op-record-primary-link:focus-visible {
+  outline:2px solid currentColor;
+  outline-offset:3px;
+}
+.workspace .vp-page .product-filter-bar { gap:10px;flex-wrap:wrap; }
+.workspace .vp-page .product-filter-bar :is(a,button) { min-height:44px; }
+.workspace .vp-page .product-register-row .product-row-actions { gap:8px;flex-wrap:wrap; }
+.workspace .project-portfolio-row { gap:14px; }
+.workspace .project-portfolio-row strong { font-size:14px;line-height:1.45; }
+.workspace .project-portfolio-row small { font-size:12px;line-height:1.5; }
+@media (max-width:800px) {
+  .workspace .vp-page > .product-page-header { flex-direction:column;align-items:stretch; }
+  .workspace .vp-page .product-page-header__actions { justify-content:flex-start; }
+  .workspace .vp-page .product-section-header { flex-wrap:wrap; }
+  .workspace .vp-page .product-filter-bar { align-items:stretch; }
+  .workspace .vp-page .product-toolbar__group { flex:1 1 100%!important; }
+  .workspace .vp-page .product-toolbar__group input { min-width:0;flex:1 1 180px; }
+  .workspace .vp-page .product-register-row { padding:16px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .workspace .vp-page .op-record-primary-link { transition:none; }
+}

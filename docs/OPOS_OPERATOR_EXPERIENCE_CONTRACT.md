@@ -43,3 +43,9 @@ Historical plans may be retained as archives and route maps, not design authorit
 
 ## Acceptance gate
 For changes affecting IA/UI: update the navigation contract, desktop, mobile and command palette together; test old bookmarks and pre-CRM separation; run existing workspace/lifecycle/LinkedIn/Stripe/security tests; verify an exact Vercel preview SHA; inspect authenticated desktop and mobile before merge. Do not replace a failed old-UI assertion with no test—replace it with an assertion for this current contract.
+
+## Record-level and child-page consistency (23 October 2026)
+
+This operator contract applies to all governed child pages, not only Home, navigation, or the top-level registers. Each existing Enquiry, Case 360, Quote, Project 360, Execution, Delivery, QA, Document, and Finance page retains its authoritative server action, permission and evidence rules. Register titles link directly to their owning record; optional Details drawers never form a compulsory navigation step. Every child page should keep record identity, stage/next action, and the governing state discoverable while using readable labels, keyboard focus, and mobile-sized controls.
+
+Visual CSS consolidation is not proof of authenticated end-to-end child-page acceptance. Release remains gated on mobile/desktop checks for the Enquiry → Case → Quote → verified payment → Project → execution → QA → delivery → settlement journey. Do not delete governed controls or trust a passed stylesheet test as a substitute for this walkthrough.

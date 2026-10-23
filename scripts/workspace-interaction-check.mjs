@@ -155,6 +155,32 @@ expect(!layout.includes('interaction-surfaces.css') &&
   (layout.match(/\.css';/g)||[]).length<=4,
   'Retired interaction stylesheet cannot creep back as an added global layer');
 
+
+const childPages=[
+  'app/workspace/acquisition/prospects/page.tsx',
+  'app/workspace/leads/page.tsx',
+  'app/workspace/projects/page.tsx',
+  'app/workspace/quotes/page.tsx',
+  'app/workspace/payments/page.tsx',
+  'app/workspace/commercial-control/page.tsx',
+  'app/workspace/tasks/page.tsx',
+  'app/workspace/companies/page.tsx',
+  'app/workspace/contacts/page.tsx',
+];
+for (const path of childPages) {
+  const page=read(path);
+  expect(page.includes('op-record-primary-link'),
+    'Record title opens its owner directly: '+path);
+  expect(!page.includes('triggerLabel="Inspect"'),
+    'Legacy mandatory Inspect-first wording retired: '+path);
+}
+expect(focusCss.includes('Record-level consolidation: child pages') &&
+  focusCss.includes('.op-record-primary-link') &&
+  focusCss.includes('font-size:16px'),
+  'Deep child pages share readable form and record-link styling');
+expect(read('app/workspace/projects/[id]/execution/page.tsx').includes('op-child-workflow'),
+  'Partner execution is aligned with child-workflow styling without altering state gates');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
