@@ -269,3 +269,216 @@
     box-shadow:0 12px 28px rgba(0,0,0,.07);
   }
 }
+
+/* UI audit consolidation: one readable scale and interactive rhythm.
+ * Scoped to the operator workspace; existing contractual styling remains.
+ * Normal text >=14px, secondary labels >=12px, touch targets >=44px. */
+.workspace .lifecycle-nav--simplified {
+  gap:14px;
+  padding:18px 16px 26px;
+}
+.workspace .lifecycle-nav--simplified .lifecycle-nav__overview {
+  gap:3px;
+}
+.workspace .lifecycle-nav--simplified .op-nav-label {
+  font-size:12px;
+  letter-spacing:.06em;
+  font-weight:650;
+  color:#606660;
+  margin-bottom:4px;
+}
+.workspace .lifecycle-nav--simplified .lifecycle-nav__overview>a {
+  min-height:44px;
+  padding:11px 13px;
+  border-radius:9px;
+  font-size:14px;
+  line-height:1.5;
+}
+.workspace .lifecycle-nav--simplified .lifecycle-nav__overview>a:focus-visible {
+  outline:2px solid currentColor;
+  outline-offset:2px;
+}
+.workspace .op-unified-page {
+  width:min(100%,1050px);
+  margin:0 auto;
+  display:grid;
+  gap:22px;
+  min-width:0;
+  padding:4px 0 35px;
+  color:var(--op-text,#20231f);
+}
+.workspace .op-unified-page__top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+}
+.workspace .op-unified-page__top>div{min-width:0;max-width:690px}
+.workspace .op-unified-page__top h1 {
+  font-size:clamp(29px,3vw,43px);
+  letter-spacing:-.04em;
+  line-height:1.12;
+  margin:6px 0 9px;
+}
+.workspace .op-unified-page__top p:not(.op-unified-page__eyebrow) {
+  font-size:14px;
+  line-height:1.65;
+  margin:0;
+  color:#545a54;
+}
+.workspace .op-unified-page__eyebrow {
+  margin:0;
+  font-size:12px;
+  font-weight:650;
+  letter-spacing:.08em;
+  color:#555b55;
+}
+.workspace .op-unified-page__back {
+  display:inline-flex;
+  min-height:40px;
+  align-items:center;
+  font-size:14px;
+  color:#454c46;
+  margin-bottom:9px;
+}
+.workspace .op-unified-page__search {
+  display:grid;
+  gap:9px;
+  background:#fff;
+  padding:18px;
+  border:1px solid var(--op-line,#e0e3dc);
+  border-radius:12px;
+}
+.workspace .op-unified-page__search label {
+  font-weight:620;
+  font-size:14px;
+  color:#343a34;
+}
+.workspace .op-unified-page__search>div { display:flex;gap:10px;min-width:0; }
+.workspace .op-unified-page__search input {
+  min-width:0;
+  flex:1;
+  width:100%;
+  min-height:46px;
+  border:1px solid #c6cbc5;
+  border-radius:8px;
+  padding:11px 13px;
+  font-size:16px;
+  background:#fff;
+  color:#20231f;
+}
+.workspace .op-unified-page__search button { min-height:46px;flex:none; }
+.workspace .op-unified-page__list,
+.workspace .op-unified-page__directory>section {
+  border:1px solid var(--op-line,#e0e3dc);
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+}
+.workspace .op-unified-page__list-header{
+  padding:18px 20px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border-bottom:1px solid var(--op-line,#e0e3dc);
+}
+.workspace .op-unified-page__list-header h2,
+.workspace .op-unified-page__directory h2 {
+  margin:0;font-size:19px;line-height:1.3;
+}
+.workspace .op-unified-page__list-header small{font-size:12px;color:#545a54}
+.workspace .op-unified-page__list ul,
+.workspace .op-unified-page__directory ul{
+  margin:0;padding:0;list-style:none;
+}
+.workspace .op-unified-page__list li+li,
+.workspace .op-unified-page__directory li+li{
+  border-top:1px solid var(--op-line,#e0e3dc);
+}
+.workspace .op-unified-page__list li>a,
+.workspace .op-unified-page__directory li>a{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:17px 20px;
+  min-height:72px;
+  text-decoration:none;
+  color:#242824;
+}
+.workspace .op-unified-page__list li>a:hover,
+.workspace .op-unified-page__directory li>a:hover{background:#f7f8f5}
+.workspace .op-unified-page__list :is(strong,small),
+.workspace .op-unified-page__directory :is(strong,small){display:block}
+.workspace .op-unified-page__record {flex:1;min-width:0}
+.workspace .op-unified-page__record strong,
+.workspace .op-unified-page__directory strong{font-size:15px;line-height:1.4}
+.workspace .op-unified-page__record small,
+.workspace .op-unified-page__directory small{font-size:13px;line-height:1.5;color:#545a54;margin-top:4px}
+.workspace .op-unified-page__state {flex:0 1 230px;min-width:0}
+.workspace .op-unified-page__state span{display:block;font-size:13px;font-weight:650}
+.workspace .op-unified-page__state small{font-size:12px;line-height:1.5;color:#545a54}
+.workspace .op-unified-page__arrow{font-size:17px;color:#545a54}
+.workspace .op-unified-page__empty{padding:25px 20px;color:#545a54;font-size:14px}
+.workspace .op-unified-page__archive {
+  border:1px solid var(--op-line,#e0e3dc);
+  border-radius:10px;
+  background:#fff;
+}
+.workspace .op-unified-page__archive>summary {
+  padding:16px 20px;cursor:pointer;font-weight:630;font-size:14px;
+  min-height:50px;
+}
+.workspace .op-unified-page__archive>div{display:flex;gap:14px;flex-wrap:wrap;padding:4px 20px 10px}
+.workspace .op-unified-page__archive a{font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.workspace .op-unified-page__archive p{font-size:13px;color:#545a54;padding:0 20px 12px;line-height:1.5}
+.workspace .op-unified-page__directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.workspace .op-unified-page__directory h2{padding:18px 20px;border-bottom:1px solid var(--op-line,#e0e3dc)}
+.workspace .op-unified-page__filters {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.workspace .op-unified-page__filters>a{
+  display:inline-flex;align-items:center;gap:9px;min-height:44px;
+  padding:10px 15px;border:1px solid var(--op-line,#e0e3dc);
+  border-radius:8px;background:#fff;color:#424842;font-size:14px;
+  font-weight:570;text-decoration:none;
+}
+.workspace .op-unified-page__filters>a.is-active {
+  border-color:#343d35;
+  background:#343d35;
+  color:#fff;
+}
+.workspace .op-unified-page__filters>a small {font-size:12px;color:inherit}
+.workspace .op-unified-page__footnote{font-size:14px;line-height:1.6;color:#545a54}
+.workspace .op-unified-page__footnote a{text-decoration:underline;text-underline-offset:3px}
+.workspace .op-unified-page :is(a,button,input,summary):focus-visible{
+  outline:2px solid #303e35;outline-offset:3px;
+}
+/* Shared legacy registers: improve scanning without rewriting their data flow. */
+.workspace .vp-page .product-register-row :is(h3,strong){font-size:15px;line-height:1.45}
+.workspace .vp-page .product-register-row p {font-size:13px;line-height:1.55}
+.workspace .vp-page .product-register-row small {font-size:12px;line-height:1.5}
+.workspace .vp-page .product-page-header .product-description {font-size:14px;line-height:1.65}
+.workspace .vp-page .product-row-actions :is(button,a,summary),
+.workspace .vp-page .product-filter-bar a {min-height:44px;font-size:13px}
+.workspace .record-workspace--focused .op-focus__why,
+.workspace .op-focus-home__heading>p,
+.workspace .op-focus-home__queue li p{font-size:14px;line-height:1.65}
+.workspace .record-workspace--focused .op-focus__owner,
+.workspace .op-focus-home__queue li small{font-size:12px;color:#555b55}
+.workspace .record-workspace--focused .op-focus__disclosure-hint{font-size:12px;color:#555b55}
+.workspace .op-focus-project-nav__overview,
+.workspace .op-focus-project-nav__tools>summary {min-height:44px;font-size:14px}
+.workspace .op-focus-project-nav__tools a {min-height:44px;display:flex;align-items:center;font-size:14px}
+@media(max-width:720px){
+  .workspace .op-unified-page__top>a.button{width:100%;justify-content:center;min-height:44px}
+  .workspace .op-unified-page__list li>a {padding:15px 13px;gap:10px}
+  .workspace .op-unified-page__state{flex:0 1 120px}
+  .workspace .op-unified-page__state small{font-size:12px}
+  .workspace .op-unified-page__search>div{flex-wrap:wrap}
+  .workspace .op-unified-page__search button{width:100%}
+  .workspace .op-unified-page__directory{grid-template-columns:1fr}
+  .workspace .op-mobile-nav--clear{min-height:78px!important;padding-inline:3px!important}
+  .workspace .op-mobile-nav--clear a{min-width:0;min-height:55px;padding:7px 2px!important;gap:5px!important;color:#565d56!important}
+  .workspace .op-mobile-nav--clear a span{font-size:11px!important;line-height:1.25!important;text-align:center}
+  .workspace .op-mobile-nav--clear a.is-active {color:#1e3326!important;font-weight:700!important}
+}
+@media(max-width:390px){
+  .workspace .op-unified-page__state{flex-basis:100px}
+  .workspace .op-unified-page__state span{font-size:12px}
+  .workspace .op-unified-page__list li>a {padding:14px 10px}
+}
