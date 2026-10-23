@@ -1,6 +1,8 @@
 # Overflow Partner — Product Architecture
 
-This document is the canonical workspace information architecture and UI composition contract for the commercial SaaS product. The route inventory is broader than permanent navigation: routes exist for primary work, contextual work, utilities, compatibility and governed external experiences.
+**Status: ARCHITECTURE HISTORY / route inventory only.** Current workspace UI and navigation are governed by [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md). The previous dense/dark UI and large permanent sidebar lists must not be used to regenerate interfaces, components or tests.
+
+This document records the historical workspace architecture for the commercial product. The route inventory is broader than permanent navigation: routes exist for primary work, contextual work, utilities, compatibility and governed external experiences.
 
 ## Product model
 
@@ -23,35 +25,9 @@ Every workspace destination is classified in `lib/presentation/navigationContrac
 
 The desktop rail intentionally exposes fewer destinations than the complete route map.
 
-### Permanent desktop rail
+### Current permanent navigation
 
-**Home**
-- Mission Control
-- Approvals
-
-**Operate**
-- Enquiries
-- Cases
-- Projects
-
-**Control**
-- Client quotes
-- Payments
-- Commercial control
-- Issues
-- Actions
-
-**Reference**
-- Documents
-- Execution Partners
-- Executive view
-- Risk & compliance
-- Knowledge
-
-**System**
-- Settings
-
-Search is provided through the command palette. Notifications are a top-bar utility. Partner Assessments and Messages are contextual/quick-access surfaces rather than competing permanent workflows.
+**Desktop:** Outreach / Home / Opportunities / Projects / Finance / Documents. **Mobile:** Outreach / Home / Opportunities / Projects / More. My Work and the More directory retain scoped supporting tools. See [Primary Navigation Product Contract](PRIMARY_NAV_PRODUCT_CONTRACT.md).
 
 ## Canonical workspace route map
 
@@ -209,8 +185,8 @@ Desktop favours scan density:
 
 - fixed navigation rail;
 - 1200–1320px operating canvas;
-- compact controls;
-- dense registers and sticky table headers;
+- readable 44px interactive targets where practical;
+- scannable registers, with secondary detail revealed contextually;
 - limited card usage;
 - record context appears only while a record is being operated.
 
@@ -219,8 +195,8 @@ Desktop favours scan density:
 Mobile is not stacked desktop:
 
 - sticky compact product header;
-- five persistent destinations: **Home, Enquiries, Cases, Projects, Finance**;
-- Finance opens Payments;
+- five persistent destinations: **Outreach, Home, Opportunities, Projects, More**;
+- Finance and Documents remain accessible through More on mobile;
 - 44px touch targets;
 - portfolio tables become cards rather than horizontally compressed columns;
 - metrics collapse responsively;
@@ -248,7 +224,7 @@ Technical database and route names such as `leads` may remain for compatibility 
 
 The UI should feel like a premium engineering operating system:
 
-- off-black / charcoal operating canvas;
+- calm neutral operator canvas; charcoal remains a restrained brand accent rather than a mandated dark theme;
 - high-contrast neutral typography;
 - restrained orange accent;
 - no generic SaaS gradients, glass cards or decorative shadows;
@@ -260,4 +236,4 @@ The UI should feel like a premium engineering operating system:
 
 ## Productisation rule
 
-New feature work must use the shared `ProductUI` primitives and the final commercial SaaS stylesheet before introducing a page-specific visual system. New routes do not earn permanent navigation by existing; placement must be justified in the navigation contract.
+New feature work must reuse current shared primitives and stylesheet owners under the operator-experience contract. Do not restore retired commercial-SaaS styles. New routes do not earn permanent navigation by existing; placement must be justified in the navigation contract.
