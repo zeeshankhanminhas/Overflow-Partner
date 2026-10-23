@@ -91,16 +91,9 @@ Native modal behaviour must provide Escape-to-close, backdrop dismissal where sa
 
 ## Current truth stays on the page
 
-Never move these into a drawer merely to reduce vertical space:
-- record identity
-- current state / operating phase
-- current owner or waiting-on actor
-- current blocker/readiness
-- next permitted action
-- concise current evidence
-- current-stage live work
+Always keep the **record identity, current operating position, waiting owner, genuine blocker and next permitted action** readable on the main page. Summarise essential live evidence required to decide the next action; full tasks, documents and delivery artefacts may use accessible, clearly named progressive disclosures. Do not show all current-stage work at once merely because an older layout mandated it.
 
-Supporting history, metadata, old evidence and correspondence should normally be contextual.
+Supporting history, metadata, full evidence and correspondence should normally be contextual.
 
 ## Register behaviour
 
