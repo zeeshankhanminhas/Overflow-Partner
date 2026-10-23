@@ -6,14 +6,14 @@ This specification turns the six Visual System Contracts into one finite target 
 
 The product contracts govern behaviour. This specification governs rendering.
 
-## Non-negotiable rules
+## Reusable principles — never override accessible operator defaults
 
-1. No page or feature may invent its own spacing, radius, typography, border, control height, capsule geometry or icon style.
-2. No new `*-polish.css`, `*-wave.css`, `*-parity.css`, `*-reference.css` or rescue override layer may be added.
-3. No legacy `--saas-*` presentation tokens may be introduced or retained in active workspace presentation code.
+1. Reuse shared spacing, radius, typography, colour and icon tokens wherever possible; accessibility, content and device geometry may require considered exceptions.
+2. Do not introduce competing rescue override layers; consolidate styles under existing ownership.
+3. Do not introduce new `--saas-*` presentation tokens; migrate existing inherited declarations deliberately and without visual regression.
 4. No hard-coded dark legacy islands are allowed inside JSX.
 5. No Unicode glyph may be used as a UI icon where a conventional SVG icon is required.
-6. Feature CSS may compose layouts, but visual primitive values come from the target foundation tokens only.
+6. Feature CSS composes layouts; shared primitives define defaults, including operator-experience accessibility minima. This target specification is not a hard-coded veto against necessary improvements.
 
 ---
 
@@ -259,4 +259,4 @@ Required migration method:
 4. verify the build;
 5. then migrate primitives to this target foundation.
 
-This specification is the target baseline. Feature work must not create exceptions casually.
+This is a target visual reference subordinate to the active operator-experience contract. Its original pre-consolidation migration checklist is historical and must not block removal of unused legacy layers or improvement of accessibility.
