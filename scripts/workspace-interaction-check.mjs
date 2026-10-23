@@ -156,6 +156,16 @@ expect(!layout.includes('interaction-surfaces.css') &&
   'Retired interaction stylesheet cannot creep back as an added global layer');
 
 
+expect(read('app/workspace/communications/page.tsx').includes('op-record-primary-link') &&
+  !read('app/workspace/communications/page.tsx').includes('triggerLabel="Inspect"'),
+  'Correspondence opens its owning thread without Inspect-first');
+expect(read('app/workspace/settings/page.tsx').includes('op-record-primary-link') &&
+  !read('app/workspace/settings/page.tsx').includes('Inspect context first'),
+  'Settings directory opens the right configuration surface directly');
+expect(focusCss.includes('Supporting modules: issues and management') &&
+  focusCss.includes('.intelligence-workspace .saas-metrics'),
+  'Management and issues use readable responsive presentation while preserving source data');
+
 const childPages=[
   'app/workspace/acquisition/prospects/page.tsx',
   'app/workspace/leads/page.tsx',
