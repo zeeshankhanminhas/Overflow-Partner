@@ -21,6 +21,7 @@ type RecordWorkspaceProps = {
   audit?: ReactNode;
   notices?: ReactNode;
   className?: string;
+  focusMode?: boolean;
 };
 
 function Slot({ id, title, children, className = '' }: { id?: string; title: string; children?: ReactNode; className?: string }) {
@@ -54,11 +55,66 @@ export default function RecordWorkspace({
   audit,
   notices,
   className = '',
+  focusMode = false,
 }: RecordWorkspaceProps) {
   const hasCurrentWork = Boolean(activities);
   const hasContext = Boolean(communications || history || olderDocuments || metadata || audit);
   const waitingOnly = Boolean(presentation?.nextAction.kind === 'wait');
   const owner = presentation ? ownerLabel(presentation) : 'Your team';
+
+  // Focus-first is a presentation option, not an alternative workflow.
+  // The same governed action, evidence, readiness and audit components are reused.
+  if (focusMode) {
+    const blocking = presentation?.blockers ?? [];
+    const hasBlockers = blocking.length > 0;
+    return <section data-surface="record" data-view="focused"
+      className={`op-surface op-surface--record record-workspace record-workspace--focused ${className}`.trim()}>
+      <header id="record-header" className="record-workspace__header">{header}</header>
+      {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
+
+      <div className="op-focus__body">
+        <section className="op-focus__decision" aria-labelledby="op-focus-title">
+          <p className="op-focus__eyebrow">What needs to happen next</p>
+          <h2 id="op-focus-title">{presentation ? commercialCopy(presentation.nextAction.label) : 'Next action'}</h2>
+          {presentation ? <p className="op-focus__why">{commercialCopy(presentation.nextAction.reason || presentation.summary)}</p> : null}
+          {presentation?.waitingOn ? <p className="op-focus__owner">Waiting on: {owner} · {commercialCopy(presentation.waitingOn.label)}</p> : null}
+          {hasBlockers ? <div className="op-focus__blockers" role="status">
+            <strong>Before this can proceed</strong>
+            <ul>{blocking.slice(0, 4).map((item, index) => <li key={index}>{commercialCopy(item)}</li>)}</ul>
+            {blocking.length > 4 ? <p>{blocking.length - 4} more requirement(s) in the checks below.</p> : null}
+          </div> : null}
+          <div id="record-next-action" className="op-focus__action">{nextAction}</div>
+        </section>
+
+        <details className="op-focus__disclosure" open={hasBlockers}>
+          <summary><span>Requirements and readiness</span><span className="op-focus__disclosure-hint">{hasBlockers ? `${blocking.length} blocker(s)` : 'Review checks'}</span></summary>
+          <div id="record-readiness" className="op-focus__detail-body">{readiness}</div>
+        </details>
+        {evidence ? <details className="op-focus__disclosure" open={hasBlockers}>
+          <summary><span>Documents and evidence</span><span className="op-focus__disclosure-hint">View controlled records</span></summary>
+          <div id="record-documents" className="op-focus__detail-body">{evidence}</div>
+        </details> : null}
+        {activities ? <details className="op-focus__disclosure">
+          <summary><span>Current work</span><span className="op-focus__disclosure-hint">Tasks and delivery updates</span></summary>
+          <div id="record-activities" className="op-focus__detail-body">{activities}</div>
+        </details> : null}
+        <details className="op-focus__disclosure">
+          <summary><span>Stage, key facts and history</span><span className="op-focus__disclosure-hint">Supporting context</span></summary>
+          <div className="op-focus__detail-body op-focus__context">
+            <div id="record-state">{stateStrip}</div>
+            <div id="record-summary">{summary}</div>
+            {hasContext ? <ContextActions>
+              {communications ? <WorkspaceDrawer triggerLabel="Messages" eyebrow="Record context" title="Messages">{communications}</WorkspaceDrawer> : null}
+              {history ? <WorkspaceDrawer triggerLabel="Activity" eyebrow="Record context" title="Activity">{history}</WorkspaceDrawer> : null}
+              {olderDocuments ? <WorkspaceDrawer triggerLabel="Older documents" eyebrow="Record context" title="Older documents">{olderDocuments}</WorkspaceDrawer> : null}
+              {metadata ? <WorkspaceDrawer triggerLabel="Record details" eyebrow="Record context" title="Record details">{metadata}</WorkspaceDrawer> : null}
+              {audit ? <WorkspaceDrawer triggerLabel="Audit" eyebrow="Traceability" title="Audit trail">{audit}</WorkspaceDrawer> : null}
+            </ContextActions> : null}
+          </div>
+        </details>
+      </div>
+    </section>;
+  }
 
   return <section data-surface="record" className={`op-surface op-surface--record record-workspace ${presentation ? 'record-workspace--interpreted' : ''} ${className}`.trim()}>
     <header id="record-header" className="record-workspace__header">{header}</header>
