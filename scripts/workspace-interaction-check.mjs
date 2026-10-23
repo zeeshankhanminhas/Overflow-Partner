@@ -54,6 +54,59 @@ expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus
 expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
 
+
+// IA audit regression: retain authoritative routes while giving users one doorway.
+const nav=read('lib/presentation/navigationContract.ts');
+const sidebar=read('app/workspace/LifecycleSidebar.tsx');
+const mobileNav=read('components/workspace/MobileWorkspaceNav.tsx');
+const opportunities=read('app/workspace/opportunities/page.tsx');
+const work=read('app/workspace/attention/page.tsx');
+const more=read('app/workspace/more/page.tsx');
+const acquisition=read('app/workspace/acquisition/page.tsx');
+const outreachCss=read('app/outreach/outreach.module.css');
+expect(nav.includes("label: 'Outreach', href: '/outreach', group: 'outreach'"),
+  'Cold outreach is explicitly outside the CRM navigation contract');
+expect(nav.includes("href: '/workspace/opportunities'") && nav.includes("href: '/workspace/attention'"),
+  'Canonical Opportunities and My Work entrypoints are defined');
+expect(sidebar.includes("lifecycle-nav--simplified") &&
+  sidebar.includes('href={n.opportunities.href}') &&
+  sidebar.includes('href={n.myWork.href}') &&
+  sidebar.includes('href={n.more.href}'),
+  'Desktop navigation uses canonical work entrypoints and secondary More');
+expect(!sidebar.includes('<NavSection title="CRM">') &&
+  !sidebar.includes('<NavSection title="Commercial">') &&
+  !sidebar.includes('<NavSection title="Delivery">'),
+  'Desktop no longer exposes competing module groups');
+expect(mobileNav.includes("href:'/workspace/opportunities'") &&
+  mobileNav.includes("href:'/workspace/more'") &&
+  mobileNav.includes("href:'/outreach'"),
+  'Mobile uses the same primary IA with a More directory');
+expect(opportunities.includes("from('prospects')") &&
+  opportunities.includes("rpc('op_case_queue'") &&
+  opportunities.includes("from('projects')") &&
+  opportunities.includes("href:'/workspace/leads/'"),
+  'Opportunities combines existing Enquiry and Case records while excluding Project-owned Cases');
+expect(!opportunities.includes(".insert(") && !opportunities.includes(".update(") &&
+  !opportunities.includes("CREATE TABLE"),
+  'Unified Opportunities page is read-only; no duplicate CRM model');
+expect(work.includes('const filtered=') && work.includes('buildMissionPriorityQueue') &&
+  work.includes("item.kind===view"), 'My Work filters canonical queue without re-ranking it');
+expect(more.includes("href:n.contacts.href") && more.includes("href:n.approvals.href") &&
+  more.includes("href:n.partners.href") && more.includes("href:n.settings.href"),
+  'Supporting records stay discoverable from More');
+expect(!acquisition.includes('LinkedIn funnel') &&
+  !acquisition.includes("label:'Outreach started'") &&
+  acquisition.includes('href="/outreach"'),
+  'Governed Acquisition no longer exposes legacy cold-Outreach controls');
+expect(command.includes('title:n.opportunities.label') &&
+  command.includes('title:n.finance.label') && command.includes('title:n.more.label'),
+  'Command palette uses canonical destination names');
+expect(focusCss.includes('op-unified-page__directory') &&
+  focusCss.includes('min-height:44px') && focusCss.includes('op-mobile-nav--clear'),
+  'Common readable spacing and minimum touch targets cover unified pages and mobile navigation');
+expect(outreachCss.includes('color:#555b55'), 'Outreach secondary text meets improved contrast baseline');
+expect(recordWorkspace.includes('op-focus__stage'), 'Case and Project 360 expose current position above next action');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
