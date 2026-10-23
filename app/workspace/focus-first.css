@@ -482,3 +482,5 @@
   .workspace .op-unified-page__state span{font-size:12px}
   .workspace .op-unified-page__list li>a {padding:14px 10px}
 }
+
+.workspace .op-focus__stage{margin:0;color:#525a53;font-weight:650;font-size:13px;line-height:1.5}
