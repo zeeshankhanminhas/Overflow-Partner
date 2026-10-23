@@ -2,7 +2,7 @@
 
 Status: normative presentation-state architecture
 
-This document governs how Overflow Partner turns authoritative business state into operator-facing UI. It does not redefine the Business Lifecycle Constitution or database authority. Workspace interaction and visual behaviour are governed by `WORKSPACE_PRODUCT_CONTRACTS.md`.
+This document governs how Overflow Partner turns authoritative business state into operator-facing UI. It does not redefine the Business Lifecycle Constitution or database authority. Business-to-presentation meaning remains governed here. Current workspace navigation, accessibility and UI hierarchy are governed by `OPOS_OPERATOR_EXPERIENCE_CONTRACT.md`, while `WORKSPACE_PRODUCT_CONTRACTS.md` supplies compatible behavioural and relationship rules.
 
 ## 1. Core architecture
 

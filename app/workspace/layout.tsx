@@ -95,13 +95,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <main className="midts-content op-content">{children}</main>
       </section>
 
-      <MobileWorkspaceNav
-        home={n.missionControl.href}
-        opportunities={n.enquiries.href}
-        projects={n.projects.href}
-        approvals={n.approvals.href}
-        documents={n.documents.href}
-      />
+      <MobileWorkspaceNav />
     </div>
   </WorkspaceInteractionProvider>;
 }

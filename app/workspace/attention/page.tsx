@@ -5,11 +5,14 @@ import { formatWaitingMinutes, resolveBusinessAttention, type AttentionSource } 
 import { buildMissionPriorityQueue, summariseMissionPriorityQueue } from '@/lib/dashboard/priorityQueue';
 import { getOperationalExceptions } from '@/lib/operations/exceptions';
 import { getApprovalQueue } from '@/lib/presentation/approvals';
-import { SignalStrip, WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
+import { WorkQueue, type WorkQueueItem } from '@/components/workspace/OperationalUI';
 
 function actionLabel(kind:'issue'|'approval'|'dependency'){return kind==='issue'?'Resolve':kind==='approval'?'Review':'Open'}
 
-export default async function AttentionPage(){
+type View='all'|'approval'|'issue'|'dependency';
+export default async function AttentionPage({searchParams}:{searchParams?:Promise<{view?:string}>}){
+  const params=searchParams?await searchParams:{};
+  const view:View=['approval','issue','dependency'].includes(String(params.view))?params.view as View:'all';
   const {supabase,organisationId}=await requireUserContext();
   const [dashboard,pendingPartnerResult,issues,approvals]=await Promise.all([
     getDashboardSnapshot(supabase,organisationId),
@@ -42,7 +45,8 @@ export default async function AttentionPage(){
   const attention=resolveBusinessAttention([...partnerAttention,...canonicalAttention]);
   const queue=buildMissionPriorityQueue({approvals,dependencies:attention.items,issues});
   const summary=summariseMissionPriorityQueue(queue);
-  const queueItems:WorkQueueItem[]=queue.map(item=>({
+  const filtered=view==='all'?queue:queue.filter(item=>item.kind===view);
+  const queueItems:WorkQueueItem[]=filtered.map(item=>({
     id:item.id,
     label:`${item.tier} · ${item.label}`,
     title:item.title,
@@ -54,19 +58,29 @@ export default async function AttentionPage(){
     actionLabel:actionLabel(item.kind),
   }));
 
-  return <section className="attention-page">
-    <header className="attention-page__header">
-      <div><Link className="op-object-header__back" href="/workspace">← Mission Control</Link><p className="op-ui-eyebrow">Operating attention</p><h1>All attention</h1><p>Every active decision, dependency and operational exception in one deterministic priority order.</p></div>
-      <Link className="button secondary" href="/workspace">Back to Mission Control</Link>
+  return <section className="attention-page op-unified-page" aria-labelledby="my-work-heading">
+    <header className="op-unified-page__top">
+      <div>
+        <Link href="/workspace" className="op-unified-page__back">← Home</Link>
+        <p className="op-unified-page__eyebrow">OPOS / MY WORK</p>
+        <h1 id="my-work-heading">My Work</h1>
+        <p>One priority queue for decisions, issues and dependencies. Ranked by existing business rules.</p>
+      </div>
     </header>
-
-    <SignalStrip items={[
-      {label:'Total attention',value:summary.total,detail:'Ranked active items'},
-      {label:'P1 critical',value:summary.p1,detail:'Immediate business consequence',tone:summary.p1?'critical':'neutral'},
-      {label:'P2 high',value:summary.p2,detail:'High priority intervention',tone:summary.p2?'attention':'neutral'},
-      {label:'Composition',value:summary.decisions,detail:`${summary.issues} issues · ${summary.dependencies} dependencies`,tone:summary.total?'waiting':'neutral'},
-    ]}/>
-
-    <WorkQueue eyebrow="P1 → P4" title="Ranked attention queue" items={queueItems} empty="Nothing currently needs intervention."/>
+    <nav className="op-unified-page__filters" aria-label="Filter work">
+      {([
+        ['all','Everything',summary.total],
+        ['approval','Approvals',summary.decisions],
+        ['issue','Issues',summary.issues],
+        ['dependency','Waiting & dependencies',summary.dependencies],
+      ] as const).map(([key,label,count])=><Link key={key}
+        href={key==='all'?'/workspace/attention':'/workspace/attention?view='+key}
+        aria-current={view===key?'page':undefined} className={view===key?'is-active':''}>
+        {label} <small>{count}</small>
+      </Link>)}
+    </nav>
+    <WorkQueue eyebrow="P1 → P4" title={view==='all'?'Prioritised work':'Matching work'}
+      items={queueItems} empty="Nothing in this category needs attention."/>
+    <p className="op-unified-page__footnote">Assigned routine tasks are in the <Link href="/workspace/tasks">Tasks register</Link>. Approvals, issues and dependencies retain their existing authoritative owners and controls.</p>
   </section>;
 }

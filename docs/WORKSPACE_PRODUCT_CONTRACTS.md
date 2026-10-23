@@ -1,10 +1,10 @@
 # Overflow Partner — Workspace Product Contracts
 
-**Status: Normative and authoritative for workspace frontend behaviour**
+**Status: ACTIVE for compatible frontend behaviour; current IA/UI defaults and precedence are in [Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md).**
 
 This document governs the commercial operator experience of the Overflow Partner workspace. It does not redefine lifecycle authority, database state, RLS, document governance or financial controls.
 
-The product uses exactly four reusable page surfaces, seven frontend contracts and five CRM/business relationship contracts. New pages or components must fit these rules rather than create a new design language.
+The product reuses four conceptual surfaces, seven compatible behaviour contracts and five CRM/business relationship contracts. These are not a mandate for extra permanent panels, redundant actions or tiny controls.
 
 ## Four canonical surfaces
 
@@ -59,9 +59,9 @@ A register is a productivity surface for finding, prioritising and opening recor
 
 Desktop anatomy:
 
-`# | Object | State | Owner | Due/Age | Business context | Next action | More`
+`Object | State / stage | Attention or next action | Optional supporting detail`
 
-A domain may omit columns that do not help the operator, but column order and visual hierarchy should remain familiar.
+A domain may omit columns or adapt to a readable mobile row. Never add columns solely to satisfy a legacy dense-register diagram; show only information needed to choose work.
 
 Rules:
 
@@ -73,8 +73,8 @@ Rules:
 6. Sorting should be introduced for columns where it changes prioritisation.
 7. Pagination/scalable retrieval is required for large collections.
 8. Bulk selection exists only for genuine batch work.
-9. Row actions show one expected action plus Inspect/More rather than every possible action.
-10. Mobile preserves priority: Object → State → Due/Age → Next action; secondary metadata moves behind Inspect.
+9. A row exposes one obvious record-opening action. Inspect or More is optional for real supporting context, not a compulsory extra hop or duplicate Open button.
+10. Mobile preserves priority: Object → State → Due/Age → Next action. Secondary metadata moves into a disclosure or context panel only where necessary.
 11. Returning from a record should preserve filter, page and scroll context where technically practical.
 
 Canonical UI: `ProductRegister`, `ProductRegisterRow`.
@@ -208,7 +208,7 @@ Rules:
 1. If a visible object has an authoritative record, its name/reference is inspectable or openable.
 2. Relationship navigation is contextual and scoped to the current object; Company 360 links to that company's work, not a generic global register where a scoped view is available.
 3. Record surfaces expose the core relationship chain without duplicating lifecycle state.
-4. Inspect supporting context in a drawer first; open the authoritative record when deeper work is required.
+4. Open the authoritative record directly when that is the expected next step. A preview drawer is optional, not a required Inspect → Open journey.
 5. Historical relationships remain stable even when a contact later changes employer or role.
 
 ## CRM 2. Contact Role Contract
@@ -320,10 +320,13 @@ The repository previously contained several overlapping UX/presentation document
 
 ## Implementation authority
 
+**Current UI/IA precedence:** `OPOS_OPERATOR_EXPERIENCE_CONTRACT.md` owns default navigation, interaction hierarchy, typography and control sizing. Behavioural accessibility, CRM relationships and secure action continuity remain governed here. Historical CSS filenames are not authority to restore deleted styles.
+
+
 - Surface types: `components/workspace/ProductSurface.tsx` + `app/workspace/workspace-surfaces.css`
 - Product primitives: `components/workspace/ProductUI.tsx`
 - Presentation contracts: `app/workspace/workspace-surfaces.css`
-- Interaction mechanics: `components/workspace/InteractionSurface.tsx` + `app/workspace/interaction-surfaces.css`
+- Interaction mechanics: `components/workspace/InteractionSurface.tsx` and active shared workspace CSS. Do not resurrect retired `interaction-surfaces.css`.
 - Business presentation state: `lib/presentation/`
 - CRM relationship presentation: Company/Contact master records + scoped drawers/links on owning records
 - File identity: `components/workspace/FileTypeThumbnail.tsx`
