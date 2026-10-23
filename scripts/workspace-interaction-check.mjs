@@ -92,8 +92,9 @@ expect(!opportunities.includes(".insert(") && !opportunities.includes(".update("
 expect(work.includes('const filtered=') && work.includes('buildMissionPriorityQueue') &&
   work.includes("item.kind===view"), 'My Work filters canonical queue without re-ranking it');
 expect(more.includes("href:n.contacts.href") && more.includes("href:n.approvals.href") &&
-  more.includes("href:n.partners.href") && more.includes("href:n.settings.href"),
-  'Supporting records stay discoverable from More');
+  more.includes("href:n.partners.href") && more.includes("href:n.settings.href") &&
+  more.includes("href:n.finance.href") && more.includes("href:n.documents.href"),
+  'Supporting records, Finance and Documents remain discoverable from mobile More');
 expect(!acquisition.includes('LinkedIn funnel') &&
   !acquisition.includes("label:'Outreach started'") &&
   acquisition.includes('href="/outreach"'),
