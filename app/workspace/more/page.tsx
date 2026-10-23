@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { primaryNavigation as n } from '@/lib/presentation/navigationContract';
 
 const sections=[
+  {title:'Workspaces',items:[
+    {label:'Finance',href:n.finance.href,detail:'Client receivables and partner payments'},
+    {label:'Documents',href:n.documents.href,detail:'Controlled documents and templates'},
+  ]},
   {title:'My Work',items:[
     {label:'All priorities',href:n.myWork.href,detail:'Decisions, issues and dependencies together'},
     {label:'Approvals',href:n.approvals.href,detail:'Authority decisions'},
