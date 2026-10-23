@@ -16,7 +16,6 @@ const css=[
 const productContracts=read('docs/WORKSPACE_PRODUCT_CONTRACTS.md');
 const recordWorkspace=read('components/workspace/RecordWorkspace.tsx');
 const missionControl=read('app/workspace/page.tsx');
-const mobileMissionControl=read('components/workspace/MobileMissionControl.tsx');
 const templateReview=read('components/workspace/templates/TemplateReviewCentre.tsx');
 
 expect(provider.includes('aria-labelledby={titleId}'),'Overlay has programmatic title relationship');
@@ -30,7 +29,7 @@ expect(css.includes(':focus-visible'),'Shared interaction surfaces have visible 
 expect(css.includes('prefers-reduced-motion'),'Interaction layer respects reduced motion');
 expect(css.includes('100dvh'),'Mobile work windows use viewport-safe full-screen treatment');
 expect(layout.includes("import './workspace-features.css';")&&css.includes('.workspace-shell-actions'),'Shared interaction styles are mounted through the workspace feature layer');
-expect((layout.match(/\.css';/g)||[]).length===4 && layout.indexOf("import './focus-first.css';")>layout.indexOf("import './workspace-surfaces.css';"),'Focus layer loads after the three shared workspace stylesheets');
+expect(['workspace-base.css','workspace-features.css','workspace-surfaces.css'].every(file=>layout.includes("import './"+file+"';")) && (layout.match(/\.css';/g)||[]).length<=4 && layout.indexOf("import './focus-first.css';")>layout.indexOf("import './workspace-surfaces.css';"),'Shared workspace styling has no extra rescue layer; future consolidation may reduce imports');
 expect(productContracts.includes('# 7. System Feedback & Accessibility Contract'),'Seven-contract product standard is present');
 expect(!layout.includes('commercial-saas-ui.css'),'Legacy commercial SaaS layer is not loaded');
 expect(recordWorkspace.includes('showStatus={false}')&&recordWorkspace.includes('showActionSummary={false}')&&!recordWorkspace.includes('href={primaryHref}'),'Record state summary does not repeat its status badge or next-action control');
@@ -51,7 +50,7 @@ expect(projectNav.includes('Project tools') && projectNav.includes('ProjectRealt
        'Project tools remain accessible without persistent tabs; real-time refresh is kept');
 expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus-visible'),
        'Focus-first UI remains responsive with visible keyboard controls');
-expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
+expect(!missionControl.includes('mobile-mission__work-grid')&&missionControl.includes('Top priority')&&missionControl.includes('Up next'),'Home remains one focused priority rather than resurrecting the old mobile dashboard contract');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
 
 
@@ -153,8 +152,8 @@ expect(legacyArchitecture.includes('Status: ARCHITECTURE HISTORY') &&
   opdsContract.includes('OPOS Operator Experience Contract'),
   'Historical architecture and OPDS geometry cannot override current workspace UI');
 expect(!layout.includes('interaction-surfaces.css') &&
-  (layout.match(/\.css';/g)||[]).length===4,
-  'Retired interaction stylesheet cannot creep back as a fifth global layer');
+  (layout.match(/\.css';/g)||[]).length<=4,
+  'Retired interaction stylesheet cannot creep back as an added global layer');
 
 let failed=0;
 for(const check of checks){
