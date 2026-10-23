@@ -129,11 +129,11 @@ Avoid:
 
 ## Governance
 
-Any new component, document template or visual pattern must:
+Any new **brand asset, controlled document template or engineering drawing visual pattern** must:
 
 1. use OPDS tokens;
 2. preserve the red extension meaning;
 3. minimise manual entry;
 4. use controlled references;
 5. support print and responsive use where relevant;
-6. be added to the live `/workspace/opds` specimen page when reusable.
+6. be added to the relevant document/brand specimen library when reusable. Workspace-specific reusable UI is governed instead by `OPOS_OPERATOR_EXPERIENCE_CONTRACT.md` and active component primitives; adding it to OPDS must not be a prerequisite to better operator UX.
