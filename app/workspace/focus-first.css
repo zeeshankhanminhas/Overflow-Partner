@@ -576,3 +576,56 @@
 @media (prefers-reduced-motion:reduce) {
   .workspace .vp-page .op-record-primary-link { transition:none; }
 }
+/* Invoice child route: small-screen reading changes must not alter the
+   governed print document, financial totals, or settlement evidence. */
+.workspace .invoice-document-page__toolbar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-bottom:20px;
+  color:#545a54;
+  font-size:14px;
+}
+.workspace .invoice-document-page__paper {
+  box-sizing:border-box;
+  width:100%;
+  max-width:980px;
+  margin:0 auto;
+  background:#fff;
+  color:#111;
+  padding:48px;
+  border:1px solid #ddd;
+}
+.workspace .invoice-document-page__header {
+  display:flex;
+  justify-content:space-between;
+  gap:40px;
+  border-bottom:2px solid #111;
+  padding-bottom:28px;
+}
+.workspace .invoice-document-page__title {
+  font-size:clamp(32px,5vw,46px);
+  line-height:1.15;
+  margin:12px 0;
+}
+.workspace .invoice-document-page__parties {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:40px;
+  padding:32px 0;
+  overflow-wrap:anywhere;
+}
+@media(max-width:700px) {
+  .workspace .invoice-document-page__paper { padding:clamp(16px,5vw,32px); }
+  .workspace .invoice-document-page__header { flex-wrap:wrap;gap:20px; }
+  .workspace .invoice-document-page__header>div:last-child { text-align:left!important; }
+  .workspace .invoice-document-page__parties { grid-template-columns:1fr;gap:20px; }
+}
+@media print {
+  .workspace .invoice-document-page__paper { padding:48px;border:0;max-width:none; }
+  .workspace .invoice-document-page__title { font-size:46px; }
+  .workspace .invoice-document-page__header { flex-wrap:nowrap; }
+  .workspace .invoice-document-page__parties { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}

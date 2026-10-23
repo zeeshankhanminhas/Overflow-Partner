@@ -178,6 +178,11 @@ expect(focusCss.includes('Record-level consolidation: child pages') &&
   focusCss.includes('.op-record-primary-link') &&
   focusCss.includes('font-size:16px'),
   'Deep child pages share readable form and record-link styling');
+expect(read('app/workspace/acquisition/[id]/page.tsx').includes('<RecordWorkspace focusMode'),
+  'Enquiry detail inherits the same focus-first model as Case and Project');
+expect(read('app/workspace/commercial-control/invoices/[id]/page.tsx').includes('invoice-document-page__parties') &&
+  focusCss.includes('@media print') && focusCss.includes('.invoice-document-page__paper'),
+  'Invoice child route adapts to mobile without dropping controlled print layout');
 expect(read('app/workspace/projects/[id]/execution/page.tsx').includes('op-child-workflow'),
   'Partner execution is aligned with child-workflow styling without altering state gates');
 
