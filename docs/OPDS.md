@@ -2,7 +2,7 @@
 
 ## Purpose
 
-OPDS is the single source of truth for Overflow Partner identity, interface, engineering documents and communications. It governs the public website, private Workspace, controlled documents, drawing packs, commercial output and future client-facing assets.
+OPDS governs Overflow Partner **brand identity, public expression, controlled engineering/commercial documents, drawings and formal communications**. Current private Workspace navigation, layout, interaction and accessible UI sizing are governed by [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md); its priorities supersede historical OPDS interface-size guidance.
 
 ## Core principle
 
@@ -46,8 +46,8 @@ The red extension is functional, not decorative. It represents Overflow Partner 
 ## Spacing and geometry
 
 - Base spacing unit: 4px
-- Controls: 6px radius maximum
-- Panels: 8px radius maximum
+- Controlled engineering/document graphics: controls 6px maximum radius; panels 8px maximum radius
+- Private operator Workspace controls and panels: follow accessible OPOS UI guidelines rather than these document-specific dimensions
 - Documents and drawings: square geometry permitted and preferred
 - No glassmorphism, gradients, pill-heavy UI or decorative shadows
 
