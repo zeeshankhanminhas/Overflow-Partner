@@ -30,11 +30,27 @@ expect(css.includes(':focus-visible'),'Shared interaction surfaces have visible 
 expect(css.includes('prefers-reduced-motion'),'Interaction layer respects reduced motion');
 expect(css.includes('100dvh'),'Mobile work windows use viewport-safe full-screen treatment');
 expect(layout.includes("import './workspace-features.css';")&&css.includes('.workspace-shell-actions'),'Shared interaction styles are mounted through the workspace feature layer');
-expect((layout.match(/\.css';/g)||[]).length===3,'Workspace shell loads three ordered shared CSS layers');
+expect((layout.match(/\.css';/g)||[]).length===4 && layout.indexOf("import './focus-first.css';")>layout.indexOf("import './workspace-surfaces.css';"),'Focus layer loads after the three shared workspace stylesheets');
 expect(productContracts.includes('# 7. System Feedback & Accessibility Contract'),'Seven-contract product standard is present');
 expect(!layout.includes('commercial-saas-ui.css'),'Legacy commercial SaaS layer is not loaded');
 expect(recordWorkspace.includes('showStatus={false}')&&recordWorkspace.includes('showActionSummary={false}')&&!recordWorkspace.includes('href={primaryHref}'),'Record state summary does not repeat its status badge or next-action control');
-expect(missionControl.includes('priorityQueue.slice(1,6)')&&missionControl.includes('title="Other open work"')&&!missionControl.includes('<NextActionRail'),'Mission Control lists work once after its current priority');
+expect(missionControl.includes('ranked.slice(1,6)')&&missionControl.includes('Up next')&&!missionControl.includes('<NextActionRail'),'Mission Control shows one priority followed by one short canonical worklist');
+const case360=read('app/workspace/leads/[id]/page.tsx');
+const project360=read('app/workspace/projects/[id]/page.tsx');
+const projectNav=read('app/workspace/projects/[id]/layout.tsx');
+const focusCss=read('app/workspace/focus-first.css');
+expect(case360.includes('return <RecordWorkspace focusMode'),'Case 360 opts into simplified record presentation');
+expect(project360.includes('return <RecordWorkspace focusMode'),'Project 360 opts into simplified record presentation');
+expect(recordWorkspace.includes('if (focusMode)') && recordWorkspace.includes('{nextAction}') &&
+       recordWorkspace.includes('{readiness}') && recordWorkspace.includes('{evidence}') &&
+       recordWorkspace.includes('{stateStrip}'), 'Focus mode reuses the same governed action, readiness, evidence and state controls');
+expect(recordWorkspace.includes('open={hasBlockers}') && recordWorkspace.includes('presentation?.blockers'),
+       'Readiness and documents open automatically when business blockers are present');
+expect(projectNav.includes('Project tools') && projectNav.includes('ProjectRealtimeRefresh') &&
+       projectNav.includes('Payments') && projectNav.includes('Messages'),
+       'Project tools remain accessible without persistent tabs; real-time refresh is kept');
+expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus-visible'),
+       'Focus-first UI remains responsive with visible keyboard controls');
 expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
 
