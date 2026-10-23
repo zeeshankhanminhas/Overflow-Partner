@@ -24,7 +24,11 @@ export default function MobileWorkspaceNav(){
   const pathname=usePathname();
   const active=(href:string)=>href==='/workspace'?pathname===href
     :href==='/workspace/opportunities'
-      ? pathname===href||pathname.startsWith('/workspace/acquisition')||pathname.startsWith('/workspace/leads')
+      ? pathname===href||pathname.startsWith('/workspace/acquisition')||pathname.startsWith('/workspace/leads')||pathname.startsWith('/workspace/quotes')
+    :href==='/workspace/more'
+      ? pathname===href||pathname.startsWith('/workspace/payments')||pathname.startsWith('/workspace/documents')
+        ||pathname.startsWith('/workspace/approvals')||pathname.startsWith('/workspace/settings')
+        ||pathname.startsWith('/workspace/companies')||pathname.startsWith('/workspace/contacts')
       :pathname===href||pathname.startsWith(href+'/');
   return <nav className="midts-mobile-nav op-mobile-nav op-mobile-nav--clear" aria-label="Mobile workspace navigation">
     {options.map(item=><Link key={item.href} href={item.href}
