@@ -67,7 +67,7 @@ export default async function OpportunityPreview({
       <p className={css.meta} style={{marginTop:20}}>
         Email delivery cannot be independently confirmed from the intake session alone. This preview does not claim a message was delivered.
       </p>
-      <Link href={'/workspace/acquisition/' + id} className={css.action}>Open governed operational controls →</Link>
+      {waiting ? <p className={css.meta} style={{ marginTop: 17 }}>No action is required from the operator while the customer completes the form.</p> : <Link href={'/workspace/acquisition/' + id} className={css.action}>Continue in operating workspace →</Link>}
     </section>
     <details className={css.details}>
       <summary>Stage and record context</summary>
@@ -75,6 +75,7 @@ export default async function OpportunityPreview({
         <p>Opportunity opened: {dateLabel(prospect.created_at)}</p>
         <p>Technical intake: {session ? humanStatus(session.status) : 'Not yet requested'}</p>
         <p>Next action stored on record: {prospect.next_action || 'Not recorded'}</p>
+        {waiting ? <p><Link href={'/workspace/acquisition/' + id} className={css.secondaryLink}>Open existing operational record ↗</Link></p> : null}
       </div>
     </details>
     <p className={css.meta} style={{marginTop:28}}>Read-only implementation preview. Financial, technical and contractual decisions remain governed by the existing application.</p>
