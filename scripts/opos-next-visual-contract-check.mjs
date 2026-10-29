@@ -6,6 +6,7 @@ const styles = read('app/opos-next/opos.module.css');
 const mission = read('app/opos-next/page.tsx');
 const register = read('app/opos-next/opportunities/page.tsx');
 const record = read('app/opos-next/opportunities/[id]/page.tsx');
+const mobileNav = read('app/opos-next/OpMobileNav.tsx');
 
 const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
@@ -17,6 +18,19 @@ const checks = [
   ['Opportunity detail restricts every data query to its organisation', record.includes("from('prospects')") && record.includes("from('intake_sessions')") && (record.match(/\.eq\('organisation_id', organisationId\)/g) || []).length >= 2],
   ['New detail never invents proof of email delivery', record.includes('Email delivery cannot be independently confirmed')],
   ['Unmigrated business actions remain owned by governed workspace', record.includes("'/workspace/acquisition/' + id")],
+  ['Mobile uses a dedicated OPOS navigation component', shell.includes('<OpMobileNav />') && !shell.includes('MobileWorkspaceNav')],
+  ['Mobile menu has disclosure semantics, clear tap target, and closes on route selection',
+    mobileNav.includes('aria-expanded={open}') && mobileNav.includes('aria-controls="opos-next-mobile-menu"') &&
+    mobileNav.includes('setExpandedFor(null)') && styles.includes('min-height: 44px')],
+  ['Mobile register uses cards mapped to the same canonical opportunity records',
+    register.includes('className={css.mobileRecords}') && register.includes('className={css.mobileRecord}') &&
+    register.includes('items.map(item') && styles.includes('.mobileRecords { display: grid')],
+  ['No sideways-scrolling desktop table is displayed in the mobile register',
+    styles.includes('.tableWrap { display: none; }') && styles.includes('.mobileRecords { display: grid')],
+  ['Waiting record is not presented as requiring a primary operator decision',
+    record.includes("waiting ? <p className={css.meta}") && record.includes('className={css.secondaryLink}')],
+  ['Mobile shell hides the former desktop sidebar and topbar',
+    styles.includes('.shell .sidebar { display: none; }') && styles.includes('.shell .topbar { display: none; }')],
 ];
 
 let failures = 0;
