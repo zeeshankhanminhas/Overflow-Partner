@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import css from './opos.module.css';
 
 const destinations = [
@@ -12,9 +12,8 @@ const destinations = [
 
 export default function OpMobileNav() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => { setOpen(false); }, [pathname]);
+  const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const open = expandedFor === pathname;
 
   return <div className={css.mobileShell}>
     <div className={css.mobileHeader}>
@@ -25,7 +24,7 @@ export default function OpMobileNav() {
       <button type="button" className={css.mobileMenuTrigger}
         aria-label={open ? 'Close workspace navigation' : 'Open workspace navigation'}
         aria-controls="opos-next-mobile-menu" aria-expanded={open}
-        onClick={() => setOpen(value => !value)}>
+        onClick={() => setExpandedFor(open ? null : pathname)}>
         <span className={css.menuIcon} aria-hidden="true">{open ? '×' : '☰'}</span>
         {open ? 'Close' : 'Menu'}
       </button>
@@ -38,7 +37,7 @@ export default function OpMobileNav() {
           : pathname === destination.href || pathname.startsWith(destination.href + '/');
         return <Link key={destination.href} href={destination.href}
           aria-current={active ? 'page' : undefined}
-          onClick={() => setOpen(false)} className={active ? css.mobileMenuActive : css.mobileMenuLink}>
+          onClick={() => setExpandedFor(null)} className={active ? css.mobileMenuActive : css.mobileMenuLink}>
           <span><small>{destination.group}</small>{destination.label}</span>
           <span aria-hidden="true">↗</span>
         </Link>;
