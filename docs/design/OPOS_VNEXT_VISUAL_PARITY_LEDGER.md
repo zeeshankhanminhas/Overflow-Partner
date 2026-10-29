@@ -2,6 +2,9 @@
 **Status: IN PROGRESS — not locked, not release-approved.**
 **Source:** OPOS Visual Review v2 HTML and approved desktop/mobile screenshots, not legacy `/workspace` layouts.
 
+## Acceptance is both screen-specific and operational
+A screen that visually matches but cannot complete the intended governed user journey is **not done**. A functional route with a generic UI is **not done**.
+
 ## Acceptance is screen-specific
 | Area | New route | Prototype structural parity | Backend parity | Desktop / 390px screenshot verified | Release eligible |
 |---|---|---|---|---|---|
