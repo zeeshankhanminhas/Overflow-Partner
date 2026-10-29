@@ -119,10 +119,18 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
 
   const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href={prospect.source === 'linkedin' ? '/workspace/acquisition/funnel' : '/workspace/acquisition'}>← {prospect.source === 'linkedin' ? 'Back to LinkedIn funnel' : 'Back to opportunities'}</Link><p className="vp-kicker">Opportunity · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p></div></div>;
 
-  const stateStrip=beforeInterestHandoff
-    ? <div className="vp-callout"><strong>Awaiting customer interest · {prospect.source === 'website' ? 'Website enquiry' : 'LinkedIn acquisition'}</strong><p>The secure technical form is only available after an interested reply has been recorded.</p>{prospect.source === 'linkedin' ? <Link href="/workspace/acquisition/funnel">Open LinkedIn funnel</Link> : null}</div>
-    : <div><div className="opportunity-stage-strip" style={{display:'grid',gridTemplateColumns:`repeat(${acquisitionStages.length},minmax(0,1fr))`,gap:8}}>{acquisitionStages.map((label,index)=><div key={label} className="opportunity-stage-step" style={{padding:'10px 12px',borderTop:`2px solid ${index===acquisition.stageIndex?'var(--op-accent)':index<acquisition.stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>acquisition.stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<acquisition.stageIndex?'Complete':index===acquisition.stageIndex?'Current':'Next'}</small><strong>{opportunityStageLabel(label)}</strong></div>)}</div></div>;
-
+  const stateStrip = beforeInterestHandoff
+    ? <div className="vp-callout"><strong>Awaiting LinkedIn interest</strong><p>Confirm interest through the separate Outreach conversation before opening a technical enquiry.</p><Link href="/outreach">Open LinkedIn Outreach</Link></div>
+    : <div className="opos-journey" aria-label="Opportunity progress">
+        {['Enquiry','Requirements','Feasibility'].map((label,index)=>{
+          const done=index===0 || (index===1&&Boolean(submission)) || (index===2&&Boolean(partnerRequest&&decision));
+          const active=index===1&&!submission || index===2&&Boolean(submission)&&!done;
+          return <div className="opos-journey__step" key={label} aria-current={active?'step':undefined}>
+            <div className="opos-journey__step-top"><span>{String(index+1).padStart(2,'0')}</span><span aria-label={done?'Complete':active?'Current':'Not started'}>{done?'✓':'○'}</span></div>
+            <strong>{label}</strong>
+          </div>;
+        })}
+      </div>;
   const readiness=<div className="vp-facts"><Fact label="Requirements" value={acquisition.readiness.technicalIntake}/><Fact label="Client submission" value={acquisition.readiness.technicalSubmission}/><Fact label="Delivery review" value={acquisition.readiness.partnerReview}/><Fact label="Partner cost" value={acquisition.readiness.partnerPricing}/><Fact label="Commercial decision" value={acquisition.readiness.approval}/><Fact label="Ready to progress" value={acquisition.readiness.qualification}/></div>;
 
   const partnerGate=<AcquisitionPartnerGate prospectId={id} intakeSessionId={session?.id||''} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')} partners={partners} request={partnerRequest} response={response} quote={partnerQuote} decision={decision} reviewUrl={canUseDeveloperLink?reviewUrl:undefined}/>;
