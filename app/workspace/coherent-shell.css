@@ -1,0 +1,48 @@
+/* OPOS coherent shell — explicitly scoped, no split light/dark canvas. */
+.workspace.op-shell {
+ color-scheme:dark;
+ --op-bg:#090a0b;--op-sidebar:#0d0e10;--op-panel:#101113;--op-panel-2:#151619;
+ --op-line:#34363a;--op-line-strong:#47494e;--op-text:#f1f1f3;--op-fg:#f1f1f3;
+ --op-muted:#b3b5bb;--op-dim:#92949b;--op-green:#51d497;--op-amber:#e7b46f;
+ --op-red:#f47c7c;--op-blue:#a0c4ff;--surface-panel:#101113;--surface-bg:#090a0b;
+ --op-card-bg:#151619;--panel:#101113;--paper:#101113;--canvas:#090a0b;
+ --font-display:var(--font-inter),Inter,ui-sans-serif,system-ui,sans-serif;
+ background:#090a0b;color:#f1f1f3;
+}
+.workspace.op-shell .op-sidebar,.workspace.op-shell .op-topbar,
+.workspace.op-shell .op-mobile-header,.workspace.op-shell .op-main,
+.workspace.op-shell .op-content,.workspace.op-shell .midts-content{
+ background:#090a0b;color:#f1f1f3;border-color:#34363a;
+}
+.workspace.op-shell .op-sidebar{background:#0d0e10;border-right:1px solid #34363a;}
+.workspace.op-shell :is(h1,h2,h3,h4,p,strong,small){color:inherit;}
+.workspace.op-shell :is(.op-focus-home,.record-workspace--focused){color:#f1f1f3;}
+.workspace.op-shell :is(.op-focus-home__primary,.op-focus-home__queue,.op-focus-home__waiting,
+ .op-focus__decision,.op-focus__disclosure,.op-focus__detail-body,.vp-callout,
+ .card,.op-focus-home__priority){
+ background:#101113;color:#f1f1f3;border:1px solid #34363a;box-shadow:none;border-radius:14px;
+}
+.workspace.op-shell :is(.op-focus-home__heading p,.op-focus-home__primary p,.op-focus-home__queue p,
+ .op-focus__why,.vp-subtitle){color:#b3b5bb;}
+.workspace.op-shell :is(.op-focus-home__eyebrow,.op-focus__eyebrow,.vp-kicker,
+ .op-focus__owner,.op-focus__disclosure-hint){color:#b3b5bb;}
+.workspace.op-shell :is(.op-focus-home__primary h2,.op-focus-home__heading h1,
+ .record-workspace__header h1){color:#f1f1f3;letter-spacing:-.035em;}
+.workspace.op-shell .op-focus-home__queue-header{border-color:#34363a;background:#101113;}
+.workspace.op-shell .op-focus-home__queue li+li{border-color:#34363a;}
+.workspace.op-shell .op-focus-home__queue li a:hover{background:#1b1d20;}
+.workspace.op-shell .op-focus-home__waiting summary{color:#f1f1f3;}
+.workspace.op-shell :is(input:not([type=checkbox]):not([type=radio]),select,textarea){
+ background:#17181b;color:#f1f1f3;border:1px solid #47494e;border-radius:9px;
+}
+.workspace.op-shell :is(input,textarea)::placeholder{color:#92949b;}
+.workspace.op-shell :is(.button,button[type=submit]){background:#e7e7e9;color:#0d0e10;border:1px solid #e7e7e9;border-radius:9px;box-shadow:none;}
+.workspace.op-shell :is(.button.secondary,button.secondary){background:#1b1d20;color:#f1f1f3;border-color:#47494e;}
+.workspace.op-shell :is(a,button,input,select,textarea):focus-visible{outline:2px solid #c1c3c9;outline-offset:3px;}
+.workspace.op-shell :is(.op-focus-home__queue,.op-focus-home__primary,.op-focus-home__waiting){max-width:100%;}
+.workspace.op-shell .op-focus-home__primary{padding:clamp(22px,3vw,36px);}
+.workspace.op-shell .op-focus-home__primary .button{font-weight:650;}
+.workspace.op-shell .op-focus-home__queue li a{color:#f1f1f3;}
+.workspace.op-shell .op-focus-home__waiting strong{color:#f1f1f3;}
+.workspace.op-shell :is(.vp-facts,.product-notice,.project-os-stage-card,.opportunity-stage-step){border-color:#34363a;background:#101113;color:#f1f1f3;}
+@media(max-width:767px){.workspace.op-shell :is(.op-focus-home__primary,.op-focus-home__queue,.op-focus__decision){border-radius:12px;}}
