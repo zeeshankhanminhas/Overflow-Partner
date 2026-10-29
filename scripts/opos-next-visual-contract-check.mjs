@@ -14,7 +14,7 @@ const legacyHome = read('app/workspace/page.tsx');
 const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
-  ['Visual review tokens are used consistently', ['#0b0c0e','#151619','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
+  ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
   ['No destructive broad CSS overrides in new system', !styles.includes('!important')],
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
   ['Opportunity register queries organisation-scoped real records', register.includes("from('prospects')") && register.includes(".eq('organisation_id', organisationId)")],
