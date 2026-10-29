@@ -1,0 +1,46 @@
+/* Direct implementation of approved Visual Review v2 Mission Control composition.
+   These styles live only in the vNext route. */
+.root { max-width: 1050px; margin: 0 auto; }
+.eyebrow { display: block; color: #989ba2; font: 600 11px/1.4 var(--font-inter),system-ui,sans-serif; letter-spacing: .11em; text-transform: uppercase; }
+.heading { font-size: clamp(31px, 3.1vw, 42px); line-height: 1.16; letter-spacing: -.055em; font-weight: 650; color: #f4f4f5; margin: 13px 0 11px; }
+.lead { font-size: 15px; color: #b2b4bc; line-height: 1.55; margin: 0; }
+.primary { border: 1px solid #303238; border-radius: 14px; background: #101113; padding: 34px 34px 28px; margin-top: 34px; }
+.primaryTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pill { color: #e9e9ec; border: 1px solid #383a40; background: #202125; border-radius: 999px; padding: 8px 13px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 12px; }
+.pillDot { width: 6px; height: 6px; border-radius: 50%; background: #f1c076; }
+.primaryTitle { font-size: 26px; letter-spacing: -.042em; font-weight: 600; line-height: 1.25; margin: 23px 0 13px; color: #f4f4f5; }
+.primaryDesc { color: #b2b4bc; font-size: 14px; line-height: 1.65; max-width: 760px; margin: 0; }
+.divider { height: 1px; background: #2a2b2f; margin-top: 24px; }
+.primaryFooter { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: 27px; }
+.primaryName { font-size: 13px; font-weight: 600; color: #f4f4f5; margin: 0; }
+.primaryMeta { font-size: 11px; color: #9c9fa6; margin: 3px 0 0; }
+.primaryAction { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; padding: 11px 15px; background: #f1f1f3; border-radius: 9px; color: #111215; font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+.primaryAction:hover { background: #d5d5d9; }
+.columns { display: grid; grid-template-columns: 1.16fr .84fr; gap: 18px; margin-top: 44px; }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.sectionHead h2 { font-size: 19px; letter-spacing: -.026em; font-weight: 620; line-height: 1.3; margin: 0; color: #f4f4f5; }
+.sectionCount { font-size: 12px; color: #878a92; white-space: nowrap; }
+.sectionPanel { padding: 24px 27px; border: 1px solid #303238; border-radius: 14px; background: #101113; }
+.list { margin: 0; padding: 0; list-style: none; }
+.row { border-top: 1px solid #27282b; padding: 20px 0; }
+.row:first-child { border-top: 0; padding-top: 0; }
+.row:last-child { padding-bottom: 0; }
+.rowLink { display: flex; gap: 10px; justify-content: space-between; align-items: center; min-height: 43px; }
+.rowLink:hover .rowTitle { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.rowTitle { display: block; font-weight: 600; font-size: 14px; line-height: 1.4; color: #f4f4f5; }
+.rowCopy { display: block; font-size: 12px; line-height: 1.5; color: #aeb0b7; margin-top: 6px; }
+.rowAction { flex-shrink: 0; white-space: nowrap; font-size: 11px; color: #a7aab2; }
+.empty { font-size: 13px; color: #aeb0b7; line-height: 1.55; margin: 0; }
+@media(max-width:1100px) { .columns { grid-template-columns: 1fr; } }
+@media(max-width:700px) {
+  .heading { font-size: 32px; }
+  .lead { font-size: 14px; }
+  .primary { padding: 25px 22px; margin-top: 50px; }
+  .primaryTitle { font-size: 23px; margin-top: 31px; }
+  .primaryFooter { align-items: stretch; flex-direction: column; }
+  .primaryAction { width: 100%; min-height: 44px; }
+  .columns { gap: 31px; margin-top: 44px; }
+  .sectionHead h2 { font-size: 17px; }
+  .sectionPanel { padding: 22px 20px; }
+  .rowAction { font-size: 10px; }
+}
