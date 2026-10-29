@@ -62,7 +62,7 @@ Deno.serve(async (request) => {
     const { data: prospect, error: prospectError } = await supabase.from('prospects')
       .select('id, organisation_id, status, source, outreach_status, response_outcome').eq('id', payload.prospectId).eq('organisation_id', payload.organisationId).single();
     if (prospectError || !prospect) return json({ success: false, error: 'Prospect not found.' }, 404);
-    if ((prospect.source === 'linkedin' || prospect.source === 'website') &&
+    if (prospect.source === 'linkedin' &&
         !(prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested')) {
       return json({ success: false, error: 'Customer interest is required before technical intake can be sent.' }, 409);
     }
