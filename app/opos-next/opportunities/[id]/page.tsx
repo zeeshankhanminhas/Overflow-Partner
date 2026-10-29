@@ -24,7 +24,6 @@ export default async function OpportunityPreview({params}:{params:Promise<{id:st
   const submitted=Boolean(session&&['submitted','converted'].includes(session.status));
   const converted=Boolean(prospect.converted_lead_id);
   const waiting=Boolean(session&&!submitted&&['invited','opened','in_progress'].includes(session.status));
-  const active=Boolean(session&&!submitted);
   const stageIndex=converted||submitted?2:session?1:0;
   const source=prospect.source==='website'?'Website enquiry':prospect.source==='linkedin'?'LinkedIn qualification':prospect.source||'Other enquiry';
   const headline=converted?'Opportunity handed over to Case 360':
@@ -99,7 +98,7 @@ export default async function OpportunityPreview({params}:{params:Promise<{id:st
             <p>Opportunity status: {String(prospect.status||'Not recorded').replaceAll('_',' ')}</p>
             {session?<p>Requirements session: {String(session.status).replaceAll('_',' ')} · Expiry {date(session.expires_at)}</p>:null}
             <p>Next step recorded: {prospect.next_action||'Not recorded'}</p>
-            <p><Link className={css.secondary} href={'/workspace/acquisition/'+id}>Open governed operational record ↗</Link></p>
+            <p><Link className={css.secondary} href={'/workspace/acquisition/' + id}>Open governed operational record ↗</Link></p>
           </div>
         </details>
       </section>
