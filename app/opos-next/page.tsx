@@ -38,10 +38,10 @@ export default async function NewMissionControl() {
   const partnerAttention: AttentionSource[] = partners.map(item => ({
     id: 'partner-' + item.id,
     title: item.status === 'clarification_required' ? 'Delivery partner needs clarification' : 'Waiting for delivery partner',
-    company: item.prospect?.company_name || 'Opportunity',
+    company: item.prospect?.[0]?.company_name || 'Opportunity',
     reason: item.status === 'clarification_required'
       ? 'More information is needed to continue.'
-      : (item.partner?.company_name || 'Delivery Partner') + ' · due ' + new Date(item.response_due_at).toLocaleDateString('en-GB'),
+      : (item.partner?.[0]?.company_name || 'Delivery Partner') + ' · due ' + new Date(item.response_due_at).toLocaleDateString('en-GB'),
     waitingSince: item.submitted_at || item.sent_at || item.created_at,
     priority: item.status === 'clarification_required' ? 'high' : 'normal',
     href: '/workspace/acquisition/' + item.prospect_id,
