@@ -48,6 +48,21 @@ export default async function OpportunityRegister({
         </tr>)}</tbody>
       </table>
     </div> : <p className={css.empty}>No opportunities matched your search.</p>}
+    {items.length ? <div className={css.mobileRecords} role="list" aria-label="Opportunity records">
+      {items.map(item => <div key={item.id} role="listitem">
+        <Link className={css.mobileRecord} href={'/opos-next/opportunities/' + item.id}>
+          <div className={css.mobileRecordTop}>
+            <span className={css.mobileRecordTitle}>{item.company_name || 'Unnamed opportunity'}</span>
+            <span className={css.status}>{statusLabel(item.status)}</span>
+          </div>
+          <span className={css.mobileRecordMeta}>{item.source === 'linkedin' ? 'LinkedIn' : item.source === 'website' ? 'Website enquiry' : item.source || 'Other source'}</span>
+          <span className={css.mobileRecordBottom}>
+            <span className={css.mobileRecordStep}>{item.next_action || 'Review current position'}</span>
+            <span className={css.mobileRecordArrow} aria-hidden="true">↗</span>
+          </span>
+        </Link>
+      </div>)}
+    </div> : null}
     <p className={css.meta} style={{marginTop:24}}>New UI preview · existing secure workflows remain available in the current operating workspace until parity is verified.</p>
   </section>;
 }
