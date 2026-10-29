@@ -18,7 +18,7 @@ const checks = [
   ['No destructive broad CSS overrides in new system', !styles.includes('!important')],
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
   ['Opportunity register queries organisation-scoped real records', register.includes("from('prospects')") && register.includes(".eq('organisation_id', organisationId)")],
-  ['Opportunity detail restricts every data query to its organisation', record.includes("from('prospects')") && record.includes("from('intake_sessions')") && (record.match(/\.eq\('organisation_id', organisationId\)/g) || []).length >= 2],
+  ['Opportunity detail restricts every data query to its organisation', record.includes("from('prospects')") && record.includes("from('intake_sessions')") && (record.match(/\.eq\('organisation_id',\s*organisationId\)/g) || []).length >= 2],
   ['New detail never invents proof of email delivery', record.includes('Email delivery cannot be independently confirmed')],
   ['Unmigrated business actions remain owned by governed workspace', record.includes("'/workspace/acquisition/' + id")],
   ['Mobile uses a dedicated OPOS navigation component', shell.includes('<OpMobileNav />') && !shell.includes('MobileWorkspaceNav')],
@@ -31,7 +31,7 @@ const checks = [
   ['No sideways-scrolling desktop table is displayed in the mobile register',
     styles.includes('.tableWrap { display: none; }') && styles.includes('.mobileRecords { display: grid')],
   ['Waiting record is not presented as requiring a primary operator decision',
-    record.includes("waiting ? <p className={css.meta}") && record.includes('className={css.secondaryLink}')],
+    record.includes('No operator decision is required') && record.includes('Open governed operational record')],
   ['Mobile and desktop share the same eight-part navigation contract',
     navigation.includes("label:'Outreach'") && navigation.includes("label:'Cases'") &&
     navigation.includes("label:'Projects'") && navigation.includes("label:'Partners'") &&
