@@ -15,9 +15,9 @@ export type LinkedInProspect = {
   converted_lead_id?: string | null;
 };
 
-/** Website and LinkedIn enquiries become eligible for technical Step 2 only after interested reply. */
+/** Cold LinkedIn outreach needs interest; a website enquiry is already an inbound request. */
 export function canInviteFromLinkedIn(prospect: Pick<LinkedInProspect, 'source' | 'outreach_status' | 'response_outcome'>): boolean {
-  const needsInterest = prospect.source === 'linkedin' || prospect.source === 'website';
+  const needsInterest = prospect.source === 'linkedin';
   return !needsInterest || (prospect.outreach_status === 'replied' && prospect.response_outcome === 'interested');
 }
 
