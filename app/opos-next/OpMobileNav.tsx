@@ -13,17 +13,16 @@ export default function OpMobileNav() {
 
   return <div className={css.mobileShell}>
     <div className={css.mobileHeader}>
-      <Link href="/opos-next" className={css.mobileBrand} aria-label="Overflow Partner, Mission Control">
-        <span className={css.brandMark} aria-hidden="true">◈</span>
-        <span>OVERFLOW<br/>PARTNER</span>
-      </Link>
       <button type="button" className={css.mobileMenuTrigger}
         aria-label={open?'Close workspace navigation':'Open workspace navigation'}
         aria-controls="opos-next-mobile-menu" aria-expanded={open}
         onClick={()=>setExpandedFor(open?null:pathname)}>
         <span className={css.menuIcon} aria-hidden="true">{open?'×':'☰'}</span>
-        {open?'Close':'Menu'}
       </button>
+      <Link href="/opos-next" className={css.mobileBrand} aria-label="OPOS Mission Control">OPOS</Link>
+      <span className={css.mobileSpacer}/>
+      <span className={css.mobilePreview}><span aria-hidden="true" className={css.mobileLiveDot}/>Preview</span>
+      <span className={css.mobileAvatar} aria-label="Overflow Partner workspace">OP</span>
     </div>
     <nav id="opos-next-mobile-menu" className={css.mobileMenu} hidden={!open} aria-label="Mobile workspace navigation">
       {nextNavigation.map((destination,index)=>{
