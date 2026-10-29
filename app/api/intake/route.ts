@@ -1,9 +1,9 @@
+import { randomBytes, createHash } from 'crypto';
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
-import { scheduleInitialEnquiryNurture } from '@/lib/notifications/schedules';
 
 const intakeSchema = z.object({
   full_name: z.string().trim().min(2).max(160),
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       requirement_summary: payload.brief_requirement,
       website_submission_id: payload.lead_id || null,
       status: 'identified',
-      next_action: 'Await customer interest before sending secure requirements form',
+      next_action: 'Prepare secure Step 2 requirements invitation',
       notes: notes || null,
     }).select('id, created_at').single();
     if (prospectError) throw prospectError;
@@ -111,43 +111,69 @@ export async function POST(request: Request) {
       },
     }).throwOnError();
 
-    // Website Step 1 is not yet permission to request detailed technical intake.
-    // Send an acknowledgement. Schedule up to five nurture messages only on explicit opt-in.
-    let acknowledgement = 'pending';
-    const actionUrl = getPublicBaseUrl(request) + '/';
+    // Inbound website customers have explicitly asked for engineering support.
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 86400000).toISOString();
+    const { data: session, error: sessionError } = await supabase.from('intake_sessions').insert({
+      organisation_id: owner.organisation_id, prospect_id: prospect.id,
+      token_hash: tokenHash, status: 'invited', expires_at: expiresAt,
+      created_by: owner.id, recipient_email: payload.work_email, email_status: 'pending',
+    }).select('id').single();
+    if (sessionError) throw sessionError;
+    const actionUrl = getPublicBaseUrl(request) + '/intake/' + token;
+    const emailPayload = { company: payload.company, dueDate: new Date(expiresAt).toLocaleDateString('en-GB') };
+    let step2EmailStatus: 'queued' | 'failed' = 'failed';
     try {
-      const acknowledgementId = await queueLifecycleEmail(supabase, {
-        organisationId:owner.organisation_id,scenario:'enquiry.received',
-        recipientEmail:payload.work_email,recipientName:payload.full_name,actionUrl,
-        entityType:'prospect',entityId:prospect.id,
-        payload:{company:payload.company},idempotencyKey:'website:ack:' + prospect.id,
+      const queued = await queueLifecycleEmail(supabase, {
+        organisationId: owner.organisation_id, scenario: 'requirements.requested',
+        recipientEmail: payload.work_email, recipientName: payload.full_name,
+        actionUrl, payload: emailPayload, entityType: 'prospect', entityId: prospect.id,
+        idempotencyKey: 'website:step2:' + session.id,
       });
-      acknowledgement = acknowledgementId ? 'queued' : 'suppressed';
-    } catch (notificationError) {
-      acknowledgement = 'failed';
-      console.error('Website enquiry acknowledgement queue failed', notificationError);
+      if (!queued) throw new Error('Step 2 message was not queued');
+      step2EmailStatus = 'queued';
+      await supabase.from('prospects').update({ next_action: 'Await Step 2 technical intake submission' })
+        .eq('organisation_id', owner.organisation_id).eq('id', prospect.id).throwOnError();
       await supabase.from('activity_events').insert({
-        organisation_id:owner.organisation_id,user_id:owner.id,
-        entity_type:'prospect',entity_id:prospect.id,event_type:'website_acknowledgement_failed',
-        event_data:{retryRequired:true},
+        organisation_id: owner.organisation_id, user_id: owner.id,
+        entity_type: 'prospect', entity_id: prospect.id, event_type: 'technical_intake_invited',
+        event_data: { intakeSessionId: session.id, expiresAt, delivery: 'queued_for_email', source: 'website' },
+      }).throwOnError();
+      for (const [suffix, hours] of [['24h', 24], ['72h', 72], ['expiry', 144]] as const) {
+        await queueLifecycleEmail(supabase, {
+          organisationId: owner.organisation_id, scenario: 'requirements.reminder',
+          recipientEmail: payload.work_email, recipientName: payload.full_name,
+          actionUrl, payload: emailPayload, entityType: 'prospect', entityId: prospect.id,
+          scheduledFor: new Date(Date.now() + hours * 3600000).toISOString(),
+          idempotencyKey: 'website:step2:reminder:' + suffix + ':' + session.id,
+        }).catch(error => console.error('Step 2 reminder queue failed', error));
+      }
+    } catch (error) {
+      console.error('Website Step 2 invitation queue failed', error);
+      await supabase.from('prospects').update({ next_action: 'Review and resend Step 2 technical intake invitation' })
+        .eq('organisation_id', owner.organisation_id).eq('id', prospect.id);
+      await supabase.from('activity_events').insert({
+        organisation_id: owner.organisation_id, user_id: owner.id, entity_type: 'prospect',
+        entity_id: prospect.id, event_type: 'step_2_invitation_delivery_failed',
+        event_data: { intakeSessionId: session.id, retryRequired: true, source: 'website' },
       });
     }
-    let nurtureScheduled = false;
-    if (payload.nurture_consent === 'true') {
-      try {
-        const scheduledCount = await scheduleInitialEnquiryNurture(supabase, {
-          organisationId:owner.organisation_id,prospectId:prospect.id,email:payload.work_email,
-          name:payload.full_name,company:payload.company,actionUrl,
-        });
-        nurtureScheduled = scheduledCount > 0;
-      } catch (notificationError) {
-        console.error('Website nurture scheduling failed', notificationError);
-      }
-    }
+    let acknowledgement: 'queued' | 'suppressed' | 'failed' = 'failed';
+    try {
+      const queued = await queueLifecycleEmail(supabase, {
+        organisationId: owner.organisation_id, scenario: 'enquiry.received',
+        recipientEmail: payload.work_email, recipientName: payload.full_name,
+        actionUrl: getPublicBaseUrl(request) + '/',
+        entityType: 'prospect', entityId: prospect.id, payload: { company: payload.company },
+        idempotencyKey: 'website:ack:' + prospect.id,
+      });
+      acknowledgement = queued ? 'queued' : 'suppressed';
+    } catch (error) { console.error('Website acknowledgement failed', error); }
     return NextResponse.json({
-      success:true,submissionId:prospect.id,timestamp:prospect.created_at,
-      acknowledgement,nurtureScheduled,
-      step2:{created:false,emailStatus:'awaiting_interest'},
+      success: true, submissionId: prospect.id, timestamp: prospect.created_at,
+      acknowledgement, nurtureScheduled: false,
+      step2: { created: true, emailStatus: step2EmailStatus },
     });
   } catch (error) {
     console.error('Website intake failed', error);
