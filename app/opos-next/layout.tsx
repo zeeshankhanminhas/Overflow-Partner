@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import OpNav from './OpNav';
+import OpMobileNav from './OpMobileNav';
 import css from './opos.module.css';
 
 export const metadata: Metadata = {
@@ -15,6 +16,8 @@ export default async function DecisionFirstLayout({ children }: { children: Reac
   await requireUserContext(); // The preview must obey the existing workspace authentication.
   return (
     <div className={css.shell}>
+      <a href="#main-content" className={css.skipLink}>Skip to content</a>
+      <OpMobileNav />
       <aside className={css.sidebar} aria-label="OPOS workspace sidebar">
         <Link className={css.brand} href="/opos-next" aria-label="Overflow Partner home">
           <span className={css.brandMark} aria-hidden="true">◈</span>
