@@ -80,7 +80,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     if (prospectError || !prospect) throw new Error('Prospect not found.');
     // Marketing interest is necessary before first technical intake for cold LinkedIn outreach.
     if (!canInviteFromLinkedIn(prospect)) {
-      throw new Error("Record the customer's interested response before sending the secure technical form. Cold LinkedIn and initial website enquiries are not yet eligible.");
+      throw new Error("Record the customer's interested response before sending the secure technical form. Cold LinkedIn contacts are not yet eligible.");
     }
 
     const token = randomBytes(32).toString('base64url');
