@@ -7,10 +7,13 @@ const mission = read('app/opos-next/page.tsx');
 const register = read('app/opos-next/opportunities/page.tsx');
 const record = read('app/opos-next/opportunities/[id]/page.tsx');
 const mobileNav = read('app/opos-next/OpMobileNav.tsx');
+const navigation = read('app/opos-next/navigation.ts');
+const login = read('app/login/actions.ts');
+const legacyHome = read('app/workspace/page.tsx');
 
 const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
-  ['Preview stays behind existing workspace authentication', shell.includes('await requireUserContext()')],
+  ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#0b0c0e','#151619','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
   ['No destructive broad CSS overrides in new system', !styles.includes('!important')],
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
@@ -29,6 +32,16 @@ const checks = [
     styles.includes('.tableWrap { display: none; }') && styles.includes('.mobileRecords { display: grid')],
   ['Waiting record is not presented as requiring a primary operator decision',
     record.includes("waiting ? <p className={css.meta}") && record.includes('className={css.secondaryLink}')],
+  ['Mobile and desktop share the same eight-part navigation contract',
+    navigation.includes("label:'Outreach'") && navigation.includes("label:'Cases'") &&
+    navigation.includes("label:'Projects'") && navigation.includes("label:'Partners'") &&
+    navigation.includes("label:'Finance'") && navigation.includes("label:'Documents'") &&
+    mobileNav.includes("import { nextNavigation, isNextActive }")],
+  ['New records cover Outreach, Cases, Projects, Partners, Finance and Documents',
+    ['outreach','cases','projects','partners','finance','documents'].every(name =>
+      fs.existsSync('app/opos-next/' + name + '/page.tsx') && fs.existsSync('app/opos-next/' + name + '/[id]/page.tsx'))],
+  ['Redesign preview sign-in does not bounce to legacy home',
+    login.includes('redesignPreview') && login.includes('safeNext') && legacyHome.includes("redirect('/opos-next')")],
   ['Mobile shell hides the former desktop sidebar and topbar',
     styles.includes('.shell .sidebar { display: none; }') && styles.includes('.shell .topbar { display: none; }')],
 ];
