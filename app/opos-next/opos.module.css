@@ -1,6 +1,6 @@
 /* OPOS Decision-first UI. New namespace; never imports the legacy workspace CSS. */
 .shell {
-  --canvas: #0b0c0e; --nav: #0f1012; --surface: #151619; --raised: #1b1d20;
+  --canvas: #090a0b; --nav: #0c0d0e; --surface: #101113; --raised: #151619;
   --hover: #23252a; --border: #303238; --border-strong: #484b52;
   --text: #f4f4f5; --subtle: #b8bac0; --faint: #9497a0;
   --success: #72cfa1; --attention: #f1c076; --critical: #f08a8a;
@@ -177,4 +177,22 @@
 @media (max-width:850px) {
   .shell .mobileMenu { padding-bottom: calc(30px + env(safe-area-inset-bottom)); }
   .shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 52px; }
+}
+
+/* Visual Review v2 exact mobile shell grammar. */
+@media (max-width: 850px) {
+ .shell .mobileHeader {height:61px; padding:0 18px; gap:11px; background:#090a0b; border-bottom:1px solid #24262a;}
+ .shell .mobileMenuTrigger {background:transparent; border:0; padding:0; margin:0; border-radius:5px; min-width:24px; min-height:44px; width:24px; justify-content:flex-start; color:#f4f4f5;}
+ .shell .menuIcon {font-size:25px; width:24px;}
+ .shell .mobileBrand {font-size:12px; letter-spacing:.02em; font-weight:600; color:#f4f4f5;}
+ .mobileSpacer { flex:1; }
+ .mobilePreview {display:flex; align-items:center; gap:7px; flex-shrink:0; padding:8px 11px; border-radius:999px; border:1px solid #383a40; background:#202125; font-size:11px; line-height:1; color:#b8bac0; }
+ .mobileLiveDot {width:6px;height:6px;flex-shrink:0;border-radius:50%;background:#72cfa1;}
+ .mobileAvatar {width:27px;height:27px;border-radius:50%;display:grid;place-items:center;border:1px solid #404249;background:#252629;color:#e9e9ea;font-size:10px;font-weight:700;flex-shrink:0;}
+ .shell .main {padding-top:37px;}
+ .shell .mobileMenu {max-height:calc(100dvh - 61px);}
+}
+@media (max-width:480px) {
+ .shell .mobileHeader {padding:0 18px;}
+ .shell .main {padding-top:37px;}
 }
