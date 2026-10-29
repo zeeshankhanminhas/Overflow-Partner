@@ -10,6 +10,9 @@ const mobileNav = read('app/opos-next/OpMobileNav.tsx');
 const navigation = read('app/opos-next/navigation.ts');
 const login = read('app/login/actions.ts');
 const legacyHome = read('app/workspace/page.tsx');
+const casePage = read('app/opos-next/cases/[id]/page.tsx');
+const projectPage = read('app/opos-next/projects/[id]/page.tsx');
+const v2WorkRecord = read('app/opos-next/WorkRecordV2.tsx');
 
 const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
@@ -42,6 +45,19 @@ const checks = [
       fs.existsSync('app/opos-next/' + name + '/page.tsx') && fs.existsSync('app/opos-next/' + name + '/[id]/page.tsx'))],
   ['Redesign preview sign-in does not bounce to legacy home',
     login.includes('redesignPreview') && login.includes('safeNext') && legacyHome.includes("redirect('/opos-next')")],
+  ['Mission Control matches approved hierarchy without hiding waiting work',
+    mission.includes("import styles from './mission.module.css'") && mission.includes('Waiting on others') &&
+    mission.includes('className={styles.columns}') && !mission.includes('<details')],
+  ['Opportunity matches the approved current position / journey / evidence structure',
+    record.includes("import css from '../opportunity.module.css'") && record.includes('Journey progress') &&
+    record.includes('Activity and evidence') && record.includes('CURRENT POSITION')],
+  ['Case and Project use approved v2 decision, stage and evidence component',
+    casePage.includes('WorkRecordV2') && projectPage.includes('WorkRecordV2') &&
+    v2WorkRecord.includes('className={css.decision}') && v2WorkRecord.includes('className={css.timeline}') &&
+    v2WorkRecord.includes('className={css.section+\' \'+css.grid}')],
+  ['Mobile header matches approved compact OPOS visual grammar',
+    mobileNav.includes('css.mobilePreview') && mobileNav.includes('css.mobileAvatar') &&
+    styles.includes('.shell .mobileHeader {height:61px')],
   ['Mobile shell hides the former desktop sidebar and topbar',
     styles.includes('.shell .sidebar { display: none; }') && styles.includes('.shell .topbar { display: none; }')],
 ];
