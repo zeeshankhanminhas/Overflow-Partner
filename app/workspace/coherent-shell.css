@@ -46,3 +46,14 @@
 .workspace.op-shell .op-focus-home__waiting strong{color:#f1f1f3;}
 .workspace.op-shell :is(.vp-facts,.product-notice,.project-os-stage-card,.opportunity-stage-step){border-color:#34363a;background:#101113;color:#f1f1f3;}
 @media(max-width:767px){.workspace.op-shell :is(.op-focus-home__primary,.op-focus-home__queue,.op-focus__decision){border-radius:12px;}}
+
+/* Opportunity progress follows the approved three-card visual reference. */
+.workspace.op-shell .opos-journey{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.workspace.op-shell .opos-journey__step{
+ min-width:0;display:grid;gap:9px;padding:16px 18px;border:1px solid #34363a;
+ background:#101113;border-radius:12px;color:#f1f1f3;
+}
+.workspace.op-shell .opos-journey__step-top{display:flex;justify-content:space-between;align-items:center;color:#b3b5bb;}
+.workspace.op-shell .opos-journey__step strong{font-size:14px;font-weight:650;}
+.workspace.op-shell .opos-journey__step[aria-current=step]{border-color:#82858b;}
+@media(max-width:600px){.workspace.op-shell .opos-journey{grid-template-columns:1fr;}}
