@@ -96,12 +96,12 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const websitePendingInvite = prospect.source==='website' && !session && acquisition.actionKey==='create_intake';
   const presentation = websitePendingInvite ? {...governedPresentation,state:'Website enquiry received',summary:'Inbound enquiry received. Send the secure requirements invitation.',nextAction:{...governedPresentation.nextAction,label:'Send Step 2 requirements invitation',reason:'The customer has already requested support. Invite them to submit detailed technical requirements.'}} : beforeInterestHandoff ? {
     ...governedPresentation,
-    state: prospect.source === 'website' ? 'Website enquiry received' : 'LinkedIn outreach',
-    summary: prospect.source === 'website' ? 'Customer acknowledgement sent; wait for a positive reply before inviting technical details.' : 'Build interest through a direct conversation before opening the formal enquiry.',
+    state: 'LinkedIn outreach',
+    summary: 'Build interest through a direct conversation before opening the formal enquiry.',
     nextAction: {
       ...governedPresentation.nextAction,
-      label: prospect.source === 'website' ? 'Confirm customer interest' : 'Engage on LinkedIn',
-      reason: prospect.source === 'website' ? 'Record the customer’s affirmative response before sending the secure requirements form.' : 'Send a personal message, record the reply and confirm interest first. Do not request technical requirements yet.',
+      label: 'Engage on LinkedIn',
+      reason: 'Send a personal message, record the reply and confirm interest first. Do not request technical requirements yet.',
     },
   } : governedPresentation;
   const rawInvitation=Array.isArray(query.invitation)?query.invitation[0]:query.invitation;
