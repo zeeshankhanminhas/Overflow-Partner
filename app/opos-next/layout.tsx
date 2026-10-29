@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export const runtime = 'nodejs';
 
 export default async function DecisionFirstLayout({ children }: { children: React.ReactNode }) {
-  await requireUserContext(); // The preview must obey the existing workspace authentication.
+  await requireUserContext('/opos-next'); // Keep the new design destination through sign-in.
   return (
     <div className={css.shell}>
       <a href="#main-content" className={css.skipLink}>Skip to content</a>
