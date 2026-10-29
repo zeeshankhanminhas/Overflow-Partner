@@ -4,7 +4,7 @@ import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 import { resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/attention';
 import { buildMissionPriorityQueue } from '@/lib/dashboard/priorityQueue';
 import { getWorkspaceChromeData } from '@/lib/workspace/request-data';
-import css from './opos.module.css';
+import styles from './mission.module.css';
 import { nextHref } from './nextHref';
 
 function actionText(kind: 'issue' | 'approval' | 'dependency') {
@@ -64,35 +64,51 @@ export default async function NewMissionControl() {
   });
   const primary = ranked[0];
   const next = ranked.slice(1,5);
-  return <section aria-labelledby="opos-mission-heading">
-    <header className={css.pageHeader}>
-      <p className={css.eyebrow}>OPOS / HOME</p>
-      <h1 id="opos-mission-heading" className={css.title}>Your operating desk.</h1>
-      <p className={css.subhead}>Decisions that need you. Everything else continues in the background.</p>
-    </header>
-    <section className={css.card} aria-label="Highest-priority decision">
-      <span className={css.overline}>{primary ? 'Priority / Your next decision' : 'Operating state / Clear'}</span>
-      <h2 className={css.cardTitle}>{primary?.title || 'Nothing needs your attention right now'}</h2>
-      <p className={css.cardDescription}>{primary?.detail || 'No outstanding approvals, issues or dependencies need an immediate intervention.'}</p>
-      {primary ? <>
-        <p className={css.factRow}><span>Responsible: <strong>{primary.owner || 'Your team'}</strong></span><span>{primary.label} · {primary.meta}</span></p>
-        <Link href={nextHref(primary.href)} className={css.action}>{nextHref(primary.href) === primary.href ? actionText(primary.kind) : 'Inspect operating position'} →</Link>
-      </> : <Link href="/opos-next/opportunities" className={css.action}>View opportunities →</Link>}
-    </section>
-    <section className={css.section} aria-labelledby="upcoming-decisions">
-      <div className={css.sectionHeading}><h2 id="upcoming-decisions">Following decisions</h2><span className={css.meta}>Ordered by operational priority</span></div>
-      {next.length ? <ul className={css.queue}>{next.map(item => <li key={item.id}><Link href={nextHref(item.href)}>
-        <span><strong>{item.title}</strong><p>{item.detail}</p><small>{item.owner || 'Your team'} · {item.label}</small></span>
-        <span className={css.queueArrow}>Review ↗</span>
-      </Link></li>)}</ul> : <p className={css.empty}>No further decisions are waiting.</p>}
-    </section>
-    <details className={css.waiting}>
-      <summary>Waiting on others</summary>
-      <div className={css.waitingGrid}>
-        <span><strong>{attention.waitingOnClient}</strong>Customer</span>
-        <span><strong>{attention.waitingOnPartner}</strong>Execution partner</span>
-        <span><strong>{attention.waitingOnInternal}</strong>Internal</span>
+  const waiting = attention.items.filter(item => item.ownerBucket === 'client' || item.ownerBucket === 'partner').slice(0,3);
+  const action = primary ? nextHref(primary.href) : '/opos-next/opportunities';
+  const primaryIsGoverned = primary ? action === primary.href : false;
+  return <section className={styles.root} aria-labelledby="opos-mission-heading">
+    <p className={styles.eyebrow}>{new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'Europe/London'}).format(new Date()).toUpperCase()}</p>
+    <h1 className={styles.heading} id="opos-mission-heading">Mission Control</h1>
+    <p className={styles.lead}>The decisions that matter. Everything else stays in motion.</p>
+    <section className={styles.primary} aria-label="Next priority">
+      <div className={styles.primaryTop}>
+        <span className={styles.eyebrow}>{primary ? 'NEXT PRIORITY' : 'ALL CLEAR'}</span>
+        {primary ? <span className={styles.pill}><span className={styles.pillDot}/>{primary.kind==='approval'?'Needs approval':primary.kind==='issue'?'Needs attention':'Work to review'}</span> : null}
       </div>
-    </details>
+      <h2 className={styles.primaryTitle}>{primary?.title || 'No immediate decisions'}</h2>
+      <p className={styles.primaryDesc}>{primary?.detail || 'There are no issues or decisions currently requiring your attention.'}</p>
+      <div className={styles.divider}/>
+      <div className={styles.primaryFooter}>
+        <div><p className={styles.primaryName}>{primary?.owner || 'Overflow Partner'}</p>
+          <p className={styles.primaryMeta}>{primary ? primary.label + ' · ' + primary.meta : 'Your operating desk is clear'}</p>
+        </div>
+        <Link href={action} className={styles.primaryAction}>{primary ? (primaryIsGoverned ? actionText(primary.kind) : 'Inspect operating position') : 'View opportunities'} →</Link>
+      </div>
+    </section>
+    <div className={styles.columns}>
+      <section aria-labelledby="opos-upnext">
+        <div className={styles.sectionHead}><h2 id="opos-upnext">Up next</h2><span className={styles.sectionCount}>{next.length} decision{next.length===1?'':'s'}</span></div>
+        <div className={styles.sectionPanel}>
+          {next.length ? <ul className={styles.list}>{next.map(item=><li key={item.id} className={styles.row}>
+            <Link className={styles.rowLink} href={nextHref(item.href)}>
+              <span><strong className={styles.rowTitle}>{item.title}</strong><span className={styles.rowCopy}>{item.detail}</span></span>
+              <span className={styles.rowAction}>Review ↗</span>
+            </Link>
+          </li>)}</ul> : <p className={styles.empty}>Nothing else needs a decision right now.</p>}
+        </div>
+      </section>
+      <section aria-labelledby="opos-waiting">
+        <div className={styles.sectionHead}><h2 id="opos-waiting">Waiting on others</h2><span className={styles.sectionCount}>{attention.waitingOnClient+attention.waitingOnPartner} records</span></div>
+        <div className={styles.sectionPanel}>
+          {waiting.length ? <ul className={styles.list}>{waiting.map(item=><li key={item.id} className={styles.row}>
+            <Link className={styles.rowLink} href={nextHref(item.href)}>
+              <span><strong className={styles.rowTitle}>{item.title}</strong><span className={styles.rowCopy}>{item.company}</span></span>
+              <span className={styles.rowAction}>{item.ownerBucket==='client'?'Customer':'Partner'}</span>
+            </Link>
+          </li>)}</ul> : <p className={styles.empty}>No outstanding customer or partner dependencies.</p>}
+        </div>
+      </section>
+    </div>
   </section>;
 }
