@@ -57,3 +57,41 @@
 .workspace.op-shell .opos-journey__step strong{font-size:14px;font-weight:650;}
 .workspace.op-shell .opos-journey__step[aria-current=step]{border-color:#82858b;}
 @media(max-width:600px){.workspace.op-shell .opos-journey{grid-template-columns:1fr;}}
+
+/* OS-wide semantic surfaces: replace legacy canvas, panels and text contrast in every workspace module. */
+.workspace.op-shell {
+ --background:#090a0b;--foreground:#f1f1f3;--canvas:#090a0b;--paper:#101113;
+ --ink:#f1f1f3;--muted:#b3b5bb;--subtle:#92949b;--line:#34363a;
+ --panel:#101113;--technical:#18191c;--op-accent:#d7d8dc;
+ --op-ink:#f1f1f3;--op-surface:#18191c;--surface:#101113;
+ --surface-panel:#101113;--surface-bg:#090a0b;
+}
+.workspace.op-shell :is(.record-workspace,.record-workspace__main,.record-workspace__context,
+ .project-os,.case360,.vp-page,.vp-main,.vp-content,.op-surface,.stage-documents,
+ .workspace-content,.workspace-shell,.op-card,.project-os-lower-grid,.project-os-summary,
+ .project-os-decision-grid,.op-focus__context){
+ color:var(--op-text);border-color:var(--op-line);
+}
+.workspace.op-shell :is(.stage-documents,.project-os-stage-card,.project-os-decision-panel,
+ .project-os-action-panel,.project-os-document-row,.project-os-history-row,
+ .case360-panel,.case360-stage-strip,.vp-card,.vp-panel,.vp-section,.vp-facts,
+ .vp-compact-metrics,.vp-primary-grid,.vp-action,.product-notice,
+ .record-workspace__context-bar,.record-workspace__panel,
+ .op-focus-project-nav,.op-focus__blockers,.op-focus__context,
+ .op-focus-home__queue,.op-focus-home__waiting){
+ background:var(--op-panel);color:var(--op-text);border-color:var(--op-line);
+ box-shadow:none;
+}
+.workspace.op-shell :is(.vp-kicker,.vp-subtitle,.op-focus__owner,.project-os-summary small,
+ .op-focus-home__queue small,.record-workspace__subtitle){color:var(--op-muted);}
+.workspace.op-shell :is(.op-sidebar a,.op-topbar a,.op-focus-project-nav a){color:var(--op-text);}
+.workspace.op-shell :is(.op-sidebar a:hover,.op-focus-project-nav a:hover){background:#1b1d20;}
+.workspace.op-shell :is(table,thead,tbody,tr,th,td){border-color:var(--op-line);color:inherit;}
+.workspace.op-shell :is(th){background:#18191c;color:var(--op-muted);}
+.workspace.op-shell :is(details,summary){border-color:var(--op-line);}
+.workspace.op-shell :is(.op-focus__detail-body,.op-focus__disclosure,.record-workspace__panel){min-width:0;}
+.workspace.op-shell :is(.button.danger,button.danger){background:#302024;border-color:#67373c;color:#ffd6d6;}
+.workspace.op-shell :is(.op-focus__decision,.project-os-action-panel,.case360-panel){max-width:100%;}
+@media(max-width:767px){
+ .workspace.op-shell :is(.project-os-decision-grid,.project-os-lower-grid,.vp-primary-grid){grid-template-columns:minmax(0,1fr);}
+}
