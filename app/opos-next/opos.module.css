@@ -105,3 +105,63 @@
 @media (prefers-reduced-motion: no-preference) {
   .shell :is(a,button) { transition: background-color .15s ease, color .15s ease; }
 }
+
+/* Mobile is a separate OPOS composition, not a scaled legacy workspace. */
+.skipLink { position: fixed; z-index: 400; top: -100px; left: 16px; background: #f4f4f5; color: #101114; padding: 12px 16px; border-radius: 8px; }
+.skipLink:focus { top: 12px; }
+.mobileShell { display: none; }
+.mobileRecords { display: none; }
+.shell :is(.mobileMenuTrigger,.searchButton):hover { transform: none; }
+.shell .searchInput:focus { border-color: var(--text); box-shadow: none; outline: 2px solid var(--text); outline-offset: 2px; }
+.shell .queue li a:focus-visible, .shell .mobileRecord:focus-visible { border-radius: 8px; }
+.mobileRecord { display: grid; gap: 14px; padding: 19px 18px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; min-width: 0; }
+.mobileRecordTitle { display: block; color: var(--text); font-size: 16px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; letter-spacing: -.02em; }
+.mobileRecordTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; min-width: 0; }
+.mobileRecordMeta { color: var(--faint); font-size: 12px; }
+.mobileRecordBottom { display: flex; justify-content: space-between; align-items: end; gap: 14px; border-top: 1px solid var(--border); padding-top: 13px; }
+.mobileRecordStep { color: var(--subtle); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+.mobileRecordArrow { color: var(--text); font-size: 18px; flex-shrink: 0; }
+.mobileRecord:hover { background: var(--raised); }
+.shell .mobileRecord:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+@media (max-width: 850px) {
+  .shell .sidebar { display: none; }
+  .shell .topbar { display: none; }
+  .shell .mobileShell { display: block; background: var(--nav); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .mobileHeader { height: 66px; padding: 0 18px; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+  .shell .mobileBrand { color: var(--text); display: inline-flex; align-items: center; gap: 9px; font-size: 10px; font-weight: 600; line-height: 1.25; letter-spacing: .1em; }
+  .shell .mobileBrand .brandMark { font-size: 25px; }
+  .shell .mobileMenuTrigger { appearance: none; color: var(--text); background: var(--raised); border: 1px solid var(--border-strong); min-height: 44px; min-width: 92px; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 8px 13px; font: 600 13px/1.2 var(--font-inter), system-ui, sans-serif; cursor: pointer; }
+  .menuIcon { font-size: 19px; line-height: 1; min-width: 18px; text-align: center; }
+  .mobileMenu { position: absolute; inset: 100% 0 auto; max-height: calc(100dvh - 66px); overflow-y: auto; overscroll-behavior: contain; padding: 22px 18px 28px; background: var(--nav); border-bottom: 1px solid var(--border-strong); box-shadow: 0 20px 36px #0009; }
+  .mobileMenu .navEyebrow { display: block; margin: 0 0 10px; }
+  .shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 15px; font-weight: 600; }
+  .shell .mobileMenuActive { background: var(--raised); border-radius: 8px; }
+  .mobileMenuLink span:first-child, .mobileMenuActive span:first-child { display: grid; gap: 2px; }
+  .mobileMenu :is(.mobileMenuLink,.mobileMenuActive) small { color: var(--faint); font-size: 11px; font-weight: 400; }
+  .mobileMenuNote { color: var(--subtle); font-size: 12px; line-height: 1.5; margin: 22px 4px 0; }
+  .shell .main { max-width: 100%; padding: 29px 18px calc(76px + env(safe-area-inset-bottom)); }
+  .shell .action { min-height: 48px; }
+  .shell .searchInput { min-height: 48px; font-size: 16px; width: 100%; }
+  .shell .searchButton { min-height: 48px; }
+  .tableWrap { display: none; }
+  .mobileRecords { display: grid; gap: 10px; }
+  .shell .pageHeader { margin-bottom: 25px; }
+  .shell .card { padding: 23px; }
+  .shell .cardTitle { overflow-wrap: anywhere; }
+  .shell .factRow { display: grid; gap: 11px; }
+  .shell .factRow span { font-size: 13px; }
+  .shell .sectionHeading { align-items: flex-start; }
+  .shell .sectionHeading .meta { text-align: right; }
+  .shell .queue a { min-height: 76px; }
+  .shell .waitingGrid { gap: 18px; }
+  .shell .details summary { min-height: 48px; display: flex; align-items: center; }
+}
+@media (max-width: 480px) {
+  .shell .main { padding: 25px 16px calc(70px + env(safe-area-inset-bottom)); }
+  .mobileHeader { padding-inline: 16px; }
+  .mobileMenu { padding-inline: 16px; }
+  .shell .card { padding: 22px 18px; }
+  .shell .sectionHeading { gap: 10px; }
+  .shell .searchRow { display: grid; gap: 9px; }
+  .shell .searchButton { margin: 0; width: 100%; }
+}
