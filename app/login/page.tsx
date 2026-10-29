@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { signIn } from "./actions";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
+  const { error, next } = await searchParams;
 
   return (
     <main className="auth">
@@ -13,6 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
         {error ? <p role="alert">{error}</p> : null}
         <form action={signIn} className="stack">
+          {next === "/opos-next" ? <input type="hidden" name="next" value="/opos-next" /> : null}
           <label className="field">Email<input name="email" type="email" required autoComplete="email" /></label>
           <label className="field">Password<input name="password" type="password" required autoComplete="current-password" /></label>
           <button className="button" type="submit">Enter Workspace</button>
