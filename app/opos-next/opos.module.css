@@ -165,3 +165,16 @@
   .shell .searchRow { display: grid; gap: 9px; }
   .shell .searchButton { margin: 0; width: 100%; }
 }
+
+/* Unified IA: grouped primary navigation with deliberate spacing and scroll. */
+.shell .sidebar { overflow-y: auto; overscroll-behavior: contain; }
+.navUnit { display: grid; gap: 3px; }
+.navUnit:not(:first-child):has(.navEyebrow) { margin-top: 18px; }
+.navUnit .navEyebrow { margin: 0 8px 5px; }
+.shell .mobileMenu > div .navEyebrow { margin: 20px 12px 6px; font-size: 10px; }
+.shell .mobileMenu > div:first-child .navEyebrow { margin-top: 0; }
+.shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 48px; }
+@media (max-width:850px) {
+  .shell .mobileMenu { padding-bottom: calc(30px + env(safe-area-inset-bottom)); }
+  .shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 52px; }
+}
