@@ -7,7 +7,8 @@ export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
-  const safeNext = next === "/opos-next" ? next : "/workspace";
+  const redesignPreview = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "design/opos-decision-first-ia";
+  const safeNext = next === "/opos-next" ? next : (redesignPreview ? "/opos-next" : "/workspace");
 
   if (!email || !password) {
     redirect("/login?error=Email%20and%20password%20are%20required.");
