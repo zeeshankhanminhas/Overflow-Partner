@@ -5,6 +5,7 @@ import { resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/
 import { buildMissionPriorityQueue } from '@/lib/dashboard/priorityQueue';
 import { getWorkspaceChromeData } from '@/lib/workspace/request-data';
 import css from './opos.module.css';
+import { nextHref } from './nextHref';
 
 function actionText(kind: 'issue' | 'approval' | 'dependency') {
   return kind === 'issue' ? 'Resolve issue' : kind === 'approval' ? 'Review decision' : 'Review next step';
@@ -75,12 +76,12 @@ export default async function NewMissionControl() {
       <p className={css.cardDescription}>{primary?.detail || 'No outstanding approvals, issues or dependencies need an immediate intervention.'}</p>
       {primary ? <>
         <p className={css.factRow}><span>Responsible: <strong>{primary.owner || 'Your team'}</strong></span><span>{primary.label} · {primary.meta}</span></p>
-        <Link href={primary.href} className={css.action}>{actionText(primary.kind)} →</Link>
+        <Link href={nextHref(primary.href)} className={css.action}>{nextHref(primary.href) === primary.href ? actionText(primary.kind) : 'Inspect operating position'} →</Link>
       </> : <Link href="/opos-next/opportunities" className={css.action}>View opportunities →</Link>}
     </section>
     <section className={css.section} aria-labelledby="upcoming-decisions">
       <div className={css.sectionHeading}><h2 id="upcoming-decisions">Following decisions</h2><span className={css.meta}>Ordered by operational priority</span></div>
-      {next.length ? <ul className={css.queue}>{next.map(item => <li key={item.id}><Link href={item.href}>
+      {next.length ? <ul className={css.queue}>{next.map(item => <li key={item.id}><Link href={nextHref(item.href)}>
         <span><strong>{item.title}</strong><p>{item.detail}</p><small>{item.owner || 'Your team'} · {item.label}</small></span>
         <span className={css.queueArrow}>Review ↗</span>
       </Link></li>)}</ul> : <p className={css.empty}>No further decisions are waiting.</p>}
