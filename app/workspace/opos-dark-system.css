@@ -82,3 +82,16 @@
 @media(max-width:767px) {
   .workspace.op-shell :where(.card,.op-focus__decision,.op-focus__detail-body) {border-radius:11px;}
 }
+
+/* Legacy-style containment: old light surface declarations cannot repaint
+   the workspace as new modules migrate to the canonical OPOS components. */
+.workspace.op-shell :where(.record-workspace,.vp-section,.op-focus__context,.op-focus__detail-body,.project-os-summary,.case360-stage-strip) {
+  color:var(--op-text);
+}
+.workspace.op-shell :where(.product-notice,.vp-facts,.vp-stage-panel,.vp-compact-metrics,.project-os-stage-card,.project-os-decision-grid,.project-os-lower-grid,.project-os-document-row) {
+  border-color:var(--op-line);
+  color:var(--op-text);
+}
+.workspace.op-shell :where(.product-notice,.vp-stage-panel,.project-os-stage-card) {
+  background:var(--op-panel);
+}
