@@ -151,3 +151,12 @@
 .journalFooter span{max-width:370px;font-size:11px;font-weight:400;line-height:1.65;color:var(--op-muted,#696d69)}
 .journalFooter button{width:auto;min-height:42px;white-space:nowrap}
 @media(max-width:650px){.journalFooter{flex-direction:column;align-items:stretch}.journalFooter button{width:100%}}
+
+/* Match the approved OS visual language throughout pre-CRM prospecting. */
+.flow{color:var(--op-ink,#f1f1f3);}
+.flow :where(.metrics,.workPanel){background:var(--op-panel,#101113);border-color:var(--op-line,#34363a);}
+.flow :where(.prospectRow:hover){background:var(--op-surface,#18191c);}
+.flow :where(.muted,.count){color:var(--op-muted,#b3b5bb);}
+.flow :where(input,textarea,select){background:#18191c;color:#f1f1f3;border:1px solid #47494e;border-radius:9px;}
+.flow :where(input,textarea)::placeholder{color:#96989e;}
+.flow :where(.filters a:hover,.filters .activeFilter){background:#25272b;color:#f1f1f3;border-color:#47494e;}
