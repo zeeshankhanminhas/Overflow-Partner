@@ -29,7 +29,7 @@ export default function OpMobileNav() {
         {open ? 'Close' : 'Menu'}
       </button>
     </div>
-    {open ? <nav id="opos-next-mobile-menu" className={css.mobileMenu} aria-label="Mobile workspace navigation">
+    <nav id="opos-next-mobile-menu" className={css.mobileMenu} hidden={!open} aria-label="Mobile workspace navigation">
       <span className={css.navEyebrow}>WORKSPACE</span>
       {destinations.map(destination => {
         const active = destination.href === '/opos-next'
@@ -43,6 +43,6 @@ export default function OpMobileNav() {
         </Link>;
       })}
       <p className={css.mobileMenuNote}>Additional workflows will appear here after their new interfaces are verified.</p>
-    </nav> : null}
+    </nav>
   </div>;
 }
