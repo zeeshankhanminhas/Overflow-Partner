@@ -70,7 +70,7 @@ async function deliver(row: OutboxRow) {
 
 export async function GET(request: NextRequest) {
   if (!authorised(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (process.env.VERCEL_ENV === 'preview' && !isKnownIsolatedQaBackend()) {
+  if (process.env.VERCEL_ENV === 'preview' && (!isKnownIsolatedQaBackend() || process.env.OP_QA_EMAIL_SENDING_ENABLED !== 'true')) {
     return NextResponse.json({ error: 'OPOS-QA outbound worker is locked.' }, { status: 503 });
   }
 
