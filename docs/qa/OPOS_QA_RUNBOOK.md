@@ -18,6 +18,16 @@
 - QA verification after bridge: **77 public tables, 144 public functions, 121 public RLS policies, two storage buckets**, and **zero original business organisations/users**. Production snapshot: 75 public tables, 144 public functions, 117 public RLS policies. Difference is the two conversation-import tables and four associated policies; schema-level parity is **not exact**.
 - No claim of environment parity should be made until grants, storage policies, worker schedules and auth/storage flows have also been verified.
 
+## QA test inbox / client and partner personas (30 Oct 2026)
+- The verified QA Gmail inbox receives **three exact destinations**: the base address plus its `+client` and `+partner` aliases. Gmail delivers all three to the same inbox; no separate Gmail accounts or passwords are needed for email receipt.
+- Vercel `OP_QA_TEST_INBOX` is an encrypted, **branch-scoped Preview** variable; do not print or commit its value.
+- `lib/qa/email-guard.ts` enforces an exact recipient allowlist when `VERCEL_ENV=preview` and the isolated QA backend is explicitly write-enabled. Without those conditions it denies all Preview queued and sent email.
+- The application checks recipients at `queueNotification`, the Resend delivery worker, and public website intake **before** creating database records. Non-allowed recipients must fail closed.
+- The secure Step 2 URL in QA uses the Preview request origin, not a configured production site domain.
+- The branch's `OP_ISOLATED_QA_BACKEND` remains **unset**. Sending has not begun, no live recipient has been contacted.
+- Before turning on QA writes or worker: configure **QA-only Supabase service/secret API key**, verified Resend test delivery credentials, Preview-only `CRON_SECRET`, and test-link accessibility; run negative tests for unlisted recipient addresses. Never borrow production database credentials.
+- Supabase QA hourly notification worker remains disabled until replay/idempotency evidence and safe delivery are confirmed.
+
 ## Outbound worker kill switch
 - Migration replay created `cron.job` named `overflow-partner-notification-worker-hourly`.
 - **Disabled:** `cron.alter_job(job_id := ..., active := false)` applied and verified in QA.
