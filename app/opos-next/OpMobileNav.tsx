@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { nextNavigation, isNextActive } from './navigation';
 import css from './opos.module.css';
 
-export default function OpMobileNav() {
+export default function OpMobileNav({ statusLabel }: { statusLabel: string }) {
   const pathname=usePathname();
   const [expandedFor,setExpandedFor]=useState<string|null>(null);
   const open=expandedFor===pathname;
@@ -21,7 +21,7 @@ export default function OpMobileNav() {
       </button>
       <Link href="/opos-next" className={css.mobileBrand} aria-label="OPOS Mission Control">OPOS</Link>
       <span className={css.mobileSpacer}/>
-      <span className={css.mobilePreview}><span aria-hidden="true" className={css.mobileLiveDot}/>Preview</span>
+      <span className={css.mobilePreview}><span aria-hidden="true" className={css.mobileLiveDot}/>{statusLabel}</span>
       <span className={css.mobileAvatar} aria-label="Overflow Partner workspace">OP</span>
     </div>
     <nav id="opos-next-mobile-menu" className={css.mobileMenu} hidden={!open} aria-label="Mobile workspace navigation">
