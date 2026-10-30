@@ -129,7 +129,7 @@ export async function sendQueuedQaStep2InvitationAction(formData:FormData) {
        !qaAllowedRecipientAddresses().has(recipient))
       throw new Error('Only the fictional QA client opportunity can recover this invitation.');
     const {data:session,error:sessionError}=await supabase.from('intake_sessions')
-      .select('id,status,email_status,recipient_email').eq('organisation_id',qaOrg)
+      .select('id,status,email_status,recipient_email,token_hash').eq('organisation_id',qaOrg)
       .eq('prospect_id',id).order('created_at',{ascending:false}).limit(1).single();
     if(sessionError||!session||session.status!=='invited'||
       !['pending','failed'].includes(String(session.email_status))||
@@ -141,13 +141,41 @@ export async function sendQueuedQaStep2InvitationAction(formData:FormData) {
       throw new Error('QA server credentials are not configured for invitation recovery.');
     const qaServer=createClient(qaUrl,qaServerKey,{auth:{persistSession:false,autoRefreshToken:false}});
     const {data:invitation,error:invitationError}=await qaServer.from('notification_outbox')
-      .select('id,status,attempts,recipient_email').eq('organisation_id',qaOrg)
+      .select('id,status,attempts,recipient_email,payload').eq('organisation_id',qaOrg)
       .eq('entity_type','prospect').eq('entity_id',id)
       .eq('event_key','requirements.requested')
       .eq('idempotency_key','qa:intake:invite:'+session.id).single();
     if(invitationError||!invitation||invitation.status!=='pending'||
        invitation.attempts!==0||String(invitation.recipient_email).toLowerCase()!==recipient)
       throw new Error('No unsent QA invitation is eligible for recovery. Review the delivery log.');
+    // Repoint the original token to this repaired deployment. Token identity is
+    // checked against the session hash before changing any queued email.
+    const savedUrl=String(invitation.payload?.actionUrl||'');
+    const tokenMatch=/^https:\/\/overflow-partner-[a-z0-9-]+\.vercel\.app\/intake\/([a-f0-9]{64})$/i.exec(savedUrl);
+    const host=String(process.env.VERCEL_URL||'');
+    if(!tokenMatch||!/^overflow-partner-[a-z0-9-]+\.vercel\.app$/i.test(host)||
+       createHash('sha256').update(tokenMatch[1]).digest('hex')!==session.token_hash)
+      throw new Error('QA invitation token or deployment hostname could not be verified.');
+    const actionUrl='https://'+host+'/intake/'+tokenMatch[1];
+    if(actionUrl!==savedUrl){
+      const {error:linkError}=await qaServer.from('notification_outbox')
+        .update({payload:{...invitation.payload,actionUrl}})
+        .eq('organisation_id',qaOrg).eq('id',invitation.id).eq('status','pending');
+      if(linkError)throw new Error('Could not update the queued invitation link.');
+      for(const hours of [24,72]){
+        const key='qa:intake:reminder:'+hours+':'+session.id;
+        const {data:reminder,error:reminderError}=await qaServer.from('notification_outbox')
+          .select('id,payload').eq('organisation_id',qaOrg)
+          .eq('idempotency_key',key).eq('status','pending').maybeSingle();
+        if(reminderError)throw new Error('Could not validate the queued reminder.');
+        if(reminder){
+          const {error:patchError}=await qaServer.from('notification_outbox')
+            .update({payload:{...reminder.payload,actionUrl}})
+            .eq('organisation_id',qaOrg).eq('id',reminder.id).eq('status','pending');
+          if(patchError)throw new Error('Could not update the queued reminder link.');
+        }
+      }
+    }
     const delivery=await deliverOneQaStep2Invitation({
       outboxId:invitation.id,sessionId:session.id,prospectId:id,
     });
