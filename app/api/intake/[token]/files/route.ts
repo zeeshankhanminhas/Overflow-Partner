@@ -48,11 +48,13 @@ async function sessionForToken(token: string) {
     .single();
 
   if (error || !data) return { supabase, session: null };
+  const relation = data.prospects as unknown as {company_name?:string} | {company_name?:string}[] | null;
+  const companyName = Array.isArray(relation) ? relation[0]?.company_name : relation?.company_name;
   if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()){
     const qaClient=[...qaAllowedRecipientAddresses()].find(x=>x.endsWith('+client@gmail.com'));
     if(!isKnownIsolatedQaStep2Backend() ||
       data.organisation_id!=='717262cb-68da-4e7b-a9fa-238dc6c5d16b' ||
-      !String(Array.isArray(data.prospects) ? data.prospects[0]?.company_name || '' : '').startsWith('QA - ') ||
+      !String(companyName||'').startsWith('QA - ') ||
       String(data.recipient_email||'').toLowerCase()!==qaClient)
       return {supabase,session:null};
   }
