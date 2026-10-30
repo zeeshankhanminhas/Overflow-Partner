@@ -44,6 +44,13 @@ export function assertIsolatedQaFixtureBackend() {
     throw new Error('Synthetic CRM entry is locked until the isolated OPOS-QA fixture gate is verified.');
 }
 
+/** Narrow test-only Step 2 switch, separate from the normal commercial write gate. */
+export function isKnownIsolatedQaStep2Backend(): boolean {
+  return isKnownIsolatedQaFixtureBackend() &&
+    process.env.OP_QA_STEP2_ENABLED === 'true' &&
+    process.env.OP_QA_SUPABASE_PROJECT_REF === 'ukcamenuxhdznxaxpyis';
+}
+
 /**
  * LOCAL HTTP REGRESSION ONLY. This path is deliberately impossible on Vercel:
  * it requires a GitHub CI runner, a non-Vercel environment name, a fixed
