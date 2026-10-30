@@ -98,7 +98,7 @@ export default async function OpportunityPreview({
   const canRequestPartner=['owner','admin','business_development','operator','engineering'].includes(role);
   const canDecide=['owner','admin','commercial','engineering'].includes(role);
   const source=prospect.source==='website'?'Website enquiry':prospect.source==='linkedin'?'LinkedIn qualification':prospect.source||'Other enquiry';
-  const invite=(deliveryResult.data||[]).find(event=>
+  const invite=(deliveryResult.data||[]).find((event:{entity_type:string;entity_id:string;event_key:string;status:string;sent_at:string|null})=>
     event.entity_type==='prospect' && event.entity_id===id && event.event_key==='requirements.requested');
   const recordedSessionStatus = ['sent','delivered','failed'].includes(String(session?.email_status||'')) ? session?.email_status : null;
   const sendStatus=invite?.status || recordedSessionStatus || null;
