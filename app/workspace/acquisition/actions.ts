@@ -12,11 +12,17 @@ import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { acquisitionReturn, caseReturn, assertVNextWritable } from './return-path';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
 function siteUrl(path: string) {
+  // Only a verified isolated QA Preview may generate secure Step 2 links back
+  // to its own Preview host. Never send QA token links to the live site.
+  if (isKnownIsolatedQaBackend() && process.env.VERCEL_URL?.endsWith('.vercel.app')) {
+    return 'https://' + process.env.VERCEL_URL + path;
+  }
   const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
   return `${base.startsWith('http') ? base : `https://${base}`}${path}`;
 }
