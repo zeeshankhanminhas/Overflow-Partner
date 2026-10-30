@@ -47,6 +47,12 @@ const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
+  ['QA Step 2 uses valid email status and recovers original unsent invitation',
+    qaStep2Actions.includes(".update({email_status:'pending',email_error:null})") &&
+    qaStep2Actions.includes("export async function sendQueuedQaStep2InvitationAction") &&
+    qaStep2Actions.includes(".eq('idempotency_key','qa:intake:invite:'+session.id)") &&
+    record.includes("qaRecoverableInvitation") &&
+    record.includes("Send queued QA invitation")],
   ['QA email only sends one allowlisted notification after an independent switch',
     qaStep2Send.includes("OP_QA_EMAIL_SENDING_ENABLED!=='true'") &&
     qaStep2Send.includes("isKnownIsolatedQaStep2Backend()") &&
