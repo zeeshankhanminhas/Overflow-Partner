@@ -11,6 +11,7 @@ import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
+import { acquisitionReturn, caseReturn } from './return-path';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
@@ -110,7 +111,8 @@ export async function createStep2InvitationFormAction(formData: FormData) {
       ? acquisitionUrl(prospectId,{error:text,focus:'record-next-action'})
       : `/workspace/acquisition?error=${encodeURIComponent(text)}`;
   }
-  redirect(destination);
+  if (prospectId) revalidatePath('/opos-next/opportunities/' + prospectId);
+  redirect(acquisitionReturn(formData, prospectId, destination));
 }
 
 export async function qualifyProspectFormAction(formData: FormData) {
@@ -238,9 +240,13 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
 export async function convertProspectFormAction(formData: FormData) {
   const prospectId=String(formData.get('prospect_id')||'');
   const result = await convertProspectAction(formData);
-  redirect(result.ok
-    ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns the controlled technical and commercial conversion workflow.')}&focus=record-next-action`
-    : prospectId
-      ? acquisitionUrl(prospectId,{error:result.error,focus:'record-next-action'})
-      : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
+  if (result.ok) {
+    revalidatePath('/opos-next/opportunities/' + prospectId);
+    revalidatePath('/opos-next/cases/' + result.data.id);
+    redirect(caseReturn(formData, result.data.id,
+      `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns the controlled technical and commercial conversion workflow.')}&focus=record-next-action`));
+  }
+  redirect(acquisitionReturn(formData, prospectId,
+    prospectId ? acquisitionUrl(prospectId,{error:result.error,focus:'record-next-action'})
+      : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`));
 }
