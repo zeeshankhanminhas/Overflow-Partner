@@ -21,6 +21,29 @@ export function assertIsolatedQaBackend() {
 }
 
 
+
+/** Narrow QA-only gate for creating synthetic CRM fixtures with the signed-in
+ * operator's own RLS permissions. This never enables customer/partner emails,
+ * payment flows, or the broader preview mutation gate.
+ */
+export function isKnownIsolatedQaFixtureBackend(): boolean {
+  if (process.env.VERCEL_ENV !== 'preview' ||
+      process.env.OP_QA_FIXTURE_WRITES_ENABLED !== 'true') return false;
+  const qaRef = String(process.env.OP_QA_SUPABASE_PROJECT_REF || '').trim().toLowerCase();
+  if (!/^[a-z0-9]{12,32}$/.test(qaRef) || qaRef === OPOS_PRODUCTION_SUPABASE_REF) return false;
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '');
+    return url.protocol === 'https:' &&
+      url.hostname.toLowerCase() === qaRef + '.supabase.co' &&
+      Boolean(process.env.OP_QA_TEST_INBOX);
+  } catch { return false; }
+}
+
+export function assertIsolatedQaFixtureBackend() {
+  if (!isKnownIsolatedQaFixtureBackend())
+    throw new Error('Synthetic CRM entry is locked until the isolated OPOS-QA fixture gate is verified.');
+}
+
 /**
  * LOCAL HTTP REGRESSION ONLY. This path is deliberately impossible on Vercel:
  * it requires a GitHub CI runner, a non-Vercel environment name, a fixed
