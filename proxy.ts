@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isKnownIsolatedQaBackend, isKnownIsolatedQaFixtureBackend } from "@/lib/qa/isolation";
+import { isKnownIsolatedQaBackend, isKnownIsolatedQaFixtureBackend, isKnownIsolatedQaStep2Backend } from "@/lib/qa/isolation";
 
 export async function proxy(request: NextRequest) {
   // Draft redesign preview may share production Supabase for read-only inspection.
@@ -8,8 +8,12 @@ export async function proxy(request: NextRequest) {
   // mutate that database. Isolated QA is the only allowed preview write target.
   const qaFixturePost = request.nextUrl.pathname === '/opos-next/opportunities/new' &&
     isKnownIsolatedQaFixtureBackend();
+  const qaStep2Post = isKnownIsolatedQaStep2Backend() && (
+    /^\/opos-next\/opportunities\/[0-9a-f-]{36}\/?$/i.test(request.nextUrl.pathname) ||
+    /^\/api\/intake\/[a-f0-9]{64}\/?$/i.test(request.nextUrl.pathname)
+  );
   if (process.env.VERCEL_ENV === 'preview' &&
-      !isKnownIsolatedQaBackend() && !qaFixturePost &&
+      !isKnownIsolatedQaBackend() && !qaFixturePost && !qaStep2Post &&
       !['GET','HEAD','OPTIONS'].includes(request.method)) {
     return NextResponse.json({
       message: 'This OPOS redesign preview is read-only until an isolated QA database is configured.',
