@@ -10,7 +10,7 @@ export async function proxy(request: NextRequest) {
     isKnownIsolatedQaFixtureBackend();
   const qaStep2Post = isKnownIsolatedQaStep2Backend() && (
     /^\/opos-next\/opportunities\/[0-9a-f-]{36}\/?$/i.test(request.nextUrl.pathname) ||
-    /^\/api\/intake\/[a-f0-9]{64}\/?$/i.test(request.nextUrl.pathname)
+    /^\/api\/intake\/[a-f0-9]{64}(?:\/files)?\/?$/i.test(request.nextUrl.pathname)
   );
   if (process.env.VERCEL_ENV === 'preview' &&
       !isKnownIsolatedQaBackend() && !qaFixturePost && !qaStep2Post &&
