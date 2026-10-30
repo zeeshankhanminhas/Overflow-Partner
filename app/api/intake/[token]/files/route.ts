@@ -52,7 +52,7 @@ async function sessionForToken(token: string) {
     const qaClient=[...qaAllowedRecipientAddresses()].find(x=>x.endsWith('+client@gmail.com'));
     if(!isKnownIsolatedQaStep2Backend() ||
       data.organisation_id!=='717262cb-68da-4e7b-a9fa-238dc6c5d16b' ||
-      !String(data.prospects?.company_name||'').startsWith('QA - ') ||
+      !String(Array.isArray(data.prospects) ? data.prospects[0]?.company_name || '' : '').startsWith('QA - ') ||
       String(data.recipient_email||'').toLowerCase()!==qaClient)
       return {supabase,session:null};
   }
