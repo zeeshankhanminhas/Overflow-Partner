@@ -160,7 +160,7 @@ export default async function OpportunityPreview({
           linkedinEligible={canInviteFromLinkedIn(prospect)} sessionId={session?.id||null}
           scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
           partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
-          partnerResponse={response} partnerQuote={quote} partnerDecision={decision}
+          partnerResponse={response} partnerQuote={quote} 
           partnerName={partnerName} convertedCaseId={convertedCaseId}/></div>:
         <p className={css.note}>No operator action is required while the next dependency is outstanding.</p>}
       </section>
