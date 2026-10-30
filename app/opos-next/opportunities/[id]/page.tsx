@@ -3,7 +3,7 @@ import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
 import {resolveAcquisitionState} from '@/lib/acquisition/state';
 import {canInviteFromLinkedIn} from '@/lib/acquisition/linkedinFunnel';
-import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import {isKnownIsolatedQaBackend,isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
 import OpportunityWork from '../OpportunityWork';
 import css from '../opportunity.module.css';
 
@@ -24,7 +24,7 @@ function emailLabel(status:string|null|undefined) {
 
 export default async function OpportunityPreview({
   params,searchParams,
-}:{params:Promise<{id:string}>;searchParams?:Promise<{error?:string;updated?:string;partnerReviewCreated?:string;partnerDecision?:string;notificationWarning?:string}>}) {
+}:{params:Promise<{id:string}>;searchParams?:Promise<{error?:string;updated?:string;partnerReviewCreated?:string;partnerDecision?:string;notificationWarning?:string;qaInvitationQueued?:string}>}) {
   const {id}=await params;
   const query=searchParams?await searchParams:{};
   const {supabase,organisationId,profile}=await requireUserContext();
@@ -109,6 +109,10 @@ export default async function OpportunityPreview({
   const partnerName=partnerResult.data?.company_name||null;
   const actionKey=acquisition.actionKey;
   const previewWritable=isKnownIsolatedQaBackend();
+  const qaStep2Available=isKnownIsolatedQaStep2Backend() &&
+    organisationId==='717262cb-68da-4e7b-a9fa-238dc6c5d16b' &&
+    String(prospect.company_name).startsWith('QA - ') &&
+    String(prospect.email||'').toLowerCase().endsWith('+client@gmail.com');
   const failedDelivery=!!session&&!acquisition.submitted &&
     ['failed','permanently_failed','dead_letter'].includes(String(sendStatus||'').toLowerCase());
   const actionNeeded=failedDelivery||['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
@@ -134,6 +138,7 @@ export default async function OpportunityPreview({
       <p className={css.subtitle}>OP-{prospect.id.slice(0,8).toUpperCase()} · {source}</p>
 
       {query.error?<p className={css.feedbackError} role="alert">Action could not be completed: {String(query.error).slice(0,500)}</p>:null}
+      {query.qaInvitationQueued?<p className={css.feedbackSuccess} role="status">QA secure requirements session created and email queued. Actual delivery requires the independent QA email sending check.</p>:null}
       {query.notificationWarning?<p className={css.feedbackError} role="alert">The partner review was created, but its email notification needs investigation.</p>:null}
       {(query.updated||query.partnerReviewCreated||query.partnerDecision)&&!query.error?
         <p className={css.feedbackSuccess} role="status">Operating record updated. The current position below reflects the saved evidence.</p>:null}
@@ -153,11 +158,11 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
-          {!previewWritable&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
+          {!previewWritable&&!qaStep2Available&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
           {failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
           <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
-            hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)}
+            hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)} qaStep2Available={qaStep2Available}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
             partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
             partnerResponse={response} partnerQuote={quote}
