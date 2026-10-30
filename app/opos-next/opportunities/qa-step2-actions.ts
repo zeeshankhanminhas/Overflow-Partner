@@ -1,6 +1,7 @@
 'use server';
 
 import { createHash, randomBytes } from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
@@ -134,7 +135,12 @@ export async function sendQueuedQaStep2InvitationAction(formData:FormData) {
       !['pending','failed'].includes(String(session.email_status))||
       String(session.recipient_email).toLowerCase()!==recipient)
       throw new Error('The QA session is no longer eligible for recovery.');
-    const {data:invitation,error:invitationError}=await supabase.from('notification_outbox')
+    const qaUrl=process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const qaServerKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if(qaUrl!=='https://ukcamenuxhdznxaxpyis.supabase.co'||!qaServerKey)
+      throw new Error('QA server credentials are not configured for invitation recovery.');
+    const qaServer=createClient(qaUrl,qaServerKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    const {data:invitation,error:invitationError}=await qaServer.from('notification_outbox')
       .select('id,status,attempts,recipient_email').eq('organisation_id',qaOrg)
       .eq('entity_type','prospect').eq('entity_id',id)
       .eq('event_key','requirements.requested')
