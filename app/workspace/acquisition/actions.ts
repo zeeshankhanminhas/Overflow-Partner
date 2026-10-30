@@ -11,7 +11,7 @@ import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
-import { acquisitionReturn, caseReturn } from './return-path';
+import { acquisitionReturn, caseReturn, assertVNextWritable } from './return-path';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
@@ -73,6 +73,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
   const prospectId = String(formData.get('prospect_id') || '');
   let destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
   try {
+    assertVNextWritable(formData);
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     if (!prospectId) throw new Error('Prospect ID is required.');
@@ -239,6 +240,12 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
 
 export async function convertProspectFormAction(formData: FormData) {
   const prospectId=String(formData.get('prospect_id')||'');
+  try {
+    assertVNextWritable(formData);
+  } catch(error) {
+    const message=error instanceof Error?error.message:'Safe preview backend not configured';
+    redirect(acquisitionReturn(formData,prospectId,acquisitionUrl(prospectId,{error:message})));
+  }
   const result = await convertProspectAction(formData);
   if (result.ok) {
     revalidatePath('/opos-next/opportunities/' + prospectId);
