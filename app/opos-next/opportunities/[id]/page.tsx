@@ -144,6 +144,7 @@ export default async function OpportunityPreview({
       <p className={css.subtitle}>OP-{prospect.id.slice(0,8).toUpperCase()} · {source}</p>
 
       {query.error?<p className={css.feedbackError} role="alert">Action could not be completed: {String(query.error).slice(0,500)}</p>:null}
+      {query.qaInvitationSent?<p className={css.feedbackSuccess} role="status">The QA email provider accepted the original requirements invitation. Check the test Gmail inbox; provider acceptance does not prove delivery.</p>:null}
       {query.qaInvitationQueued?<p className={css.feedbackSuccess} role="status">QA secure requirements session created and email queued. Actual delivery requires the independent QA email sending check.</p>:null}
       {query.notificationWarning?<p className={css.feedbackError} role="alert">The partner review was created, but its email notification needs investigation.</p>:null}
       {(query.updated||query.partnerReviewCreated||query.partnerDecision)&&!query.error?
@@ -166,7 +167,11 @@ export default async function OpportunityPreview({
         {actionNeeded?<div className={css.workArea}>
           {!previewWritable&&!qaStep2Available&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
-          {failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
+          {qaRecoverableInvitation?<form action={sendQueuedQaStep2InvitationAction} className={css.workForm}>
+            <input type="hidden" name="prospect_id" value={id}/>
+            <p className={css.workHint}>This sends the existing invitation once to the QA +client mailbox without creating a new session, reminders or opportunity.</p>
+            <button className={css.workButton} type="submit">Send queued QA invitation →</button>
+          </form>:failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
           <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
             hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)} qaStep2Available={qaStep2Available}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
