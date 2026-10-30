@@ -24,7 +24,7 @@
 - `lib/qa/email-guard.ts` enforces an exact recipient allowlist when `VERCEL_ENV=preview` and the isolated QA backend is explicitly write-enabled. Without those conditions it denies all Preview queued and sent email.
 - The application checks recipients at `queueNotification`, the Resend delivery worker, and public website intake **before** creating database records. Non-allowed recipients must fail closed.
 - The secure Step 2 URL in QA uses the Preview request origin, not a configured production site domain.
-- The branch's `OP_ISOLATED_QA_BACKEND` remains **unset**. Sending has not begun, no live recipient has been contacted.
+- The branch's `OP_ISOLATED_QA_BACKEND` and `OP_QA_EMAIL_SENDING_ENABLED` remain **unset**. The worker requires both independently: writes cannot inadvertently enable email sending. No QA email has been sent.
 - Before turning on QA writes or worker: configure **QA-only Supabase service/secret API key**, verified Resend test delivery credentials, Preview-only `CRON_SECRET`, and test-link accessibility; run negative tests for unlisted recipient addresses. Never borrow production database credentials.
 - Supabase QA hourly notification worker remains disabled until replay/idempotency evidence and safe delivery are confirmed.
 
