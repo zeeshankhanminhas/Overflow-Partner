@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import css from '../opos.module.css';
+import { isKnownIsolatedQaFixtureBackend } from '@/lib/qa/isolation';
 
 function statusLabel(status: string | null) {
   return (status || 'Unknown').replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase());
@@ -10,6 +11,7 @@ export default async function OpportunityRegister({
   searchParams,
 }: { searchParams: Promise<{ q?: string }> }) {
   const { supabase, organisationId } = await requireUserContext();
+  const qaFixturesEnabled = isKnownIsolatedQaFixtureBackend();
   const { q = '' } = await searchParams;
   const search = q.trim().slice(0,80);
   let query = supabase.from('prospects')
@@ -27,6 +29,10 @@ export default async function OpportunityRegister({
       <h1 className={css.title} id="opos-opportunities-heading">Opportunities</h1>
       <p className={css.subhead}>Find inbound enquiries and qualified prospect work. Each record opens into its current operating position.</p>
     </header>
+    {qaFixturesEnabled ? <p style={{margin:'0 0 24px'}}>
+      <Link className={css.action} href="/opos-next/opportunities/new">Create a fictional QA opportunity ↗</Link>
+      <span className={css.meta} style={{display:'block',marginTop:9}}>Test CRM records only. Emails and commercial actions are still locked.</span>
+    </p> : null}
     <form method="GET" className={css.searchRow} role="search" aria-label="Search opportunities">
       <label htmlFor="opos-find" className={css.eyebrow}>Find a company</label>
       <input id="opos-find" type="search" name="q" defaultValue={search}
