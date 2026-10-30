@@ -18,6 +18,8 @@ const acquisitionActions = read('app/workspace/acquisition/actions.ts');
 const partnerActions = read('app/workspace/acquisition/partner-actions.ts');
 const returnPath = read('app/workspace/acquisition/return-path.ts');
 const websiteIntake = read('app/api/intake/route.ts');
+const proxy = read('proxy.ts');
+const deliveryPage = read('app/opos-next/notifications/page.tsx');
 
 
 const checks = [
@@ -84,6 +86,16 @@ const checks = [
     acquisitionActions.includes('acquisitionReturn(formData') &&
     partnerActions.includes('acquisitionReturn(formData') &&
     returnPath.includes("'/opos-next/opportunities/'")],
+  ['Notification queue failures are recorded on the intake session',
+    websiteIntake.includes("email_status:'failed'") && acquisitionActions.includes("email_status:'failed'") &&
+    record.includes('failedDelivery')],
+  ['Failed delivery has a scoped vNext diagnostics route, not a fake send button',
+    deliveryPage.includes("op_list_notification_delivery") && record.includes("Review delivery failure evidence") &&
+    deliveryPage.includes(".eq('organisation_id',organisationId)")],
+  ['Shared-database preview cannot POST through legacy UI, portal or API routes',
+    proxy.includes('isKnownIsolatedQaBackend') && proxy.includes('request.method') &&
+    proxy.includes('status: 423') && proxy.includes('/client-portal/:path*') &&
+    proxy.includes('/partner-review/:path*')],
   ['Mobile shell hides the former desktop sidebar and topbar',
     styles.includes('.shell .sidebar { display: none; }') && styles.includes('.shell .topbar { display: none; }')],
 ];
