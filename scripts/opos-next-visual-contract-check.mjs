@@ -20,9 +20,23 @@ const returnPath = read('app/workspace/acquisition/return-path.ts');
 const websiteIntake = read('app/api/intake/route.ts');
 const proxy = read('proxy.ts');
 const deliveryPage = read('app/opos-next/notifications/page.tsx');
+const qaEmailGuard = read('lib/qa/email-guard.ts');
+const notificationQueue = read('lib/notifications/queue.ts');
+const notificationWorker = read('app/api/notifications/process/route.ts');
 
 
 const checks = [
+  ['QA Preview outbound email is restricted to three exact Gmail aliases',
+    qaEmailGuard.includes('isKnownIsolatedQaBackend()') &&
+    qaEmailGuard.includes('OP_QA_TEST_INBOX') &&
+    qaEmailGuard.includes('+client@gmail.com') && qaEmailGuard.includes('+partner@gmail.com')],
+  ['QA email recipient is checked at enqueue and at actual delivery',
+    notificationQueue.includes('assertQaRecipientAllowed(input.recipientEmail)') &&
+    notificationWorker.includes('assertQaRecipientAllowed(row.recipient_email)') &&
+    notificationWorker.includes('OPOS-QA outbound worker is locked')],
+  ['QA website intake refuses unapproved addresses before creating records',
+    websiteIntake.includes('isQaRecipientAllowed(payload.work_email)')],
+
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
