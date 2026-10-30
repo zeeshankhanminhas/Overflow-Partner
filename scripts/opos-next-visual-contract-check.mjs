@@ -24,6 +24,7 @@ const qaEmailGuard = read('lib/qa/email-guard.ts');
 const qaActions = read('app/opos-next/opportunities/qa-actions.ts');
 const qaStep2Actions = read('app/opos-next/opportunities/qa-step2-actions.ts');
 const qaStep2Route = read('app/api/intake/[token]/route.ts');
+const qaStep2Send = read('lib/qa/send-step2-invitation.ts');
 const qaNew = read('app/opos-next/opportunities/new/page.tsx');
 const qaIsolation = read('lib/qa/isolation.ts');
 const notificationQueue = read('lib/notifications/queue.ts');
@@ -46,6 +47,13 @@ const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
+  ['QA email only sends one allowlisted notification after an independent switch',
+    qaStep2Send.includes("OP_QA_EMAIL_SENDING_ENABLED!=='true'") &&
+    qaStep2Send.includes("isKnownIsolatedQaStep2Backend()") &&
+    qaStep2Send.includes("String(prospect.email||'').toLowerCase()!==allowed") &&
+    qaStep2Send.includes(".eq('event_key','requirements.requested')") &&
+    qaStep2Send.includes("Idempotency-Key") &&
+    qaStep2Actions.includes('deliverOneQaStep2Invitation')],
   ['QA Step 2 invitation stays on synthetic client alias with duplicate guard',
     qaStep2Actions.includes('isKnownIsolatedQaStep2Backend()') &&
     qaStep2Actions.includes('qaAllowedRecipientAddresses().has(recipient)') &&
