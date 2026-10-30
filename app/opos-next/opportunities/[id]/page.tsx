@@ -100,7 +100,8 @@ export default async function OpportunityPreview({
   const source=prospect.source==='website'?'Website enquiry':prospect.source==='linkedin'?'LinkedIn qualification':prospect.source||'Other enquiry';
   const invite=(deliveryResult.data||[]).find(event=>
     event.entity_type==='prospect' && event.entity_id===id && event.event_key==='requirements.requested');
-  const sendStatus=invite?.status||session?.email_status||null;
+  const recordedSessionStatus = ['sent','delivered','failed'].includes(String(session?.email_status||'')) ? session?.email_status : null;
+  const sendStatus=invite?.status || recordedSessionStatus || null;
   const emailFact=emailLabel(sendStatus);
   const partnerName=partnerResult.data?.company_name||null;
   const actionKey=acquisition.actionKey;
@@ -149,7 +150,7 @@ export default async function OpportunityPreview({
             hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
             partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
-            partnerResponse={response} partnerQuote={quote} partnerDecision={decision}
+            partnerResponse={response} partnerQuote={quote}
             partnerName={partnerName} convertedCaseId={convertedCaseId}/>
         </div>:actionKey==='open_case'?<div className={css.workArea}><OpportunityWork prospectId={id} actionKey={actionKey}
           canWrite={canWrite} canDecide={canDecide} hasContactEmail={Boolean(prospect.email)}
