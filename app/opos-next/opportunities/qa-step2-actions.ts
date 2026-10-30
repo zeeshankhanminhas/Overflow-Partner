@@ -8,6 +8,7 @@ import { isKnownIsolatedQaStep2Backend } from '@/lib/qa/isolation';
 import { qaAllowedRecipientAddresses } from '@/lib/qa/email-guard';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { recordActivity } from '@/lib/repositories/activity';
+import { deliverOneQaStep2Invitation } from '@/lib/qa/send-step2-invitation';
 
 const qaOrg = '717262cb-68da-4e7b-a9fa-238dc6c5d16b';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,6 +58,7 @@ export async function createQaStep2InvitationAction(formData:FormData) {
         organisationId:qaOrg,scenario:'requirements.requested',recipientEmail:recipient,
         recipientName:prospect.contact_name,actionUrl,payload,entityType:'prospect',entityId:id,
         idempotencyKey:'qa:intake:invite:'+session.id,
+        subject:'[OPOS QA TEST] Please complete your engineering requirements',
       });
       if(!outboxId)throw new Error('Invitation was not accepted into QA outbox.');
       for(const [hours,subject] of [[24,'Your secure requirements form is still open'],[72,'Reminder: technical details outstanding']] as const){
@@ -78,6 +80,16 @@ export async function createQaStep2InvitationAction(formData:FormData) {
         entityType:'prospect',entityId:id,eventType:'qa.step2_invitation_queued',
         eventData:{synthetic:true,intakeSessionId:session.id,notificationId:outboxId,
           delivery:'queued_not_sent',recipientAlias:'client'}});
+      // Optional separate QA-only sender. This does not enable any commercial,
+      // partner, payment, or scheduled worker actions.
+      const delivery=await deliverOneQaStep2Invitation({
+        outboxId:String(outboxId),sessionId:session.id,prospectId:id,
+      });
+      if(delivery==='sent'){
+        await recordActivity(supabase,{organisationId:qaOrg,userId:user.id,
+          entityType:'prospect',entityId:id,eventType:'qa.step2_invitation_provider_accepted',
+          eventData:{synthetic:true,intakeSessionId:session.id,recipientAlias:'client'}});
+      }
     } catch(queueError) {
       await supabase.from('intake_sessions')
         .update({email_status:'failed',email_error:'QA notification queue failed'})
