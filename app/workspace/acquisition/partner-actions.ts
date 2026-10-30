@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
-import { acquisitionReturn } from './return-path';
+import { acquisitionReturn, assertVNextWritable } from './return-path';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 
 function text(formData: FormData, key: string) { return String(formData.get(key) || '').trim(); }
@@ -23,6 +23,7 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
   const prospectId = text(formData, 'prospect_id');
   let destination = prospectId ? `/workspace/acquisition/${prospectId}` : '/workspace/acquisition';
   try {
+    assertVNextWritable(formData);
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner','admin','business_development','operator','engineering']);
     const intakeSessionId = text(formData, 'intake_session_id');
@@ -80,6 +81,7 @@ export async function decideProspectPartnerReviewAction(formData: FormData) {
   const prospectId = text(formData,'prospect_id');
   let destination = prospectId ? `/workspace/acquisition/${prospectId}` : '/workspace/acquisition';
   try {
+    assertVNextWritable(formData);
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner','admin','commercial','engineering']);
     const decision = text(formData,'decision');
