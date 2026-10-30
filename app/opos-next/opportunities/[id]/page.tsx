@@ -5,6 +5,7 @@ import {resolveAcquisitionState} from '@/lib/acquisition/state';
 import {canInviteFromLinkedIn} from '@/lib/acquisition/linkedinFunnel';
 import {isKnownIsolatedQaBackend,isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
 import OpportunityWork from '../OpportunityWork';
+import {sendQueuedQaStep2InvitationAction} from '../qa-step2-actions';
 import css from '../opportunity.module.css';
 
 const date = (value:string|null|undefined) => value
@@ -24,7 +25,7 @@ function emailLabel(status:string|null|undefined) {
 
 export default async function OpportunityPreview({
   params,searchParams,
-}:{params:Promise<{id:string}>;searchParams?:Promise<{error?:string;updated?:string;partnerReviewCreated?:string;partnerDecision?:string;notificationWarning?:string;qaInvitationQueued?:string}>}) {
+}:{params:Promise<{id:string}>;searchParams?:Promise<{error?:string;updated?:string;partnerReviewCreated?:string;partnerDecision?:string;notificationWarning?:string;qaInvitationQueued?:string;qaInvitationSent?:string}>}) {
   const {id}=await params;
   const query=searchParams?await searchParams:{};
   const {supabase,organisationId,profile}=await requireUserContext();
@@ -104,7 +105,7 @@ export default async function OpportunityPreview({
     event.entity_type==='prospect' && event.entity_id===id && event.event_key==='requirements.requested' &&
     (!session?.created_at || new Date(event.created_at).getTime()>=new Date(session.created_at).getTime()));
   const recordedSessionStatus = ['sent','delivered','failed'].includes(String(session?.email_status||'')) ? session?.email_status : null;
-  const sendStatus=invite?.status || recordedSessionStatus || null;
+  const sendStatus=recordedSessionStatus==='failed' && invite?.status!=='sent' ? 'failed' : invite?.status || recordedSessionStatus || null;
   const emailFact=emailLabel(sendStatus);
   const partnerName=partnerResult.data?.company_name||null;
   const actionKey=acquisition.actionKey;
@@ -113,11 +114,16 @@ export default async function OpportunityPreview({
     organisationId==='717262cb-68da-4e7b-a9fa-238dc6c5d16b' &&
     String(prospect.company_name).startsWith('QA - ') &&
     String(prospect.email||'').toLowerCase().endsWith('+client@gmail.com');
+  const qaRecoverableInvitation=qaStep2Available && !!session && !acquisition.submitted &&
+    session.status==='invited' && ['pending','failed'].includes(String(session.email_status||'')) &&
+    invite?.status==='pending';
   const failedDelivery=!!session&&!acquisition.submitted &&
     ['failed','permanently_failed','dead_letter'].includes(String(sendStatus||'').toLowerCase());
-  const actionNeeded=failedDelivery||['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
-  const state=failedDelivery?'Secure invitation delivery needs attention':acquisition.currentState;
-  const reason=failedDelivery
+  const actionNeeded=qaRecoverableInvitation||failedDelivery||['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
+  const state=qaRecoverableInvitation?'Invitation queued - delivery needs action':failedDelivery?'Secure invitation delivery needs attention':acquisition.currentState;
+  const reason=qaRecoverableInvitation
+    ? 'The secure QA form and invitation are saved, but the email was not sent. Send the original invitation without creating another session.'
+    : failedDelivery
     ? 'The latest requirements invitation has a delivery failure on record. Do not assume the customer received the form. Review notification evidence before arranging a controlled recovery.'
     : acquisition.nextReason;
   const stageIndex=acquisition.converted||['create_case','open_case'].includes(actionKey)?2:
@@ -131,7 +137,7 @@ export default async function OpportunityPreview({
     <div className={css.frame}>
       <div className={css.header}>
         <div><p className={css.headerTitle}>OP / OPOS</p><p className={css.headerDescription}>Opportunity / {source}</p></div>
-        <span className={css.pill}>{acquisition.converted?'Case created':acquisition.waitingExternally?'Awaiting external response':actionNeeded?'Action required':state}</span>
+        <span className={css.pill}>{acquisition.converted?'Case created':actionNeeded?'Action required':acquisition.waitingExternally?'Awaiting external response':state}</span>
       </div>
       <div className={css.rule}/>
       <h1 id="opos-opportunity-name" className={css.title}>{prospect.company_name||'Opportunity'}</h1>
