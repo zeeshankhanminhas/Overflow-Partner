@@ -12,12 +12,12 @@ type PartnerResponse={
 type PartnerQuote={price:number;currency:string;valid_until:string|null};
 
 export default function OpportunityWork({
-  prospectId,actionKey,canWrite,canDecide,hasContactEmail,linkedinEligible,
+  prospectId,actionKey,canWrite,canDecide,previewWritable,hasContactEmail,linkedinEligible,
   sessionId,scopeSummary,partners,partnerRequestId,partnerResponse,
   partnerQuote,partnerName,convertedCaseId,
 }:{
   prospectId:string;actionKey:AcquisitionActionKey;
-  canWrite:boolean;canDecide:boolean;hasContactEmail:boolean;linkedinEligible:boolean;
+  canWrite:boolean;canDecide:boolean;previewWritable:boolean;hasContactEmail:boolean;linkedinEligible:boolean;
   sessionId:string|null;scopeSummary:string;partners:Partner[];
   partnerRequestId:string|null;partnerResponse:PartnerResponse|null;
   partnerQuote:PartnerQuote|null;partnerName:string|null;
@@ -30,7 +30,7 @@ export default function OpportunityWork({
     if(!canWrite)return <p className={css.workHint}>An authorised Acquisition operator is required to issue the secure invitation.</p>;
     return <form action={createStep2InvitationFormAction} className={css.workForm}>
       {hidden}<p className={css.workHint}>OPOS creates a secure customer form and queues the invitation and scheduled reminders. Email delivery status is tracked independently.</p>
-      <button className={css.workButton} type="submit">Issue secure requirements invitation →</button>
+      <button className={css.workButton} type="submit" disabled={!previewWritable}>Issue secure requirements invitation →</button>
     </form>;
   }
   if(actionKey==='request_partner'){
@@ -56,7 +56,7 @@ export default function OpportunityWork({
           defaultValue="Confirm technical feasibility, capacity, risks, lead time, engineering hours, missing information and partner price."/>
       </label>
       <label className={css.workCheck}><input type="checkbox" name="show_client_identity" value="true"/> Share client identity with the selected partner</label>
-      <button className={css.workButton} type="submit">Request governed partner assessment →</button>
+      <button className={css.workButton} type="submit" disabled={!previewWritable}>Request governed partner assessment →</button>
     </form>;
   }
   if(actionKey==='review_partner_response'){
@@ -93,14 +93,14 @@ export default function OpportunityWork({
       <label className={css.workLabel}>Clarification request (required when requesting further information)
         <textarea name="clarification_request" className={css.workInput} rows={2}/>
       </label>
-      <button className={css.workButton} type="submit">Record governed feasibility decision →</button>
+      <button className={css.workButton} type="submit" disabled={!previewWritable}>Record governed feasibility decision →</button>
     </form>;
   }
   if(actionKey==='create_case'){
     if(!canWrite)return <p className={css.workHint}>Only an authorised Acquisition operator can complete the Case 360 handover.</p>;
     return <form action={convertProspectFormAction} className={css.workForm}>{hidden}
       <p className={css.workHint}>The approved Partner Review, technical intake and pricing evidence are carried into the controlled Case. Conversion is checked by the backend.</p>
-      <button className={css.workButton} type="submit">Create governed Case 360 →</button>
+      <button className={css.workButton} type="submit" disabled={!previewWritable}>Create governed Case 360 →</button>
     </form>;
   }
   if(actionKey==='open_case' && convertedCaseId)return <a className={css.workButton} href={'/opos-next/cases/'+convertedCaseId}>Open Case 360 →</a>;
