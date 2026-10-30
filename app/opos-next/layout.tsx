@@ -4,7 +4,7 @@ import { requireUserContext } from '@/lib/auth/context';
 import OpNav from './OpNav';
 import OpMobileNav from './OpMobileNav';
 import css from './opos.module.css';
-import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isKnownIsolatedQaBackend, isKnownIsolatedQaFixtureBackend } from '@/lib/qa/isolation';
 
 export const metadata: Metadata = {
   title: 'OPOS | Workspace',
@@ -20,7 +20,10 @@ export default async function DecisionFirstLayout({ children }: { children: Reac
     /^[a-z0-9]{12,32}$/.test(qaRef) && qaRef !== 'klricctsxiifuduxpmzd' &&
     process.env.NEXT_PUBLIC_SUPABASE_URL === `https://${qaRef}.supabase.co`;
   const qaWritable = isKnownIsolatedQaBackend();
-  const workspaceStatus = qaConfigured ? (qaWritable ? 'QA · Actions enabled' : 'QA · Actions locked') : 'Redesign · Under review';
+  const qaFixtureWritable = isKnownIsolatedQaFixtureBackend();
+  const workspaceStatus = qaConfigured
+    ? (qaWritable ? 'QA · Actions enabled' : qaFixtureWritable ? 'QA · Test records only' : 'QA · Actions locked')
+    : 'Redesign · Under review';
   return (
     <div className={css.shell}>
       <a href="#main-content" className={css.skipLink}>Skip to content</a>
