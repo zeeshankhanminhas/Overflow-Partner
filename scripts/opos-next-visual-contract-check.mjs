@@ -22,6 +22,8 @@ const proxy = read('proxy.ts');
 const deliveryPage = read('app/opos-next/notifications/page.tsx');
 const qaEmailGuard = read('lib/qa/email-guard.ts');
 const qaActions = read('app/opos-next/opportunities/qa-actions.ts');
+const qaStep2Actions = read('app/opos-next/opportunities/qa-step2-actions.ts');
+const qaStep2Route = read('app/api/intake/[token]/route.ts');
 const qaNew = read('app/opos-next/opportunities/new/page.tsx');
 const qaIsolation = read('lib/qa/isolation.ts');
 const notificationQueue = read('lib/notifications/queue.ts');
@@ -44,6 +46,14 @@ const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
+  ['QA Step 2 invitation stays on synthetic client alias with duplicate guard',
+    qaStep2Actions.includes('isKnownIsolatedQaStep2Backend()') &&
+    qaStep2Actions.includes('qaAllowedRecipientAddresses().has(recipient)') &&
+    qaStep2Actions.includes('An active or completed QA requirements session already exists') &&
+    qaStep2Actions.includes('qa:intake:invite:')],
+  ['QA form submission never auto-refers an Execution Partner',
+    qaStep2Route.includes("partnerReferral = 'manual_required'") &&
+    qaStep2Route.includes('QA client requirements received; partner assessment stays locked.')],
   ['QA fixture entry uses signed-in operator, tenant-scoped repositories and no emails',
     qaActions.includes('assertIsolatedQaFixtureBackend()') &&
     qaActions.includes('createProspect(supabase,organisationId,user.id,parsed)') &&
