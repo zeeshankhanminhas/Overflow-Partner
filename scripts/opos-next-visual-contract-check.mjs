@@ -27,12 +27,19 @@ const checks = [
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
   ['No destructive broad CSS overrides in new system', !styles.includes('!important')],
+  ['Light CTA text is not overridden by blanket light link text',
+    !/\.shell\s+a\s*\{[^}]*color\s*:\s*inherit/.test(styles) &&
+    styles.includes('.shell a:not([class]) { color: inherit; }')],
+  ['QA preview displays truthful locked vs writable status',
+    shell.includes('QA · Actions locked') && shell.includes('QA · Actions enabled') &&
+    shell.includes('isKnownIsolatedQaBackend()') &&
+    mobileNav.includes('{statusLabel}')],
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
   ['Opportunity register queries organisation-scoped real records', register.includes("from('prospects')") && register.includes(".eq('organisation_id', organisationId)")],
   ['Opportunity detail restricts every data query to its organisation', record.includes("from('prospects')") && record.includes("from('intake_sessions')") && (record.match(/\.eq\('organisation_id',\s*organisationId\)/g) || []).length >= 2],
   ['New detail never invents proof of email delivery', record.includes('Provider acceptance does not prove inbox delivery') && record.includes("op_list_notification_delivery")],
   ['Unmigrated business actions remain owned by governed workspace', record.includes("'/workspace/acquisition/' + id")],
-  ['Mobile uses a dedicated OPOS navigation component', shell.includes('<OpMobileNav />') && !shell.includes('MobileWorkspaceNav')],
+  ['Mobile uses a dedicated OPOS navigation component', shell.includes('<OpMobileNav statusLabel={workspaceStatus} />') && !shell.includes('MobileWorkspaceNav')],
   ['Mobile menu has disclosure semantics, clear tap target, and closes on route selection',
     mobileNav.includes('aria-expanded={open}') && mobileNav.includes('aria-controls="opos-next-mobile-menu"') &&
     mobileNav.includes('setExpandedFor(null)') && styles.includes('min-height: 44px')],
