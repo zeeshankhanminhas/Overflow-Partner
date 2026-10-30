@@ -63,6 +63,6 @@ export default async function OpportunityRegister({
         </Link>
       </div>)}
     </div> : null}
-    <p className={css.meta} style={{marginTop:24}}>New UI preview · existing secure workflows remain available in the current operating workspace until parity is verified.</p>
+    <p className={css.meta} style={{marginTop:24}}>Record creation and editing are not available in this redesign view yet. The end-to-end QA setup must validate safe intake, email delivery and governed actions before enabling test writes.</p>
   </section>;
 }
