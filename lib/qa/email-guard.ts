@@ -1,10 +1,10 @@
 /** QA-only outbound recipient gate. Never relax to a domain-wide allowlist.
  * Applies to every Preview send and enqueue, not to production delivery.
  */
-import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isKnownIsolatedQaBackend, isKnownIsolatedQaFixtureBackend } from '@/lib/qa/isolation';
 
 export function qaAllowedRecipientAddresses(): ReadonlySet<string> {
-  if (!isKnownIsolatedQaBackend()) return new Set();
+  if (!isKnownIsolatedQaBackend() && !isKnownIsolatedQaFixtureBackend()) return new Set();
   const base = String(process.env.OP_QA_TEST_INBOX || '').trim().toLowerCase();
   const match = /^([a-z0-9._%-]+)@gmail\.com$/.exec(base);
   if (!match) return new Set();
