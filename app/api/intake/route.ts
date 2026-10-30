@@ -151,6 +151,10 @@ export async function POST(request: Request) {
       }
     } catch (error) {
       console.error('Website Step 2 invitation queue failed', error);
+      const reason=error instanceof Error?error.message:'Unknown notification queue error';
+      await supabase.from('intake_sessions')
+        .update({email_status:'failed',email_error:reason.slice(0,500)})
+        .eq('organisation_id',owner.organisation_id).eq('id',session.id);
       await supabase.from('prospects').update({ next_action: 'Review and resend Step 2 technical intake invitation' })
         .eq('organisation_id', owner.organisation_id).eq('id', prospect.id);
       await supabase.from('activity_events').insert({
