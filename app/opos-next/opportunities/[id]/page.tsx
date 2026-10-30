@@ -3,6 +3,7 @@ import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
 import {resolveAcquisitionState} from '@/lib/acquisition/state';
 import {canInviteFromLinkedIn} from '@/lib/acquisition/linkedinFunnel';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import OpportunityWork from '../OpportunityWork';
 import css from '../opportunity.module.css';
 
@@ -105,6 +106,7 @@ export default async function OpportunityPreview({
   const emailFact=emailLabel(sendStatus);
   const partnerName=partnerResult.data?.company_name||null;
   const actionKey=acquisition.actionKey;
+  const previewWritable=isKnownIsolatedQaBackend();
   const actionNeeded=['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
   const state=acquisition.currentState;
   const reason=acquisition.nextReason;
@@ -145,15 +147,16 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
+          {!previewWritable?<p className={css.workHint}>Protected preview: actions are connected, but disabled until an isolated QA Supabase project is configured. No live customer emails, partner requests or Case creations will be triggered here.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
-          <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide}
+          <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
             hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
             partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
             partnerResponse={response} partnerQuote={quote}
             partnerName={partnerName} convertedCaseId={convertedCaseId}/>
         </div>:actionKey==='open_case'?<div className={css.workArea}><OpportunityWork prospectId={id} actionKey={actionKey}
-          canWrite={canWrite} canDecide={canDecide} hasContactEmail={Boolean(prospect.email)}
+          canWrite={canWrite} canDecide={canDecide} previewWritable={previewWritable} hasContactEmail={Boolean(prospect.email)}
           linkedinEligible={canInviteFromLinkedIn(prospect)} sessionId={session?.id||null}
           scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
           partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
