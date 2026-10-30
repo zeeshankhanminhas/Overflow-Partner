@@ -26,6 +26,8 @@ function getAdminClient() {
 }
 
 function getPublicBaseUrl(request: Request) {
+  // QA secure intake links must lead back to the isolated Preview, never to the live site.
+  if (isKnownIsolatedQaBackend()) return new URL(request.url).origin;
   const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
   if (configured) return configured.replace(/\/$/, '');
   const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
