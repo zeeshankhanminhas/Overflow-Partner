@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireUserContext } from '@/lib/auth/context';
 import { isKnownIsolatedQaFixtureBackend } from '@/lib/qa/isolation';
-import { createQaCompanyAction, createQaContactAction, createQaOpportunityAction } from './qa-actions';
+import { createQaCompanyAction, createQaContactAction, createQaOpportunityAction } from '../qa-actions';
 import css from './qa.module.css';
 
 const isUuid=(v:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
