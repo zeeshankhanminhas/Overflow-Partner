@@ -13,6 +13,12 @@ const legacyHome = read('app/workspace/page.tsx');
 const casePage = read('app/opos-next/cases/[id]/page.tsx');
 const projectPage = read('app/opos-next/projects/[id]/page.tsx');
 const v2WorkRecord = read('app/opos-next/WorkRecordV2.tsx');
+const opportunityActions = read('app/opos-next/opportunities/OpportunityWork.tsx');
+const acquisitionActions = read('app/workspace/acquisition/actions.ts');
+const partnerActions = read('app/workspace/acquisition/partner-actions.ts');
+const returnPath = read('app/workspace/acquisition/return-path.ts');
+const websiteIntake = read('app/api/intake/route.ts');
+
 
 const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
@@ -22,7 +28,7 @@ const checks = [
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
   ['Opportunity register queries organisation-scoped real records', register.includes("from('prospects')") && register.includes(".eq('organisation_id', organisationId)")],
   ['Opportunity detail restricts every data query to its organisation', record.includes("from('prospects')") && record.includes("from('intake_sessions')") && (record.match(/\.eq\('organisation_id',\s*organisationId\)/g) || []).length >= 2],
-  ['New detail never invents proof of email delivery', record.includes('Email delivery cannot be independently confirmed')],
+  ['New detail never invents proof of email delivery', record.includes('Provider acceptance does not prove inbox delivery') && record.includes("op_list_notification_delivery")],
   ['Unmigrated business actions remain owned by governed workspace', record.includes("'/workspace/acquisition/' + id")],
   ['Mobile uses a dedicated OPOS navigation component', shell.includes('<OpMobileNav />') && !shell.includes('MobileWorkspaceNav')],
   ['Mobile menu has disclosure semantics, clear tap target, and closes on route selection',
@@ -34,7 +40,7 @@ const checks = [
   ['No sideways-scrolling desktop table is displayed in the mobile register',
     styles.includes('.tableWrap { display: none; }') && styles.includes('.mobileRecords { display: grid')],
   ['Waiting record is not presented as requiring a primary operator decision',
-    record.includes('No operator decision is required') && record.includes('Open governed operational record')],
+    record.includes('No operator action is required') && record.includes('Inspect existing governed record')],
   ['Mobile and desktop share the same eight-part navigation contract',
     navigation.includes("label:'Outreach'") && navigation.includes("label:'Cases'") &&
     navigation.includes("label:'Projects'") && navigation.includes("label:'Partners'") &&
@@ -58,6 +64,26 @@ const checks = [
   ['Mobile header matches approved compact OPOS visual grammar',
     mobileNav.includes('css.mobilePreview') && mobileNav.includes('css.mobileAvatar') &&
     styles.includes('.shell .mobileHeader {height:61px')],
+  ['Website enquiry automatically queues secure requirements and reminders',
+    websiteIntake.includes("'requirements.requested'") && websiteIntake.includes("'requirements.reminder'") &&
+    websiteIntake.includes("intake_sessions")],
+  ['VNext Opportunity renders canonical Acquisition state rather than guessing next action',
+    record.includes('resolveAcquisitionState') && record.includes('acquisition.actionKey') &&
+    record.includes('<OpportunityWork')],
+  ['Opportunity actions use existing secure intake, partner decision and conversion handlers',
+    opportunityActions.includes('createStep2InvitationFormAction') &&
+    opportunityActions.includes('createProspectPartnerReviewAction') &&
+    opportunityActions.includes('decideProspectPartnerReviewAction') &&
+    opportunityActions.includes('convertProspectFormAction')],
+  ['Every vNext action is guarded against live preview mutations',
+    acquisitionActions.includes('assertVNextWritable(formData)') &&
+    partnerActions.includes('assertVNextWritable(formData)') &&
+    returnPath.includes('assertIsolatedQaBackend') &&
+    opportunityActions.includes('disabled={!previewWritable}')],
+  ['Form results return to vNext without trusting arbitrary redirect paths',
+    acquisitionActions.includes('acquisitionReturn(formData') &&
+    partnerActions.includes('acquisitionReturn(formData') &&
+    returnPath.includes("'/opos-next/opportunities/'")],
   ['Mobile shell hides the former desktop sidebar and topbar',
     styles.includes('.shell .sidebar { display: none; }') && styles.includes('.shell .topbar { display: none; }')],
 ];
