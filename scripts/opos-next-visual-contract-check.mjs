@@ -21,6 +21,9 @@ const websiteIntake = read('app/api/intake/route.ts');
 const proxy = read('proxy.ts');
 const deliveryPage = read('app/opos-next/notifications/page.tsx');
 const qaEmailGuard = read('lib/qa/email-guard.ts');
+const qaActions = read('app/opos-next/opportunities/qa-actions.ts');
+const qaNew = read('app/opos-next/opportunities/new/page.tsx');
+const qaIsolation = read('lib/qa/isolation.ts');
 const notificationQueue = read('lib/notifications/queue.ts');
 const notificationWorker = read('app/api/notifications/process/route.ts');
 
@@ -41,6 +44,15 @@ const checks = [
   ['New operating shell uses only the isolated CSS module', shell.includes("import css from './opos.module.css'") && !/workspace-(base|features|surfaces)|focus-first\.css|coherent-shell\.css/.test(shell)],
   ['Preview stays behind existing workspace authentication', shell.includes("await requireUserContext('/opos-next')")],
   ['Visual review tokens are used consistently', ['#090a0b','#101113','#f4f4f5','#b8bac0','#303238'].every(color => styles.includes(color))],
+  ['QA fixture entry uses signed-in operator, tenant-scoped repositories and no emails',
+    qaActions.includes('assertIsolatedQaFixtureBackend()') &&
+    qaActions.includes('createProspect(supabase,organisationId,user.id,parsed)') &&
+    qaActions.includes('createContact(supabase,organisationId,user.id,parsed)') &&
+    qaActions.includes('createCompany(supabase,organisationId,user.id,parsed)') &&
+    qaActions.includes('qaAllowedRecipientAddresses()') &&
+    qaNew.includes('Create a test opportunity') &&
+    qaIsolation.includes('OP_QA_FIXTURE_WRITES_ENABLED') &&
+    proxy.includes("request.nextUrl.pathname === '/opos-next/opportunities/new'")],
   ['No destructive broad CSS overrides in new system', !styles.includes('!important')],
   ['Light CTA text is not overridden by blanket light link text',
     !/\.shell\s+a\s*\{[^}]*color\s*:\s*inherit/.test(styles) &&
