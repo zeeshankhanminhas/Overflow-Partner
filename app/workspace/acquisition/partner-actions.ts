@@ -39,6 +39,7 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
     if (prospectError || !prospect) throw prospectError || new Error('Prospect not found.');
     if (partnerError) throw partnerError;
     if (!partner || partner.status !== 'approved' || !partner.nda_signed) throw new Error('Select an approved NDA-compliant partner.');
+    if (!partner.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(partner.email))) throw new Error('The selected Execution Partner needs a valid email address for secure assessment delivery.');
 
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -59,7 +60,8 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
     if (partner.email) {
       const payload={company:partner.company_name,project:prospect.project_type||'Engineering requirement',reference:request?.case_reference||requestId,dueDate:due.toLocaleDateString('en-GB')};
       try {
-        await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_review.requested',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:reviewUrl,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`prospect-partner-review:requested:${requestId}`,subject:`Delivery review requested — ${request?.case_reference||requestId}`});
+        const queued = await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_review.requested',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:reviewUrl,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`prospect-partner-review:requested:${requestId}`,subject:`Delivery review requested — ${request?.case_reference||requestId}`});
+        if(!queued)throw new Error('Partner assessment notification was not accepted into the outbox.');
         await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_review.reminder',recipientEmail:partner.email,recipientName:partner.contact_name||partner.company_name,actionUrl:reviewUrl,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Math.max(Date.now(),due.getTime()-48*60*60*1000)).toISOString(),idempotencyKey:`prospect-partner-review:reminder:${requestId}`,subject:`Reminder: delivery review due — ${prospect.company_name}`});
       } catch (notificationError) {
         console.error('Partner review notification queue failed after request creation', notificationError);
