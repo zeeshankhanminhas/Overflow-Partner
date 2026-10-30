@@ -37,6 +37,7 @@ export async function deliverOneQaStep2Invitation({outboxId,sessionId,prospectId
     .update({status:'processing',locked_at:new Date().toISOString(),attempts:1})
     .eq('id',outboxId).eq('organisation_id',QA_ORG)
     .eq('event_key','requirements.requested').eq('entity_type','prospect')
+    .eq('idempotency_key','qa:intake:invite:'+sessionId)
     .eq('entity_id',prospectId).eq('status','pending').eq('attempts',0)
     .eq('recipient_email',allowed)
     .select('id,event_key,category,recipient_email,recipient_name,subject,template_key,payload')
