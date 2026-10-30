@@ -4,9 +4,10 @@ import { requireUserContext } from '@/lib/auth/context';
 import OpNav from './OpNav';
 import OpMobileNav from './OpMobileNav';
 import css from './opos.module.css';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 
 export const metadata: Metadata = {
-  title: 'OPOS | Decision-first workspace preview',
+  title: 'OPOS | Workspace',
   robots: { index: false, follow: false },
 };
 
@@ -14,10 +15,16 @@ export const runtime = 'nodejs';
 
 export default async function DecisionFirstLayout({ children }: { children: React.ReactNode }) {
   await requireUserContext('/opos-next'); // Keep the new design destination through sign-in.
+  const qaRef = String(process.env.OP_QA_SUPABASE_PROJECT_REF || '').trim().toLowerCase();
+  const qaConfigured = process.env.VERCEL_ENV === 'preview' &&
+    /^[a-z0-9]{12,32}$/.test(qaRef) && qaRef !== 'klricctsxiifuduxpmzd' &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL === `https://${qaRef}.supabase.co`;
+  const qaWritable = isKnownIsolatedQaBackend();
+  const workspaceStatus = qaConfigured ? (qaWritable ? 'QA · Actions enabled' : 'QA · Actions locked') : 'Redesign · Under review';
   return (
     <div className={css.shell}>
       <a href="#main-content" className={css.skipLink}>Skip to content</a>
-      <OpMobileNav />
+      <OpMobileNav statusLabel={workspaceStatus} />
       <aside className={css.sidebar} aria-label="OPOS workspace sidebar">
         <Link className={css.brand} href="/opos-next" aria-label="Overflow Partner home">
           <span className={css.brandMark} aria-hidden="true">◈</span>
@@ -25,14 +32,14 @@ export default async function DecisionFirstLayout({ children }: { children: Reac
         </Link>
         <OpNav />
         <div className={css.sidebarFooter}>
-          <small>DECISION-FIRST / V1</small>
-          <span>Design branch preview</span>
+          <small>{qaConfigured ? 'ISOLATED QA WORKSPACE' : 'REDESIGN IN REVIEW'}</small>
+          <span>{qaConfigured ? (qaWritable ? 'Test actions are enabled' : 'Writes remain locked for safety') : 'Not yet released to production'}</span>
         </div>
       </aside>
       <div className={css.workArea}>
         <header className={css.topbar}>
           <span>OPOS <span aria-hidden="true">/</span> WORKSPACE</span>
-          <span className={css.previewChip}>Visual implementation preview</span>
+          <span className={css.previewChip}>{workspaceStatus}</span>
         </header>
         <main className={css.main} id="main-content">{children}</main>
       </div>
