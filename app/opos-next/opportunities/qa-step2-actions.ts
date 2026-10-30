@@ -70,7 +70,7 @@ export async function createQaStep2InvitationAction(formData:FormData) {
         });
       }
       const {error:updateError}=await supabase.from('intake_sessions')
-        .update({email_status:'queued'}).eq('organisation_id',qaOrg).eq('id',session.id);
+        .update({email_status:'pending',email_error:null}).eq('organisation_id',qaOrg).eq('id',session.id);
       if(updateError)throw new Error(updateError.message);
       const {error:prospectUpdateError}=await supabase.from('prospects')
         .update({next_action:'Await QA client technical requirements submission'})
@@ -100,4 +100,57 @@ export async function createQaStep2InvitationAction(formData:FormData) {
   } catch(error){message=error instanceof Error?error.message:'Could not queue QA invitation.';}
   revalidatePath(pathFor(id));revalidatePath('/opos-next/opportunities');
   redirect(pathFor(id)+(success?'?qaInvitationQueued=1':'?error='+encodeURIComponent(message.slice(0,400))));
+}
+
+/**
+ * Recover a previously queued QA invitation after a failed status write.
+ * Uses the original session and original email outbox row: no new invitation,
+ * token, reminders or client/prospect records are created.
+ */
+export async function sendQueuedQaStep2InvitationAction(formData:FormData) {
+  const id=String(formData.get('prospect_id')||'').trim();
+  if(!uuid.test(id))redirect('/opos-next/opportunities?error=Invalid%20QA%20opportunity');
+  let message='';let success=false;
+  try {
+    if(!isKnownIsolatedQaStep2Backend())
+      throw new Error('QA Step 2 is locked.');
+    const {supabase,user,profile,organisationId}=await requireUserContext('/opos-next');
+    assertRole(profile.role,['admin','owner','operator']);
+    if(organisationId!==qaOrg)throw new Error('QA-only organisation required.');
+    const {data:prospect,error:prospectError}=await supabase.from('prospects')
+      .select('id,company_name,source,email,status,converted_lead_id')
+      .eq('organisation_id',qaOrg).eq('id',id).single();
+    const recipient=String(prospect?.email||'').toLowerCase();
+    if(prospectError||!prospect||!String(prospect.company_name).startsWith('QA - ')||
+       prospect.source!=='manual'||prospect.converted_lead_id||
+       !['identified','contacted','conversation'].includes(prospect.status)||
+       !recipient.endsWith('+client@gmail.com')||
+       !qaAllowedRecipientAddresses().has(recipient))
+      throw new Error('Only the fictional QA client opportunity can recover this invitation.');
+    const {data:session,error:sessionError}=await supabase.from('intake_sessions')
+      .select('id,status,email_status,recipient_email').eq('organisation_id',qaOrg)
+      .eq('prospect_id',id).order('created_at',{ascending:false}).limit(1).single();
+    if(sessionError||!session||session.status!=='invited'||
+      !['pending','failed'].includes(String(session.email_status))||
+      String(session.recipient_email).toLowerCase()!==recipient)
+      throw new Error('The QA session is no longer eligible for recovery.');
+    const {data:invitation,error:invitationError}=await supabase.from('notification_outbox')
+      .select('id,status,attempts,recipient_email').eq('organisation_id',qaOrg)
+      .eq('entity_type','prospect').eq('entity_id',id)
+      .eq('event_key','requirements.requested')
+      .eq('idempotency_key','qa:intake:invite:'+session.id).single();
+    if(invitationError||!invitation||invitation.status!=='pending'||
+       invitation.attempts!==0||String(invitation.recipient_email).toLowerCase()!==recipient)
+      throw new Error('No unsent QA invitation is eligible for recovery. Review the delivery log.');
+    const delivery=await deliverOneQaStep2Invitation({
+      outboxId:invitation.id,sessionId:session.id,prospectId:id,
+    });
+    if(delivery!=='sent')throw new Error('QA email sending remains disabled. The invitation is still queued.');
+    await recordActivity(supabase,{organisationId:qaOrg,userId:user.id,
+      entityType:'prospect',entityId:id,eventType:'qa.step2_invitation_recovered',
+      eventData:{synthetic:true,intakeSessionId:session.id,recipientAlias:'client'}}).catch(()=>undefined);
+    success=true;
+  } catch(error){message=error instanceof Error?error.message:'QA invitation could not be recovered.';}
+  revalidatePath(pathFor(id));revalidatePath('/opos-next/opportunities');
+  redirect(pathFor(id)+(success?'?qaInvitationSent=1':'?error='+encodeURIComponent(message.slice(0,400))));
 }
