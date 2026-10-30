@@ -1,3 +1,4 @@
+import {assertIsolatedQaBackend} from '@/lib/qa/isolation';
 /**
  * The redesign is a presentation layer over existing governed server actions.
  * Only an explicit hidden flag can return the result to the known vNext route;
@@ -19,4 +20,10 @@ export function acquisitionReturn(formData: FormData, prospectId: string, legacy
 export function caseReturn(formData: FormData, leadId: string, legacyDestination: string) {
   return formData.get('opos_next') === '1' && /^[0-9a-f-]{36}$/i.test(leadId)
     ? '/opos-next/cases/' + leadId + '?converted=1' : legacyDestination;
+}
+
+/** Draft vNext actions are inert against the shared production database.
+ * They can execute only on a separately provisioned, verified QA Supabase backend. */
+export function assertVNextWritable(formData:FormData) {
+  if(formData.get('opos_next')==='1') assertIsolatedQaBackend();
 }
