@@ -18,6 +18,16 @@
 - QA verification after bridge: **77 public tables, 144 public functions, 121 public RLS policies, two storage buckets**, and **zero original business organisations/users**. Production snapshot: 75 public tables, 144 public functions, 117 public RLS policies. Difference is the two conversation-import tables and four associated policies; schema-level parity is **not exact**.
 - No claim of environment parity should be made until grants, storage policies, worker schedules and auth/storage flows have also been verified.
 
+## Narrow authenticated QA fixture entry
+- The new route `/opos-next/opportunities/new` is the three-stage entry form for **fictional** companies, contacts and opportunities.
+- It uses existing tenant-scoped repositories and `requireUserContext`, checks the operator role and records audit events. Company names always start `QA - `; client emails are automatically set to the **exact** `+client` Gmail alias.
+- The dedicated `OP_QA_FIXTURE_WRITES_ENABLED=true` Preview branch flag enables POST **only to this route**. `proxy.ts` continues returning 423 for **all other** mutations while `OP_ISOLATED_QA_BACKEND` remains unset.
+- The fixture form does not send emails, issue work orders, quote, collect payment, or bypass controlled OPOS lifecycle transition functions.
+- `OP_QA_EMAIL_SENDING_ENABLED` remains unset, and the QA cron schedule remains off.
+- This is only the first functional QA slice. Full Step 2 email/partner flow is **not yet enabled** and needs QA service credentials and delivery validation.
+- Existing authenticated OPOS user should see a new CTA on the Opportunities register when the fixture switch is on.
+- Even with fixture writes on, the user must never be directed to production tokens or production test-data records.
+
 ## QA test inbox / client and partner personas (30 Oct 2026)
 - The verified QA Gmail inbox receives **three exact destinations**: the base address plus its `+client` and `+partner` aliases. Gmail delivers all three to the same inbox; no separate Gmail accounts or passwords are needed for email receipt.
 - Vercel `OP_QA_TEST_INBOX` is an encrypted, **branch-scoped Preview** variable; do not print or commit its value.
