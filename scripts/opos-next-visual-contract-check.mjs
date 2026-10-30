@@ -33,7 +33,8 @@ const checks = [
   ['QA email recipient is checked at enqueue and at actual delivery',
     notificationQueue.includes('assertQaRecipientAllowed(input.recipientEmail)') &&
     notificationWorker.includes('assertQaRecipientAllowed(row.recipient_email)') &&
-    notificationWorker.includes('OPOS-QA outbound worker is locked')],
+    notificationWorker.includes('OPOS-QA outbound worker is locked') &&
+    notificationWorker.includes("OP_QA_EMAIL_SENDING_ENABLED !== 'true'")],
   ['QA website intake refuses unapproved addresses before creating records',
     websiteIntake.includes('isQaRecipientAllowed(payload.work_email)')],
 
