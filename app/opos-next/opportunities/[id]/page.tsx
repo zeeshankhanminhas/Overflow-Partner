@@ -153,7 +153,7 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
-          {!previewWritable&&!failedDelivery?<p className={css.workHint}>Protected preview: actions are connected, but disabled until an isolated QA Supabase project is configured. No live customer emails, partner requests or Case creations will be triggered here.</p>:null}
+          {!previewWritable&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
           {failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
           <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
