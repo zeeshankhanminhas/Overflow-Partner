@@ -36,7 +36,7 @@ export default function OpportunityWork({
   if(actionKey==='request_partner'){
     if(!canWrite)return <p className={css.workHint}>An authorised operator must select the approved Execution Partner for this technical assessment.</p>;
     if(!sessionId)return <p className={css.workHint}>A submitted requirements session is needed before requesting partner assessment.</p>;
-    if(!partners.length)return <p className={css.workHint}>No approved, NDA-compliant Execution Partner is available. Qualify a partner before dispatching this assessment.</p>;
+    if(!partners.some(p=>Boolean(p.email)))return <p className={css.workHint}>No approved Execution Partner has a verified contact email on record. Complete partner readiness before issuing the secure assessment.</p>;
     const due=new Date(Date.now()+3*86400000).toISOString().slice(0,16);
     return <form action={createProspectPartnerReviewAction} className={css.workForm}>
       {hidden}
@@ -45,7 +45,7 @@ export default function OpportunityWork({
       <label className={css.workLabel}>Approved Execution Partner
         <select required name="partner_id" defaultValue="" className={css.workInput}>
           <option value="" disabled>Select an eligible partner</option>
-          {partners.map(p=><option key={p.id} value={p.id}>{p.company_name}{p.email?'':' · No delivery email'}</option>)}
+          {partners.map(p=><option key={p.id} value={p.id} disabled={!p.email}>{p.company_name}{p.email?'':' · Email required'}</option>)}
         </select>
       </label>
       <label className={css.workLabel}>Assessment due
