@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
+import { acquisitionReturn } from './return-path';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 
 function text(formData: FormData, key: string) { return String(formData.get(key) || '').trim(); }
@@ -71,7 +72,8 @@ export async function createProspectPartnerReviewAction(formData: FormData) {
     console.error('Prospect partner review request failed', error);
     destination = `${destination}?error=${encodeURIComponent(errorMessage(error, 'Unable to request partner review.'))}`;
   }
-  redirect(destination);
+  if (prospectId) revalidatePath('/opos-next/opportunities/' + prospectId);
+  redirect(acquisitionReturn(formData, prospectId, destination));
 }
 
 export async function decideProspectPartnerReviewAction(formData: FormData) {
@@ -104,5 +106,6 @@ export async function decideProspectPartnerReviewAction(formData: FormData) {
     console.error('Prospect partner review decision failed', error);
     destination = `${destination}?error=${encodeURIComponent(errorMessage(error, 'Unable to record partner decision.'))}`;
   }
-  redirect(destination);
+  if (prospectId) revalidatePath('/opos-next/opportunities/' + prospectId);
+  redirect(acquisitionReturn(formData, prospectId, destination));
 }
