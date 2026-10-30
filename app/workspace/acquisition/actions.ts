@@ -98,7 +98,20 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     await cancelEntityReminders(supabase, { organisationId, entityType: 'prospect', entityId: prospectId, categories: ['nurture'] }).catch(() => 0);
     if (prospect.email) {
       const payload={company:prospect.company_name,dueDate:new Date(expiresAt).toLocaleDateString('en-GB')};
-      await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.requested',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`intake:invite:${session.id}`}).catch(()=>null);
+      try {
+        const queued = await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.requested',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`intake:invite:${session.id}`});
+        if(!queued)throw new Error('The customer invitation was not accepted into the notification outbox.');
+      } catch (notificationError) {
+        const reason=notificationError instanceof Error?notificationError.message:'Unknown queue failure';
+        await supabase.from('intake_sessions').update({email_status:'failed',email_error:reason.slice(0,500)})
+          .eq('organisation_id',organisationId).eq('id',session.id);
+        await supabase.from('activity_events').insert({
+          organisation_id:organisationId,user_id:user.id,entity_type:'prospect',entity_id:prospectId,
+          event_type:'step_2_invitation_delivery_failed',
+          event_data:{intakeSessionId:session.id,stage:'queue',retryRequired:true},
+        });
+        throw new Error('The requirements invitation could not be queued. Review notification delivery before retrying.');
+      }
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:24h:${session.id}`}).catch(()=>null);
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+72*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:72h:${session.id}`,subject:'Your secure requirements form remains available'}).catch(()=>null);
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`,subject:'Your secure requirements form expires soon'}).catch(()=>null);
