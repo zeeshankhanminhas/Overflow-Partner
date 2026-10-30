@@ -107,9 +107,13 @@ export default async function OpportunityPreview({
   const partnerName=partnerResult.data?.company_name||null;
   const actionKey=acquisition.actionKey;
   const previewWritable=isKnownIsolatedQaBackend();
-  const actionNeeded=['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
-  const state=acquisition.currentState;
-  const reason=acquisition.nextReason;
+  const failedDelivery=!!session&&!acquisition.submitted &&
+    ['failed','permanently_failed','dead_letter'].includes(String(sendStatus||'').toLowerCase());
+  const actionNeeded=failedDelivery||['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
+  const state=failedDelivery?'Secure invitation delivery needs attention':acquisition.currentState;
+  const reason=failedDelivery
+    ? 'The latest requirements invitation has a delivery failure on record. Do not assume the customer received the form. Review notification evidence before arranging a controlled recovery.'
+    : acquisition.nextReason;
   const stageIndex=acquisition.converted||['create_case','open_case'].includes(actionKey)?2:
     ['request_partner','wait_partner','review_partner_response','resolve_clarification'].includes(actionKey)?2:
     session?1:0;
@@ -147,14 +151,15 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
-          {!previewWritable?<p className={css.workHint}>Protected preview: actions are connected, but disabled until an isolated QA Supabase project is configured. No live customer emails, partner requests or Case creations will be triggered here.</p>:null}
+          {!previewWritable&&!failedDelivery?<p className={css.workHint}>Protected preview: actions are connected, but disabled until an isolated QA Supabase project is configured. No live customer emails, partner requests or Case creations will be triggered here.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
+          {failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
           <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
             hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
             partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
             partnerResponse={response} partnerQuote={quote}
-            partnerName={partnerName} convertedCaseId={convertedCaseId}/>
+            partnerName={partnerName} convertedCaseId={convertedCaseId}/>}
         </div>:actionKey==='open_case'?<div className={css.workArea}><OpportunityWork prospectId={id} actionKey={actionKey}
           canWrite={canWrite} canDecide={canDecide} previewWritable={previewWritable} hasContactEmail={Boolean(prospect.email)}
           linkedinEligible={canInviteFromLinkedIn(prospect)} sessionId={session?.id||null}
@@ -218,6 +223,7 @@ export default async function OpportunityPreview({
             {session?<p>Intake: {session.status} · Expires {date(session.expires_at)} · Email {emailFact}</p>:null}
             {request?<p>Partner review: {request.case_reference} · {request.status}</p>:null}
             {activity.map(item=><p key={item.id}>{date(item.created_at)} · {item.event_type.replaceAll('_',' ')}</p>)}
+            <p><Link className={css.secondary} href={'/opos-next/notifications?prospect='+id}>Inspect notification delivery evidence ↗</Link></p>
             <p><Link className={css.secondary} href={'/workspace/acquisition/' + id}>Inspect existing governed record ↗</Link></p>
           </div>
         </details>
