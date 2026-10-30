@@ -88,7 +88,7 @@ export async function createQaStep2InvitationAction(formData:FormData) {
       if(delivery==='sent'){
         await recordActivity(supabase,{organisationId:qaOrg,userId:user.id,
           entityType:'prospect',entityId:id,eventType:'qa.step2_invitation_provider_accepted',
-          eventData:{synthetic:true,intakeSessionId:session.id,recipientAlias:'client'}});
+          eventData:{synthetic:true,intakeSessionId:session.id,recipientAlias:'client'}}).catch(()=>undefined);
       }
     } catch(queueError) {
       await supabase.from('intake_sessions')
