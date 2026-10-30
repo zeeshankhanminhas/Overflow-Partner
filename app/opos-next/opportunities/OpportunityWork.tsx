@@ -1,4 +1,5 @@
 import {createStep2InvitationFormAction,convertProspectFormAction} from '@/app/workspace/acquisition/actions';
+import {createQaStep2InvitationAction} from './qa-step2-actions';
 import {createProspectPartnerReviewAction,decideProspectPartnerReviewAction} from '@/app/workspace/acquisition/partner-actions';
 import type {AcquisitionActionKey} from '@/lib/acquisition/state';
 import css from './opportunity.module.css';
@@ -14,23 +15,23 @@ type PartnerQuote={price:number;currency:string;valid_until:string|null};
 export default function OpportunityWork({
   prospectId,actionKey,canWrite,canDecide,previewWritable,hasContactEmail,linkedinEligible,
   sessionId,scopeSummary,partners,partnerRequestId,partnerResponse,
-  partnerQuote,partnerName,convertedCaseId,
+  partnerQuote,partnerName,convertedCaseId,qaStep2Available=false,
 }:{
   prospectId:string;actionKey:AcquisitionActionKey;
   canWrite:boolean;canDecide:boolean;previewWritable:boolean;hasContactEmail:boolean;linkedinEligible:boolean;
   sessionId:string|null;scopeSummary:string;partners:Partner[];
   partnerRequestId:string|null;partnerResponse:PartnerResponse|null;
   partnerQuote:PartnerQuote|null;partnerName:string|null;
-  convertedCaseId:string|null;
+  convertedCaseId:string|null;qaStep2Available?:boolean;
 }){
   const hidden=<><input type="hidden" name="prospect_id" value={prospectId}/><input type="hidden" name="opos_next" value="1"/></>;
   if(actionKey==='create_intake'){
     if(!linkedinEligible)return <p className={css.workHint}>This LinkedIn prospect must express interest in the Outreach conversation before receiving a technical intake invitation.</p>;
     if(!hasContactEmail)return <p className={css.workHint}>A customer email address is required to deliver the secure requirements form. Complete the contact record before inviting requirements.</p>;
     if(!canWrite)return <p className={css.workHint}>An authorised Acquisition operator is required to issue the secure invitation.</p>;
-    return <form action={createStep2InvitationFormAction} className={css.workForm}>
-      {hidden}<p className={css.workHint}>OPOS creates a secure customer form and queues the invitation and scheduled reminders. Email delivery status is tracked independently.</p>
-      <button className={css.workButton} type="submit" disabled={!previewWritable}>Issue secure requirements invitation →</button>
+    return <form action={qaStep2Available?createQaStep2InvitationAction:createStep2InvitationFormAction} className={css.workForm}>
+      {hidden}<p className={css.workHint}>{qaStep2Available ? 'Isolated QA: create a secure client form and queue its invitation plus reminders to the approved Gmail +client alias. This step does not send an email until the separate QA delivery check is enabled.' : 'OPOS creates a secure customer form and queues the invitation and scheduled reminders. Email delivery status is tracked independently.'}</p>
+      <button className={css.workButton} type="submit" disabled={!previewWritable&&!qaStep2Available}>{qaStep2Available?'Queue QA requirements invitation →':'Issue secure requirements invitation →'}</button>
     </form>;
   }
   if(actionKey==='request_partner'){
