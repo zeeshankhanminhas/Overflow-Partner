@@ -17,6 +17,7 @@ function emailLabel(status:string|null|undefined) {
     case 'delivered': return 'Provider confirmed delivery';
     case 'queued': case 'pending': case 'retry': case 'processing': return 'Invitation queued / processing';
     case 'failed': case 'permanently_failed': case 'dead_letter': return 'Email delivery failed — review required';
+    case 'not_configured': return 'Email service not configured';
     default: return 'Email delivery not independently verified';
   }
 }
@@ -99,8 +100,9 @@ export default async function OpportunityPreview({
   const canRequestPartner=['owner','admin','business_development','operator','engineering'].includes(role);
   const canDecide=['owner','admin','commercial','engineering'].includes(role);
   const source=prospect.source==='website'?'Website enquiry':prospect.source==='linkedin'?'LinkedIn qualification':prospect.source||'Other enquiry';
-  const invite=(deliveryResult.data||[]).find((event:{entity_type:string;entity_id:string;event_key:string;status:string;sent_at:string|null})=>
-    event.entity_type==='prospect' && event.entity_id===id && event.event_key==='requirements.requested');
+  const invite=(deliveryResult.data||[]).find((event:{entity_type:string;entity_id:string;event_key:string;status:string;sent_at:string|null;created_at:string})=>
+    event.entity_type==='prospect' && event.entity_id===id && event.event_key==='requirements.requested' &&
+    (!session?.created_at || new Date(event.created_at).getTime()>=new Date(session.created_at).getTime()));
   const recordedSessionStatus = ['sent','delivered','failed'].includes(String(session?.email_status||'')) ? session?.email_status : null;
   const sendStatus=invite?.status || recordedSessionStatus || null;
   const emailFact=emailLabel(sendStatus);
