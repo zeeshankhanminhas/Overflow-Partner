@@ -10,7 +10,10 @@
   color-scheme: dark;
 }
 .shell *, .shell *::before, .shell *::after { box-sizing: border-box; }
-.shell a { color: inherit; text-decoration: none; }
+/* Do not force all links to inherit light foreground: it makes light CTAs unreadable. */
+.shell a { text-decoration: none; }
+.shell a:not([class]) { color: inherit; }
+.shell .brand, .shell .queue a, .shell .table a { color: var(--text); }
 .shell :is(a,button,input,select,summary):focus-visible { outline: 2px solid #f4f4f5; outline-offset: 4px; }
 .sidebar {
   background: var(--nav); border-right: 1px solid var(--border);
