@@ -1,64 +1,164 @@
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
+import {resolveAcquisitionState} from '@/lib/acquisition/state';
+import {canInviteFromLinkedIn} from '@/lib/acquisition/linkedinFunnel';
+import OpportunityWork from '../OpportunityWork';
 import css from '../opportunity.module.css';
 
-const date = (value: string | null | undefined) => value
-  ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/London'}).format(new Date(value))
+const date = (value:string|null|undefined) => value
+  ? new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(value))
   : 'Not recorded';
 
-export default async function OpportunityPreview({params}:{params:Promise<{id:string}>}) {
+function emailLabel(status:string|null|undefined) {
+  switch(String(status||'').toLowerCase()) {
+    case 'sent': return 'Accepted by email provider';
+    case 'delivered': return 'Provider confirmed delivery';
+    case 'queued': case 'pending': case 'retry': case 'processing': return 'Invitation queued / processing';
+    case 'failed': case 'permanently_failed': case 'dead_letter': return 'Email delivery failed — review required';
+    default: return 'Email delivery not independently verified';
+  }
+}
+
+export default async function OpportunityPreview({
+  params,searchParams,
+}:{params:Promise<{id:string}>;searchParams?:Promise<{error?:string;updated?:string;partnerReviewCreated?:string;partnerDecision?:string;notificationWarning?:string}>}) {
   const {id}=await params;
-  const {supabase,organisationId}=await requireUserContext();
-  const [prospectResult,sessionResult]=await Promise.all([
-    supabase.from('prospects').select('id,company_name,source,status,next_action,created_at,converted_lead_id')
+  const query=searchParams?await searchParams:{};
+  const {supabase,organisationId,profile}=await requireUserContext();
+
+  const [prospectResult,sessionResult,requestResult,partnerListResult,deliveryResult,eventsResult]=await Promise.all([
+    supabase.from('prospects')
+      .select('id,company_name,contact_name,email,source,status,outreach_status,response_outcome,next_action,created_at,converted_lead_id,requirement_summary')
       .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
-    supabase.from('intake_sessions').select('id,status,created_at,expires_at,opened_at,submitted_at')
+    supabase.from('intake_sessions')
+      .select('id,status,created_at,expires_at,opened_at,submitted_at,email_status,email_error')
       .eq('organisation_id',organisationId).eq('prospect_id',id)
       .order('created_at',{ascending:false}).limit(1).maybeSingle(),
+    supabase.from('partner_review_requests')
+      .select('id,partner_id,status,response_due_at,case_reference,created_at,submitted_at')
+      .eq('organisation_id',organisationId).eq('prospect_id',id)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle(),
+    supabase.from('partners').select('id,company_name,email')
+      .eq('organisation_id',organisationId).eq('status','approved').eq('nda_signed',true)
+      .order('company_name'),
+    // Scoped by active user's organisation inside the existing RPC.
+    // Only invitation events for this prospect are displayed; never infer inbox delivery from "sent".
+    supabase.rpc('op_list_notification_delivery',{p_status:null,p_category:null,p_limit:150}),
+    supabase.from('activity_events')
+      .select('id,event_type,created_at').eq('organisation_id',organisationId)
+      .eq('entity_type','prospect').eq('entity_id',id)
+      .order('created_at',{ascending:false}).limit(12),
   ]);
-  if(prospectResult.error||sessionResult.error)throw new Error('Could not load this Opportunity securely.');
+  if(prospectResult.error || sessionResult.error || requestResult.error || partnerListResult.error || eventsResult.error)
+    throw new Error('Opportunity evidence could not be loaded securely.');
   const prospect=prospectResult.data;
   if(!prospect)notFound();
-  const session=sessionResult.data;
-  const submitted=Boolean(session&&['submitted','converted'].includes(session.status));
-  const converted=Boolean(prospect.converted_lead_id);
-  const waiting=Boolean(session&&!submitted&&['invited','opened','in_progress'].includes(session.status));
-  const stageIndex=converted||submitted?2:session?1:0;
-  const source=prospect.source==='website'?'Website enquiry':prospect.source==='linkedin'?'LinkedIn qualification':prospect.source||'Other enquiry';
-  const headline=converted?'Opportunity handed over to Case 360':
-    submitted?'Requirements received':
-    waiting?'Await customer requirements':
-    !session?'Requirements invitation not yet recorded':
-    'Requirements session requires review';
-  const description=converted?'Commercial preparation is now governed by Case 360.':
-    submitted?'The customer has submitted the technical brief. Feasibility and next decisions are governed by the acquisition workflow.':
-    waiting?'A secure requirements session exists and the customer submission remains outstanding. The session alone does not confirm email delivery. No operator decision is required until new evidence or an exception arises.':
-    !session?'There is no Step 2 technical intake session on this record. Use the authorised Acquisition workflow to initiate the invitation.':
-    'The technical intake session is not currently awaiting submission. Review the governed record before taking action.';
 
+  const session=sessionResult.data;
+  const request=requestResult.data;
+  const [submissionResult,responseResult,decisionResult,quoteResult,partnerResult]=await Promise.all([
+    session?.id?supabase.from('intake_submissions')
+      .select('id,description,submitted_at').eq('organisation_id',organisationId)
+      .eq('intake_session_id',session.id).maybeSingle():Promise.resolve({data:null,error:null}),
+    request?.id?supabase.from('partner_review_responses')
+      .select('id,feasibility,capacity_status,confidence_percent,technical_risks,assumptions,missing_information,estimated_lead_time_days,submitted_at')
+      .eq('organisation_id',organisationId).eq('partner_review_request_id',request.id)
+      .order('revision',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null}),
+    request?.id?supabase.from('partner_review_internal_decisions')
+      .select('id,decision,review_notes,approved_at,created_at')
+      .eq('organisation_id',organisationId).eq('partner_review_request_id',request.id)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null}),
+    request?.id?supabase.from('partner_quotes')
+      .select('id,price,currency,valid_until')
+      .eq('organisation_id',organisationId).eq('partner_review_request_id',request.id)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null}),
+    request?.partner_id?supabase.from('partners')
+      .select('company_name').eq('organisation_id',organisationId).eq('id',request.partner_id).maybeSingle()
+      :Promise.resolve({data:null,error:null}),
+  ]);
+  if(submissionResult.error||responseResult.error||decisionResult.error||quoteResult.error||partnerResult.error)
+    throw new Error('Partner assessment evidence could not be loaded securely.');
+
+  const submission=submissionResult.data;
+  const response=responseResult.data;
+  const decision=decisionResult.data;
+  const quote=quoteResult.data;
+  const convertedCaseId=prospect.converted_lead_id||null;
+  const acquisition=resolveAcquisitionState({
+    prospectStatus:prospect.status,
+    hasSession:!!session,sessionStatus:session?.status,
+    hasSubmission:!!submission,convertedCaseId,
+    hasPartnerRequest:!!request,partnerRequestStatus:request?.status,
+    hasPartnerResponse:!!response,partnerDecision:decision?.decision,
+    hasPartnerPricing:!!quote && Number(quote.price)>0,
+  });
+  const role=String(profile.role);
+  const canWrite=['owner','admin','business_development','operator'].includes(role);
+  const canRequestPartner=['owner','admin','business_development','operator','engineering'].includes(role);
+  const canDecide=['owner','admin','commercial','engineering'].includes(role);
+  const source=prospect.source==='website'?'Website enquiry':prospect.source==='linkedin'?'LinkedIn qualification':prospect.source||'Other enquiry';
+  const invite=(deliveryResult.data||[]).find(event=>
+    event.entity_type==='prospect' && event.entity_id===id && event.event_key==='requirements.requested');
+  const sendStatus=invite?.status||session?.email_status||null;
+  const emailFact=emailLabel(sendStatus);
+  const partnerName=partnerResult.data?.company_name||null;
+  const actionKey=acquisition.actionKey;
+  const actionNeeded=['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
+  const state=acquisition.currentState;
+  const reason=acquisition.nextReason;
+  const stageIndex=acquisition.converted||['create_case','open_case'].includes(actionKey)?2:
+    ['request_partner','wait_partner','review_partner_response','resolve_clarification'].includes(actionKey)?2:
+    session?1:0;
+  const followupOverdue=!!session && ['invited','opened','in_progress'].includes(session.status)
+    && !!session.expires_at && new Date(session.expires_at).getTime()<Date.now();
+  const activity=eventsResult.data||[];
+  const formRole=actionKey==='request_partner'?canRequestPartner:canWrite;
   return <article aria-labelledby="opos-opportunity-name">
     <div className={css.frame}>
       <div className={css.header}>
         <div><p className={css.headerTitle}>OP / OPOS</p><p className={css.headerDescription}>Opportunity / {source}</p></div>
-        <span className={css.pill}>{converted?'Case created':submitted?'Intake submitted':waiting?'Intake pending':'Needs review'}</span>
+        <span className={css.pill}>{acquisition.converted?'Case created':acquisition.waitingExternally?'Awaiting external response':actionNeeded?'Action required':state}</span>
       </div>
       <div className={css.rule}/>
       <h1 id="opos-opportunity-name" className={css.title}>{prospect.company_name||'Opportunity'}</h1>
       <p className={css.subtitle}>OP-{prospect.id.slice(0,8).toUpperCase()} · {source}</p>
 
+      {query.error?<p className={css.feedbackError} role="alert">Action could not be completed: {String(query.error).slice(0,500)}</p>:null}
+      {query.notificationWarning?<p className={css.feedbackError} role="alert">The partner review was created, but its email notification needs investigation.</p>:null}
+      {(query.updated||query.partnerReviewCreated||query.partnerDecision)&&!query.error?
+        <p className={css.feedbackSuccess} role="status">Operating record updated. The current position below reflects the saved evidence.</p>:null}
+
       <section className={css.section} aria-label="Current operating position">
         <p className={css.overline}>CURRENT POSITION</p>
-        <h2 className={css.position}>{headline}</h2>
-        <p className={css.description}>{description}</p>
+        <h2 className={css.position}>{state}</h2>
+        <p className={css.description}>{reason}</p>
+        {followupOverdue?<p className={css.feedbackError} role="status">The current invitation's recorded expiry has passed. Review the secure intake status before any retry.</p>:null}
         <div className={css.badges}>
-          <span className={css.pill + ' ' + (submitted||converted?css.pillOk:'')}>
+          <span className={css.pill+' '+(session&&acquisition.submitted?css.pillOk:'')}>
             <span className={css.dot}/>
-            {submitted||converted?'Customer requirements received':session?'Secure intake session recorded':'Invitation not recorded'}
+            {acquisition.submitted?'Customer requirements received':session?'Secure intake session '+String(session.status).replaceAll('_',' '):'Requirements not yet requested'}
           </span>
-          {waiting?<span className={css.pill}><span className={css.dot}/> Awaiting submission</span>:null}
+          {session&&!acquisition.submitted?<span className={css.pill}><span className={css.dot}/>{emailFact}</span>:null}
+          {request?<span className={css.pill}><span className={css.dot}/>Partner review {request.status.replaceAll('_',' ')}</span>:null}
         </div>
-        <p className={css.note}>Email delivery cannot be independently confirmed from the intake session alone. This preview does not claim a message was delivered.</p>
+        {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
+        {actionNeeded?<div className={css.workArea}>
+          <p className={css.overline}>NEXT GOVERNED ACTION</p>
+          <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide}
+            hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)}
+            sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
+            partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
+            partnerResponse={response} partnerQuote={quote} partnerDecision={decision}
+            partnerName={partnerName} convertedCaseId={convertedCaseId}/>
+        </div>:actionKey==='open_case'?<div className={css.workArea}><OpportunityWork prospectId={id} actionKey={actionKey}
+          canWrite={canWrite} canDecide={canDecide} hasContactEmail={Boolean(prospect.email)}
+          linkedinEligible={canInviteFromLinkedIn(prospect)} sessionId={session?.id||null}
+          scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
+          partners={partnerListResult.data||[]} partnerRequestId={request?.id||null}
+          partnerResponse={response} partnerQuote={quote} partnerDecision={decision}
+          partnerName={partnerName} convertedCaseId={convertedCaseId}/></div>:
+        <p className={css.note}>No operator action is required while the next dependency is outstanding.</p>}
       </section>
 
       <section className={css.section} aria-labelledby="op-journey">
@@ -70,7 +170,7 @@ export default async function OpportunityPreview({params}:{params:Promise<{id:st
             return <div className={css.stage} key={label}>
               <div className={css.stageTop}>
                 <span className={css.stageNumber}>{String(index+1).padStart(2,'0')}</span>
-                <span className={css.stageSign + (done?' '+css.stageComplete:'')} aria-label={done?'Completed':current?'Current':'Upcoming'}>{done?'✓':current?'◉':'○'}</span>
+                <span className={css.stageSign+(done?' '+css.stageComplete:'')} aria-label={done?'Completed':current?'Current':'Upcoming'}>{done?'✓':current?'◉':'○'}</span>
               </div>
               <strong className={css.stageName}>{label}</strong>
             </div>;
@@ -83,9 +183,24 @@ export default async function OpportunityPreview({params}:{params:Promise<{id:st
           <a href="#op-full-history" className={css.secondary}>View history ↗</a>
         </div>
         <div className={css.evidenceList}>
-          {session?<div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">✉</span><div>
-            <p className={css.evidenceTitle}>{submitted?'Customer technical requirements received':'Secure requirements session created'}</p>
-            <p className={css.evidenceSub}>{date(submitted?session.submitted_at:session.created_at)} · {submitted?'Awaiting feasibility review':'Customer submission pending'}</p>
+          {decision?<div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">✓</span><div>
+            <p className={css.evidenceTitle}>Feasibility decision: {decision.decision.replaceAll('_',' ')}</p>
+            <p className={css.evidenceSub}>{date(decision.approved_at||decision.created_at)} · Governed internal approval</p>
+          </div></div>:null}
+          {response?<div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">▣</span><div>
+            <p className={css.evidenceTitle}>Execution Partner response received</p>
+            <p className={css.evidenceSub}>{date(response.submitted_at)} · {partnerName||'Execution Partner'} · Price {quote?Number(quote.price).toLocaleString('en-GB')+' '+quote.currency:'not recorded'}</p>
+          </div></div>:null}
+          {request?<div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">↗</span><div>
+            <p className={css.evidenceTitle}>Partner assessment {request.status.replaceAll('_',' ')}</p>
+            <p className={css.evidenceSub}>{date(request.created_at)} · {partnerName||'Execution Partner'} · Due {date(request.response_due_at)}</p>
+          </div></div>:null}
+          {submission?<div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">✓</span><div>
+            <p className={css.evidenceTitle}>Customer requirements submitted</p>
+            <p className={css.evidenceSub}>{date(submission.submitted_at)} · Secure intake recorded</p>
+          </div></div>:session?<div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">✉</span><div>
+            <p className={css.evidenceTitle}>Secure requirements invitation</p>
+            <p className={css.evidenceSub}>{date(session.created_at)} · {emailFact}</p>
           </div></div>:null}
           <div className={css.evidence}><span className={css.evidenceIcon} aria-hidden="true">▣</span><div>
             <p className={css.evidenceTitle}>{prospect.source==='website'?'Website enquiry received':'Opportunity recorded'}</p>
@@ -93,16 +208,17 @@ export default async function OpportunityPreview({params}:{params:Promise<{id:st
           </div></div>
         </div>
         <details className={css.history} id="op-full-history">
-          <summary>Record context and authorised tools</summary>
+          <summary>Full record history and controlled context</summary>
           <div className={css.historyBody}>
             <p>Opportunity status: {String(prospect.status||'Not recorded').replaceAll('_',' ')}</p>
-            {session?<p>Requirements session: {String(session.status).replaceAll('_',' ')} · Expiry {date(session.expires_at)}</p>:null}
-            <p>Next step recorded: {prospect.next_action||'Not recorded'}</p>
-            <p><Link className={css.secondary} href={'/workspace/acquisition/' + id}>Open governed operational record ↗</Link></p>
+            {session?<p>Intake: {session.status} · Expires {date(session.expires_at)} · Email {emailFact}</p>:null}
+            {request?<p>Partner review: {request.case_reference} · {request.status}</p>:null}
+            {activity.map(item=><p key={item.id}>{date(item.created_at)} · {item.event_type.replaceAll('_',' ')}</p>)}
+            <p><Link className={css.secondary} href={'/workspace/acquisition/' + id}>Inspect existing governed record ↗</Link></p>
           </div>
         </details>
       </section>
     </div>
-    <p className={css.footer}>Real OPOS record · Read-only redesign preview. Business actions remain governed by the existing workflow.</p>
+    <p className={css.footer}>Live organisation-scoped OPOS record · Governed actions are connected to the existing business engine. External customer and partner forms remain protected by their established validation.</p>
   </article>;
 }
