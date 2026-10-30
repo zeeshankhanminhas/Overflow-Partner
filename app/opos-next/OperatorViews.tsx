@@ -71,6 +71,6 @@ export function OperatorRecord({eyebrow,title,position,description,fields,previo
         {waiting ? <p><Link className={css.secondaryLink} href={governedHref}>Open governed record ↗</Link></p> : null}
       </div>
     </details>
-    <p className={css.meta} style={{marginTop:25}}>Read-only redesign preview. Existing authorised controls and audit rules remain unchanged.</p>
+    <p className={css.meta} style={{marginTop:25}}>This screen currently displays read-only operational evidence. Governed edit actions have not all been migrated and tested in the new workspace.</p>
   </article>;
 }
