@@ -33,3 +33,15 @@ On October 29 the operator opened a mobile page displaying a **white legacy Work
 
 ## Release rule
 No page may be described as **finished** before both visual fidelity and workflow correctness are verified. No OS-wide completion claim until all eight reference archetypes and both portal experiences pass.
+
+## Implementation checkpoint — 30 October 2026
+**First connected vertical slice implemented on the draft redesign branch, not yet end-to-end accepted.**
+- OPOS Opportunity derives current stage/next action from the existing `resolveAcquisitionState` engine, including submission, Partner Review, feasibility decision, and conversion evidence.
+- The visual v2 operating screen exposes existing authenticated server actions for requirements invitation, approved partner assessment, internal feasibility approval and Case 360 conversion.
+- Safe fixed-path return routing keeps successful actions and errors in the new Opportunity/Case presentation without weakening existing role checks, RPC and audit rules.
+- Email indicator reads existing organisation-scoped delivery RPC, differentiating accepted-by-provider from confirmed-delivered and from unknown status. Historical evidence and request status are displayed.
+- Preview actions are **disabled and fail closed** unless `isKnownIsolatedQaBackend()` verifies a separate QA Supabase project. The current Vercel preview is read-only against live records.
+- The website enquiry API already automatically creates Step 2 and queues reminders; this behaviour is inherited, not newly implemented.
+- Approval gating and customer/partner external secured forms continue to use the existing governed implementation.
+
+**Still not accepted / not implemented in the new shell:** An isolated QA backend and live no-risk transaction test, full automatic partner selection/dispatch policy after customer scope, outbound worker delivery replay/idempotency verification, client/partner portal redesign, full Case 360 commercial workflow, and Project 360 financial/delivery lifecycle. No production cutover.
