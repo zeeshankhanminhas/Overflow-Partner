@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from 'crypto';
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isQaRecipientAllowed } from '@/lib/qa/email-guard';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
   if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({success:false,message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
   try {
     const payload = intakeSchema.parse(await request.json());
+    if (!isQaRecipientAllowed(payload.work_email)) {
+      return NextResponse.json({ success: false, message: 'Use an approved OPOS-QA test email alias for this enquiry.' }, { status: 400 });
+    }
     const supabase = getAdminClient();
     const { data: owners, error: ownerError } = await supabase.from('profiles')
       .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true).limit(2);
