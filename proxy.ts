@@ -7,7 +7,6 @@ export async function proxy(request: NextRequest) {
   // Never let POST/PUT/PATCH/DELETE from either the new or legacy operating UI
   // mutate that database. Isolated QA is the only allowed preview write target.
   if (process.env.VERCEL_ENV === 'preview' &&
-      process.env.VERCEL_GIT_COMMIT_REF === 'design/opos-decision-first-ia' &&
       !isKnownIsolatedQaBackend() &&
       !['GET','HEAD','OPTIONS'].includes(request.method)) {
     return NextResponse.json({
