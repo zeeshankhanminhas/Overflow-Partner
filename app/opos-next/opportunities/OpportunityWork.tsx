@@ -10,18 +10,17 @@ type PartnerResponse={
   missing_information:string|null;
 };
 type PartnerQuote={price:number;currency:string;valid_until:string|null};
-type Decision={decision:string;review_notes:string|null};
 
 export default function OpportunityWork({
   prospectId,actionKey,canWrite,canDecide,hasContactEmail,linkedinEligible,
   sessionId,scopeSummary,partners,partnerRequestId,partnerResponse,
-  partnerQuote,partnerDecision,partnerName,convertedCaseId,
+  partnerQuote,partnerName,convertedCaseId,
 }:{
   prospectId:string;actionKey:AcquisitionActionKey;
   canWrite:boolean;canDecide:boolean;hasContactEmail:boolean;linkedinEligible:boolean;
   sessionId:string|null;scopeSummary:string;partners:Partner[];
   partnerRequestId:string|null;partnerResponse:PartnerResponse|null;
-  partnerQuote:PartnerQuote|null;partnerDecision:Decision|null;partnerName:string|null;
+  partnerQuote:PartnerQuote|null;partnerName:string|null;
   convertedCaseId:string|null;
 }){
   const hidden=<><input type="hidden" name="prospect_id" value={prospectId}/><input type="hidden" name="opos_next" value="1"/></>;
