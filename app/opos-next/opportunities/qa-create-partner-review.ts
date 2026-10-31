@@ -5,7 +5,7 @@ import {isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
 import {revalidatePath} from 'next/cache';
 const ORG='717262cb-68da-4e7b-a9fa-238dc6c5d16b';
 const PROSPECT='dcaad06e-853d-466a-af5a-08b7ae7cc24d';
-export async function createNorthfieldQaPartnerReview(_previous:{ok:boolean;message:string},formData:FormData):Promise<{ok:boolean;message:string}>{
+export async function createNorthfieldQaPartnerReview(_previous:{ok:boolean;message:string},formData:FormData):Promise<{ok:boolean;message:string;url?:string}>{
  try{
   if(!isKnownIsolatedQaStep2Backend()||process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://ukcamenuxhdznxaxpyis.supabase.co')throw Error('Isolated QA write gate closed.');
   const {supabase,user,profile,organisationId}=await requireUserContext('/opos-next');
@@ -16,9 +16,9 @@ export async function createNorthfieldQaPartnerReview(_previous:{ok:boolean;mess
   const {data,error}=await supabase.rpc('op_qa_issue_northfield_partner_review',{p_token_hash:hash});
   if(error)throw Error(error.message);
   if(!data)throw Error('QA assessment draft was not returned.');
-  // Do not reveal the bearer token in the UI or queue an invitation before the
-  // separate QA-only Resend delivery path is configured and verified.
+  // QA only: display the bearer link once to the authenticated operator for direct portal testing.
+  // Never log, persist in audit events, or email this token outside the QA sandbox.
   revalidatePath('/opos-next/opportunities/'+PROSPECT);
-  return {ok:true,message:'Northfield partner assessment draft created and engineering PDF linked. Email delivery is still blocked pending controlled QA sender integration.'};
+  return {ok:true,message:'Northfield QA assessment draft and engineering PDF linked. Open the secure QA review link below to test the partner form. No email was sent.',url:'https://'+process.env.VERCEL_URL+'/partner-review/'+token};
  }catch(error){return {ok:false,message:error instanceof Error?error.message:'Unable to create QA draft.'};}
 }
