@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     if(contactLookupError)throw contactLookupError;
     let contact=matchedContact;
     if(!contact){
-      const created=await supabase.from('contacts').insert({organisation_id:owner.organisation_id,created_by:owner.id,company_id:company.id,full_name:payload.full_name,email:payload.work_email,lifecycle_status:'active',communication_status:payload.nurture_consent === 'true' ? 'marketable' : 'non_marketable'}).select('id,full_name').single();
+      const created=await supabase.from('contacts').insert({organisation_id:owner.organisation_id,created_by:owner.id,company_id:company.id,full_name:payload.full_name,email:payload.work_email,lifecycle_status:'active',communication_status:payload.nurture_consent === 'true' ? 'marketable' : 'do_not_contact'}).select('id,full_name').single();
       if(created.error)throw created.error;contact=created.data;
     }
 
