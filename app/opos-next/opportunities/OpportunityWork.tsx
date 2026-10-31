@@ -1,5 +1,7 @@
 import {createStep2InvitationFormAction,convertProspectFormAction} from '@/app/workspace/acquisition/actions';
 import {createQaStep2InvitationAction} from './qa-step2-actions';
+import {decideNorthfieldQa} from './qa-internal-decision';
+import QaDecisionForm from './QaDecisionForm';
 import {createProspectPartnerReviewAction,decideProspectPartnerReviewAction} from '@/app/workspace/acquisition/partner-actions';
 import type {AcquisitionActionKey} from '@/lib/acquisition/state';
 import css from './opportunity.module.css';
@@ -15,14 +17,14 @@ type PartnerQuote={price:number;currency:string;valid_until:string|null};
 export default function OpportunityWork({
   prospectId,actionKey,canWrite,canDecide,previewWritable,hasContactEmail,linkedinEligible,
   sessionId,scopeSummary,partners,partnerRequestId,partnerResponse,
-  partnerQuote,partnerName,convertedCaseId,qaStep2Available=false,
+  partnerQuote,partnerName,convertedCaseId,qaStep2Available=false,qaApprovalAvailable=false,
 }:{
   prospectId:string;actionKey:AcquisitionActionKey;
   canWrite:boolean;canDecide:boolean;previewWritable:boolean;hasContactEmail:boolean;linkedinEligible:boolean;
   sessionId:string|null;scopeSummary:string;partners:Partner[];
   partnerRequestId:string|null;partnerResponse:PartnerResponse|null;
   partnerQuote:PartnerQuote|null;partnerName:string|null;
-  convertedCaseId:string|null;qaStep2Available?:boolean;
+  convertedCaseId:string|null;qaStep2Available?:boolean;qaApprovalAvailable?:boolean;
 }){
   const hidden=<><input type="hidden" name="prospect_id" value={prospectId}/><input type="hidden" name="opos_next" value="1"/></>;
   if(actionKey==='create_intake'){
@@ -63,6 +65,7 @@ export default function OpportunityWork({
   if(actionKey==='review_partner_response'){
     if(!partnerResponse || !partnerRequestId)return <p className={css.workHint}>The governed partner response is not yet available for approval.</p>;
     if(!canDecide)return <p className={css.workHint}>The partner response is ready for an authorised commercial or engineering approver.</p>;
+    if(qaApprovalAvailable)return <QaDecisionForm prospectId={prospectId} requestId={partnerRequestId} responseId={partnerResponse.id} partnerName={partnerName} response={partnerResponse} quote={partnerQuote}/>;
     return <form action={decideProspectPartnerReviewAction} className={css.workForm}>
       {hidden}
       <input type="hidden" name="request_id" value={partnerRequestId}/>
