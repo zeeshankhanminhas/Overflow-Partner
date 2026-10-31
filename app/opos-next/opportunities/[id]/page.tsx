@@ -97,6 +97,7 @@ export default async function OpportunityPreview({
     hasPartnerResponse:!!response,partnerDecision:decision?.decision,
     hasPartnerPricing:!!quote && Number(quote.price)>0,
   });
+  const {data:qaHandoffEvidence}=organisationId==='717262cb-68da-4e7b-a9fa-238dc6c5d16b' && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' ? await supabase.from('activity_events').select('id,created_at').eq('organisation_id',organisationId).eq('entity_type','prospect').eq('entity_id',id).eq('event_type','qa.partner_assessment_handoff_rehearsed').limit(1).maybeSingle():{data:null};
   const role=String(profile.role);
   const canWrite=['owner','admin','business_development','operator'].includes(role);
   const canRequestPartner=['owner','admin','business_development','operator','engineering'].includes(role);
@@ -166,7 +167,7 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
-          {qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' && acquisition.submitted && actionKey==='request_partner'?<QaPartnerHandoff/>:null}
+          {qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' && acquisition.submitted && actionKey==='request_partner' ? (qaHandoffEvidence ? <div className={css.workHint}><strong>QA handoff rehearsal completed.</strong> The submitted requirements and PDF metadata were verified against the fictional partner. Next tests: authorised private-file download, simulated partner communication, and partner response. No real partner invitation has been issued.</div> : <QaPartnerHandoff/>) : null}
           {!previewWritable&&!qaStep2Available&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
           {qaRecoverableInvitation?<form action={sendQueuedQaStep2InvitationAction} className={css.workForm}>
