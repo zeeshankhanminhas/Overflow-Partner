@@ -24,8 +24,8 @@ export async function deliverOneQaStep2Invitation({outboxId,sessionId,prospectId
   // Resend unverified-domain sandbox only permits the account's verified Gmail.
   // Keep the fictional prospect and session alias unchanged; QA delivery is
   // redirected exclusively to the same allowlisted mailbox's base address.
-  const qaDeliveryAddress=String(process.env.OP_QA_TEST_INBOX||'').trim().toLowerCase();
-  if(!qaAllowedRecipientAddresses().has(qaDeliveryAddress)||qaDeliveryAddress!== 'zeeshan.khan.minhas@gmail.com')
+  const qaDeliveryAddress=String(process.env.OP_QA_RESEND_SANDBOX_RECIPIENT||'').trim().toLowerCase();
+  if(!/^[a-z0-9._%-]+@gmail\.com$/.test(qaDeliveryAddress)||qaDeliveryAddress.includes('+'))
     throw new Error('QA sandbox recipient is not the verified Resend account inbox.');
   if(!allowed)throw new Error('QA client inbox is not configured.');
   const db=createClient(base,secret,{auth:{autoRefreshToken:false,persistSession:false}});
