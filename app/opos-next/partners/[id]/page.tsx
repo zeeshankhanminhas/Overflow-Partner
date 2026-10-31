@@ -12,5 +12,5 @@ export default async function PartnerDetail({params}:{params:Promise<{id:string}
     fields={[{label:'Status',value:data.status||'Unrecorded'},{label:'Country',value:data.country||'Not recorded'},
       {label:'Confidentiality',value:data.nda_signed?'NDA recorded':'NDA not recorded'},
       {label:'Capabilities',value:String(data.services||'Not recorded')}]}
-    previous="/opos-next/partners" governedHref="/workspace/partners" />;
+    previous="/opos-next/partners" />;
 }
