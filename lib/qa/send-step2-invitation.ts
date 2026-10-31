@@ -21,6 +21,12 @@ export async function deliverOneQaStep2Invitation({outboxId,sessionId,prospectId
   if(base!=='https://ukcamenuxhdznxaxpyis.supabase.co'||!secret)
     throw new Error('QA-only Supabase server credentials are missing.');
   const allowed=[...qaAllowedRecipientAddresses()].find(x=>x.endsWith('+client@gmail.com'));
+  // Resend unverified-domain sandbox only permits the account's verified Gmail.
+  // Keep the fictional prospect and session alias unchanged; QA delivery is
+  // redirected exclusively to the same allowlisted mailbox's base address.
+  const qaDeliveryAddress=String(process.env.OP_QA_TEST_INBOX||'').trim().toLowerCase();
+  if(!qaAllowedRecipientAddresses().has(qaDeliveryAddress)||qaDeliveryAddress!== 'zeeshan.khan.minhas@gmail.com')
+    throw new Error('QA sandbox recipient is not the verified Resend account inbox.');
   if(!allowed)throw new Error('QA client inbox is not configured.');
   const db=createClient(base,secret,{auth:{autoRefreshToken:false,persistSession:false}});
   const {data:prospect,error:prospectError}=await db.from('prospects')
@@ -34,11 +40,11 @@ export async function deliverOneQaStep2Invitation({outboxId,sessionId,prospectId
      session.status!=='invited'||String(session.recipient_email).toLowerCase()!==allowed)
     throw new Error('QA invitation session is invalid.');
   const {data:claimed,error:claimError}=await db.from('notification_outbox')
-    .update({status:'processing',locked_at:new Date().toISOString(),attempts:1})
+    .update({status:'processing',locked_at:new Date().toISOString(),attempts:2})
     .eq('id',outboxId).eq('organisation_id',QA_ORG)
     .eq('event_key','requirements.requested').eq('entity_type','prospect')
     .eq('idempotency_key','qa:intake:invite:'+sessionId)
-    .eq('entity_id',prospectId).eq('status','pending').eq('attempts',0)
+    .eq('entity_id',prospectId).eq('status','pending').eq('attempts',1)
     .eq('recipient_email',allowed)
     .select('id,event_key,category,recipient_email,recipient_name,subject,template_key,payload')
     .maybeSingle();
@@ -56,7 +62,7 @@ export async function deliverOneQaStep2Invitation({outboxId,sessionId,prospectId
       headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',
         'Idempotency-Key':'overflow-partner-'+outboxId},
       body:JSON.stringify({
-        from,to:[allowed],subject:claimed.subject,html,text,
+        from,to:[qaDeliveryAddress],subject:claimed.subject,html,text,
         headers:{'X-Overflow-Partner-Event':'requirements.requested',
           'X-Overflow-Partner-Outbox':outboxId,'X-OPOS-QA':'true'},
       }),
