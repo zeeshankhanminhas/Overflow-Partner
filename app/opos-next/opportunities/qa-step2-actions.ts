@@ -146,7 +146,7 @@ export async function sendQueuedQaStep2InvitationAction(formData:FormData) {
       .eq('event_key','requirements.requested')
       .eq('idempotency_key','qa:intake:invite:'+session.id).single();
     if(invitationError||!invitation||invitation.status!=='pending'||
-       invitation.attempts!==0||String(invitation.recipient_email).toLowerCase()!==recipient)
+       invitation.attempts!==1||String(invitation.recipient_email).toLowerCase()!==recipient)
       throw new Error('No unsent QA invitation is eligible for recovery. Review the delivery log.');
     // Repoint the original token to this repaired deployment. Token identity is
     // checked against the session hash before changing any queued email.
