@@ -7,6 +7,7 @@ import {isKnownIsolatedQaBackend,isKnownIsolatedQaStep2Backend} from '@/lib/qa/i
 import OpportunityWork from '../OpportunityWork';
 import QaPartnerHandoff from '../QaPartnerHandoff';
 import QaIssueReview from '../QaIssueReview';
+import QaIssueExistingReview from '../QaIssueExistingReview';
 import {sendQueuedQaStep2InvitationAction} from '../qa-step2-actions';
 import css from '../opportunity.module.css';
 
@@ -122,7 +123,7 @@ export default async function OpportunityPreview({
     invite?.status==='pending';
   const failedDelivery=!!session&&!acquisition.submitted &&
     ['failed','permanently_failed','dead_letter'].includes(String(sendStatus||'').toLowerCase());
-  const actionNeeded=qaRecoverableInvitation||failedDelivery||['create_intake','request_partner','review_partner_response','create_case'].includes(actionKey);
+  const actionNeeded=qaRecoverableInvitation||failedDelivery||['create_intake','request_partner','issue_partner_review','review_partner_response','create_case'].includes(actionKey);
   const state=qaRecoverableInvitation?'Invitation queued - delivery needs action':failedDelivery?'Secure invitation delivery needs attention':acquisition.currentState;
   const reason=qaRecoverableInvitation
     ? 'The secure QA form and invitation are saved, but the email was not sent. Send the original invitation without creating another session.'
@@ -172,7 +173,7 @@ export default async function OpportunityPreview({
           {qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' && acquisition.submitted && actionKey==='request_partner' && qaHandoffEvidence ? <QaIssueReview/> : null}
           {!previewWritable&&!qaStep2Available&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
-          {qaRecoverableInvitation?<form action={sendQueuedQaStep2InvitationAction} className={css.workForm}>
+          {actionKey==='issue_partner_review' && qaStep2Available && request?.id==='e8d6be99-5b5a-446b-a071-cc5c05a102c7'?<QaIssueExistingReview/>:qaRecoverableInvitation?<form action={sendQueuedQaStep2InvitationAction} className={css.workForm}>
             <input type="hidden" name="prospect_id" value={id}/>
             <p className={css.workHint}>This sends the existing invitation once to the QA +client mailbox without creating a new session, reminders or opportunity.</p>
             <button className={css.workButton} type="submit">Send queued QA invitation →</button>
