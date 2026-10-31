@@ -1,0 +1,77 @@
+/* Approved v2 Opportunity surface — reimplemented with real record data. */
+.frame { width: min(100%, 1010px); border: 1px solid #32343a; border-radius: 20px; background: transparent; padding: 29px 31px 31px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.headerTitle { color: #f4f4f5; font-size: 17px; letter-spacing: .005em; font-weight: 620; margin: 0; }
+.headerDescription { color: #9c9fa7; font-size: 14px; margin: 5px 0 0; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border: 1px solid #383a40; border-radius: 999px; background: #17181b; color: #b7b9c0; white-space: nowrap; font-size: 12px; }
+.pillOk { background: #202125; color: #e9e9ec; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #92949c; display: inline-block; flex: 0 0 6px; }
+.pillOk .dot { background: #72cfa1; }
+.rule { height: 1px; background: #2a2b2f; margin: 24px 0 30px; }
+.title { color: #f4f4f5; font-size: 31px; line-height: 1.2; letter-spacing: -.045em; font-weight: 650; margin: 0 0 7px; overflow-wrap: anywhere; }
+.subtitle { color: #aeb0b8; margin: 0; font-size: 14px; }
+.section { margin-top: 40px; }
+.overline { font-size: 12px; color: #a4a6ae; letter-spacing: .05em; font-weight: 650; margin: 0 0 14px; }
+.position { color: #f4f4f5; font-size: 25px; line-height: 1.24; letter-spacing: -.045em; font-weight: 620; margin: 0 0 13px; }
+.description { max-width: 770px; color: #ced0d5; font-size: 15px; line-height: 1.7; margin: 0 0 15px; }
+.badges { display: flex; gap: 9px; flex-wrap: wrap; }
+.note { color: #9699a1; font-size: 12px; line-height: 1.5; margin: 15px 0 0; }
+.sectionHeading { color: #f4f4f5; font-size: 19px; font-weight: 620; letter-spacing: -.026em; line-height: 1.3; margin: 0 0 16px; }
+.journey { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; margin-top: 14px; }
+.stage { border: 1px solid #37393f; border-radius: 12px; padding: 17px 17px 15px; min-height: 85px; }
+.stageTop { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
+.stageNumber { color: #9a9da5; font-size: 13px; }
+.stageSign { color: #898c94; font-size: 15px; }
+.stageComplete { color: #72cfa1; }
+.stageName { color: #f4f4f5; font-size: 14px; font-weight: 600; margin-top: 14px; display: block; }
+.headingRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.headingRow .sectionHeading { margin: 0; }
+.secondary { background: none; border: 0; color: #a9abb2; padding: 7px 0; font-size: 12px; text-decoration: none; cursor: pointer; }
+.secondary:hover { color: #fff; }
+.evidenceList { display: grid; gap: 8px; }
+.evidence { display: flex; align-items: center; gap: 15px; padding: 20px; border: 1px solid #35373d; border-radius: 12px; }
+.evidenceIcon { display: grid; place-items: center; width: 31px; height: 31px; flex: 0 0 31px; border: 1px solid #4a4c52; border-radius: 9px; font-size: 15px; }
+.evidenceTitle { color: #f4f4f5; font-size: 14px; font-weight: 580; line-height: 1.4; margin: 0; }
+.evidenceSub { color: #a4a6af; font-size: 12px; line-height: 1.45; margin: 6px 0 0; }
+.history { margin-top: 14px; color: #aeb0b7; font-size: 12px; }
+.history summary { padding: 8px 0; cursor: pointer; }
+.historyBody { border-top: 1px solid #303238; padding-top: 12px; display: grid; gap: 9px; }
+.historyBody p { margin: 0; }
+.footer { color: #858790; margin: 20px 6px 0; font-size: 12px; line-height: 1.55; }
+@media (max-width: 700px) {
+  .frame { border-radius: 14px; padding: 18px 17px 25px; }
+  .headerTitle { font-size: 14px; } .headerDescription { font-size: 12px; }
+  .title { font-size: 26px; } .subtitle { font-size: 12px; }
+  .section { margin-top: 32px; } .position { font-size: 22px; }
+  .description { font-size: 14px; }
+  .journey { gap: 7px; }
+  .stage { padding: 12px 10px; min-height: 79px; border-radius: 9px; }
+  .stageNumber, .stageName { font-size: 11px; }
+  .stageName { margin-top: 12px; }
+  .pill { font-size: 11px; padding: 7px 10px; }
+  .evidence { padding: 14px 12px; gap: 11px; }
+  .evidenceTitle { font-size: 12px; } .evidenceSub { font-size: 11px; }
+  .sectionHeading { font-size: 17px; }
+}
+
+/* The v2 record now owns its permitted decision — not a legacy UI panel. */
+.workArea{margin-top:25px;padding:23px 24px;background:#151619;border:1px solid #3a3c41;border-radius:12px;max-width:760px}
+.workForm{display:grid;gap:15px;margin-top:13px}
+.workHint{font-size:13px;line-height:1.65;color:#c1c3ca;max-width:690px;margin:11px 0}
+.workLabel{display:grid;gap:8px;font-size:12px;font-weight:600;color:#e6e7e9}
+.workInput{font:400 14px/1.5 var(--font-inter),system-ui,sans-serif;color:#f4f4f5;background:#222328;border:1px solid #53555c;border-radius:8px;padding:11px 13px;min-height:45px;min-width:0;width:100%;color-scheme:dark}
+.workInput:focus-visible{outline:2px solid #f4f4f5;outline-offset:2px}
+.workCheck{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#d8d9dd}
+.workCheck input{width:18px;height:18px;flex:0 0 18px;margin:1px 0 0;accent-color:#e9e9eb}
+.workButton{display:inline-flex;width:fit-content;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border:1px solid #f4f4f5;background:#f4f4f5;color:#111215;border-radius:8px;text-decoration:none;font-size:13px;font-weight:650;cursor:pointer}
+.workButton:hover{background:#d6d6da}
+.workButton:focus-visible{outline:2px solid #f4f4f5;outline-offset:3px}
+.workFacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.workFacts span{padding:12px;border:1px solid #40424a;border-radius:8px;font-size:11px;color:#b6b8bf}
+.workFacts strong{display:block;font-size:13px;color:#f4f4f5;margin-top:5px;overflow-wrap:anywhere}
+.feedbackError,.feedbackSuccess{margin:17px 0;padding:13px 17px;background:#211a1c;border:1px solid #a76d72;border-radius:9px;color:#f1dddd;font-size:13px;line-height:1.5}
+.feedbackSuccess{background:#15201b;border-color:#4e9172;color:#cee9da}
+@media(max-width:700px){.workArea{padding:18px 15px;margin-top:21px}.workFacts{grid-template-columns:1fr}.workButton{width:100%;min-height:48px}.workInput{font-size:16px}}
+
+.workButton:disabled{opacity:.48;cursor:not-allowed;background:#bbbcc0;border-color:#bbbcc0}
+.workButton:disabled:hover{background:#bbbcc0}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
+import { assertQaRecipientAllowed } from '@/lib/qa/email-guard';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,7 @@ function adminClient() {
 }
 
 async function deliver(row: OutboxRow) {
+  assertQaRecipientAllowed(row.recipient_email);
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL must be configured.');
@@ -67,6 +70,9 @@ async function deliver(row: OutboxRow) {
 
 export async function GET(request: NextRequest) {
   if (!authorised(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (process.env.VERCEL_ENV === 'preview' && (!isKnownIsolatedQaBackend() || process.env.OP_QA_EMAIL_SENDING_ENABLED !== 'true')) {
+    return NextResponse.json({ error: 'OPOS-QA outbound worker is locked.' }, { status: 503 });
+  }
 
   try {
     const supabase = adminClient();

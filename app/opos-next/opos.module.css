@@ -1,0 +1,201 @@
+/* OPOS Decision-first UI. New namespace; never imports the legacy workspace CSS. */
+.shell {
+  --canvas: #090a0b; --nav: #0c0d0e; --surface: #101113; --raised: #151619;
+  --hover: #23252a; --border: #303238; --border-strong: #484b52;
+  --text: #f4f4f5; --subtle: #b8bac0; --faint: #9497a0;
+  --success: #72cfa1; --attention: #f1c076; --critical: #f08a8a;
+  min-height: 100dvh; display: grid; grid-template-columns: 224px minmax(0,1fr);
+  background: var(--canvas); color: var(--text);
+  font: 400 14px/1.5 var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+  color-scheme: dark;
+}
+.shell *, .shell *::before, .shell *::after { box-sizing: border-box; }
+/* Do not force all links to inherit light foreground: it makes light CTAs unreadable. */
+.shell a { text-decoration: none; }
+.shell a:not([class]) { color: inherit; }
+.shell .brand, .shell .queue a, .shell .table a { color: var(--text); }
+.shell :is(a,button,input,select,summary):focus-visible { outline: 2px solid #f4f4f5; outline-offset: 4px; }
+.sidebar {
+  background: var(--nav); border-right: 1px solid var(--border);
+  padding: 27px 17px 24px; display: flex; flex-direction: column; gap: 56px;
+  position: sticky; top: 0; height: 100dvh;
+}
+.brand { display: flex; gap: 10px; align-items: center; font-weight: 600; font-size: 11px; letter-spacing: .1em; line-height: 1.4; }
+.brandMark { font-size: 26px; line-height: 1; font-weight: 400; }
+.nav { display: grid; gap: 8px; }
+.navEyebrow { display: block; font-size: 10px; color: var(--faint); letter-spacing: .14em; font-weight: 600; margin: 0 8px 10px; }
+.navLink,.navActive { padding: 11px 12px; display: flex; gap: 11px; align-items: center; border-radius: 8px; font-weight: 500; }
+.shell .navLink { color: var(--subtle); } .shell .navLink:hover { background: var(--raised); color: var(--text); }
+.shell .navActive { background: var(--hover); color: var(--text); }
+.navDot { width: 6px; height: 6px; border: 1px solid var(--faint); border-radius: 2px; }
+.navActive .navDot { background: var(--text); border-color: var(--text); }
+.navNote { font-size: 12px; color: var(--faint); line-height: 1.5; margin: 20px 9px 0; }
+.sidebarFooter { display: grid; gap: 4px; margin-top: auto; font-size: 12px; color: var(--faint); }
+.sidebarFooter small { font-size: 10px; letter-spacing: .13em; }
+.workArea { min-width: 0; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 37px; height: 64px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--faint); letter-spacing: .05em; gap: 16px; }
+.previewChip { padding: 6px 11px; border: 1px solid var(--border); color: var(--subtle); border-radius: 999px; font-size: 11px; letter-spacing: normal; }
+.main { max-width: 1220px; margin: 0 auto; padding: 52px 48px 100px; min-width: 0; }
+.eyebrow { font-size: 11px; text-transform: uppercase; font-weight: 600; letter-spacing: .12em; color: var(--faint); margin: 0 0 12px; }
+.title { font-size: clamp(26px,3vw,36px); line-height: 1.16; letter-spacing: -.04em; font-weight: 600; color: var(--text); margin: 0; }
+.subhead { margin: 12px 0 0; max-width: 700px; font-size: 14px; color: var(--subtle); }
+.pageHeader { margin-bottom: 32px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; }
+.cardTitle { font-size: clamp(20px,2vw,26px); font-weight: 600; line-height: 1.25; letter-spacing: -.025em; margin: 7px 0 12px; }
+.cardDescription { color: var(--subtle); margin: 0; max-width: 720px; }
+.overline { color: var(--faint); letter-spacing: .12em; font-size: 10px; text-transform: uppercase; font-weight: 600; }
+.meta { font-size: 12px; color: var(--faint); line-height: 1.5; }
+.shell .action { display: inline-flex; width: fit-content; min-height: 40px; padding: 10px 14px; align-items: center; justify-content: center; border-radius: 8px; background: var(--text); color: #101114; font-weight: 600; margin-top: 22px; font-size: 13px; }
+.shell .action:hover { background: #dadadd; }
+.shell .secondaryLink { display: inline-block; color: var(--subtle); font-weight: 500; }
+ .shell .secondaryLink:hover { color: var(--text); text-decoration: underline; }
+.section { margin-top: 34px; }
+.sectionHeading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 17px; }
+.sectionHeading h2 { font-size: 13px; font-weight: 600; color: var(--text); margin: 0; }
+.queue { border-top: 1px solid var(--border); padding: 0; list-style: none; margin: 0; }
+.queue li { border-bottom: 1px solid var(--border); }
+.queue a { display: flex; gap: 20px; justify-content: space-between; align-items: center; padding: 19px 2px; }
+.queue a:hover { background: #151619; }
+.queue strong { display: block; font-size: 14px; font-weight: 600; }
+.queue p { font-size: 12px; color: var(--subtle); margin: 5px 0; }
+.queue small { color: var(--faint); font-size: 11px; }
+.queueArrow { white-space: nowrap; color: var(--subtle); font-size: 12px; }
+.waiting { border-top: 1px solid var(--border); margin-top: 29px; padding-top: 20px; }
+.waiting summary { color: var(--subtle); font-size: 13px; cursor: pointer; font-weight: 500; }
+.waitingGrid { display: flex; flex-wrap: wrap; gap: 24px; padding: 22px 0; }
+.waitingGrid span { display: grid; color: var(--faint); font-size: 12px; }
+.waitingGrid strong { color: var(--text); font-size: 26px; font-variant-numeric: tabular-nums; }
+.shell .backLink { display: inline-block; color: var(--subtle); font-size: 12px; margin-bottom: 18px; }
+.shell .backLink:hover { color: var(--text); }
+.factRow { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 14px 0 0; }
+.factRow span { color: var(--subtle); font-size: 12px; }
+.factRow strong { color: var(--text); font-weight: 500; }
+.status { font-size: 11px; color: var(--subtle); border: 1px solid var(--border-strong); border-radius: 999px; padding: 5px 10px; white-space: nowrap; width: fit-content; }
+.tableWrap { overflow-x: auto; border-top: 1px solid var(--border); }
+.table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; font-size: 13px; }
+.table th { color: var(--faint); text-transform: uppercase; letter-spacing: .08em; font-size: 10px; font-weight: 600; padding: 15px 10px; border-bottom: 1px solid var(--border); }
+.table td { border-bottom: 1px solid var(--border); padding: 18px 10px; color: var(--subtle); }
+.table td:first-child { color: var(--text); font-weight: 600; }
+.table tbody tr:hover { background: var(--surface); }
+.table tbody a { text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 4px; }
+.searchRow { margin-bottom: 15px; }
+.searchInput { width: min(100%,360px); border: 1px solid var(--border-strong); border-radius: 8px; background: var(--raised); color: var(--text); padding: 12px 14px; font: inherit; }
+.searchButton { color: #101114; background: var(--text); border: 0; border-radius: 8px; padding: 12px 15px; font: 600 13px/1 var(--font-inter), system-ui; margin-left: 8px; cursor: pointer; }
+.empty { padding: 27px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--subtle); font-size: 13px; }
+.details { border-top: 1px solid var(--border); margin-top: 18px; }
+.details summary { cursor: pointer; color: var(--subtle); font-size: 13px; padding: 18px 0; }
+.detailsContent { border: 1px solid var(--border); padding: 18px 22px; border-radius: 12px; color: var(--subtle); }
+.detailsContent p { margin: 6px 0; }
+@media (max-width: 850px) {
+  .shell { display: block; }
+  .sidebar { position: static; height: auto; padding: 14px 18px; gap: 15px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .brand { font-size: 10px; } .brandMark { font-size: 22px; }
+  .nav { display: flex; align-items: center; gap: 4px; overflow-x: auto; }
+  .navEyebrow,.navNote,.sidebarFooter { display: none; }
+  .navLink,.navActive { padding: 8px 11px; white-space: nowrap; }
+  .topbar { height: 44px; padding: 0 18px; }
+  .main { padding: 34px 18px 72px; }
+}
+@media (max-width: 480px) {
+  .card { padding: 22px 19px; }
+  .main { padding: 26px 16px 65px; }
+  .pageHeader { margin-bottom: 24px; }
+  .queue a { align-items: flex-start; gap: 7px; }
+  .queueArrow { font-size: 11px; }
+  .previewChip { font-size: 10px; padding: 4px 7px; }
+  .searchButton { margin-left: 0; margin-top: 9px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .shell :is(a,button) { transition: background-color .15s ease, color .15s ease; }
+}
+
+/* Mobile is a separate OPOS composition, not a scaled legacy workspace. */
+.skipLink { position: fixed; z-index: 400; top: -100px; left: 16px; background: #f4f4f5; color: #101114; padding: 12px 16px; border-radius: 8px; }
+.skipLink:focus { top: 12px; }
+.mobileShell { display: none; }
+.mobileRecords { display: none; }
+.shell :is(.mobileMenuTrigger,.searchButton):hover { transform: none; }
+.shell .searchInput:focus { border-color: var(--text); box-shadow: none; outline: 2px solid var(--text); outline-offset: 2px; }
+.shell .queue li a:focus-visible, .shell .mobileRecord:focus-visible { border-radius: 8px; }
+.mobileRecord { display: grid; gap: 14px; padding: 19px 18px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; min-width: 0; }
+.mobileRecordTitle { display: block; color: var(--text); font-size: 16px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; letter-spacing: -.02em; }
+.mobileRecordTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; min-width: 0; }
+.mobileRecordMeta { color: var(--faint); font-size: 12px; }
+.mobileRecordBottom { display: flex; justify-content: space-between; align-items: end; gap: 14px; border-top: 1px solid var(--border); padding-top: 13px; }
+.mobileRecordStep { color: var(--subtle); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+.mobileRecordArrow { color: var(--text); font-size: 18px; flex-shrink: 0; }
+.mobileRecord:hover { background: var(--raised); }
+.shell .mobileRecord:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+@media (max-width: 850px) {
+  .shell .sidebar { display: none; }
+  .shell .topbar { display: none; }
+  .shell .mobileShell { display: block; background: var(--nav); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .mobileHeader { height: 66px; padding: 0 18px; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+  .shell .mobileBrand { color: var(--text); display: inline-flex; align-items: center; gap: 9px; font-size: 10px; font-weight: 600; line-height: 1.25; letter-spacing: .1em; }
+  .shell .mobileBrand .brandMark { font-size: 25px; }
+  .shell .mobileMenuTrigger { appearance: none; color: var(--text); background: var(--raised); border: 1px solid var(--border-strong); min-height: 44px; min-width: 92px; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 8px 13px; font: 600 13px/1.2 var(--font-inter), system-ui, sans-serif; cursor: pointer; }
+  .menuIcon { font-size: 19px; line-height: 1; min-width: 18px; text-align: center; }
+  .mobileMenu { position: absolute; inset: 100% 0 auto; max-height: calc(100dvh - 66px); overflow-y: auto; overscroll-behavior: contain; padding: 22px 18px 28px; background: var(--nav); border-bottom: 1px solid var(--border-strong); box-shadow: 0 20px 36px #0009; }
+  .mobileMenu .navEyebrow { display: block; margin: 0 0 10px; }
+  .shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 15px; font-weight: 600; }
+  .shell .mobileMenuActive { background: var(--raised); border-radius: 8px; }
+  .mobileMenuLink span:first-child, .mobileMenuActive span:first-child { display: grid; gap: 2px; }
+  .mobileMenu :is(.mobileMenuLink,.mobileMenuActive) small { color: var(--faint); font-size: 11px; font-weight: 400; }
+  .mobileMenuNote { color: var(--subtle); font-size: 12px; line-height: 1.5; margin: 22px 4px 0; }
+  .shell .main { max-width: 100%; padding: 29px 18px calc(76px + env(safe-area-inset-bottom)); }
+  .shell .action { min-height: 48px; }
+  .shell .searchInput { min-height: 48px; font-size: 16px; width: 100%; }
+  .shell .searchButton { min-height: 48px; }
+  .tableWrap { display: none; }
+  .mobileRecords { display: grid; gap: 10px; }
+  .shell .pageHeader { margin-bottom: 25px; }
+  .shell .card { padding: 23px; }
+  .shell .cardTitle { overflow-wrap: anywhere; }
+  .shell .factRow { display: grid; gap: 11px; }
+  .shell .factRow span { font-size: 13px; }
+  .shell .sectionHeading { align-items: flex-start; }
+  .shell .sectionHeading .meta { text-align: right; }
+  .shell .queue a { min-height: 76px; }
+  .shell .waitingGrid { gap: 18px; }
+  .shell .details summary { min-height: 48px; display: flex; align-items: center; }
+}
+@media (max-width: 480px) {
+  .shell .main { padding: 25px 16px calc(70px + env(safe-area-inset-bottom)); }
+  .mobileHeader { padding-inline: 16px; }
+  .mobileMenu { padding-inline: 16px; }
+  .shell .card { padding: 22px 18px; }
+  .shell .sectionHeading { gap: 10px; }
+  .shell .searchRow { display: grid; gap: 9px; }
+  .shell .searchButton { margin: 0; width: 100%; }
+}
+
+/* Unified IA: grouped primary navigation with deliberate spacing and scroll. */
+.shell .sidebar { overflow-y: auto; overscroll-behavior: contain; }
+.navUnit { display: grid; gap: 3px; }
+.navUnit:not(:first-child):has(.navEyebrow) { margin-top: 18px; }
+.navUnit .navEyebrow { margin: 0 8px 5px; }
+.shell .mobileMenu > div .navEyebrow { margin: 20px 12px 6px; font-size: 10px; }
+.shell .mobileMenu > div:first-child .navEyebrow { margin-top: 0; }
+.shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 48px; }
+@media (max-width:850px) {
+  .shell .mobileMenu { padding-bottom: calc(30px + env(safe-area-inset-bottom)); }
+  .shell .mobileMenuLink, .shell .mobileMenuActive { min-height: 52px; }
+}
+
+/* Visual Review v2 exact mobile shell grammar. */
+@media (max-width: 850px) {
+ .shell .mobileHeader {height:61px; padding:0 18px; gap:11px; background:#090a0b; border-bottom:1px solid #24262a;}
+ .shell .mobileMenuTrigger {background:transparent; border:0; padding:0; margin:0; border-radius:5px; min-width:24px; min-height:44px; width:24px; justify-content:flex-start; color:#f4f4f5;}
+ .shell .menuIcon {font-size:25px; width:24px;}
+ .shell .mobileBrand {font-size:12px; letter-spacing:.02em; font-weight:600; color:#f4f4f5;}
+ .mobileSpacer { flex:1; }
+ .mobilePreview {display:flex; align-items:center; gap:7px; flex-shrink:0; padding:8px 11px; border-radius:999px; border:1px solid #383a40; background:#202125; font-size:11px; line-height:1; color:#b8bac0; }
+ .mobileLiveDot {width:6px;height:6px;flex-shrink:0;border-radius:50%;background:#72cfa1;}
+ .mobileAvatar {width:27px;height:27px;border-radius:50%;display:grid;place-items:center;border:1px solid #404249;background:#252629;color:#e9e9ea;font-size:10px;font-weight:700;flex-shrink:0;}
+ .shell .main {padding-top:37px;}
+ .shell .mobileMenu {max-height:calc(100dvh - 61px);}
+}
+@media (max-width:480px) {
+ .shell .mobileHeader {padding:0 18px;}
+ .shell .main {padding-top:37px;}
+}

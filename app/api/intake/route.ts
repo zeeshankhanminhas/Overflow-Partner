@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from 'crypto';
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isQaRecipientAllowed } from '@/lib/qa/email-guard';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
@@ -25,6 +26,8 @@ function getAdminClient() {
 }
 
 function getPublicBaseUrl(request: Request) {
+  // QA secure intake links must lead back to the isolated Preview, never to the live site.
+  if (isKnownIsolatedQaBackend()) return new URL(request.url).origin;
   const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
   if (configured) return configured.replace(/\/$/, '');
   const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -36,6 +39,9 @@ export async function POST(request: Request) {
   if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({success:false,message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
   try {
     const payload = intakeSchema.parse(await request.json());
+    if (!isQaRecipientAllowed(payload.work_email)) {
+      return NextResponse.json({ success: false, message: 'Use an approved OPOS-QA test email alias for this enquiry.' }, { status: 400 });
+    }
     const supabase = getAdminClient();
     const { data: owners, error: ownerError } = await supabase.from('profiles')
       .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true).limit(2);
@@ -151,6 +157,10 @@ export async function POST(request: Request) {
       }
     } catch (error) {
       console.error('Website Step 2 invitation queue failed', error);
+      const reason=error instanceof Error?error.message:'Unknown notification queue error';
+      await supabase.from('intake_sessions')
+        .update({email_status:'failed',email_error:reason.slice(0,500)})
+        .eq('organisation_id',owner.organisation_id).eq('id',session.id);
       await supabase.from('prospects').update({ next_action: 'Review and resend Step 2 technical intake invitation' })
         .eq('organisation_id', owner.organisation_id).eq('id', prospect.id);
       await supabase.from('activity_events').insert({

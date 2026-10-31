@@ -1,4 +1,5 @@
-import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isKnownIsolatedQaBackend, isKnownIsolatedQaStep2Backend } from '@/lib/qa/isolation';
+import { qaAllowedRecipientAddresses } from '@/lib/qa/email-guard';
 import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -39,6 +40,16 @@ async function sessionForToken(token: string) {
     .select('*, prospects(company_name,contact_name,email,project_type,requirement_summary)')
     .eq('token_hash', hashToken(token)).single();
   if (error || !data) return { supabase, session: null };
+  // A test token never authorises access to any other organisation or recipient.
+  if (process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) {
+    const qaClient=[...qaAllowedRecipientAddresses()].find(x=>x.endsWith('+client@gmail.com'));
+    if (!isKnownIsolatedQaStep2Backend() ||
+        data.organisation_id!=='717262cb-68da-4e7b-a9fa-238dc6c5d16b' ||
+        !String(data.prospects?.company_name||'').startsWith('QA - ') ||
+        String(data.recipient_email||'').toLowerCase()!==qaClient) {
+      return { supabase, session: null };
+    }
+  }
   if (new Date(data.expires_at).getTime() < Date.now() && !['submitted','converted'].includes(data.status)) {
     await supabase.from('intake_sessions').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', data.id);
     return { supabase, session: null };
@@ -47,7 +58,7 @@ async function sessionForToken(token: string) {
 }
 
 export async function GET(_: Request, context: { params: Promise<{ token: string }> }) {
-  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({message:'Preview intake cannot access the shared production database.'},{status:503});
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend() && !isKnownIsolatedQaStep2Backend()) return NextResponse.json({message:'QA intake is locked.'},{status:503});
   const { token } = await context.params;
   const { supabase, session } = await sessionForToken(token);
   if (!session) return NextResponse.json({ message: 'This technical intake link is invalid or has expired.' }, { status: 404 });
@@ -58,7 +69,7 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
 }
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
-  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend() && !isKnownIsolatedQaStep2Backend()) return NextResponse.json({message:'QA intake submissions are locked.'},{status:503});
   try {
     const { token } = await context.params;
     const payload = submissionSchema.parse(await request.json());
@@ -108,16 +119,23 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     }
     let partnerReferral: 'queued' | 'already_issued' | 'manual_required' | 'failed' = 'failed';
     let partnerReferralReason = '';
-    try {
-      const result = await autoReferSubmittedIntake(supabase, {
-        organisationId:session.organisation_id,prospectId:session.prospect_id,sessionId:session.id,
-        actorUserId:session.created_by,scopeSummary:payload.description,projectType:payload.project_type,
-      });
-      partnerReferral = result.status;
-      partnerReferralReason = result.reason || '';
-    } catch (referralError) {
-      partnerReferralReason = referralError instanceof Error ? referralError.message : 'Unexpected handoff error';
-      console.error('Automatic partner referral failed',referralError);
+    if (isKnownIsolatedQaStep2Backend()) {
+      // Partner handover is a separate QA checkpoint, never automatic in this first
+      // client-form test. It requires a partner persona and dedicated approvals.
+      partnerReferral = 'manual_required';
+      partnerReferralReason = 'QA client requirements received; partner assessment stays locked.';
+    } else {
+      try {
+        const result = await autoReferSubmittedIntake(supabase, {
+          organisationId:session.organisation_id,prospectId:session.prospect_id,sessionId:session.id,
+          actorUserId:session.created_by,scopeSummary:payload.description,projectType:payload.project_type,
+        });
+        partnerReferral = result.status;
+        partnerReferralReason = result.reason || '';
+      } catch (referralError) {
+        partnerReferralReason = referralError instanceof Error ? referralError.message : 'Unexpected handoff error';
+        console.error('Automatic partner referral failed',referralError);
+      }
     }
     if (partnerReferral === 'manual_required' || partnerReferral === 'failed') {
       await supabase.from('prospects').update({
@@ -131,7 +149,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       });
     }
     const ownerEmail = process.env.OWNER_NOTIFICATION_EMAIL;
-    if (ownerEmail) {
+    if (ownerEmail && !isKnownIsolatedQaStep2Backend()) {
       await supabase.rpc('op_enqueue_notification', {
         p_organisation_id: session.organisation_id,
         p_event_key: 'client.intake_submitted',

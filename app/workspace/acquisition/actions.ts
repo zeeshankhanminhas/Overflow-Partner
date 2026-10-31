@@ -11,11 +11,18 @@ import { getCompanyById } from '@/lib/repositories/companies';
 import { getContactById } from '@/lib/repositories/contacts';
 import { recordActivity } from '@/lib/repositories/activity';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
+import { acquisitionReturn, caseReturn, assertVNextWritable } from './return-path';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
 function siteUrl(path: string) {
+  // Only a verified isolated QA Preview may generate secure Step 2 links back
+  // to its own Preview host. Never send QA token links to the live site.
+  if (isKnownIsolatedQaBackend() && process.env.VERCEL_URL?.endsWith('.vercel.app')) {
+    return 'https://' + process.env.VERCEL_URL + path;
+  }
   const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
   return `${base.startsWith('http') ? base : `https://${base}`}${path}`;
 }
@@ -72,6 +79,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
   const prospectId = String(formData.get('prospect_id') || '');
   let destination = prospectId ? acquisitionUrl(prospectId) : '/workspace/acquisition';
   try {
+    assertVNextWritable(formData);
     const { supabase, user, profile, organisationId } = await requireUserContext();
     assertRole(profile.role, ['owner', 'admin', 'business_development', 'operator']);
     if (!prospectId) throw new Error('Prospect ID is required.');
@@ -96,7 +104,20 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     await cancelEntityReminders(supabase, { organisationId, entityType: 'prospect', entityId: prospectId, categories: ['nurture'] }).catch(() => 0);
     if (prospect.email) {
       const payload={company:prospect.company_name,dueDate:new Date(expiresAt).toLocaleDateString('en-GB')};
-      await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.requested',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`intake:invite:${session.id}`}).catch(()=>null);
+      try {
+        const queued = await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.requested',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,idempotencyKey:`intake:invite:${session.id}`});
+        if(!queued)throw new Error('The customer invitation was not accepted into the notification outbox.');
+      } catch (notificationError) {
+        const reason=notificationError instanceof Error?notificationError.message:'Unknown queue failure';
+        await supabase.from('intake_sessions').update({email_status:'failed',email_error:reason.slice(0,500)})
+          .eq('organisation_id',organisationId).eq('id',session.id);
+        await supabase.from('activity_events').insert({
+          organisation_id:organisationId,user_id:user.id,entity_type:'prospect',entity_id:prospectId,
+          event_type:'step_2_invitation_delivery_failed',
+          event_data:{intakeSessionId:session.id,stage:'queue',retryRequired:true},
+        });
+        throw new Error('The requirements invitation could not be queued. Review notification delivery before retrying.');
+      }
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:24h:${session.id}`}).catch(()=>null);
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+72*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:72h:${session.id}`,subject:'Your secure requirements form remains available'}).catch(()=>null);
       await queueLifecycleEmail(supabase,{organisationId,scenario:'requirements.reminder',recipientEmail:prospect.email,recipientName:prospect.contact_name,actionUrl:url,payload,entityType:'prospect',entityId:prospectId,scheduledFor:new Date(Date.now()+6*24*60*60*1000).toISOString(),idempotencyKey:`intake:reminder:expiry:${session.id}`,subject:'Your secure requirements form expires soon'}).catch(()=>null);
@@ -110,7 +131,8 @@ export async function createStep2InvitationFormAction(formData: FormData) {
       ? acquisitionUrl(prospectId,{error:text,focus:'record-next-action'})
       : `/workspace/acquisition?error=${encodeURIComponent(text)}`;
   }
-  redirect(destination);
+  if (prospectId) revalidatePath('/opos-next/opportunities/' + prospectId);
+  redirect(acquisitionReturn(formData, prospectId, destination));
 }
 
 export async function qualifyProspectFormAction(formData: FormData) {
@@ -237,10 +259,20 @@ export async function convertProspectAction(formData: FormData): Promise<ActionR
 
 export async function convertProspectFormAction(formData: FormData) {
   const prospectId=String(formData.get('prospect_id')||'');
+  try {
+    assertVNextWritable(formData);
+  } catch(error) {
+    const message=error instanceof Error?error.message:'Safe preview backend not configured';
+    redirect(acquisitionReturn(formData,prospectId,acquisitionUrl(prospectId,{error:message})));
+  }
   const result = await convertProspectAction(formData);
-  redirect(result.ok
-    ? `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns the controlled technical and commercial conversion workflow.')}&focus=record-next-action`
-    : prospectId
-      ? acquisitionUrl(prospectId,{error:result.error,focus:'record-next-action'})
-      : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`);
+  if (result.ok) {
+    revalidatePath('/opos-next/opportunities/' + prospectId);
+    revalidatePath('/opos-next/cases/' + result.data.id);
+    redirect(caseReturn(formData, result.data.id,
+      `/workspace/leads/${result.data.id}?success=${encodeURIComponent('Prospect converted. Case 360 now owns the controlled technical and commercial conversion workflow.')}&focus=record-next-action`));
+  }
+  redirect(acquisitionReturn(formData, prospectId,
+    prospectId ? acquisitionUrl(prospectId,{error:result.error,focus:'record-next-action'})
+      : `/workspace/acquisition?error=${encodeURIComponent(result.error)}`));
 }
