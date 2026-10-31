@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
-import {approveQaPartnerReadinessAction} from '../qa-actions';
+import QaReadinessForm from '../QaReadinessForm';
 
 const QA_ORG='717262cb-68da-4e7b-a9fa-238dc6c5d16b';
 
@@ -54,7 +54,7 @@ export default async function PartnerDetail({params,searchParams}:{params:Promis
         </div>)}
       </div>
     </section>
-    {qa && !eligible && !qaApproval?<section style={{border:'1px solid #4446',borderRadius:12,padding:22,marginTop:28}}><h2 style={{fontSize:20}}>QA-only simulated approval</h2><p style={{fontSize:13,margin:'12px 0',opacity:.8}}>For this fictional fixture only. This records a QA simulation only. It does not change partner eligibility, legal NDA or production readiness.</p><form action={approveQaPartnerReadinessAction} style={{display:'grid',gap:14}}><input type="hidden" name="partner_id" value={partner.id}/><label style={{fontSize:13}}>Approval test rationale<textarea name="rationale" required minLength={15} maxLength={1000} placeholder="Explain the fictional capability and confidentiality checks simulated for this QA fixture" style={{display:'block',width:'100%',minHeight:82,padding:12,marginTop:8,color:'#111',background:'#fff',borderRadius:8}}/></label><label style={{display:'flex',gap:10,fontSize:13}}><input type="checkbox" name="simulation_ack" value="yes" required/>I confirm this is synthetic QA readiness, not a legally executed NDA.</label><button type="submit" style={{background:'#f6f6f6',color:'#111',borderRadius:8,padding:'13px 18px',fontWeight:600,cursor:'pointer'}}>Approve fictional QA partner →</button></form></section>:null}
+    {qa && !eligible && !qaApproval?<QaReadinessForm partnerId={partner.id}/>:null}
     <section style={{border:'1px solid #4446',borderRadius:12,padding:20,marginTop:26}}>
       <h2 style={{fontSize:18,marginBottom:10}}>Capabilities and controlled context</h2>
       <p style={{fontSize:14}}>{partner.services||'Capabilities not recorded'}</p>
