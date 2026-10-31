@@ -8,6 +8,7 @@ import OpportunityWork from '../OpportunityWork';
 import QaPartnerHandoff from '../QaPartnerHandoff';
 import QaIssueReview from '../QaIssueReview';
 import QaIssueExistingReview from '../QaIssueExistingReview';
+import QaDeliverPartner from '../QaDeliverPartner';
 import {sendQueuedQaStep2InvitationAction} from '../qa-step2-actions';
 import css from '../opportunity.module.css';
 
@@ -170,6 +171,7 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
+          {qaUndeliveredReview?<QaDeliverPartner/>:null}
           {qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' && acquisition.submitted && actionKey==='request_partner' ? (qaHandoffEvidence ? <div className={css.workHint}><strong>QA handoff rehearsal completed.</strong> The submitted requirements and PDF metadata were verified against the fictional partner. Next tests: authorised private-file download, simulated partner communication, and partner response. No real partner invitation has been issued.</div> : <QaPartnerHandoff/>) : null}
           {qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' && acquisition.submitted && actionKey==='request_partner' && qaHandoffEvidence ? <QaIssueReview/> : null}
           {!previewWritable&&!qaStep2Available&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
@@ -179,6 +181,7 @@ export default async function OpportunityPreview({
             <p className={css.workHint}>This sends the existing invitation once to the QA +client mailbox without creating a new session, reminders or opportunity.</p>
             <button className={css.workButton} type="submit">Send queued QA invitation →</button>
           </form>:failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
+          qaUndeliveredReview?<p className={css.workHint}>Delivery evidence is required before the partner can be considered notified.</p>:
           <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
             hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)} qaStep2Available={qaStep2Available}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
