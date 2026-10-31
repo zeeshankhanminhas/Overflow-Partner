@@ -124,9 +124,11 @@ const checks = [
   ['Mobile header matches approved compact OPOS visual grammar',
     mobileNav.includes('css.mobilePreview') && mobileNav.includes('css.mobileAvatar') &&
     styles.includes('.shell .mobileHeader {height:61px')],
-  ['Website enquiry automatically queues secure requirements and reminders',
-    websiteIntake.includes("'requirements.requested'") && websiteIntake.includes("'requirements.reminder'") &&
-    websiteIntake.includes("intake_sessions")],
+  ['Website enquiry waits for qualification before Step 2',
+    websiteIntake.includes('website_qualification_pending') &&
+    websiteIntake.includes('step2InvitationQueued: false') &&
+    websiteIntake.includes("emailStatus: 'not_invited'") &&
+    !websiteIntake.includes("scenario: 'requirements.requested'")],
   ['VNext Opportunity renders canonical Acquisition state rather than guessing next action',
     record.includes('resolveAcquisitionState') && record.includes('acquisition.actionKey') &&
     record.includes('<OpportunityWork')],
@@ -144,9 +146,10 @@ const checks = [
     acquisitionActions.includes('acquisitionReturn(formData') &&
     partnerActions.includes('acquisitionReturn(formData') &&
     returnPath.includes("'/opos-next/opportunities/'")],
-  ['Notification queue failures are recorded on the intake session',
-    websiteIntake.includes("email_status:'failed'") && acquisitionActions.includes("email_status:'failed'") &&
-    record.includes('failedDelivery')],
+  ['Notification failures remain observable on governed Step 2 invitations',
+    acquisitionActions.includes("email_status:'failed'") &&
+    record.includes('failedDelivery') &&
+    websiteIntake.includes("acknowledgement = queued ? 'queued' : 'suppressed'")],
   ['Failed delivery has a scoped vNext diagnostics route, not a fake send button',
     deliveryPage.includes("op_list_notification_delivery") && record.includes("Review delivery failure evidence") &&
     deliveryPage.includes(".eq('organisation_id',organisationId)")],
