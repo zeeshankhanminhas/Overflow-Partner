@@ -27,21 +27,20 @@ export async function approveQaPartnerReadinessAction(formData:FormData){
       !String(partner.email||'').endsWith('+partner@gmail.com')||
       partner.status!=='prospective'||partner.nda_signed)
       throw new Error('The QA partner is not in its expected prospective state.');
-    // Restricted to a known isolated fixture; never use in commercial environments.
-    const now=new Date().toISOString();
-    const {data:changed,error:updateError}=await supabase.from('partners')
-      .update({nda_signed:true,nda_signed_at:now,status:'approved',
-        notes:'SYNTHETIC QA ONLY — simulated NDA and approval; NOT a real executed agreement. '+rationale})
-      .eq('organisation_id',QA_ORG).eq('id',QA_PARTNER)
-      .eq('status','prospective').eq('nda_signed',false).select('id').maybeSingle();
-    if(updateError||!changed)throw new Error('QA approval was not applied; check access controls.');
+    // Simulated approval is evidence only. Never change real NDA or partner status.
+    const {data:existing,error:existingError}=await supabase.from('activity_events')
+      .select('id').eq('organisation_id',QA_ORG).eq('entity_type','partner')
+      .eq('entity_id',QA_PARTNER).eq('event_type','qa.partner_simulated_readiness_approved')
+      .limit(1).maybeSingle();
+    if(existingError)throw new Error('Cannot inspect QA approval evidence: '+existingError.message);
+    if(existing)throw new Error('This QA simulation has already been recorded.');
     const {error:auditError}=await supabase.from('activity_events').insert({
       organisation_id:QA_ORG,entity_type:'partner',entity_id:QA_PARTNER,user_id:user.id,
       event_type:'qa.partner_simulated_readiness_approved',
-      event_data:{synthetic:true,legalNdaExecuted:false,previousStatus:'prospective',
-        newStatus:'approved',simulationAcknowledged:true,rationale,at:now}
+      event_data:{synthetic:true,legalNdaExecuted:false,partnerStatusUnchanged:'prospective',
+        simulationAcknowledged:true,rationale,at:new Date().toISOString()}
     });
-    if(auditError)throw new Error('QA approval applied but audit failed: '+auditError.message);
+    if(auditError)throw new Error('QA simulated approval could not be recorded: '+auditError.message);
   }catch(error){errorMessage=error instanceof Error?error.message:'QA readiness action failed';}
   revalidatePath(partnerPath);revalidatePath('/opos-next/partners');
   revalidatePath('/opos-next/opportunities/dcaad06e-853d-466a-af5a-08b7ae7cc24d');
