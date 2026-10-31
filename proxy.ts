@@ -12,8 +12,11 @@ export async function proxy(request: NextRequest) {
     /^\/opos-next\/opportunities\/[0-9a-f-]{36}\/?$/i.test(request.nextUrl.pathname) ||
     /^\/api\/intake\/[a-f0-9]{64}(?:\/files)?\/?$/i.test(request.nextUrl.pathname)
   );
+  const qaPartnerSimulationPost = request.method === 'POST' &&
+    request.nextUrl.pathname === '/opos-next/partners/4f6bdcc5-1ea0-4dce-aa39-2fbef0cd17fa' &&
+    isKnownIsolatedQaStep2Backend();
   if (process.env.VERCEL_ENV === 'preview' &&
-      !isKnownIsolatedQaBackend() && !qaFixturePost && !qaStep2Post &&
+      !isKnownIsolatedQaBackend() && !qaFixturePost && !qaStep2Post && !qaPartnerSimulationPost &&
       !['GET','HEAD','OPTIONS'].includes(request.method)) {
     return NextResponse.json({
       message: 'This OPOS redesign preview is read-only until an isolated QA database is configured.',
