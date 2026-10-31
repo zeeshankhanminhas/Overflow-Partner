@@ -37,8 +37,10 @@ const actions = readFileSync(new URL('app/workspace/acquisition/actions.ts', roo
 assert.doesNotMatch(actions, /scenario:'enquiry.received'/, 'Manual prospect capture must not send unsolicited emails');
 const websiteRoute = readFileSync(new URL('app/api/intake/route.ts', root), 'utf8');
 assert.match(websiteRoute, /scenario: 'enquiry.received'/, 'Website enquiry must receive transactional acknowledgement');
-assert.match(websiteRoute, /scenario: 'requirements.requested'/, 'Website must queue Step 2 invitation');
-assert.match(websiteRoute, /token_hash: tokenHash/, 'Website stores only hashed intake token');
+assert.doesNotMatch(websiteRoute, /scenario: 'requirements.requested'/, 'Website must not send Step 2 before qualification');
+assert.match(websiteRoute, /website_qualification_pending/, 'Website records qualification-pending evidence');
+assert.match(websiteRoute, /step2InvitationQueued: false/, 'Website explicitly records that Step 2 was not invited');
+assert.match(websiteRoute, /emailStatus: 'not_invited'/, 'Website response reports Step 2 as not invited');
 assert.match(websiteRoute, /nurture_consent === 'true'/, 'Website must record optional nurture consent');
 assert.match(websiteRoute, /requirement_summary', payload.brief_requirement/, 'Duplicate website requests must be looked up by requirement');
 const websiteForm = readFileSync(new URL('components/EnquiryForm.tsx', root), 'utf8');
