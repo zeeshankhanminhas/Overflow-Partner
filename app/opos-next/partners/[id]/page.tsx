@@ -15,6 +15,8 @@ export default async function PartnerDetail({params,searchParams}:{params:Promis
   if(error)throw new Error('Partner record could not be loaded securely.');
   if(!partner)notFound();
   const qa=organisationId===QA_ORG && partner.company_name.startsWith('QA - ');
+  const {data:qaApproval,error:qaApprovalError}=qa?await supabase.from('activity_events').select('id,created_at').eq('organisation_id',QA_ORG).eq('entity_type','partner').eq('entity_id',id).eq('event_type','qa.partner_simulated_readiness_approved').order('created_at',{ascending:false}).limit(1).maybeSingle():{data:null,error:null};
+  if(qaApprovalError)throw new Error('QA readiness evidence could not be loaded.');
   const nda=partner.nda_signed===true && !!partner.nda_signed_at;
   const approved=partner.status==='approved';
   const eligible=approved && nda && !!partner.email;
@@ -41,7 +43,8 @@ export default async function PartnerDetail({params,searchParams}:{params:Promis
       </div>
     </section>
     {query.error?<p role="alert" style={{color:'#ef8181',marginTop:20}}>Action failed: {String(query.error).slice(0,300)}</p>:null}
-    {query.approved?<p role="status" style={{marginTop:20}}>QA simulated readiness saved. This is not evidence of a legally executed NDA.</p>:null}
+    {query.approved?<p role="status" style={{marginTop:20}}>QA simulation evidence saved. Real NDA and partner approval remain unchanged.</p>:null}
+    {qaApproval?<p role="status" style={{marginTop:16,fontSize:13}}>Synthetic QA approval evidence recorded. Real partner approval and NDA remain outstanding; partner assessment is still blocked.</p>:null}
     <section style={{marginTop:32}}>
       <h2 style={{fontSize:20,marginBottom:18}}>Readiness checklist</h2>
       <div style={{display:'grid',gap:10}}>
@@ -51,7 +54,7 @@ export default async function PartnerDetail({params,searchParams}:{params:Promis
         </div>)}
       </div>
     </section>
-    {qa && !eligible?<section style={{border:'1px solid #4446',borderRadius:12,padding:22,marginTop:28}}><h2 style={{fontSize:20}}>QA-only simulated approval</h2><p style={{fontSize:13,margin:'12px 0',opacity:.8}}>For this fictional fixture only. This simulation marks the partner eligible inside isolated QA; it is NOT a signed legal NDA or actual supplier approval.</p><form action={approveQaPartnerReadinessAction} style={{display:'grid',gap:14}}><input type="hidden" name="partner_id" value={partner.id}/><label style={{fontSize:13}}>Approval test rationale<textarea name="rationale" required minLength={15} maxLength={1000} placeholder="Explain the fictional capability and confidentiality checks simulated for this QA fixture" style={{display:'block',width:'100%',minHeight:82,padding:12,marginTop:8,color:'#111',background:'#fff',borderRadius:8}}/></label><label style={{display:'flex',gap:10,fontSize:13}}><input type="checkbox" name="simulation_ack" value="yes" required/>I confirm this is synthetic QA readiness, not a legally executed NDA.</label><button type="submit" style={{background:'#f6f6f6',color:'#111',borderRadius:8,padding:'13px 18px',fontWeight:600,cursor:'pointer'}}>Approve fictional QA partner →</button></form></section>:null}
+    {qa && !eligible && !qaApproval?<section style={{border:'1px solid #4446',borderRadius:12,padding:22,marginTop:28}}><h2 style={{fontSize:20}}>QA-only simulated approval</h2><p style={{fontSize:13,margin:'12px 0',opacity:.8}}>For this fictional fixture only. This records a QA simulation only. It does not change partner eligibility, legal NDA or production readiness.</p><form action={approveQaPartnerReadinessAction} style={{display:'grid',gap:14}}><input type="hidden" name="partner_id" value={partner.id}/><label style={{fontSize:13}}>Approval test rationale<textarea name="rationale" required minLength={15} maxLength={1000} placeholder="Explain the fictional capability and confidentiality checks simulated for this QA fixture" style={{display:'block',width:'100%',minHeight:82,padding:12,marginTop:8,color:'#111',background:'#fff',borderRadius:8}}/></label><label style={{display:'flex',gap:10,fontSize:13}}><input type="checkbox" name="simulation_ack" value="yes" required/>I confirm this is synthetic QA readiness, not a legally executed NDA.</label><button type="submit" style={{background:'#f6f6f6',color:'#111',borderRadius:8,padding:'13px 18px',fontWeight:600,cursor:'pointer'}}>Approve fictional QA partner →</button></form></section>:null}
     <section style={{border:'1px solid #4446',borderRadius:12,padding:20,marginTop:26}}>
       <h2 style={{fontSize:18,marginBottom:10}}>Capabilities and controlled context</h2>
       <p style={{fontSize:14}}>{partner.services||'Capabilities not recorded'}</p>
