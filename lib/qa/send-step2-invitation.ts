@@ -60,7 +60,7 @@ export async function deliverOneQaStep2Invitation({outboxId,sessionId,prospectId
     const response=await fetch('https://api.resend.com/emails',{
       method:'POST',
       headers:{Authorization:'Bearer '+key,'Content-Type':'application/json',
-        'Idempotency-Key':'overflow-partner-'+outboxId},
+        'Idempotency-Key':'overflow-partner-'+outboxId+'-qa-retry-2'},
       body:JSON.stringify({
         from,to:[qaDeliveryAddress],subject:claimed.subject,html,text,
         headers:{'X-Overflow-Partner-Event':'requirements.requested',
