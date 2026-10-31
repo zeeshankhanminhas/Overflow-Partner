@@ -18,6 +18,13 @@ const nextConfig: NextConfig = {
         source: "/api/execution/:path*",
         headers: executionSecurityHeaders,
       },
+      ...["/workspace/:path*", "/opos-next/:path*", "/client-portal/:path*", "/partner-review/:path*", "/intake/:path*", "/outreach/:path*", "/documents/:path*", "/login"].map(source => ({
+        source,
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      })),
     ];
   },
 };
