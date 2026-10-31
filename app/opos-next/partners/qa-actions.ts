@@ -1,5 +1,4 @@
 'use server';
-import {redirect} from 'next/navigation';
 import {revalidatePath} from 'next/cache';
 import {requireUserContext,assertRole} from '@/lib/auth/context';
 import {isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
@@ -7,7 +6,7 @@ import {isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
 const QA_ORG='717262cb-68da-4e7b-a9fa-238dc6c5d16b';
 const QA_PARTNER='4f6bdcc5-1ea0-4dce-aa39-2fbef0cd17fa';
 const partnerPath='/opos-next/partners/'+QA_PARTNER;
-export async function approveQaPartnerReadinessAction(formData:FormData){
+export async function approveQaPartnerReadinessAction(_previous:{ok:boolean;message:string},formData:FormData):Promise<{ok:boolean;message:string}>{
   let errorMessage='';
   try{
     if(!isKnownIsolatedQaStep2Backend() || process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://ukcamenuxhdznxaxpyis.supabase.co')
@@ -42,7 +41,8 @@ export async function approveQaPartnerReadinessAction(formData:FormData){
     });
     if(auditError)throw new Error('QA simulated approval could not be recorded: '+auditError.message);
   }catch(error){errorMessage=error instanceof Error?error.message:'QA readiness action failed';}
-  revalidatePath(partnerPath);revalidatePath('/opos-next/partners');
-  revalidatePath('/opos-next/opportunities/dcaad06e-853d-466a-af5a-08b7ae7cc24d');
-  redirect(partnerPath+(errorMessage?'?error='+encodeURIComponent(errorMessage.slice(0,300)):'?approved=1'));
+  if(errorMessage)return {ok:false,message:errorMessage.slice(0,300)};
+  revalidatePath(partnerPath);
+  revalidatePath('/opos-next/partners');
+  return {ok:true,message:'Synthetic QA evidence recorded. Real NDA and approval remain unchanged.'};
 }
