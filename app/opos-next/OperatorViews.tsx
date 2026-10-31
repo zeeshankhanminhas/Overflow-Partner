@@ -52,7 +52,7 @@ export function OperatorPageIntro({eyebrow,title,subtitle, count}: {eyebrow:stri
 export function OperatorRecord({eyebrow,title,position,description,fields,previous,governedHref,governedLabel='Open governed controls',waiting=false}: {
   eyebrow:string;title:string;position:string;description:string;
   fields:{label:string;value:string}[];previous:string;
-  governedHref:string;governedLabel?:string;waiting?:boolean;
+  governedHref?:string;governedLabel?:string;waiting?:boolean;
 }) {
   return <article>
     <Link href={previous} className={css.backLink}>← Back to register</Link>
@@ -62,13 +62,13 @@ export function OperatorRecord({eyebrow,title,position,description,fields,previo
       <h2 className={css.cardTitle}>{position}</h2>
       <p className={css.cardDescription}>{description}</p>
       {waiting ? <p className={css.meta} style={{marginTop:19}}>No internal action is assumed while this dependency is outstanding.</p>
-        : <Link className={css.action} href={governedHref}>{governedLabel} ↗</Link>}
+        : governedHref ? <Link className={css.action} href={governedHref}>{governedLabel} ↗</Link> : <p className={css.meta} style={{marginTop:19}}>Partner controls are not yet available in this QA workspace.</p>}
     </section>
     <details className={css.details}>
       <summary>Context and controlled record</summary>
       <div className={css.detailsContent}>
         {fields.map(f => <p key={f.label}><strong>{f.label}: </strong>{f.value}</p>)}
-        {waiting ? <p><Link className={css.secondaryLink} href={governedHref}>Open governed record ↗</Link></p> : null}
+        {waiting && governedHref ? <p><Link className={css.secondaryLink} href={governedHref}>Open governed record ↗</Link></p> : null}
       </div>
     </details>
     <p className={css.meta} style={{marginTop:25}}>This screen currently displays read-only operational evidence. Governed edit actions have not all been migrated and tested in the new workspace.</p>
