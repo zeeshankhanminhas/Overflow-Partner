@@ -7,6 +7,7 @@ import {isKnownIsolatedQaBackend,isKnownIsolatedQaStep2Backend} from '@/lib/qa/i
 import OpportunityWork from '../OpportunityWork';
 import QaPartnerHandoff from '../QaPartnerHandoff';
 import QaIssueReview from '../QaIssueReview';
+import QaCreateCase from '../QaCreateCase';
 import QaIssueExistingReview from '../QaIssueExistingReview';
 import QaDeliverPartner from '../QaDeliverPartner';
 import {sendQueuedQaStep2InvitationAction} from '../qa-step2-actions';
@@ -182,6 +183,7 @@ export default async function OpportunityPreview({
             <button className={css.workButton} type="submit">Send queued QA invitation →</button>
           </form>:failedDelivery?<Link className={css.workButton} href={'/opos-next/notifications?prospect='+id}>Review delivery failure evidence →</Link>:
           qaUndeliveredReview?<p className={css.workHint}>Delivery evidence is required before the partner can be considered notified.</p>:
+          actionKey==='create_case' && qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' ? <QaCreateCase/> :
           <OpportunityWork prospectId={id} actionKey={actionKey} canWrite={formRole} canDecide={canDecide} previewWritable={previewWritable}
             hasContactEmail={Boolean(prospect.email)} linkedinEligible={canInviteFromLinkedIn(prospect)} qaStep2Available={qaStep2Available} qaApprovalAvailable={qaStep2Available && request?.id==='e8d6be99-5b5a-446b-a071-cc5c05a102c7' && actionKey==='review_partner_response'}
             sessionId={session?.id||null} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')}
