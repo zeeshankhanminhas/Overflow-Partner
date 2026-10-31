@@ -42,7 +42,7 @@ export default async function OpportunityPreview({
       .eq('organisation_id',organisationId).eq('prospect_id',id)
       .order('created_at',{ascending:false}).limit(1).maybeSingle(),
     supabase.from('partner_review_requests')
-      .select('id,partner_id,status,response_due_at,case_reference,created_at,submitted_at')
+      .select('id,partner_id,status,response_due_at,case_reference,created_at,submitted_at,sent_at,first_opened_at')
       .eq('organisation_id',organisationId).eq('prospect_id',id)
       .order('created_at',{ascending:false}).limit(1).maybeSingle(),
     supabase.from('partners').select('id,company_name,email')
@@ -112,6 +112,7 @@ export default async function OpportunityPreview({
   const sendStatus=recordedSessionStatus==='failed' && invite?.status!=='sent' ? 'failed' : invite?.status || recordedSessionStatus || null;
   const emailFact=emailLabel(sendStatus);
   const partnerName=partnerResult.data?.company_name||null;
+  const qaUndeliveredReview=!!request && request.status==='invited' && !request.sent_at && !request.first_opened_at && organisationId==='717262cb-68da-4e7b-a9fa-238dc6c5d16b' && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d';
   const actionKey=acquisition.actionKey;
   const previewWritable=isKnownIsolatedQaBackend();
   const qaStep2Available=isKnownIsolatedQaStep2Backend() &&
@@ -123,9 +124,9 @@ export default async function OpportunityPreview({
     invite?.status==='pending';
   const failedDelivery=!!session&&!acquisition.submitted &&
     ['failed','permanently_failed','dead_letter'].includes(String(sendStatus||'').toLowerCase());
-  const actionNeeded=qaRecoverableInvitation||failedDelivery||['create_intake','request_partner','issue_partner_review','review_partner_response','create_case'].includes(actionKey);
-  const state=qaRecoverableInvitation?'Invitation queued - delivery needs action':failedDelivery?'Secure invitation delivery needs attention':acquisition.currentState;
-  const reason=qaRecoverableInvitation
+  const actionNeeded=qaUndeliveredReview||qaRecoverableInvitation||failedDelivery||['create_intake','request_partner','issue_partner_review','review_partner_response','create_case'].includes(actionKey);
+  const state=qaUndeliveredReview?'Partner invitation not delivered':qaRecoverableInvitation?'Invitation queued - delivery needs action':failedDelivery?'Secure invitation delivery needs attention':acquisition.currentState;
+  const reason=qaUndeliveredReview?'A secure assessment record exists, but no partner notification has been sent or recorded. The operator must issue the controlled QA invitation.':qaRecoverableInvitation
     ? 'The secure QA form and invitation are saved, but the email was not sent. Send the original invitation without creating another session.'
     : failedDelivery
     ? 'The latest requirements invitation has a delivery failure on record. Do not assume the customer received the form. Review notification evidence before arranging a controlled recovery.'
