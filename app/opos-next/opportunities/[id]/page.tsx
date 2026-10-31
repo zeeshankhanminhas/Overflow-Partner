@@ -5,6 +5,7 @@ import {resolveAcquisitionState} from '@/lib/acquisition/state';
 import {canInviteFromLinkedIn} from '@/lib/acquisition/linkedinFunnel';
 import {isKnownIsolatedQaBackend,isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
 import OpportunityWork from '../OpportunityWork';
+import QaPartnerHandoff from '../QaPartnerHandoff';
 import {sendQueuedQaStep2InvitationAction} from '../qa-step2-actions';
 import css from '../opportunity.module.css';
 
@@ -165,6 +166,7 @@ export default async function OpportunityPreview({
         </div>
         {session&&!acquisition.submitted?<p className={css.note}>Delivery evidence: {emailFact}{invite?.sent_at?' · provider accepted '+date(invite.sent_at):''}. Provider acceptance does not prove inbox delivery.</p>:null}
         {actionNeeded?<div className={css.workArea}>
+          {qaStep2Available && id==='dcaad06e-853d-466a-af5a-08b7ae7cc24d' && acquisition.submitted && actionKey==='request_partner'?<QaPartnerHandoff/>:null}
           {!previewWritable&&!qaStep2Available&&!failedDelivery?<p className={css.workHint}>Actions are connected but locked while the isolated QA environment's safe test-email rules are prepared. No invitations, partner assessments or Case creations can be triggered until the QA write gate is explicitly enabled.</p>:null}
           <p className={css.overline}>NEXT GOVERNED ACTION</p>
           {qaRecoverableInvitation?<form action={sendQueuedQaStep2InvitationAction} className={css.workForm}>
