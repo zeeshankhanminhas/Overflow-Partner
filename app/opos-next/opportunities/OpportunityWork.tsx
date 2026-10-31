@@ -1,6 +1,5 @@
 import {createStep2InvitationFormAction,convertProspectFormAction} from '@/app/workspace/acquisition/actions';
 import {createQaStep2InvitationAction} from './qa-step2-actions';
-import {decideNorthfieldQa} from './qa-internal-decision';
 import QaDecisionForm from './QaDecisionForm';
 import {createProspectPartnerReviewAction,decideProspectPartnerReviewAction} from '@/app/workspace/acquisition/partner-actions';
 import type {AcquisitionActionKey} from '@/lib/acquisition/state';
