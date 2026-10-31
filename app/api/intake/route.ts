@@ -1,4 +1,3 @@
-import { randomBytes, createHash } from 'crypto';
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { isQaRecipientAllowed } from '@/lib/qa/email-guard';
 import { NextResponse } from 'next/server';
@@ -43,12 +42,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Use an approved OPOS-QA test email alias for this enquiry.' }, { status: 400 });
     }
     const supabase = getAdminClient();
-    const { data: owners, error: ownerError } = await supabase.from('profiles')
-      .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true).limit(2);
+    // Public intake must be bound to exactly one explicitly configured organisation.
+    // Never select a random owner from a multi-tenant profiles table.
+    const publicOrganisationId = process.env.OP_PUBLIC_ORGANISATION_ID;
+    if (!publicOrganisationId || !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(publicOrganisationId)) {
+      return NextResponse.json({ success: false, message: 'Public intake is not configured yet. Please contact us directly.' }, { status: 503 });
+    }
+    const { data: owner, error: ownerError } = await supabase.from('profiles')
+      .select('id, organisation_id, role')
+      .eq('organisation_id', publicOrganisationId).in('role', ['owner', 'admin'])
+      .eq('is_active', true).order('id', { ascending: true }).limit(1).maybeSingle();
     if (ownerError) throw ownerError;
-    const owner = owners?.[0];
-    if (!owner?.id || !owner.organisation_id) {
-      return NextResponse.json({ success: false, message: 'Workspace ownership is not configured.' }, { status: 503 });
+    if (!owner?.id || owner.organisation_id !== publicOrganisationId) {
+      return NextResponse.json({ success: false, message: 'Public intake is not configured yet. Please contact us directly.' }, { status: 503 });
     }
 
     const notes = [
@@ -67,7 +73,7 @@ export async function POST(request: Request) {
     if(contactLookupError)throw contactLookupError;
     let contact=matchedContact;
     if(!contact){
-      const created=await supabase.from('contacts').insert({organisation_id:owner.organisation_id,created_by:owner.id,company_id:company.id,full_name:payload.full_name,email:payload.work_email,lifecycle_status:'active',communication_status:'marketable'}).select('id,full_name').single();
+      const created=await supabase.from('contacts').insert({organisation_id:owner.organisation_id,created_by:owner.id,company_id:company.id,full_name:payload.full_name,email:payload.work_email,lifecycle_status:'active',communication_status:payload.nurture_consent === 'true' ? 'marketable' : 'non_marketable'}).select('id,full_name').single();
       if(created.error)throw created.error;contact=created.data;
     }
 
@@ -94,7 +100,7 @@ export async function POST(request: Request) {
       requirement_summary: payload.brief_requirement,
       website_submission_id: payload.lead_id || null,
       status: 'identified',
-      next_action: 'Prepare secure Step 2 requirements invitation',
+      next_action: 'Review enquiry and confirm interest before Step 2 invitation',
       notes: notes || null,
     }).select('id, created_at').single();
     if (prospectError) throw prospectError;
@@ -117,58 +123,14 @@ export async function POST(request: Request) {
       },
     }).throwOnError();
 
-    // Inbound website customers have explicitly asked for engineering support.
-    const token = randomBytes(32).toString('base64url');
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    const expiresAt = new Date(Date.now() + 7 * 86400000).toISOString();
-    const { data: session, error: sessionError } = await supabase.from('intake_sessions').insert({
-      organisation_id: owner.organisation_id, prospect_id: prospect.id,
-      token_hash: tokenHash, status: 'invited', expires_at: expiresAt,
-      created_by: owner.id, recipient_email: payload.work_email, email_status: 'pending',
-    }).select('id').single();
-    if (sessionError) throw sessionError;
-    const actionUrl = getPublicBaseUrl(request) + '/intake/' + token;
-    const emailPayload = { company: payload.company, dueDate: new Date(expiresAt).toLocaleDateString('en-GB') };
-    let step2EmailStatus: 'queued' | 'failed' = 'failed';
-    try {
-      const queued = await queueLifecycleEmail(supabase, {
-        organisationId: owner.organisation_id, scenario: 'requirements.requested',
-        recipientEmail: payload.work_email, recipientName: payload.full_name,
-        actionUrl, payload: emailPayload, entityType: 'prospect', entityId: prospect.id,
-        idempotencyKey: 'website:step2:' + session.id,
-      });
-      if (!queued) throw new Error('Step 2 message was not queued');
-      step2EmailStatus = 'queued';
-      await supabase.from('prospects').update({ next_action: 'Await Step 2 technical intake submission' })
-        .eq('organisation_id', owner.organisation_id).eq('id', prospect.id).throwOnError();
-      await supabase.from('activity_events').insert({
-        organisation_id: owner.organisation_id, user_id: owner.id,
-        entity_type: 'prospect', entity_id: prospect.id, event_type: 'technical_intake_invited',
-        event_data: { intakeSessionId: session.id, expiresAt, delivery: 'queued_for_email', source: 'website' },
-      }).throwOnError();
-      for (const [suffix, hours] of [['24h', 24], ['72h', 72], ['expiry', 144]] as const) {
-        await queueLifecycleEmail(supabase, {
-          organisationId: owner.organisation_id, scenario: 'requirements.reminder',
-          recipientEmail: payload.work_email, recipientName: payload.full_name,
-          actionUrl, payload: emailPayload, entityType: 'prospect', entityId: prospect.id,
-          scheduledFor: new Date(Date.now() + hours * 3600000).toISOString(),
-          idempotencyKey: 'website:step2:reminder:' + suffix + ':' + session.id,
-        }).catch(error => console.error('Step 2 reminder queue failed', error));
-      }
-    } catch (error) {
-      console.error('Website Step 2 invitation queue failed', error);
-      const reason=error instanceof Error?error.message:'Unknown notification queue error';
-      await supabase.from('intake_sessions')
-        .update({email_status:'failed',email_error:reason.slice(0,500)})
-        .eq('organisation_id',owner.organisation_id).eq('id',session.id);
-      await supabase.from('prospects').update({ next_action: 'Review and resend Step 2 technical intake invitation' })
-        .eq('organisation_id', owner.organisation_id).eq('id', prospect.id);
-      await supabase.from('activity_events').insert({
-        organisation_id: owner.organisation_id, user_id: owner.id, entity_type: 'prospect',
-        entity_id: prospect.id, event_type: 'step_2_invitation_delivery_failed',
-        event_data: { intakeSessionId: session.id, retryRequired: true, source: 'website' },
-      });
-    }
+    // Step 2 is issued only after qualification and expressed interest.
+    // Website submissions remain in Acquisition pending an operator decision.
+    await supabase.from('activity_events').insert({
+      organisation_id: owner.organisation_id, user_id: owner.id,
+      entity_type: 'prospect', entity_id: prospect.id, event_type: 'website_qualification_pending',
+      event_data: { source: 'website', step2InvitationQueued: false },
+    }).throwOnError();
+
     let acknowledgement: 'queued' | 'suppressed' | 'failed' = 'failed';
     try {
       const queued = await queueLifecycleEmail(supabase, {
@@ -183,7 +145,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true, submissionId: prospect.id, timestamp: prospect.created_at,
       acknowledgement, nurtureScheduled: false,
-      step2: { created: true, emailStatus: step2EmailStatus },
+      step2: { created: false, emailStatus: 'not_invited' },
     });
   } catch (error) {
     console.error('Website intake failed', error);
