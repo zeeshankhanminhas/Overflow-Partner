@@ -6,6 +6,7 @@ import {resolveFinancialGate} from '@/lib/finance/state';
 import {normaliseProjectStage,projectStageMeta} from '@/lib/projects/stages';
 import {updateProjectMobilisationAction,advanceProjectStageAction} from '@/app/workspace/projects/[id]/actions';
 import {recordClientTransmittalAction,recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/client-actions';
+import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
 import css from '../../opos.module.css';
 
@@ -14,7 +15,7 @@ type Readiness={ready:boolean;reasons:string[];activityOpen?:number;approvedDocu
 export default async function ProjectPage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<{error?:string;updated?:string;advanced?:string}>}){
  const {id}=await params;
  const feedback=searchParams?await searchParams:{};
- const {supabase,organisationId,profile}=await requireUserContext();
+ const {supabase,organisationId,profile,user}=await requireUserContext();
  const [record,readinessResult,financialResult,managersResult]=await Promise.all([
    supabase.from('projects').select('id,project_number,title,status,project_stage,due_date,start_date,project_manager_id,lead_id,created_at')
      .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
@@ -35,6 +36,11 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    .select('outcome,recorded_at').eq('organisation_id',organisationId).eq('project_id',id)
    .order('recorded_at',{ascending:false}).limit(1).maybeSingle():{data:null};
  const qaWritable=isKnownIsolatedQaBackend();
+ type FinalStatus={clientAccepted:boolean;finalPaid:boolean;ownerApproved:boolean;partnerPaid:boolean;readyForManualClosure:boolean};
+ const {data:releaseStatus}=stage==='completion'&&qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'
+   ?await supabase.rpc('op_project_voice_final_release_status',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id})
+   :{data:null};
+ const finalStatus=releaseStatus as FinalStatus|null;
  const canWrite=qaWritable&&['owner','admin','operator','engineering','commercial'].includes(String(profile.role));
  const completed=stage==='closed'||['closed','complete','completed','cancelled'].includes(String(data.status||'').toLowerCase());
  const blockedReasons=[...(Array.isArray(readiness.reasons)?readiness.reasons:[]),...(stage==='mobilisation'&&!financial.authorised?[financial.reason]:[])];
@@ -105,7 +111,25 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          </form>
        </section>:null}
        {stage==='client_review'&&latestClientReview?<p className={css.meta} style={{marginTop:20}}>Latest client review recorded: {String(latestClientReview.outcome).replaceAll('_',' ')}. Further action follows the controlled stage gate.</p>:null}
-       {stage==='completion'?<p className={css.meta} style={{marginTop:20}}>Final release and settlement remain separately controlled. No downloadable native deliverables or closure shortcut is offered before verified final payment and owner approval.</p>:null}
+       {stage==='completion'?<section style={{marginTop:24}}>
+         <h3 style={{fontSize:17,marginBottom:8}}>Final release and settlement</h3>
+         <p className={css.meta}>No native files are released without verified final payment, accepted client review, current approved technical submission and a separate authorised owner decision.</p>
+         {finalStatus?<div className={css.factRow} style={{marginTop:16}}>
+           <span>Client review: <strong>{finalStatus.clientAccepted?'Accepted':'Pending'}</strong></span>
+           <span>Final payment: <strong>{finalStatus.finalPaid?'Verified':'Not verified'}</strong></span>
+           <span>Owner release: <strong>{finalStatus.ownerApproved?'Approved':'Pending'}</strong></span>
+           <span>Partner settlement: <strong>{finalStatus.partnerPaid?'Recorded':'Pending'}</strong></span>
+         </div>:<p className={css.meta}>The governed final-release service is not enabled or its status is unavailable. No action is offered.</p>}
+         {finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
+           <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
+           <label style={{display:'grid',gap:7}}>Release approval note<textarea name="approval_note" rows={3} placeholder="Reference the approved engineering submission and final settlement evidence" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
+           <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Approve controlled final release →</button>
+         </form>:null}
+         {finalStatus?.readyForManualClosure&&canWrite?<form action={advanceProjectStageAction} style={{marginTop:22}}>
+           <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/><input type="hidden" name="target_stage" value="closed"/>
+           <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Close governed project →</button>
+         </form>:null}
+       </section>:null}
      </div>
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
    </section>
