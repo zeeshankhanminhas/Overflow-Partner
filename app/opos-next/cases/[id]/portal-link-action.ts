@@ -8,6 +8,7 @@ import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { assertQaRecipientAllowed } from '@/lib/qa/email-guard';
 import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
+import { qaPublicOrigin } from '@/lib/qa/publicOrigin';
 
 function qaNotificationAdmin() {
   assertIsolatedQaBackend();
@@ -90,20 +91,37 @@ export async function sendFreshPortalLink(formData: FormData) {
     if(quoteError)throw quoteError;
     if(!quote||Number(quote.revision)!==Number(issue.quote_revision)||!['issued','accepted'].includes(quote.status))
       throw new Error('Quotation revision mismatch.');
-    const origin=process.env.VERCEL_URL?`https://${process.env.VERCEL_URL}`:process.env.NEXT_PUBLIC_SITE_URL||process.env.SITE_URL;
-    if(!origin)throw new Error('QA public site URL is not configured.');
+    const origin=qaPublicOrigin();
     const link=new URL('/client-portal',origin);
     link.searchParams.set('token',createClientPortalToken(quoteId,Number(quote.revision)));
     const requestId=String(formData.get('request_id')||'');
     if(!/^[0-9a-f-]{36}$/i.test(requestId))throw new Error('Refresh the case before requesting another link.');
     // Retry an already queued portal email rather than producing duplicate pending messages.
     const {data:pending,error:pendingError}=await admin.from('notification_outbox')
-      .select('id').eq('organisation_id',organisationId).eq('entity_id',quoteId)
-      .eq('recipient_email',issue.recipient_email).eq('status','pending')
+      .select('id,payload').eq('organisation_id',organisationId).eq('entity_id',quoteId)
+      .eq('recipient_email',issue.recipient_email).eq('status','pending').eq('attempts',0)
       .like('idempotency_key',`quote:portal-access:${quoteId}:${quote.revision}:%`)
-      .gte('created_at',new Date(Date.now()-30*60*1000).toISOString())
       .order('created_at',{ascending:false}).limit(1).maybeSingle();
     if(pendingError)throw pendingError;
+    // A pending email may contain an earlier immutable deployment URL.
+    // Update only an unclaimed QA portal message to the current trusted branch alias
+    // before provider delivery, while keeping the original outbox ID and audit trail.
+    if(pending?.id){
+      const payload={
+        ...(pending.payload && typeof pending.payload==='object' ? pending.payload : {}),
+        heading:'Your secure client portal',
+        message:'Your quotation is already accepted. Open the secure portal to continue.',
+        actionLabel:'Open secure client portal',
+        actionUrl:link.toString(),
+        actions:[{label:'Open client portal',url:link.toString()}],
+      };
+      const {data:refreshed,error:refreshError}=await admin.from('notification_outbox')
+        .update({payload,updated_at:new Date().toISOString()})
+        .eq('id',pending.id).eq('organisation_id',organisationId).eq('entity_id',quoteId)
+        .eq('recipient_email',issue.recipient_email).eq('status','pending').eq('attempts',0)
+        .select('id').maybeSingle();
+      if(refreshError || !refreshed)throw new Error(refreshError?.message||'The pending email was already claimed. Retry after it completes.');
+    }
     const outboxId=pending?.id || await queueLifecycleEmail(supabase,{
       organisationId,scenario:'quote.issued',recipientEmail:issue.recipient_email,
       recipientName:issue.recipient_name||'Client',
