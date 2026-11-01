@@ -34,7 +34,7 @@ export default async function NewMissionControl() {
     id: 'account-' + item.id, title: 'Review client account', company: item.name,
     reason: 'Account review due ' + new Date(item.next_account_review_at).toLocaleDateString('en-GB'),
     waitingSince: item.next_account_review_at, priority: 'normal',
-    href: '/workspace/companies/' + item.id, stage: 'prospect',
+    href: '/opos-next/accounts/' + item.id, stage: 'prospect',
   }));
   const partnerAttention: AttentionSource[] = partners.map(item => ({
     id: 'partner-' + item.id,
@@ -45,7 +45,7 @@ export default async function NewMissionControl() {
       : (item.partner?.[0]?.company_name || 'Delivery Partner') + ' · due ' + new Date(item.response_due_at).toLocaleDateString('en-GB'),
     waitingSince: item.submitted_at || item.sent_at || item.created_at,
     priority: item.status === 'clarification_required' ? 'high' : 'normal',
-    href: '/workspace/acquisition/' + item.prospect_id,
+    href: '/opos-next/opportunities/' + item.prospect_id,
     stage: item.status === 'clarification_required' ? 'prospect' : 'partner',
   }));
   const coreAttention: AttentionSource[] = dashboard.cases
