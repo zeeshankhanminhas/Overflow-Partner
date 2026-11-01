@@ -13,6 +13,6 @@ export default async function DocumentPage({params}:{params:Promise<{id:string}>
     fields={[{label:'Reference',value:data.reference||id.slice(0,8)},{label:'Type',value:data.document_type||'Not recorded'},
       {label:'Version',value:String(data.version||1)},{label:'Status',value:String(data.status||'Not recorded')}]}
     previous="/opos-next/documents"
-    governedHref={'/workspace/documents'+(data.project_id?'?project='+data.project_id:data.lead_id?'?lead='+data.lead_id:'')}
-    governedLabel="Open controlled document library" />;
+    governedHref={data.project_id?'/opos-next/projects/'+data.project_id:data.lead_id?'/opos-next/cases/'+data.lead_id:undefined}
+    governedLabel="Open related controlled record" />;
 }
