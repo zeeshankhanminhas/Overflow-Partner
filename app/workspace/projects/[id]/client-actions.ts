@@ -23,6 +23,7 @@ function appUrl(){return (process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBL
 export async function recordClientTransmittalAction(formData:FormData){
   const projectId=required(formData,'project_id');let destination=`/workspace/projects/${projectId}`;
   try{
+    if(process.env.VERCEL_ENV==='preview')throw new Error('Client Review Package issue is blocked in QA until a secure view-only, watermarked browser review replaces the downloadable PDF attachment.');
     assertModernProjectQa(formData);
     const recipientName=required(formData,'recipient_name');const recipientEmail=required(formData,'recipient_email').toLowerCase();const deliveryMethod=required(formData,'delivery_method');const note=String(formData.get('note')||'').trim();
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
