@@ -254,7 +254,7 @@ export default async function OpportunityPreview({
             {request?<p>Partner review: {request.case_reference} · {request.status}</p>:null}
             {activity.map(item=><p key={item.id}>{date(item.created_at)} · {item.event_type.replaceAll('_',' ')}</p>)}
             <p><Link className={css.secondary} href={'/opos-next/notifications?prospect='+id}>Inspect notification delivery evidence ↗</Link></p>
-            <p><Link className={css.secondary} href={'/workspace/acquisition/' + id}>Inspect existing governed record ↗</Link></p>
+            {convertedCaseId?<p><Link className={css.secondary} href={'/opos-next/cases/'+convertedCaseId}>Open linked Case 360 ↗</Link></p>:null}
           </div>
         </details>
       </section>
