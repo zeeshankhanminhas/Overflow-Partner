@@ -23,16 +23,17 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
   const {data:quote,error:quoteError}=await db.from('quotes').select('id,lead_id,quote_number,revision,total,currency,status')
     .eq('id',quoteId).eq('organisation_id',organisationId).maybeSingle();
   if(quoteError||!quote)notFound();
-  const [issue,contract,lead,signatory,authorisation,outbox,payment,release,project]=await Promise.all([
+  const [issue,contract,lead,signatory,authorisation,outbox,payment,release,project,stripeEvent]=await Promise.all([
     db.from('quote_issue_records').select('client_response,recipient_email,quote_revision').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
-    db.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
+    db.from('quote_release_contracts').select('release_basis,opening_amount,authorised_contact_name,authorised_contact_email').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
     db.from('leads').select('company_name').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle(),
-    db.from('quote_client_signatory_attestations').select('quote_id').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
+    db.from('quote_client_signatory_attestations').select('quote_id,signatory_name,signatory_email').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle(),
     db.from('op_sandbox_payment_authorisations').select('quote_id').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle(),
     db.from('notification_outbox').select('id,status,attempts,last_error,provider_message_id,created_at').eq('organisation_id',organisationId).eq('entity_type','quote').eq('entity_id',quote.id).like('subject','Secure client portal access%').order('created_at',{ascending:false}).limit(1).maybeSingle(),
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',organisationId).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('confirmed_at').eq('organisation_id',organisationId).eq('quote_id',quote.id).maybeSingle(),
     db.from('projects').select('id').eq('organisation_id',organisationId).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_stripe_payment_events').select('stripe_session_id,verified_at,amount_total,currency').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).eq('stripe_payment_status','paid').limit(1).maybeSingle(),
   ]);
   let origin='';let originOkay=false;
   try{origin=qaPublicOrigin();originOkay=true;}catch{/* Leave unavailable on fail-closed diagnostics. */}
@@ -40,7 +41,11 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
   const stripeWebhookSecret=Boolean(process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_'));
   const contractOkay=!contract.error&&['payment','deposit'].includes(String(contract.data?.release_basis))&&Number(contract.data?.opening_amount)>0;
   const accepted=!issue.error&&issue.data?.client_response==='accepted'&&Number(issue.data.quote_revision)===Number(quote.revision);
-  const noPayment=!payment.error&&!release.error&&!project.error&&!payment.data?.confirmed_at&&!release.data?.confirmed_at&&!project.data?.id;
+  const noPayment=!payment.error&&!release.error&&!project.error&&!stripeEvent.error&&!payment.data?.confirmed_at&&!release.data?.confirmed_at&&!project.data?.id&&!stripeEvent.data?.stripe_session_id;
+  const signatoryMatches=!signatory.error&&!contract.error&&Boolean(signatory.data?.quote_id) &&
+    String(signatory.data?.signatory_name||'').trim().toLowerCase()===String(contract.data?.authorised_contact_name||'').trim().toLowerCase() &&
+    String(signatory.data?.signatory_email||'').trim().toLowerCase()===String(contract.data?.authorised_contact_email||'').trim().toLowerCase();
+  const settlementPending=!stripeEvent.error&&Boolean(stripeEvent.data?.stripe_session_id)&&!payment.data?.confirmed_at&&!project.data?.id;
   const emailResult=outbox.data;
   const emailAccepted=!outbox.error&&emailResult?.status==='sent'&&Boolean(emailResult.provider_message_id);
   const checks:Check[]=[
@@ -48,7 +53,7 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     {label:'Stable QA URL',pass:originOkay,detail:originOkay?origin:'Missing or mismatched preview branch address'},
     {label:'Accepted controlled quotation',pass:accepted,detail:accepted?'Accepted revision '+quote.revision:'Accepted revision evidence missing'},
     {label:'Opening payment terms',pass:contractOkay,detail:contractOkay?String(contract.data?.release_basis)+' · '+String(contract.data?.opening_amount)+' '+quote.currency:'Frozen deposit/payment terms not available'},
-    {label:'Named acceptance evidence',pass:!signatory.error&&Boolean(signatory.data),detail:signatory.data?'Present':'Missing or unavailable'},
+    {label:'Named acceptance evidence matches frozen terms',pass:signatoryMatches,detail:signatoryMatches?'Authorised contact and attested signatory match exactly':'Missing or mismatched signatory identity'},
     {label:'QA email configuration',pass:process.env.OP_QA_EMAIL_SENDING_ENABLED==='true'&&Boolean(process.env.RESEND_API_KEY)&&Boolean(process.env.RESEND_FROM_EMAIL),detail:'Isolated QA recipient allowlist still enforced'},
     {label:'Portal email accepted by provider',pass:emailAccepted,detail:outbox.error?'Outbox query failed':emailResult?emailResult.status+' · '+emailResult.attempts+' attempt(s)'+(emailResult.last_error?' · '+emailResult.last_error:''):'No portal delivery recorded'},
     {label:'Stripe test secret key',pass:stripeTestKey,detail:stripeTestKey?'Test-mode key present':'Missing or not test-mode (value hidden)'},
@@ -56,9 +61,11 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     {label:'Stripe test webhook signing secret',pass:stripeWebhookSecret,detail:stripeWebhookSecret?'Test webhook secret configured':'Missing (requires Stripe test endpoint, whsec_ key)'},
     {label:'Explicit sandbox case label',pass:!lead.error&&String(lead.data?.company_name||'').startsWith('OP QA TEST'),detail:'Checkout is only allowed for OP QA TEST-labelled cases'},
     {label:'Quote-specific sandbox authorisation',pass:!authorisation.error&&Boolean(authorisation.data),detail:authorisation.data?'Active QA authorisation found':'No active, explicitly approved authorisation'},
-    {label:'Financial safety gate',pass:noPayment,detail:noPayment?'No verified payment or released project; Checkout cannot double-charge':'Financial state must be reconciled before further payment'},
+    {label:'Verified Stripe payment event',pass:!stripeEvent.error&&Boolean(stripeEvent.data?.stripe_session_id),detail:stripeEvent.error?'Evidence query failed':stripeEvent.data?'Stripe payment evidence stored · '+Number(stripeEvent.data.amount_total)/100+' '+stripeEvent.data.currency:'No signed paid event recorded'},
+    {label:'Opening payment ledger and Project 360',pass:!payment.error&&!project.error&&Boolean(payment.data?.confirmed_at&&project.data?.id),detail:payment.error||project.error?'Reconciliation ledger unavailable':payment.data?.confirmed_at&&project.data?.id?'Opening receipt and project exist':'Payment release or project creation still pending'},
+    {label:'Financial safety gate',pass:noPayment,detail:noPayment?'No verified payment or released project; Checkout cannot double-charge':'Further Checkout is blocked while payment is verified or released'},
   ];
-  const paymentReady=checks.filter(x=>!['Portal email accepted by provider','Financial safety gate'].includes(x.label)).every(x=>x.pass)&&noPayment;
+  const paymentReady=checks.filter(x=>!['Portal email accepted by provider','Financial safety gate','Verified Stripe payment event','Opening payment ledger and Project 360'].includes(x.label)).every(x=>x.pass)&&noPayment;
   // Only an explicitly allowlisted, fictional OP QA TEST case can expose this
   // operator-only access path. The client portal and Checkout still independently
   // enforce their own controlled acceptance and financial gates.
@@ -74,8 +81,8 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
       <p style={{opacity:.75}}>Quotation {quote.quote_number} · No funds, authorisations, or case records are changed by this page.</p>
     </div>
     <div style={{padding:16,border:'1px solid currentColor',borderRadius:12}}>
-      <strong>{paymentReady?'Checkout preflight passed':'Checkout preflight blocked'}</strong>
-      <p style={{marginTop:8,opacity:.8}}>This is a configuration and database preflight, not proof of delivered email, real Stripe Checkout, or a reconciled webhook.</p>
+      <strong>{project.data?.id?'Project 360 created':settlementPending?'Stripe payment verified · project release pending':paymentReady?'Checkout preflight passed':'Checkout preflight blocked'}</strong>
+      <p style={{marginTop:8,opacity:.8}}>{settlementPending?'Do not attempt another Stripe payment. Signed payment evidence is recorded; final project release is still being verified.':'This is a configuration and database preflight, not proof of delivered email, real Stripe Checkout, or a reconciled webhook.'}</p>
       {portalUrl?<div style={{marginTop:14,display:'grid',gap:8}}>
         <Link href={portalUrl} style={{display:'inline-block',padding:'12px 18px',borderRadius:8,background:'#f2f2f2',color:'#171717',fontWeight:600,width:'fit-content'}}>
           Open fictional client portal · Stripe Sandbox →
