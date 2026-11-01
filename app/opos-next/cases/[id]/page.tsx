@@ -6,7 +6,8 @@ import WorkRecordV2 from '../../WorkRecordV2';
 import {getWorkflowCase} from '@/lib/orchestration/service';
 import {getCaseDocumentRequirements} from '@/lib/cases/documentRequirements';
 import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
-import {approveIntakeAction} from '@/app/workspace/orchestration/actions';
+import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction} from '@/app/workspace/orchestration/actions';
+import MarginSimulator from '@/app/workspace/leads/[id]/MarginSimulator';
 
 export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -57,8 +58,30 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
       {label:'Record status',value:String(lead.status||'Not recorded').replaceAll('_',' ')},
       {label:'Current stage',value:stage.replaceAll('_',' ')},
     ]}
-    governedHref={'/opos-next/cases/'+id+'#case-evidence'}
+    governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
+    <section id="case-decision" className={styles.panel}>
+      {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
+        <h2>Set commercial position</h2>
+        <p>Use the approved partner price to calculate the client price and margin.</p>
+        <form action={createCommercialReviewAction}>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="partner_quote_id" value={workflow.partnerQuote.id}/>
+          <MarginSimulator cost={Number(workflow.partnerQuote.price||0)} currency={workflow.partnerQuote.currency||'GBP'}/>
+          <label className={styles.note}>Optional commercial note<textarea name="commercial_note" rows={3}/></label>
+          <button type="submit" className={styles.submit}>Set commercial position</button>
+        </form>
+      </div>:null}
+      {workflow.commercialReview&&!workflow.clientQuote?<div className={styles.actionCard}>
+        <h2>Approve commercial position</h2>
+        <p>Confirm the recorded position and generate the Client Quote through the governed action.</p>
+        <form action={approveCommercialAction}>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="commercial_review_id" value={workflow.commercialReview.id}/>
+          <button type="submit" className={styles.submit}>Approve position and generate Client Quote</button>
+        </form>
+      </div>:null}
+    </section>
     <section id="case-evidence" className={styles.panel}>
       <DocumentGenerationPanel context="case" recordId={id} quoteId={workflow.clientQuote?.id} returnTo={`/opos-next/cases/${id}`} stageLabel={caseDocuments.stageLabel} items={caseDocuments.items}/>
       {workflow.technicalIntake&&!scopeApproved?<form action={approveIntakeAction} style={{marginTop:24}}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="intake_id" value={workflow.technicalIntake.id}/><button className="button" type="submit">Approve technical scope after document approval</button></form>:null}
