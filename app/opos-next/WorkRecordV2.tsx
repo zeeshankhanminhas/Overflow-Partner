@@ -23,10 +23,9 @@ export default function WorkRecordV2({
       <h2>{nextTitle}</h2>
       <p>{nextDescription}</p>
       {waiting?<p style={{marginTop:16,fontSize:12}}>No decision is assumed until the outstanding evidence arrives.</p>:null}
-      <div className={css.decisionActions}>
-        {!waiting?<Link className={css.primary} href={governedHref}>Review governed decision ↗</Link>:null}
-        <Link href={governedHref} className={css.secondary}>Open controlled record</Link>
-      </div>
+      {!waiting?<div className={css.decisionActions}>
+        <Link className={css.primary} href={governedHref}>Review current controls ↗</Link>
+      </div>:null}
     </section>
     <section className={css.section} aria-label="Lifecycle position">
       <p className={css.sectionKicker}>{eyebrow.includes('PROJECT')?'DELIVERY POSITION':'COMMITMENT READINESS'}</p>
@@ -50,6 +49,6 @@ export default function WorkRecordV2({
         <Link href={previous} className={css.secondary}>← Back to register</Link>
       </div>
     </section>
-    <p className={css.footer}>Real OPOS record · Read-only design preview. Governing approvals, commitments and financial controls remain with the existing OS.</p>
+    <p className={css.footer}>Live organisation-scoped record · Actions are shown only where the relevant governed controls are available.</p>
   </article>;
 }
