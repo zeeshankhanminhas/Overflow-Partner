@@ -21,9 +21,10 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const queueRecord=queueResult.error?null:(queueResult.data||[]).find((item:{id:string})=>item.id===id);
   const documents=documentsResult.data||[];
   const workflow=await getWorkflowCase(supabase,organisationId,id);
+  const {data:partnerReviews}=await supabase.from('partner_review_requests').select('id,status').eq('organisation_id',organisationId).eq('lead_id',id).limit(1);
   if(!workflow)notFound();
   const scopeApproved=workflow.technicalIntake?.status==='approved';
-  const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(workflow.partnerReview),partnerResponseReady:Boolean(workflow.partnerReview),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
+  const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(partnerReviews?.length),partnerResponseReady:Boolean(partnerReviews?.some(r=>['approved','approved_with_conditions'].includes(r.status))),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
   const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
   const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
   const stage=String(queueRecord?.workflow_stage||'assessment');
