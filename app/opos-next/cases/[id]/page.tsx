@@ -2,6 +2,10 @@ import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
 import {resolveCaseQueuePresentation} from '@/lib/presentation/queueState';
 import WorkRecordV2 from '../../WorkRecordV2';
+import {getWorkflowCase} from '@/lib/orchestration/service';
+import {getCaseDocumentRequirements} from '@/lib/cases/documentRequirements';
+import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
+import {approveIntakeAction} from '@/app/workspace/orchestration/actions';
 
 export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -16,6 +20,10 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const lead=leadResult.data;if(!lead)notFound();
   const queueRecord=queueResult.error?null:(queueResult.data||[]).find((item:{id:string})=>item.id===id);
   const documents=documentsResult.data||[];
+  const workflow=await getWorkflowCase(supabase,organisationId,id);
+  if(!workflow)notFound();
+  const scopeApproved=workflow.technicalIntake?.status==='approved';
+  const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(workflow.partnerReview),partnerResponseReady:Boolean(workflow.partnerReview),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
   const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
   const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
   const stage=String(queueRecord?.workflow_stage||'assessment');
@@ -23,7 +31,7 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const normalised=stage.toLowerCase().replaceAll('_','-');
   const stageIndex=normalised.includes('project')?3:normalised.includes('commercial')||normalised.includes('quote')?2:normalised.includes('partner')?1:0;
   const waiting=view.nextAction.kind==='wait'&&!view.approval?.required;
-  return <WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
+  return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
     subtitle={lead.company_name+' · Controlled pre-project commercial record'}
     state={view.state} owner="Overflow Partner"
@@ -48,5 +56,9 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
       {label:'Current stage',value:stage.replaceAll('_',' ')},
     ]}
     governedHref={'/opos-next/cases/'+id+'#case-evidence'}
-    previous="/opos-next/cases"/>;
+    previous="/opos-next/cases"/>
+    <section id="case-evidence" style={{maxWidth:960,margin:"24px auto",padding:"0 24px"}}>
+      <DocumentGenerationPanel context="case" recordId={id} quoteId={workflow.clientQuote?.id} returnTo={`/opos-next/cases/${id}`} stageLabel={caseDocuments.stageLabel} items={caseDocuments.items}/>
+      {workflow.technicalIntake&&!scopeApproved?<form action={approveIntakeAction} style={{marginTop:24}}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="intake_id" value={workflow.technicalIntake.id}/><button className="button" type="submit">Approve technical scope after document approval</button></form>:null}
+    </section></>;
 }
