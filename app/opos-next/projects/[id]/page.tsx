@@ -5,7 +5,7 @@ import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import {resolveFinancialGate} from '@/lib/finance/state';
 import {normaliseProjectStage,projectStageMeta} from '@/lib/projects/stages';
 import {updateProjectMobilisationAction,advanceProjectStageAction} from '@/app/workspace/projects/[id]/actions';
-import {recordClientTransmittalAction,recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/client-actions';
+import {recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/client-actions';
 import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
 import css from '../../opos.module.css';
@@ -26,8 +26,6 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  if(record.error)throw new Error('Project record could not be loaded.');
  if(!record.data)notFound();
  const data=record.data;
- const {data:clientContact}=data.lead_id?await supabase.from('leads').select('contact_name,contact_email')
-   .eq('organisation_id',organisationId).eq('id',data.lead_id).maybeSingle():{data:null};
  const stage=normaliseProjectStage(data.project_stage);
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
@@ -84,17 +82,9 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}><button type="submit" disabled={!mayAdvance} className={css.action} style={{border:0,cursor:mayAdvance?'pointer':'not-allowed',opacity:mayAdvance?1:.45,marginTop:0}}>{meta.action} →</button>
          {stage==='internal_review'?<button type="submit" name="target_stage" value="partner_correction" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Request partner correction →</button>:null}</div>
        </form>:null}
-       {stage==='ready_for_client_issue'&&canWrite?<section style={{marginTop:24}}>
-         <h3 style={{fontSize:17,marginBottom:8}}>Issue controlled Client Review Package</h3>
-         <p className={css.meta}>This sends a review-only controlled PDF. Editable engineering files remain blocked until verified final settlement and owner release.</p>
-         <form action={recordClientTransmittalAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:18}}>
-           <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
-           <label style={{display:'grid',gap:7}}>Authorised recipient<input name="recipient_name" required defaultValue={clientContact?.contact_name||''} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
-           <label style={{display:'grid',gap:7}}>Recipient email<input type="email" name="recipient_email" required defaultValue={clientContact?.contact_email||''} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
-           <label style={{display:'grid',gap:7}}>Delivery method<select name="delivery_method" defaultValue="email" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="email">Email</option><option value="secure_link">Secure link</option><option value="client_portal">Client portal</option></select></label>
-           <label style={{display:'grid',gap:7}}>Delivery note<textarea name="note" rows={3} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
-           <button type="submit" disabled={!mayAdvance||!clientContact?.contact_email} className={css.action} style={{border:0,opacity:mayAdvance&&clientContact?.contact_email?1:.45,cursor:mayAdvance?'pointer':'not-allowed',marginTop:0}}>Send controlled review package →</button>
-         </form>
+       {stage==='ready_for_client_issue'?<section style={{marginTop:24}}>
+         <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · secure preview required</h3>
+         <p className={css.meta}>This stage is deliberately blocked in Workspace 2.0 until a secure, watermarked, view-only browser review is implemented. The legacy email-PDF attachment flow would allow downloading the review package and does not meet the agreed release policy. Native/editable files remain reserved for final verified payment and owner approval.</p>
        </section>:null}
        {stage==='client_review'&&canWrite&&!latestClientReview?<section style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
