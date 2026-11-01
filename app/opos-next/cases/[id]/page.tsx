@@ -6,6 +6,7 @@ import WorkRecordV2 from '../../WorkRecordV2';
 import {getWorkflowCase} from '@/lib/orchestration/service';
 import {getCaseDocumentRequirements} from '@/lib/cases/documentRequirements';
 import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
+import {sendFreshPortalLink} from './portal-link-action';
 import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction,issueQuoteAction,resendClientQuoteAction} from '@/app/workspace/orchestration/actions';
 import MarginSimulator from '@/app/workspace/leads/[id]/MarginSimulator';
 import QuoteIssueContractFields from '@/app/workspace/leads/[id]/QuoteIssueContractFields';
@@ -84,6 +85,18 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
           <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
           <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
           <button type="submit" className={styles.submit}>Resend Client Quote email</button>
+        </form>
+      </div>:null}
+      {workflow.clientQuote&&quoteIssue?.client_response==='accepted'&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
+        <div className={styles.eyebrow}>CLIENT PORTAL · ACCESS RECOVERY</div>
+        <h2>Send fresh client portal link</h2>
+        <p>Send secure access to the original authorised recipient without changing the accepted quotation or payment status.</p>
+        <p><strong>Recipient:</strong> {quoteIssue.recipient_email}</p>
+        <form action={sendFreshPortalLink}>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+          <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
+          <button type="submit" className={styles.submit}>Send fresh client portal link</button>
         </form>
       </div>:null}
       {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
