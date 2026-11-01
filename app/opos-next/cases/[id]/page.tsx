@@ -6,8 +6,9 @@ import WorkRecordV2 from '../../WorkRecordV2';
 import {getWorkflowCase} from '@/lib/orchestration/service';
 import {getCaseDocumentRequirements} from '@/lib/cases/documentRequirements';
 import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
-import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction} from '@/app/workspace/orchestration/actions';
+import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction,issueQuoteAction} from '@/app/workspace/orchestration/actions';
 import MarginSimulator from '@/app/workspace/leads/[id]/MarginSimulator';
+import QuoteIssueContractFields from '@/app/workspace/leads/[id]/QuoteIssueContractFields';
 
 export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -79,6 +80,20 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
           <input type="hidden" name="lead_id" value={id}/>
           <input type="hidden" name="commercial_review_id" value={workflow.commercialReview.id}/>
           <button type="submit" className={styles.submit}>Approve position and generate Client Quote</button>
+        </form>
+      </div>:null}
+      {workflow.clientQuote&&['draft','internal_review'].includes(workflow.clientQuote.status)?<div className={styles.actionCard}>
+        <h2>Issue approved Client Quote</h2>
+        <p>Send the controlled quotation to the authorised client contact. The quote is marked issued only after the email provider accepts the message. Check the recipient before submitting.</p>
+        <form action={issueQuoteAction}>
+          <input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+          <label className={styles.note}>Recipient name<input name="recipient_name" required defaultValue={workflow.lead.contact_name||''}/></label>
+          <label className={styles.note}>Recipient email<input name="recipient_email" type="email" required defaultValue={workflow.lead.contact_email||''}/></label>
+          <QuoteIssueContractFields total={Number(workflow.clientQuote.total||0)} currency={String(workflow.clientQuote.currency||'GBP')}/>
+          <label className={styles.note}>Optional delivery note<textarea name="issue_note" rows={3}/></label>
+          <button type="submit" className={styles.submit}>Send Client Quote by email</button>
         </form>
       </div>:null}
     </section>
