@@ -64,8 +64,9 @@ check('Opening Stripe checkout uses the contract amount, never total by assumpti
 check('Stripe webhook validates opening deposit and signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes('openingPayment(Number(quote.total))')&&webhook.includes("metadata?.payment_stage"));
 check('Payment never redirects QA Stripe Sandbox to production fallback',
   checkout.includes('checkoutOrigin(mode)') &&
-  read('lib/payments/stripeEnvironment.ts').includes("const host=process.env.VERCEL_URL") &&
-  read('lib/payments/stripeEnvironment.ts').includes("return 'https://'+host;") &&
+  read('lib/payments/stripeEnvironment.ts').includes('return qaPublicOrigin();') &&
+  read('lib/qa/publicOrigin.ts').includes("process.env.VERCEL_ENV !== 'preview'") &&
+  read('lib/qa/publicOrigin.ts').includes('process.env.VERCEL_BRANCH_URL') &&
   !checkout.includes("NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
 check('Quote expiry remains valid until end of date',actions.includes('T23:59:59.999Z')&&checkout.includes('T23:59:59.999Z'));
 
