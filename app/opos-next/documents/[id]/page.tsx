@@ -13,10 +13,10 @@ export default async function DocumentPage({params}:{params:Promise<{id:string}>
   const type=String(data.document_type||'') as WorkspaceDocumentSlug;
   const canonical=legacyDocumentAliases[type]||type;
   const relatedHref=data.project_id?'/opos-next/projects/'+data.project_id:data.lead_id?'/opos-next/cases/'+data.lead_id:null;
-  const params=new URLSearchParams({document_record:id});
-  if(data.project_id)params.set('project',data.project_id);
-  else if(data.lead_id)params.set('case',data.lead_id);
-  const reviewHref=getWorkspaceDocument(canonical)?'/opos-next/documents/templates/'+canonical+'?'+params.toString():null;
+  const docQuery=new URLSearchParams({document_record:id});
+  if(data.project_id)docQuery.set('project',data.project_id);
+  else if(data.lead_id)docQuery.set('case',data.lead_id);
+  const reviewHref=getWorkspaceDocument(canonical)?'/opos-next/documents/templates/'+canonical+'?'+docQuery.toString():null;
   return <><OperatorRecord eyebrow="DOCUMENTS / CONTROLLED RECORD" title={data.title||'Document'}
     position={String(data.control_state||data.status||'Recorded').replaceAll('_',' ')}
     description="Document issue, approval, signatures and revisions remain governed by the protected document engine."
