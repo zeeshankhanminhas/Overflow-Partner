@@ -15,5 +15,5 @@ export default async function InvoicePage({params}:{params:Promise<{id:string}>}
     description="Invoice totals and receipt allocations are read from the governed ledger. Payment verification and reconciliation remain controlled."
     fields={[{label:'Total',value:money(data.total,currency)},{label:'Received',value:money(data.amount_paid,currency)},
       {label:'Balance',value:money(balance,currency)},{label:'Ledger state',value:String(data.status||'Unknown')}]}
-    previous="/opos-next/finance" governedHref={data.project_id?'/workspace/payments?project='+data.project_id:'/workspace/payments'} />;
+    previous="/opos-next/finance" governedHref={data.project_id?'/opos-next/projects/'+data.project_id:undefined} governedLabel="Open linked Project 360" />;
 }
