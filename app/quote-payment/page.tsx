@@ -60,7 +60,7 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
       <p className={css.note}>Only the agreed opening amount is due now. Do not pay the full quotation value unless that is explicitly your accepted opening amount.</p>
       {confirmed?<div className={css.section}><h3>Release evidence recorded</h3><p className={css.note}>Payment or authorised commercial release has already been recorded. No additional opening payment is required here.</p></div>:<>
         <div className={css.section}><h3>Secure card payment</h3>
-          {stripeAvailable?<form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Continue to Stripe Checkout →</button></form>
+          {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Continue to Stripe Checkout →</button></form>
             :<p className={css.note}>{hasStagedPayment?'Secure Stripe deposit Checkout is not currently enabled for this quotation.':'Secure online Checkout is not yet enabled.'} Please contact Overflow Partner before transferring funds.</p>}
         </div>
         <div className={css.section}><h3>Bank transfer</h3>
