@@ -5,6 +5,7 @@ import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import {resolveFinancialGate} from '@/lib/finance/state';
 import {normaliseProjectStage,projectStageMeta} from '@/lib/projects/stages';
 import {updateProjectMobilisationAction,advanceProjectStageAction} from '@/app/workspace/projects/[id]/actions';
+import {recordClientTransmittalAction,recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/client-actions';
 import WorkRecordV2 from '../../WorkRecordV2';
 import css from '../../opos.module.css';
 
@@ -15,7 +16,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const feedback=searchParams?await searchParams:{};
  const {supabase,organisationId,profile}=await requireUserContext();
  const [record,readinessResult,financialResult,managersResult]=await Promise.all([
-   supabase.from('projects').select('id,project_number,title,status,project_stage,due_date,start_date,project_manager_id,created_at')
+   supabase.from('projects').select('id,project_number,title,status,project_stage,due_date,start_date,project_manager_id,lead_id,created_at')
      .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
    supabase.rpc('op_project_stage_readiness',{p_project_id:id}),
    supabase.rpc('op_project_financial_gate',{p_project_id:id}),
@@ -24,10 +25,15 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  if(record.error)throw new Error('Project record could not be loaded.');
  if(!record.data)notFound();
  const data=record.data;
+ const {data:clientContact}=data.lead_id?await supabase.from('leads').select('contact_name,contact_email')
+   .eq('organisation_id',organisationId).eq('id',data.lead_id).maybeSingle():{data:null};
  const stage=normaliseProjectStage(data.project_stage);
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
  const financial=resolveFinancialGate(financialResult.error?null:financialResult.data);
+ const {data:latestClientReview}=stage==='client_review'?await supabase.from('project_client_reviews')
+   .select('outcome,recorded_at').eq('organisation_id',organisationId).eq('project_id',id)
+   .order('recorded_at',{ascending:false}).limit(1).maybeSingle():{data:null};
  const qaWritable=isKnownIsolatedQaBackend();
  const canWrite=qaWritable&&['owner','admin','operator','engineering','commercial'].includes(String(profile.role));
  const completed=stage==='closed'||['closed','complete','completed','cancelled'].includes(String(data.status||'').toLowerCase());
@@ -72,7 +78,34 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}><button type="submit" disabled={!mayAdvance} className={css.action} style={{border:0,cursor:mayAdvance?'pointer':'not-allowed',opacity:mayAdvance?1:.45,marginTop:0}}>{meta.action} →</button>
          {stage==='internal_review'?<button type="submit" name="target_stage" value="partner_correction" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Request partner correction →</button>:null}</div>
        </form>:null}
-       {!completed&&!stageHasStandardAction?<p className={css.meta} style={{marginTop:20}}>This stage requires specialised client delivery, review or final-release evidence. No shortcut is offered: the protected action has not yet been migrated into Workspace 2.0.</p>:null}
+       {stage==='ready_for_client_issue'&&canWrite?<section style={{marginTop:24}}>
+         <h3 style={{fontSize:17,marginBottom:8}}>Issue controlled Client Review Package</h3>
+         <p className={css.meta}>This sends a review-only controlled PDF. Editable engineering files remain blocked until verified final settlement and owner release.</p>
+         <form action={recordClientTransmittalAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:18}}>
+           <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
+           <label style={{display:'grid',gap:7}}>Authorised recipient<input name="recipient_name" required defaultValue={clientContact?.contact_name||''} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
+           <label style={{display:'grid',gap:7}}>Recipient email<input type="email" name="recipient_email" required defaultValue={clientContact?.contact_email||''} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
+           <label style={{display:'grid',gap:7}}>Delivery method<select name="delivery_method" defaultValue="email" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="email">Email</option><option value="secure_link">Secure link</option><option value="client_portal">Client portal</option></select></label>
+           <label style={{display:'grid',gap:7}}>Delivery note<textarea name="note" rows={3} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
+           <button type="submit" disabled={!mayAdvance||!clientContact?.contact_email} className={css.action} style={{border:0,opacity:mayAdvance&&clientContact?.contact_email?1:.45,cursor:mayAdvance?'pointer':'not-allowed',marginTop:0}}>Send controlled review package →</button>
+         </form>
+       </section>:null}
+       {stage==='client_review'&&canWrite&&!latestClientReview?<section style={{marginTop:24}}>
+         <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
+         <p className={css.meta}>Record actual written evidence only. Do not invent approval or treat silence as acceptance.</p>
+         <form action={recordClientReviewOutcomeAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:18}}>
+           <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
+           <label style={{display:'grid',gap:7}}>Client outcome<select name="outcome" required defaultValue="" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="" disabled>Choose outcome</option><option value="accepted">Accepted</option><option value="accepted_with_comments">Accepted with comments</option><option value="changes_requested">Changes requested</option><option value="rejected">Rejected / correction required</option></select></label>
+           <label style={{display:'grid',gap:7}}>Evidence basis<select name="evidence_basis" defaultValue="email_confirmation" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="email_confirmation">Email confirmation</option><option value="signed_acceptance">Signed acceptance</option><option value="client_portal">Client portal</option><option value="meeting_record">Meeting record</option><option value="other_written">Other written evidence</option></select></label>
+           <label style={{display:'grid',gap:7}}>Evidence reference<input name="evidence_reference" required placeholder="Email/date or signed review reference" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
+           <label style={{display:'grid',gap:7}}>Feedback classification<select name="feedback_category" defaultValue="in_scope_correction" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="in_scope_correction">In-scope correction</option><option value="revision">Revision to approved design</option><option value="out_of_scope_change">New/out-of-scope work</option></select></label>
+           <label style={{display:'flex',alignItems:'center',gap:10}}><input type="checkbox" name="partner_defect" value="true"/> Partner defect against approved scope</label>
+           <label style={{display:'grid',gap:7}}>Consolidated comments<textarea name="comments" rows={4} placeholder="Include drawing/revision references for requested changes" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
+           <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Record evidenced client outcome →</button>
+         </form>
+       </section>:null}
+       {stage==='client_review'&&latestClientReview?<p className={css.meta} style={{marginTop:20}}>Latest client review recorded: {String(latestClientReview.outcome).replaceAll('_',' ')}. Further action follows the controlled stage gate.</p>:null}
+       {stage==='completion'?<p className={css.meta} style={{marginTop:20}}>Final release and settlement remain separately controlled. No downloadable native deliverables or closure shortcut is offered before verified final payment and owner approval.</p>:null}
      </div>
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
    </section>
