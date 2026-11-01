@@ -52,9 +52,15 @@ export async function createStripeCheckout(formData: FormData) {
     .select('quote_id').eq('organisation_id',issue.organisation_id)
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
   if(signatoryError || !signatory)throw new Error('Named client acceptance must be completed before Checkout.');
-  const {data:paid,error:paidError}=await db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
-  const {data:released,error:releaseError}=await db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
-  if (paidError || releaseError || paid || released) throw new Error('Payment is already recorded or the quote is released. Contact OP before attempting another payment.');
+  // Recheck all release gates on the server immediately before creating Checkout.
+  // A stale client page or direct form POST must not charge an already-open Project.
+  const [paidResult,releasedResult,projectResult]=await Promise.all([
+    db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('projects').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+  ]);
+  if (paidResult.error || releasedResult.error || projectResult.error || paidResult.data || releasedResult.data || projectResult.data)
+    throw new Error('Opening payment cannot be requested: the release ledger is unavailable or this quotation is already released. Contact OP before attempting another payment.');
   const currency=String(quote.currency||'GBP').trim().toLowerCase();
   const pennies=Math.round(openingAmount*100);
   if (currency !== 'gbp' || !Number.isSafeInteger(pennies) || pennies < 50) throw new Error('Unsupported quote amount or currency.');
