@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import styles from './clientPortal.module.css';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken, createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
@@ -65,29 +66,28 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
-  return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
-    <section style={container}>
-      <p style={{...caption,letterSpacing:2,fontWeight:700}}>OVERFLOW PARTNER · CLIENT PORTAL</p>
-      <h1 style={{marginBottom:8}}>Your quotation and project</h1>
-      <p style={caption}>Quotation {quote.quote_number} · Revision {quote.revision}</p>
-      <div style={{padding:20,background:'#f0f4f0',borderRadius:9,margin:'24px 0'}}>
-        <p style={{...caption,margin:'0 0 8px'}}>CURRENT STATUS</p>
-        <h2 style={{margin:'0 0 8px',fontSize:21}}>{status}</h2>
-        <p style={{margin:0,fontSize:14}}>{project ? 'Your project has been opened. We will share delivery details as they are agreed.' : released ? 'The verified contractual release condition has been confirmed.' : paid ? 'Your opening payment has been recorded. Project setup is the next step.' : accepted ? 'Thank you for accepting. Your secure opening payment instructions are now available. Project setup follows only after your payment has been verified.' : 'You can review your quote and respond while it remains valid.'}</p>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:22}}>
-        <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
-        <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
-      </div>
-      {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
-      {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
-      {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
-      {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
-      {finalReviewAccepted&&!finalSettlementVerified ? <p><Link href={finalBalanceHref}>Pay your final engineering balance →</Link></p>:null}
-      {finalSettlementVerified&&!finalReleaseApproved ? <p>Final payment received. Your approved engineering files await Overflow Partner’s manual release approval.</p>:null}
-      {finalReleaseApproved ? <p><Link href={finalFilesHref}>Download approved final engineering files →</Link></p>:null}
-      {canDecide ? <div style={{borderTop:'1px solid #e5e4df',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#d74c2c':'#eeede9',color:response==='accepted'?'white':'#172521',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
-      <p style={{...caption,marginTop:28}}>This page updates as your quotation progresses. Keep your secure link private. For a copy of your approved PDF, payment instructions or a fresh link, reply to the quotation email.</p>
-    </section>
+  const daysRemaining=dueDate>0?Math.max(0,Math.ceil((dueDate-Date.now())/86400000)):0;
+  const expiryText=quote.valid_until?new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(quote.valid_until+'T12:00:00Z')):'Not specified';
+  return <main className={styles.page}>
+    <div className={styles.shell}>
+      <div className={styles.brand}><span>OP</span> OVERFLOW PARTNER</div>
+      <p className={styles.eyebrow}>SECURE CLIENT PORTAL / COMMERCIAL</p>
+      <h1 className={styles.title}>Your quotation.<br/>One clear next step.</h1>
+      <p className={styles.intro}>A private place to review your commercial position, respond to the quotation and follow the progress of your engineering work.</p>
+      <section className={styles.panel}>
+        <div className={styles.topline}><div><p className={styles.eyebrow}>CLIENT QUOTATION</p><div className={styles.reference}>{quote.quote_number} · Revision {quote.revision}</div></div><div><p className={styles.eyebrow}>VALID UNTIL</p><div className={styles.reference}>{expiryText}</div><div className={styles.expiry}>{daysRemaining>0?daysRemaining+' day'+(daysRemaining===1?'':'s')+' remaining':'Validity period ended'}</div></div></div>
+        <div className={styles.status}><p className={styles.eyebrow}>CURRENT STATUS</p><h2>{status}</h2><p>{project?'Your project has been opened. We will share delivery details as they are agreed.':released?'The verified contractual release condition has been confirmed.':paid?'Your opening payment has been recorded. Project setup is the next step.':accepted?'Your quotation has been accepted. The agreed opening payment or release condition must be verified before project setup.':'Review the quotation and record your decision before its expiry.'}</p></div>
+        <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
+        {project?<div className={styles.section}><h3>Project reference</h3><p>{project.project_number}</p></div>:null}
+        {contractResult.data?.release_basis==='purchase_order'?<p className={styles.note}>Agreed release condition: authorised purchase order, subject to verification.</p>:null}
+        {contractResult.data?.release_basis==='no_advance_payment'?<p className={styles.note}>Agreed release condition: no advance payment due, subject to authorisation.</p>:null}
+        {canDecide?<div className={styles.section}><p className={styles.eyebrow}>YOUR NEXT ACTION</p><h3>Respond to your quotation</h3><div className={styles.actions}>{actions.map(({label,response})=><Link key={response} className={styles.action+' '+(response==='accepted'?styles.primary:'')} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`}>{label}</Link>)}</div></div>:null}
+        {canPay?<div className={styles.section}><p className={styles.eyebrow}>NEXT STEP</p><h3>Opening payment</h3><p className={styles.note}>Project mobilisation begins only after the agreed payment has been verified.</p><Link className={styles.action+' '+styles.primary} href={paymentHref}>Continue to secure payment</Link></div>:null}
+        {finalReviewAccepted&&!finalSettlementVerified?<div className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
+        {finalSettlementVerified&&!finalReleaseApproved?<p className={styles.note}>Final payment received. Approved engineering files await Overflow Partner's release authorisation.</p>:null}
+        {finalReleaseApproved?<div className={styles.section}><h3>Approved delivery</h3><Link className={styles.action+' '+styles.primary} href={finalFilesHref}>Download approved engineering files</Link></div>:null}
+        <p className={styles.note}>Your approved quotation PDF is attached to the original quotation email. For a replacement document or a fresh secure portal link, reply to that email. Keep your private link confidential.</p>
+      </section><p className={styles.footer}>OVERFLOW PARTNER · CONTROLLED ENGINEERING DELIVERY</p>
+    </div>
   </main>;
 }
