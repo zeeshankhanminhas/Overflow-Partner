@@ -30,6 +30,12 @@ function refreshCase(leadId: string) {
   revalidatePath('/workspace/projects'); revalidatePath('/workspace/quotes'); revalidatePath('/workspace/documents');
 }
 function caseUrl(leadId: string, params: Record<string, string>) { return `/workspace/leads/${leadId}?${new URLSearchParams(params).toString()}`; }
+function caseUrlForForm(leadId: string, formData: FormData, params: Record<string,string>) {
+  const returnTo = String(formData.get('return_to') || '');
+  const isNext = returnTo === `/opos-next/cases/${leadId}`;
+  const path = isNext ? `/opos-next/cases/${leadId}` : `/workspace/leads/${leadId}`;
+  return `${path}?${new URLSearchParams(params).toString()}`;
+}
 function publicSiteUrl(path='') {
   const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://overflow-partner.vercel.app';
   const root = base.startsWith('http') ? base.replace(/\/$/, '') : `https://${base.replace(/\/$/, '')}`;
@@ -232,15 +238,15 @@ export async function approveIntakeAction(formData: FormData) {
 
 export async function createCommercialReviewAction(formData: FormData) {
   const partnerQuoteId = required(formData, 'partner_quote_id'); const leadId = required(formData, 'lead_id'); const markupPercent = Number(formData.get('markup_percent') ?? 30); let destination = `/workspace/leads/${leadId}`;
-  try { if (!Number.isFinite(markupPercent) || markupPercent < 0 || markupPercent > 500) throw new Error('Markup must be between 0 and 500.'); const { supabase, organisationId, user } = await requireUserContext(); await createCommercialReviewFromPartnerQuote(supabase, organisationId, user.id, partnerQuoteId, markupPercent); refreshCase(leadId); destination = caseUrl(leadId, { success: 'Commercial position calculated from the governed partner cost.', resultStatus: 'Commercial decision required', focus:'record-next-action' }); }
-  catch (error) { destination = caseUrl(leadId, { error: message(error), focus:'record-next-action' }); }
+  try { if (!Number.isFinite(markupPercent) || markupPercent < 0 || markupPercent > 500) throw new Error('Markup must be between 0 and 500.'); const { supabase, organisationId, user } = await requireUserContext(); await createCommercialReviewFromPartnerQuote(supabase, organisationId, user.id, partnerQuoteId, markupPercent); refreshCase(leadId); destination = caseUrlForForm(leadId, formData, { success: 'Commercial position calculated from the governed partner cost.', resultStatus: 'Commercial decision required', focus:'record-next-action' }); }
+  catch (error) { destination = caseUrlForForm(leadId, formData, { error: message(error), focus:'record-next-action' }); }
   redirect(destination);
 }
 
 export async function approveCommercialAction(formData: FormData) {
   const reviewId = required(formData, 'commercial_review_id'); const leadId = required(formData, 'lead_id'); let destination = `/workspace/leads/${leadId}`;
-  try { const { supabase, organisationId, user } = await requireUserContext(); const quote = await approveCommercialAndGenerateQuote(supabase, organisationId, user.id, reviewId, 'GBP', 20); const expiry=new Date(); expiry.setUTCDate(expiry.getUTCDate()+OPOS_POLICY.quotationValidityDays); const {error:validityError}=await supabase.rpc('op_set_draft_quote_validity',{p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quote.id,p_valid_until:expiry.toISOString().slice(0,10)}); if(validityError)throw new Error('Draft created, but 14-day validity could not be set: '+validityError.message); refreshCase(leadId); destination = caseUrl(leadId, { success: `Draft quote ${quote.quote_number} generated with its canonical controlled Client Quote document. Approve that document before commercial issue.`, resultStatus: 'Controlled quotation required', quote: quote.id, focus:'record-documents' }); }
-  catch (error) { destination = caseUrl(leadId, { error: message(error), focus:'record-next-action' }); }
+  try { const { supabase, organisationId, user } = await requireUserContext(); const quote = await approveCommercialAndGenerateQuote(supabase, organisationId, user.id, reviewId, 'GBP', 20); const expiry=new Date(); expiry.setUTCDate(expiry.getUTCDate()+OPOS_POLICY.quotationValidityDays); const {error:validityError}=await supabase.rpc('op_set_draft_quote_validity',{p_organisation_id:organisationId,p_user_id:user.id,p_quote_id:quote.id,p_valid_until:expiry.toISOString().slice(0,10)}); if(validityError)throw new Error('Draft created, but 14-day validity could not be set: '+validityError.message); refreshCase(leadId); destination = caseUrlForForm(leadId, formData, { success: `Draft quote ${quote.quote_number} generated with its canonical controlled Client Quote document. Approve that document before commercial issue.`, resultStatus: 'Controlled quotation required', quote: quote.id, focus:'record-documents' }); }
+  catch (error) { destination = caseUrlForForm(leadId, formData, { error: message(error), focus:'record-next-action' }); }
   redirect(destination);
 }
 
