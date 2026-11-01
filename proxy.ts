@@ -6,8 +6,12 @@ export async function proxy(request: NextRequest) {
   // Draft redesign preview may share production Supabase for read-only inspection.
   // Never let POST/PUT/PATCH/DELETE from either the new or legacy operating UI
   // mutate that database. Isolated QA is the only allowed preview write target.
-  const qaFixturePost = request.nextUrl.pathname === '/opos-next/opportunities/new' &&
-    isKnownIsolatedQaFixtureBackend();
+  const qaFixturePost = isKnownIsolatedQaFixtureBackend() && (
+    request.nextUrl.pathname === '/opos-next/opportunities/new' ||
+    request.nextUrl.pathname === '/opos-next/outreach' ||
+    /^\/opos-next\/outreach\/[0-9a-f-]{36}\/?$/i.test(request.nextUrl.pathname) ||
+    /^\/opos-next\/accounts\/[0-9a-f-]{36}\/?$/i.test(request.nextUrl.pathname)
+  );
   const qaStep2Post = isKnownIsolatedQaStep2Backend() && (
     /^\/opos-next\/opportunities\/[0-9a-f-]{36}\/?$/i.test(request.nextUrl.pathname) ||
     /^\/api\/intake\/[a-f0-9]{64}(?:\/files)?\/?$/i.test(request.nextUrl.pathname)
