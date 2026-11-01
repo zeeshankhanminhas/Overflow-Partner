@@ -55,6 +55,23 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
   const [ownerKind, setOwnerKind] = useState<'case' | 'project' | 'commercial' | 'documents'>('documents');
 
   useEffect(() => {
+    if (!window.location.pathname.startsWith('/opos-next/documents/')) return;
+    const query = new URLSearchParams(window.location.search);
+    const caseId = query.get('case');
+    const projectId = query.get('project');
+    if (caseId && /^[0-9a-f-]{36}$/i.test(caseId)) {
+      setBackHref(`/opos-next/cases/${caseId}`);
+      setBackLabel('Back to Case 360');
+      setOwnerKind('case');
+    } else if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
+      setBackHref(`/opos-next/projects/${projectId}`);
+      setBackLabel('Back to Project 360');
+      setOwnerKind('project');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (window.location.pathname.startsWith('/opos-next/documents/')) return;
     const storageKey = documentRecordId ? `op:document-return:${documentRecordId}` : null;
     try {
       if (document.referrer) {
@@ -218,7 +235,7 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   return <div data-surface="decision" className={`${fullScreen ? 'fixed inset-0 z-[70] overflow-y-auto' : ''} op-surface op-surface--decision document-review-shell`}>
     <header className="document-review-header print:hidden">
-      <Link aria-label={backLabel} title={backLabel} className="button secondary" href={backHref}>←</Link>
+      <Link aria-label={backLabel} title={backLabel} className="button secondary" href={backHref}>← {backLabel}</Link>
       <div className="min-w-0"><p>Document review</p><h1>{title}</h1></div>
       <span id="document-review-status" className="document-review-status">{currentStatus.replaceAll('_', ' ')}</span>
       <button className="button secondary desktop-review-control" onClick={() => setFullScreen((value) => !value)} type="button">{fullScreen ? 'Exit' : 'Full screen'}</button>
