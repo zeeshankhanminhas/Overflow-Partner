@@ -31,9 +31,16 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
   if(contractError || !contract)return unavailable('Quotation terms unavailable','Contact Overflow Partner to confirm the agreed release conditions.');
   if(!['payment','deposit'].includes(String(contract.release_basis)))return unavailable('No online payment is due',`Quotation ${quote.quote_number} is governed by its agreed ${contract.release_basis==='purchase_order'?'purchase-order':'no-advance'} release condition. Overflow Partner will verify the required authority before mobilisation.`);
-  const { data: payment } = await db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
-  const { data: release } = await db.from('quote_release_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
-  const confirmed = Boolean(payment?.confirmed_at || release?.confirmed_at);
+  // Fail closed on missing financial evidence and an already-created Project.
+  // A transient ledger error must never offer a second opening-payment action.
+  const [paymentResult,releaseResult,projectResult]=await Promise.all([
+    db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_release_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('projects').select('id,project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+  ]);
+  if(paymentResult.error||releaseResult.error||projectResult.error)
+    return unavailable('Payment verification temporarily unavailable','The financial ledger could not be verified. No new payment is requested until this check succeeds.');
+  const confirmed = Boolean(paymentResult.data?.confirmed_at || releaseResult.data?.confirmed_at || projectResult.data?.id);
   const bankName=process.env.OP_BANK_NAME;
   const bankAccount=process.env.OP_BANK_ACCOUNT_NUMBER;
   const bankSort=process.env.OP_BANK_SORT_CODE;
@@ -58,7 +65,7 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
     <section className={css.panel}>
       <div className={css.status}><p className={css.eyebrow}>AGREED OPENING PAYMENT</p><h2>{amount}</h2><p>Total quotation {formatAmount(quoteTotal)}{hasStagedPayment?' · Final balance is payable before native engineering handover.':''}</p></div>
       <p className={css.note}>Only the agreed opening amount is due now. Do not pay the full quotation value unless that is explicitly your accepted opening amount.</p>
-      {confirmed?<div className={css.section}><h3>Release evidence recorded</h3><p className={css.note}>Payment or authorised commercial release has already been recorded. No additional opening payment is required here.</p></div>:<>
+      {confirmed?<div className={css.section}><h3>Opening release already recorded</h3><p className={css.note}>{projectResult.data?.id?'A Project record already exists for this quotation.':'Payment or authorised commercial release has already been recorded.'} No additional opening payment is requested here.</p></div>:<>
         <div className={css.section}><h3>Secure card payment</h3>
           {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Continue to Stripe Checkout →</button></form>
             :<p className={css.note}>{hasStagedPayment?'Secure Stripe deposit Checkout is not currently enabled for this quotation.':'Secure online Checkout is not yet enabled.'} Please contact Overflow Partner before transferring funds.</p>}
