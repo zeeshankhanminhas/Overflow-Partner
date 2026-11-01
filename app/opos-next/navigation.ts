@@ -5,6 +5,7 @@ export const nextNavigation = [
   {label:'Opportunities',href:'/opos-next/opportunities',group:'WORK'},
   {label:'Cases',href:'/opos-next/cases',group:'WORK'},
   {label:'Projects',href:'/opos-next/projects',group:'WORK'},
+  {label:'Accounts',href:'/opos-next/accounts',group:'RELATIONSHIPS'},
   {label:'Partners',href:'/opos-next/partners',group:'OPERATIONS'},
   {label:'Finance',href:'/opos-next/finance',group:'OPERATIONS'},
   {label:'Documents',href:'/opos-next/documents',group:'OPERATIONS'},
