@@ -305,7 +305,7 @@ export async function issueQuoteAction(formData: FormData) {
 }
 
 export async function resendClientQuoteAction(formData: FormData) {
-  const quoteId=required(formData,'quote_id');const leadId=required(formData,'lead_id');const resendRequestId=required(formData,'request_id');let destination=`/workspace/leads/${leadId}`;
+  const quoteId=required(formData,'quote_id');const leadId=required(formData,'lead_id');const resendRequestId=required(formData,'request_id');const returnTo=String(formData.get('return_to')||'');const isNext=returnTo===`/opos-next/cases/${leadId}`;let destination=isNext?returnTo:`/workspace/leads/${leadId}`;
   try{
     const {supabase,organisationId,user,profile}=await requireUserContext();
     assertRole(profile.role,['owner','admin','commercial','business_development']);
@@ -317,7 +317,7 @@ export async function resendClientQuoteAction(formData: FormData) {
     const delivery=await sendClientQuoteEmail({supabase,organisationId,quoteId,leadId,recipientEmail:String(issue.recipient_email),recipientName:String(issue.recipient_name),companyName:recipient?.company_name||null,deliveryKind:'resend',resendRequestId});
     const {error:auditError}=await supabase.rpc('op_record_activity',{p_organisation_id:organisationId,p_user_id:user.id,p_entity_type:'quote',p_entity_id:quoteId,p_event_type:'client_quote_resent',p_event_data:{quoteRevision:delivery.quote.revision,recipientEmail:issue.recipient_email,providerMessageId:delivery.providerMessageId}});
     if(auditError)throw new Error(`The email provider accepted the resend, but its activity record could not be saved: ${auditError.message}`);
-    refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${delivery.quote.quote_number} R${delivery.quote.revision} was resent to ${issue.recipient_email} with the PDF and client response actions.`,resultStatus:'Awaiting client decision',quote:quoteId,focus:'record-next-action'});
+    refreshCase(leadId);destination=(isNext?caseUrlForForm(leadId,formData,{success: :caseUrl(leadId,{success:`Quote ${delivery.quote.quote_number} R${delivery.quote.revision} was resent to ${issue.recipient_email} with the PDF and client response actions.`,resultStatus:'Awaiting client decision',quote:quoteId,focus:'record-next-action'}));
   }catch(error){destination=caseUrl(leadId,{error:message(error),focus:'record-next-action'});}
   redirect(destination);
 }
