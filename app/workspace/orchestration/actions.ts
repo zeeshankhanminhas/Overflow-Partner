@@ -37,7 +37,9 @@ function caseUrlForForm(leadId: string, formData: FormData, params: Record<strin
   return `${path}?${new URLSearchParams(params).toString()}`;
 }
 function publicSiteUrl(path='') {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://overflow-partner.vercel.app';
+  const base = process.env.OP_ISOLATED_QA_BACKEND === 'true' && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://overflow-partner.vercel.app';
   const root = base.startsWith('http') ? base.replace(/\/$/, '') : `https://${base.replace(/\/$/, '')}`;
   return `${root}${path}`;
 }
