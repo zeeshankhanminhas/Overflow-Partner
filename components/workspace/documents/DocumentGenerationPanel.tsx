@@ -82,7 +82,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
         <h2 id={`${context}-stage-documents`}>Required documents</h2>
         <p className="vp-subtitle">See what needs action now, what is available, and what already satisfies this stage.</p>
       </div>
-      <Link href={`/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`} className="button secondary">Open document registry</Link>
+      <Link href={returnTo.startsWith('/opos-next/') ? '/opos-next/documents' : `/workspace/documents?${context === 'case' ? 'lead' : 'project'}=${recordId}`} className="button secondary">Open document registry</Link>
     </header>
 
     {generationError ? <div data-continuity-notice className="vp-callout" style={{marginBottom:14}}>
