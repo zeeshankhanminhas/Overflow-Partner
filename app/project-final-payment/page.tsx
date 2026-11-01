@@ -41,6 +41,8 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
   const {data:release}=await db.from('op_project_final_release_approvals').select('approved_at')
     .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
+  const finalPaid=Boolean(settlement?.verified_at);
+  const finalReleased=Boolean(release?.approved_at);
   const remaining=Math.round((Number(quote.total)-Number(contract.opening_amount))*100)/100;
   const money=(n:number)=>new Intl.NumberFormat('en-GB',{style:'currency',currency:String(quote.currency||'GBP')}).format(n);
   const paymentMode=stripeRuntimeMode();
@@ -54,7 +56,7 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     <p className={css.intro}>Project {project.project_number} · Quotation {quote.quote_number}</p>
     <section className={css.panel}>
       <div className={css.status}><p className={css.eyebrow}>FINAL BALANCE</p><h2>{money(remaining)}</h2><p>Opening payment: {money(Number(contract.opening_amount))}</p></div>
-      {settlement?<div className={css.section}><h3>Final payment verified</h3><p className={css.note}>{release?'The engineering package has been approved for controlled release.':'Overflow Partner must complete the separate final handover approval.'}</p></div>
+      {finalPaid?<div className={css.section}><h3>Final payment verified</h3><p className={css.note}>{finalReleased?'The engineering package has been approved for controlled release.':'Overflow Partner must complete the separate final handover approval.'}</p></div>
         :remaining>0?<div className={css.section}><h3>Complete final settlement</h3><p className={css.note}>The final balance is due after client review acceptance and before native engineering files can be released. Payment alone never authorises final handover.</p>
           {checkoutAvailable?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Pay final balance securely →</button></form>
             :<p className={css.note}>Online final settlement is not enabled for this account. Contact Overflow Partner to arrange independently verified payment.</p>}
