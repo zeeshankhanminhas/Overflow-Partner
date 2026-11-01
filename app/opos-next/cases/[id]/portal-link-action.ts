@@ -22,8 +22,10 @@ export async function sendFreshPortalLink(formData: FormData) {
       .select('revision,quote_number,status').eq('organisation_id',organisationId).eq('lead_id',leadId).eq('id',quoteId).maybeSingle();
     if(quoteError)throw quoteError;
     if(!quote||quote.revision!==issue.quote_revision||!['issued','accepted'].includes(quote.status))throw new Error('Quotation revision mismatch.');
-    const origin=process.env.NEXT_PUBLIC_SITE_URL;
-    if(!origin)throw new Error('QA public site URL is not configured.');
+    const origin=process.env.OP_ISOLATED_QA_BACKEND==='true' && process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+    if(!origin)throw new Error('Public site URL is not configured.');
     const link=new URL('/client-portal',origin);
     link.searchParams.set('token',createClientPortalToken(quoteId,Number(quote.revision)));
     const requestId=String(formData.get('request_id')||'');
