@@ -54,14 +54,14 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       db.from('project_client_reviews').select('outcome')
         .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
         .order('recorded_at',{ascending:false}).limit(1).maybeSingle(),
-      db.from('op_project_final_settlements').select('project_id')
+      db.from('op_project_final_settlements').select('project_id,verified_at')
         .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle(),
-      db.from('op_project_final_release_approvals').select('project_id')
+      db.from('op_project_final_release_approvals').select('project_id,approved_at')
         .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle(),
     ]);
     finalReviewAccepted=!review.error && ['accepted','accepted_with_comments'].includes(String(review.data?.outcome));
-    finalSettlementVerified=!settled.error && Boolean(settled.data);
-    finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data) && finalSettlementVerified;
+    finalSettlementVerified=!settled.error && Boolean(settled.data?.verified_at);
+    finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data?.approved_at) && finalSettlementVerified;
   }
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
