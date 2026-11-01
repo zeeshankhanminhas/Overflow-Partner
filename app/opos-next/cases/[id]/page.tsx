@@ -1,4 +1,6 @@
 import {notFound} from 'next/navigation';
+import Link from 'next/link';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import styles from './caseDocuments.module.css';
 import {requireUserContext} from '@/lib/auth/context';
 import {resolveCaseQueuePresentation} from '@/lib/presentation/queueState';
@@ -14,7 +16,7 @@ import QuoteIssueContractFields from '@/app/workspace/leads/[id]/QuoteIssueContr
 export default async function CasePage({params,searchParams}:{params:Promise<{id:string}>,searchParams:Promise<{error?:string,success?:string}>}){
   const {id}=await params;
   const feedback=await searchParams;
-  const {supabase,organisationId}=await requireUserContext();
+  const {supabase,organisationId,profile}=await requireUserContext();
   const [leadResult,queueResult,documentsResult]=await Promise.all([
     supabase.from('leads').select('id,title,company_name,status,reference,created_at')
       .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
@@ -90,6 +92,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       {workflow.clientQuote&&quoteIssue?.client_response==='accepted'&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
         <div className={styles.eyebrow}>CLIENT PORTAL · ACCESS RECOVERY</div>
         <h2>Send fresh client portal link</h2>
+        {isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>View QA delivery and payment readiness</Link></p>:null}
         <p>Send secure access to the original authorised recipient without changing the accepted quotation or payment status.</p>
         <p><strong>Recipient:</strong> {quoteIssue.recipient_email}</p>
         <form action={sendFreshPortalLink}>
