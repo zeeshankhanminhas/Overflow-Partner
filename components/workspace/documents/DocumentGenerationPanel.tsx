@@ -40,9 +40,10 @@ function meetsMinimumStatus(status: string, minimum: MinimumStatus = 'draft') {
   return documentSatisfiesRequirement(status, minimum);
 }
 
-function documentUrl(document: GeneratedDocument, context: Props['context'], recordId: string) {
+function documentUrl(document: GeneratedDocument, context: Props['context'], recordId: string, returnTo: string) {
   const contextQuery = context === 'case' ? `case=${recordId}` : `project=${recordId}`;
-  return `/workspace/documents/templates/${document.document_type}?${contextQuery}&document_record=${document.id}`;
+  const base = returnTo.startsWith('/opos-next/') ? '/opos-next/documents/templates' : '/workspace/documents/templates';
+  return `${base}/${document.document_type}?${contextQuery}&document_record=${document.id}`;
 }
 
 export default async function DocumentGenerationPanel({ context, recordId, quoteId, returnTo, stageLabel, items, generationError }: Props) {
@@ -112,7 +113,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
                 <p>{document.reference} · v{document.version} · Required status: {item.minimumStatus || 'draft'}.</p>
                 <p>{item.reason}</p>
               </div>
-              <Link className="button" href={documentUrl(document, context, recordId)}>Review document</Link>
+              <Link className="button" href={documentUrl(document, context, recordId, returnTo)}>Review document</Link>
             </article>;
           })}
         </div>
@@ -133,7 +134,7 @@ export default async function DocumentGenerationPanel({ context, recordId, quote
                 <p>{document.reference} · v{document.version} · Generated {new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(document.created_at))}</p>
                 {item.requiredNow ? <p>Requirement complete · required status {item.minimumStatus || 'draft'}.</p> : null}
               </div>
-              <Link className="button secondary" href={documentUrl(document, context, recordId)}>Open document</Link>
+              <Link className="button secondary" href={documentUrl(document, context, recordId, returnTo)}>Open document</Link>
             </article>;
           })}
         </div>
