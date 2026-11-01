@@ -89,7 +89,8 @@ const checks = [
   ['Opportunity register queries organisation-scoped real records', register.includes("from('prospects')") && register.includes(".eq('organisation_id', organisationId)")],
   ['Opportunity detail restricts every data query to its organisation', record.includes("from('prospects')") && record.includes("from('intake_sessions')") && (record.match(/\.eq\('organisation_id',\s*organisationId\)/g) || []).length >= 2],
   ['New detail never invents proof of email delivery', record.includes('Provider acceptance does not prove inbox delivery') && record.includes("op_list_notification_delivery")],
-  ['Unmigrated business actions remain owned by governed workspace', record.includes("'/workspace/acquisition/' + id")],
+  ['Opportunity evidence does not link back to the legacy workspace',
+    !record.includes("href={'/workspace/acquisition/'") && record.includes("href={'/opos-next/cases/'+convertedCaseId}")],
   ['Mobile uses a dedicated OPOS navigation component', shell.includes('<OpMobileNav statusLabel={workspaceStatus} />') && !shell.includes('MobileWorkspaceNav')],
   ['Mobile menu has disclosure semantics, clear tap target, and closes on route selection',
     mobileNav.includes('aria-expanded={open}') && mobileNav.includes('aria-controls="opos-next-mobile-menu"') &&
@@ -100,9 +101,10 @@ const checks = [
   ['No sideways-scrolling desktop table is displayed in the mobile register',
     styles.includes('.tableWrap { display: none; }') && styles.includes('.mobileRecords { display: grid')],
   ['Waiting record is not presented as requiring a primary operator decision',
-    record.includes('No operator action is required') && record.includes('Inspect existing governed record')],
-  ['Mobile and desktop share the same eight-part navigation contract',
-    navigation.includes("label:'Outreach'") && navigation.includes("label:'Cases'") &&
+    record.includes('No operator action is required') && !record.includes('Inspect existing governed record') &&
+    v2WorkRecord.includes('!waiting?<div className={css.decisionActions}')],
+  ['Mobile and desktop share the same Workspace 2.0 navigation contract',
+    navigation.includes("label:'Outreach'") && navigation.includes("label:'Accounts'") && navigation.includes("label:'Cases'") &&
     navigation.includes("label:'Projects'") && navigation.includes("label:'Partners'") &&
     navigation.includes("label:'Finance'") && navigation.includes("label:'Documents'") &&
     mobileNav.includes("import { nextNavigation, isNextActive }")],
