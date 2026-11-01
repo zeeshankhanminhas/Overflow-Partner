@@ -124,9 +124,21 @@ export async function POST(request: Request) {
     return Response.json({received:true,stage:'final'});
   }
   // Opening settlement can create the Project only through the governed DB finalizer.
+  // Fail with a retryable status when isolated QA auto-release is unexpectedly disabled.
+  if(mode==='qa' && process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED!=='true') {
+    console.error('[opos-qa] Signed opening payment stored but automatic release switch is disabled');
+    return new Response('Verified payment stored; project release requires retry',{status:503});
+  }
   if (process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED === 'true') {
     const {error:reconcileError}=await db.rpc(mode==='live'?'op_finalize_live_stripe_quote_payment':'op_finalize_verified_stripe_quote_payment',{p_session_id:String(session.id)});
-    if (reconcileError) return new Response('Settlement stored but project release needs retry',{status:503});
+    if (reconcileError){
+      // Avoid emitting customer data, Stripe tokens or credentials in runtime logs.
+      console.error('[opos-stripe] Governed opening finalization failed',{
+        code: String(reconcileError.code||'unknown').slice(0,20),
+        reason: String(reconcileError.message||'unknown').slice(0,220),
+      });
+      return new Response('Settlement stored but project release needs retry',{status:503});
+    }
   }
   return Response.json({received:true});
 }
