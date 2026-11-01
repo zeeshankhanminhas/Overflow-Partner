@@ -4,6 +4,7 @@ import {createClient} from '@supabase/supabase-js';
 import {requireUserContext,assertRole} from '@/lib/auth/context';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import {qaPublicOrigin} from '@/lib/qa/publicOrigin';
+import {createClientPortalToken} from '@/lib/quotes/clientPortalToken';
 
 export const dynamic='force-dynamic';
 export const metadata={title:'Isolated QA readiness | OPOS',robots:{index:false,follow:false}};
@@ -58,6 +59,14 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     {label:'Financial safety gate',pass:noPayment,detail:noPayment?'No verified payment or released project; Checkout cannot double-charge':'Financial state must be reconciled before further payment'},
   ];
   const paymentReady=checks.filter(x=>!['Portal email accepted by provider','Financial safety gate'].includes(x.label)).every(x=>x.pass)&&noPayment;
+  // Only an explicitly allowlisted, fictional OP QA TEST case can expose this
+  // operator-only access path. The client portal and Checkout still independently
+  // enforce their own controlled acceptance and financial gates.
+  const syntheticQaCase=String(lead.data?.company_name||'').startsWith('OP QA TEST') &&
+    Boolean(authorisation.data) && !authorisation.error;
+  const portalUrl=paymentReady&&syntheticQaCase
+    ? '/client-portal?token='+encodeURIComponent(createClientPortalToken(quote.id,Number(quote.revision)))
+    : null;
   return <div style={{maxWidth:920,margin:'0 auto',padding:'24px 12px',display:'grid',gap:20}}>
     <Link href={'/opos-next/cases/'+quote.lead_id} style={{color:'inherit'}}>← Back to Case 360</Link>
     <div><p style={{fontSize:12,letterSpacing:2,opacity:.65}}>ISOLATED QA · READ-ONLY PREFLIGHT</p>
@@ -67,6 +76,12 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     <div style={{padding:16,border:'1px solid currentColor',borderRadius:12}}>
       <strong>{paymentReady?'Checkout preflight passed':'Checkout preflight blocked'}</strong>
       <p style={{marginTop:8,opacity:.8}}>This is a configuration and database preflight, not proof of delivered email, real Stripe Checkout, or a reconciled webhook.</p>
+      {portalUrl?<div style={{marginTop:14,display:'grid',gap:8}}>
+        <Link href={portalUrl} style={{display:'inline-block',padding:'12px 18px',borderRadius:8,background:'#f2f2f2',color:'#171717',fontWeight:600,width:'fit-content'}}>
+          Open fictional client portal · Stripe Sandbox →
+        </Link>
+        <p style={{fontSize:13,opacity:.75}}>This is a fictional £{Number(contract.data?.opening_amount).toFixed(2)} deposit. Use only Stripe's sandbox test payment method; no real card details.</p>
+      </div>:null}
     </div>
     <div style={{display:'grid',gap:10}}>
       {checks.map(check=><div key={check.label} style={{border:'1px solid #7775',padding:14,borderRadius:10,display:'grid',gridTemplateColumns:'auto 1fr',gap:14,alignItems:'start'}}>
