@@ -33,8 +33,6 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const {data:releaseContract}=clientAccepted&&workflow.clientQuote ? await supabase.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).eq('quote_revision',workflow.clientQuote.revision).maybeSingle() : {data:null};
   const openingAmount=Number(releaseContract?.opening_amount);
   const awaitingAdvance=clientAccepted&&['payment','deposit'].includes(String(releaseContract?.release_basis));
-  const nextDecisionTitle=clientAccepted?(awaitingAdvance?'Awaiting advance payment verification':'Awaiting contractual release verification'):view.nextAction.label;
-  const nextDecisionDescription=clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client accepted the quotation. Opening payment of £${openingAmount.toFixed(2)} must be received and verified before Project 360 can be created.`:'Client accepted the quotation. Confirm the agreed opening amount and verify payment before creating Project 360.'):'Client accepted the quotation. Verify the agreed release condition before Project 360 can be created.'):view.summary;
   const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(partnerReviews?.length),partnerResponseReady:Boolean(partnerReviews?.some(r=>['approved','approved_with_conditions'].includes(r.status))),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
   const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
   const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
@@ -43,6 +41,8 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const view=resolveCaseQueuePresentation(stage);
   const normalised=stage.toLowerCase().replaceAll('_','-');
   const stageIndex=normalised.includes('project')?3:normalised.includes('commercial')||normalised.includes('quote')?2:normalised.includes('partner')?1:0;
+  const nextDecisionTitle=clientAccepted?(awaitingAdvance?'Awaiting advance payment verification':'Awaiting contractual release verification'):view.nextAction.label;
+  const nextDecisionDescription=clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client accepted the quotation. Opening payment of £${openingAmount.toFixed(2)} must be received and verified before Project 360 can be created.`:'Client accepted the quotation. Confirm the agreed opening amount and verify payment before creating Project 360.'):'Client accepted the quotation. Verify the agreed release condition before Project 360 can be created.'):view.summary;
   const waiting=view.nextAction.kind==='wait'&&!view.approval?.required;
   return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
