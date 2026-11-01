@@ -47,7 +47,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
     subtitle={lead.company_name+' · Controlled pre-project commercial record'}
-    state={view.state} owner="Overflow Partner"
+    state={clientAccepted?'Quotation accepted':view.state} owner="Overflow Partner"
     nextTitle={nextDecisionTitle}
     nextDescription={nextDecisionDescription}
     stages={[
@@ -59,7 +59,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     stageIndex={clientAccepted?3:stageIndex} waiting={clientAccepted||waiting}
     evidence={[
       {label:'Case record',value:lead.reference||id.slice(0,8)},
-      {label:'Governed workflow position',value:queueResult.error?'Unavailable — verify in controlled record':view.state},
+      {label:'Governed workflow position',value:clientAccepted?'Accepted — release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
       {label:'Client Requirements Record',value:clientRequirements?`${clientRequirements.reference||'Document'} · ${clientRequirements.status}`:'Missing'},
       {label:'Partner Technical Assessment Report',value:partnerAssessment?`${partnerAssessment.reference||'Document'} · ${partnerAssessment.status}`:'Not generated'},
     ]}
@@ -71,7 +71,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
     <section id="case-decision" className={styles.panel}>
-      {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Quotation not sent</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
+      {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Action could not be completed</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
       {feedback.success?<div role="status" className={styles.successNotice}><strong>Action completed</strong><p>{feedback.success}</p></div>:null}
       {workflow.clientQuote?.status==='issued'&&quoteIssue&&!quoteIssue.client_response&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
         <div className={styles.eyebrow}>CLIENT QUOTATION · ISSUED</div>
