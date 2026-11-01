@@ -297,8 +297,8 @@ export async function issueQuoteAction(formData: FormData) {
       }
     }
     await cancelEntityReminders(supabase,{organisationId,entityType:'lead',entityId:leadId,categories:['nurture']}).catch(()=>0);
-    refreshCase(leadId);destination=caseUrl(leadId,{success:`Quote ${quote.quote_number} was emailed to ${recipientEmail} and recorded as issued. Written client acceptance is now required before Project 360.`,resultStatus:'Awaiting client decision',quote:quote.id,focus:'record-next-action'});
-  }catch(error){destination=caseUrl(leadId,{error:message(error),focus:'record-next-action'});}
+    refreshCase(leadId);destination=caseUrlForForm(leadId,formData,{success:`Quote ${quote.quote_number} was emailed to ${recipientEmail} and recorded as issued. Written client acceptance is now required before Project 360.`,resultStatus:'Awaiting client decision',quote:quote.id,focus:'record-next-action'});
+  }catch(error){destination=caseUrlForForm(leadId,formData,{error:message(error),focus:'record-next-action'});}
   redirect(destination);
 }
 
