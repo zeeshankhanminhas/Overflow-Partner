@@ -61,7 +61,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       {label:'Record status',value:String(lead.status||'Not recorded').replaceAll('_',' ')},
       {label:'Current stage',value:stage.replaceAll('_',' ')},
     ]}
-    governedHref={'/opos-next/cases/'+id+'#case-decision'}
+    governedHref={'/workspace/leads/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
     <section id="case-decision" className={styles.panel}>
       {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Quotation not sent</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
