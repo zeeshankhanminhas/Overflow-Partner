@@ -56,6 +56,11 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
 
   useEffect(() => {
     if (!window.location.pathname.startsWith('/opos-next/documents/')) return;
+    // A document opened from the modern register may have no case/project query.
+    // Never leave its back button pointing to the legacy document registry.
+    setBackHref('/opos-next/documents');
+    setBackLabel('Back to documents');
+    setOwnerKind('documents');
     const query = new URLSearchParams(window.location.search);
     const caseId = query.get('case');
     const projectId = query.get('project');
