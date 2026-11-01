@@ -3,10 +3,22 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
+import { isKnownIsolatedQaFixtureBackend } from '@/lib/qa/isolation';
 
 const HOME='/outreach';
 function urlFor(id:string,kind:'error'|'updated',message:string) {
  return HOME+'/'+encodeURIComponent(id)+'?'+kind+'='+encodeURIComponent(message);
+}
+/** Explicitly opt into the modern isolated QA route without changing legacy callers. */
+function modernDestination(form:FormData,destination:string){
+ if(form.get('opos_next')!=='1')return destination;
+ if(destination.startsWith('/workspace/acquisition/'))return destination.replace('/workspace/acquisition/','/opos-next/opportunities/');
+ if(destination==='/outreach'||destination.startsWith('/outreach/')||destination.startsWith('/outreach?'))return '/opos-next'+destination;
+ return destination;
+}
+function idFromForm(form:FormData){const id=String(form.get('id')||'');return /^[0-9a-f-]{36}$/i.test(id)?id:'';}
+function assertModernQa(form:FormData){
+ if(form.get('opos_next')==='1'&&!isKnownIsolatedQaFixtureBackend())throw new Error('Isolated QA outreach writes are not enabled.');
 }
 function parseLinkedInURL(value:string) {
  if(!value)return null;
@@ -21,6 +33,7 @@ function parseLinkedInURL(value:string) {
 export async function addOutreachThreadAction(form:FormData) {
  let target=HOME;
  try {
+   assertModernQa(form);
    const {supabase,user,profile,organisationId}=await requireUserContext();
    assertRole(profile.role,['owner','admin','business_development','operator']);
    const company_name=String(form.get('company_name')||'').trim();
@@ -44,13 +57,16 @@ export async function addOutreachThreadAction(form:FormData) {
      revalidatePath(HOME);
    }
  }catch(e){target=HOME+'?add=1&error='+encodeURIComponent(e instanceof Error?e.message:'Unable to add contact.');}
- redirect(target);
+ revalidatePath('/opos-next/outreach');
+ if(idFromForm(form))revalidatePath('/opos-next/outreach/'+idFromForm(form));
+ redirect(modernDestination(form,target));
 }
 
 export async function updateOutreachThreadAction(form:FormData) {
  const id=String(form.get('id')||'').trim();
  let target=HOME;
  try {
+  assertModernQa(form);
   const {supabase,profile,organisationId}=await requireUserContext();
   assertRole(profile.role,['owner','admin','business_development','operator']);
   if(!/^[0-9a-f-]{36}$/i.test(id))throw new Error('Invalid outreach ID.');
@@ -77,13 +93,16 @@ export async function updateOutreachThreadAction(form:FormData) {
   revalidatePath(HOME);revalidatePath(HOME+'/'+id);
   target=urlFor(id,'updated',state==='interested'?'Interest recorded. CRM is still clean until you convert.':'Next action saved.');
  }catch(e){target=urlFor(id,'error',e instanceof Error?e.message:'Unable to update.');}
- redirect(target);
+ revalidatePath('/opos-next/outreach');
+ if(idFromForm(form))revalidatePath('/opos-next/outreach/'+idFromForm(form));
+ redirect(modernDestination(form,target));
 }
 
 export async function promoteOutreachToCrmAction(form:FormData) {
  const id=String(form.get('id')||'').trim();
  let target=HOME;
  try{
+  assertModernQa(form);
   const {supabase,profile,organisationId}=await requireUserContext();
   assertRole(profile.role,['owner','admin','business_development','operator']);
   const {data:thread,error:readError}=await supabase.from('linkedin_outreach_threads')
@@ -96,5 +115,7 @@ export async function promoteOutreachToCrmAction(form:FormData) {
   revalidatePath(HOME);revalidatePath('/workspace/acquisition');revalidatePath('/workspace/acquisition/prospects');
   target='/workspace/acquisition/'+data+'?updated='+encodeURIComponent('Interested LinkedIn conversation converted into a CRM Prospect.');
  }catch(e){target=urlFor(id,'error',e instanceof Error?e.message:'Conversion failed. No partial records created.');}
- redirect(target);
+ revalidatePath('/opos-next/outreach');
+ if(idFromForm(form))revalidatePath('/opos-next/outreach/'+idFromForm(form));
+ redirect(modernDestination(form,target));
 }
