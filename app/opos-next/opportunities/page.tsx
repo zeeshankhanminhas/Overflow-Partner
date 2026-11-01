@@ -31,7 +31,7 @@ export default async function OpportunityRegister({
     </header>
     {qaFixturesEnabled ? <p style={{margin:'0 0 24px'}}>
       <Link className={css.action} href="/opos-next/opportunities/new">Create a fictional QA opportunity ↗</Link>
-      <span className={css.meta} style={{display:'block',marginTop:9}}>Test CRM records only. Emails and commercial actions are still locked.</span>
+      <span className={css.meta} style={{display:'block',marginTop:9}}>Fictional QA records only. Secure invitations and commercial decisions have separate eligibility and authorisation gates.</span>
     </p> : null}
     <form method="GET" className={css.searchRow} role="search" aria-label="Search opportunities">
       <label htmlFor="opos-find" className={css.eyebrow}>Find a company</label>
@@ -69,6 +69,6 @@ export default async function OpportunityRegister({
         </Link>
       </div>)}
     </div> : null}
-    <p className={css.meta} style={{marginTop:24}}>Record creation and editing are not available in this redesign view yet. The end-to-end QA setup must validate safe intake, email delivery and governed actions before enabling test writes.</p>
+    <p className={css.meta} style={{marginTop:24}}>Creation is available only for explicitly fictional QA records when the isolated fixture gate is enabled. Open a record to review its permitted governed actions; no action is assumed complete without evidence.</p>
   </section>;
 }
