@@ -64,7 +64,7 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
       {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
         <h2>Set commercial position</h2>
         <p>Use the approved partner price to calculate the client price and margin.</p>
-        <form action={createCommercialReviewAction}>
+        <form action={createCommercialReviewAction}><input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
           <input type="hidden" name="lead_id" value={id}/>
           <input type="hidden" name="partner_quote_id" value={workflow.partnerQuote.id}/>
           <MarginSimulator cost={Number(workflow.partnerQuote.price||0)} currency={workflow.partnerQuote.currency||'GBP'}/>
@@ -75,7 +75,7 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
       {workflow.commercialReview&&!workflow.clientQuote?<div className={styles.actionCard}>
         <h2>Approve commercial position</h2>
         <p>Confirm the recorded position and generate the Client Quote through the governed action.</p>
-        <form action={approveCommercialAction}>
+        <form action={approveCommercialAction}><input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
           <input type="hidden" name="lead_id" value={id}/>
           <input type="hidden" name="commercial_review_id" value={workflow.commercialReview.id}/>
           <button type="submit" className={styles.submit}>Approve position and generate Client Quote</button>
