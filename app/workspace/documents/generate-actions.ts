@@ -218,7 +218,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (existingCaseDocumentError) throw new Error(existingCaseDocumentError.message);
       if (existingCaseDocument) {
         const context = resolvedQuoteId && ['client-quote','quote','invoice'].includes(slug) ? `quote=${resolvedQuoteId}` : `case=${workflow.lead.id}`;
-        redirect(`/workspace/documents/templates/${slug}?${context}&document_record=${existingCaseDocument.id}`);
+        redirect(`${viewerBase}/${slug}?${context}&document_record=${existingCaseDocument.id}`);
       }
     }
 
