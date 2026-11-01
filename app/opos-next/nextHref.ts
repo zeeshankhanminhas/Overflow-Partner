@@ -2,6 +2,7 @@
  * unrecognised or action-only links stay governed by their original handlers. */
 export function nextHref(href: string) {
   const matchers: Array<[RegExp, string]> = [
+    [/^\/workspace\/companies\/([0-9a-f-]{36})(?:\?.*)?$/i, '/opos-next/accounts/'],
     [/^\/workspace\/acquisition\/([0-9a-f-]{36})(?:\?.*)?$/i, '/opos-next/opportunities/'],
     [/^\/workspace\/leads\/([0-9a-f-]{36})(?:\?.*)?$/i, '/opos-next/cases/'],
     [/^\/workspace\/projects\/([0-9a-f-]{36})(?:\?.*)?$/i, '/opos-next/projects/'],
@@ -11,12 +12,13 @@ export function nextHref(href: string) {
     const match=href.match(pattern);
     if(match)return target+match[1];
   }
+  if(href==='/workspace/companies')return '/opos-next/accounts';
   if(href==='/workspace/acquisition'||href==='/workspace/acquisition/prospects')return '/opos-next/opportunities';
   if(href==='/workspace/leads')return '/opos-next/cases';
   if(href==='/workspace/projects')return '/opos-next/projects';
-  if(href==='/workspace/payments')return '/opos-next/finance';
-  if(href==='/workspace/partners')return '/opos-next/partners';
-  if(href==='/workspace/documents')return '/opos-next/documents';
+  if(href==='/workspace/payments'||href.startsWith('/workspace/payments?'))return '/opos-next/finance';
+  if(href==='/workspace/partners'||href.startsWith('/workspace/partners?'))return '/opos-next/partners';
+  if(href==='/workspace/documents'||href.startsWith('/workspace/documents?'))return '/opos-next/documents';
   if(href==='/outreach')return '/opos-next/outreach';
   return href;
 }
