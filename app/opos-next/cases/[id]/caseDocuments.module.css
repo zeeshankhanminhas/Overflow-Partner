@@ -8,3 +8,22 @@
 .submit{background:#f6f6f7;color:#111318;border:0;border-radius:8px;padding:13px 18px;font-size:13px;font-weight:650;cursor:pointer}
 .submit:hover{background:#dedfe2}
 .actionCard :global(input){color:inherit}
+
+.eyebrow{font-size:10px;letter-spacing:.13em;font-weight:700;color:#aeb6c5;margin-bottom:12px}
+.actionCard .intro{font-size:14px;line-height:1.75;max-width:600px;color:#c4c9d2;margin-bottom:24px}
+.offerSummary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 28px}
+.offerSummary>div{display:flex;flex-direction:column;gap:8px;padding:20px;background:#101216;border:1px solid #373b44;border-radius:12px}
+.offerSummary span{font-size:12px;color:#b3bac5}
+.offerSummary strong{font-size:24px;font-weight:680;letter-spacing:-.025em;color:#f7f7f8}
+.offerSummary small{font-size:12px;color:#aeb5c1;line-height:1.5}
+.formSection{padding:20px 0;border-top:1px solid #343841}
+.formSection h3{font-size:15px;margin:0 0 16px;color:#f3f4f6;font-weight:650}
+.fieldGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.note{font-size:13px;line-height:1.5}
+.actionCard .note input,.actionCard .note textarea{box-sizing:border-box;width:100%;background:#101216;border:1px solid #4b5059;border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;color:#f6f7f8}
+.actionCard .note input:focus,.actionCard .note textarea:focus{outline:2px solid #9299a6;outline-offset:2px}
+.nextStep{border:1px solid #383e48;border-radius:10px;background:#11151b;padding:18px}
+.nextStep strong{font-size:13px;color:#f3f4f6}
+.nextStep p{margin:8px 0 0;font-size:13px;line-height:1.7;color:#b9c0cc}
+.actionCard .submit{font-size:14px;padding:15px 20px;min-height:48px}
+@media(max-width:600px){.offerSummary,.fieldGrid{grid-template-columns:1fr}.actionCard{padding:18px}.offerSummary strong{font-size:21px}}
