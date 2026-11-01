@@ -47,6 +47,6 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
       {label:'Record status',value:String(lead.status||'Not recorded').replaceAll('_',' ')},
       {label:'Current stage',value:stage.replaceAll('_',' ')},
     ]}
-    governedHref={'/workspace/leads/'+id}
+    governedHref={'/opos-next/cases/'+id+'#case-evidence'}
     previous="/opos-next/cases"/>;
 }
