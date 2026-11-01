@@ -84,17 +84,27 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
         </form>
       </div>:null}
       {workflow.clientQuote&&quoteDocument&&['draft','internal_review'].includes(workflow.clientQuote.status)?<div className={styles.actionCard}>
-        <h2>Issue approved Client Quote</h2>
-        <p>Send the controlled quotation to the authorised client contact. The quote is marked issued only after the email provider accepts the message. Check the recipient before submitting.</p>
+        <div className={styles.eyebrow}>COMMERCIAL OFFER · READY FOR ISSUE</div>
+        <h2>Send the client quotation</h2>
+        <p className={styles.intro}>The approved technical scope, delivery proposal and commercial terms are ready to be formally presented to the client.</p>
+        <div className={styles.offerSummary}>
+          <div><span>Quotation value</span><strong>{new Intl.NumberFormat('en-GB',{style:'currency',currency:String(workflow.clientQuote.currency||'GBP')}).format(Number(workflow.clientQuote.total||0))}</strong><small>Including applicable tax, where charged</small></div>
+          <div><span>Opening payment</span><strong>30% advance</strong><small>Due after client acceptance</small></div>
+        </div>
         <form action={issueQuoteAction}>
           <input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
           <input type="hidden" name="lead_id" value={id}/>
           <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
-          <label className={styles.note}>Recipient name<input name="recipient_name" required defaultValue={workflow.lead.contact_name||''}/></label>
-          <label className={styles.note}>Recipient email<input name="recipient_email" type="email" required defaultValue={workflow.lead.contact_email||''}/></label>
-          <QuoteIssueContractFields total={Number(workflow.clientQuote.total||0)} currency={String(workflow.clientQuote.currency||'GBP')}/>
-          <label className={styles.note}>Optional delivery note<textarea name="issue_note" rows={3}/></label>
-          <button type="submit" className={styles.submit}>Send Client Quote by email</button>
+          <div className={styles.formSection}><h3>Confirm the authorised recipient</h3>
+            <div className={styles.fieldGrid}>
+              <label className={styles.note}>Recipient name<input name="recipient_name" required defaultValue={workflow.lead.contact_name||''}/></label>
+              <label className={styles.note}>Recipient email<input name="recipient_email" type="email" required defaultValue={workflow.lead.contact_email||''}/></label>
+            </div>
+          </div>
+          <div className={styles.formSection}><h3>Payment and commercial terms</h3><QuoteIssueContractFields total={Number(workflow.clientQuote.total||0)} currency={String(workflow.clientQuote.currency||'GBP')}/></div>
+          <label className={styles.note}>Optional message to accompany the quotation<textarea name="issue_note" rows={3} placeholder="Add a short personal note, if needed."/></label>
+          <div className={styles.nextStep}><strong>What happens next</strong><p>The client receives the controlled quotation and secure response options. OPOS records issuance evidence and tracks the client decision. No project begins until acceptance and advance payment verification.</p></div>
+          <button type="submit" className={styles.submit}>Send approved quotation by email</button>
         </form>
       </div>:null}
     </section>
