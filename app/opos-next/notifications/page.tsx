@@ -21,15 +21,16 @@ export default async function NotificationEvidencePage({
   ]);
   if(result.error)throw new Error('Notification delivery evidence could not be loaded.');
   if(sessionResult.error)throw new Error('Requirements session evidence could not be loaded.');
-  const messages=(result.data||[]).filter((row:{entity_type:string;entity_id:string;event_key:string})=>
-    row.entity_type==='prospect' && row.entity_id===prospect &&
-    (row.event_key==='requirements.requested'||row.event_key==='requirements.reminder'||row.event_key==='partner_review.requested'));
+  const messages=(result.data||[]).filter((row:{entity_type:string;entity_id:string;event_key:string;status:string})=>
+    prospect ? row.entity_type==='prospect' && row.entity_id===prospect &&
+      (row.event_key==='requirements.requested'||row.event_key==='requirements.reminder'||row.event_key==='partner_review.requested')
+    : ['failed','dead_letter','pending','queued','retry'].includes(row.status));
   const session=sessionResult.data;
   return <section>
     <OperatorPageIntro eyebrow="OPERATIONS / COMMUNICATIONS" title="Delivery evidence"
-      subtitle="This is the recorded notification outbox state, not a promise of inbox delivery. Messages accepted by the provider are not automatically confirmed as read." count={messages.length}/>
+      subtitle={prospect?'Recorded delivery attempts for this Opportunity. Provider acceptance does not prove inbox delivery.':'Recent failed or queued organisation notifications. Provider acceptance does not prove inbox delivery.'} count={messages.length}/>
     {prospect?<Link className={css.backLink} href={'/opos-next/opportunities/'+prospect}>← Back to Opportunity</Link>
-      :<p className={css.empty}>Open this view from an Opportunity record to see its communications.</p>}
+      :<p className={css.meta}>Showing recent outstanding delivery evidence across the authorised organisation. Open an Opportunity for its scoped history.</p>}
     {session?<section className={css.card} aria-label="Latest customer requirements session">
       <span className={css.overline}>MOST RECENT SECURE REQUIREMENTS SESSION</span>
       <h2 className={css.cardTitle}>{label(String(session.email_status||'unverified'))}</h2>
@@ -43,8 +44,9 @@ export default async function NotificationEvidencePage({
           <strong>{item.event_key.replaceAll('.',' · ')} — {label(item.status)}</strong>
           <p className={css.meta}>Queued {when(item.created_at)} · Attempts {item.attempts} · Provider accepted {when(item.sent_at)}</p>
           {item.last_error?<p className={css.meta} role="alert">Latest error: {String(item.last_error).slice(0,300)}</p>:null}
+          {item.entity_type==='prospect'?<p><Link className={css.secondaryLink} href={'/opos-next/opportunities/'+item.entity_id}>Open related Opportunity →</Link></p>:null}
         </div></li>)}</ul>
-      :<p className={css.empty}>No recent delivery-outbox record is available for this Opportunity in the bounded history. This is not evidence that a message was sent.</p>}
+      :<p className={css.empty}>No matching delivery-outbox record is available in the bounded history. This is not evidence that a message was sent.</p>}
     </section>
     <p className={css.meta} style={{marginTop:24}}>Evidence is limited to the latest 150 organisation notifications exposed by the existing authorised delivery query. Safe reissue/replay requires an idempotent workflow and is deliberately not a button on this page.</p>
   </section>;
