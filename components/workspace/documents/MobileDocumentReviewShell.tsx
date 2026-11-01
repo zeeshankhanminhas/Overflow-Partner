@@ -183,6 +183,21 @@ export default function MobileDocumentReviewShell({ children, mobileReview, titl
   }
 
   function returnToOperationalOwner(message:string) {
+    // Derive the destination from the document URL at action time, rather than
+    // relying on asynchronous effect state or a stale legacy referrer.
+    if (window.location.pathname.startsWith('/opos-next/documents/')) {
+      const query = new URLSearchParams(window.location.search);
+      const caseId = query.get('case');
+      const projectId = query.get('project');
+      if (caseId && /^[0-9a-f-]{36}$/i.test(caseId)) {
+        router.push(`/opos-next/cases/${caseId}?focus=case-evidence&success=${encodeURIComponent(message)}`);
+        return true;
+      }
+      if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
+        router.push(`/opos-next/projects/${projectId}?success=${encodeURIComponent(message)}`);
+        return true;
+      }
+    }
     if (ownerKind === 'case' || ownerKind === 'project' || ownerKind === 'commercial') {
       router.push(operationalReturnHref(message));
       return true;
