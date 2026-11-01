@@ -62,7 +62,7 @@ export function OperatorRecord({eyebrow,title,position,description,fields,previo
       <h2 className={css.cardTitle}>{position}</h2>
       <p className={css.cardDescription}>{description}</p>
       {waiting ? <p className={css.meta} style={{marginTop:19}}>No internal action is assumed while this dependency is outstanding.</p>
-        : governedHref ? <Link className={css.action} href={governedHref}>{governedLabel} ↗</Link> : <p className={css.meta} style={{marginTop:19}}>Partner controls are not yet available in this QA workspace.</p>}
+        : governedHref ? <Link className={css.action} href={governedHref}>{governedLabel} ↗</Link> : <p className={css.meta} style={{marginTop:19}}>No supported operator action is available for this record in Workspace 2.0.</p>}
     </section>
     <details className={css.details}>
       <summary>Context and controlled record</summary>
@@ -71,6 +71,6 @@ export function OperatorRecord({eyebrow,title,position,description,fields,previo
         {waiting && governedHref ? <p><Link className={css.secondaryLink} href={governedHref}>Open governed record ↗</Link></p> : null}
       </div>
     </details>
-    <p className={css.meta} style={{marginTop:25}}>This screen currently displays read-only operational evidence. Governed edit actions have not all been migrated and tested in the new workspace.</p>
+    <p className={css.meta} style={{marginTop:25}}>This record shows organisation-scoped evidence. Unsupported edits and approvals are not offered as clickable controls.</p>
   </article>;
 }
