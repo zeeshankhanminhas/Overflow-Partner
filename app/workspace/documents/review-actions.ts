@@ -73,7 +73,9 @@ function revalidateDocumentOwners(document: ControlledDocument) {
   revalidatePath('/workspace/documents');
   revalidatePath(`/workspace/documents/${document.id}`);
   if (document.lead_id) revalidatePath(`/workspace/leads/${document.lead_id}`);
+  if (document.lead_id) revalidatePath(`/opos-next/cases/${document.lead_id}`);
   if (document.project_id) revalidatePath(`/workspace/projects/${document.project_id}`);
+  if (document.project_id) revalidatePath(`/opos-next/projects/${document.project_id}`);
 }
 
 async function persistDocumentStatus({
