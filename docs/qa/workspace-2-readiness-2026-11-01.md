@@ -65,7 +65,7 @@ This is an engineering test checklist, **not** a declaration that all tests have
 
 ## Known unverified / blockers at preparation time
 
-- QA database contains 1 Prospect, 1 Case, 1 Partner, 3 Documents, **0 Projects**, **0 Outreach conversations**, **0 Invoices**. This means the full post-payment project path cannot be exercised until authorised test payment evidence is available.
+- QA database contains 1 Prospect, 1 Case, 1 Partner, 3 Documents, **0 Projects**, **1 fictional Outreach conversation** (seeded for UI QA), **0 Invoices**. This means the full post-payment project path cannot be exercised until authorised test payment evidence is available.
 - Client portal and payment UI were code-inspected, not end-to-end browser-tested in an authenticated customer session.
-- Specialist Project 360 controls for client transmittal, client review and final engineering release are not yet native Workspace 2.0 actions. They must remain gated; do not invent shortcuts.
+- Project 360 now exposes guarded native forms for mobilisation, standard stage transitions, client review-only transmittal, evidenced client outcome, final owner release and closure. These are **not functionally verified** because QA contains no released project; partner execution/Work Order acceptance and payout remain to be exercised and may require further native UI work.
 - Vercel builds and runtime checks must be re-verified against the final commit before calling the workspace test-ready.
