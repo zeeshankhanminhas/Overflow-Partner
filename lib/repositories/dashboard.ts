@@ -7,7 +7,8 @@ type LeadRow = BaseRecord & { company_name: string; contact_name: string | null;
 type IntakeRow = BaseRecord & { lead_id: string; description: string; deliverables: string | null; deadline: string | null; discipline: string | null; status: string; submitted_at: string | null };
 type PartnerQuoteRow = BaseRecord & { lead_id: string; status: string; price: number; currency: string; valid_until: string | null };
 type ReviewRow = BaseRecord & { lead_id: string; status: string; client_price: number; margin_percent: number | null };
-type QuoteRow = BaseRecord & { lead_id: string; status: string; quote_number: string; total: number; currency: string; issued_at: string | null };
+type QuoteRow = BaseRecord & { lead_id: string; revision: number; status: string; quote_number: string; total: number; currency: string; issued_at: string | null };
+type QuoteIssueRow = { quote_id: string; quote_revision: number; client_response: string | null; client_response_at: string | null };
 type ProjectRow = BaseRecord & { lead_id: string; status: string; project_number: string; title: string; due_date: string | null; project_stage?: string | null };
 type TaskRow = BaseRecord & { entity_type: string; entity_id: string; title: string; status: string; priority: string; due_at: string | null };
 
@@ -19,10 +20,20 @@ export type DashboardSnapshot = { prospects: number; qualifiedProspects: number;
 async function safeCount(promise: PromiseLike<CountResult>, label: string, warnings: string[]) { const result = await promise; if (result.error) { warnings.push(`${label}: ${result.error.message}`); return 0; } return result.count ?? 0; }
 function latest<T extends BaseRecord>(rows: T[], predicate: (row: T) => boolean): T | null { return rows.filter(predicate).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0] ?? null; }
 
-function deriveLeadCase(lead: LeadRow, intakes: IntakeRow[], partnerQuotes: PartnerQuoteRow[], reviews: ReviewRow[], quotes: QuoteRow[], activity: DashboardActivity[]): MissionCase {
+function deriveLeadCase(lead: LeadRow, intakes: IntakeRow[], partnerQuotes: PartnerQuoteRow[], reviews: ReviewRow[], quotes: QuoteRow[], quoteIssues: QuoteIssueRow[], activity: DashboardActivity[]): MissionCase {
   const intake = latest(intakes, (row) => row.lead_id === lead.id); const partnerQuote = latest(partnerQuotes, (row) => row.lead_id === lead.id); const review = latest(reviews, (row) => row.lead_id === lead.id); const quote = latest(quotes, (row) => row.lead_id === lead.id);
   let stage: MissionCase['stage'] = 'lead'; let stageLabel = 'Case qualification'; let nextAction = 'Create inherited technical intake'; let status = lead.status; let waitingSince = lead.updated_at || lead.created_at; let deadline: string | null = null; let amount: string | null = null;
-  if (quote) { stage = 'quote'; stageLabel = 'Client quote'; status = quote.status; waitingSince = quote.updated_at || quote.created_at; nextAction = quote.status === 'issued' ? 'Record client decision' : 'Review and issue client quote'; amount = `${quote.currency} ${Number(quote.total).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`; }
+  if (quote) {
+    const response = quoteIssues.find(issue => issue.quote_id === quote.id && Number(issue.quote_revision) === Number(quote.revision));
+    const accepted = response?.client_response === 'accepted' || quote.status === 'accepted';
+    stage = 'quote';
+    stageLabel = accepted ? 'Quotation accepted · release pending' : 'Client quote';
+    status = accepted ? 'accepted_awaiting_release' : quote.status;
+    waitingSince = accepted ? response?.client_response_at || quote.updated_at || quote.created_at : quote.updated_at || quote.created_at;
+    nextAction = accepted ? 'Verify agreed opening payment or contractual release before Project 360' :
+      quote.status === 'issued' ? 'Await client quotation decision' : 'Review and issue client quote';
+    amount = `${quote.currency} ${Number(quote.total).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`;
+  }
   else if (review) { stage = 'commercial'; stageLabel = 'Commercial review'; status = review.status; waitingSince = review.updated_at || review.created_at; nextAction = 'Approve commercial position'; amount = `GBP ${Number(review.client_price).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`; }
   else if (partnerQuote || intake?.status === 'approved') { stage = 'partner'; stageLabel = 'Partner pricing'; status = partnerQuote?.status || 'awaiting_partner_quote'; waitingSince = partnerQuote?.updated_at || partnerQuote?.created_at || intake?.updated_at || intake?.created_at || lead.created_at; nextAction = partnerQuote ? 'Review compliant partner quote' : 'Obtain compliant partner pricing'; if (partnerQuote) amount = `${partnerQuote.currency} ${Number(partnerQuote.price).toLocaleString('en-GB', { maximumFractionDigits: 2 })}`; }
   else if (intake) { stage = 'technical'; stageLabel = 'Technical review'; status = intake.status; waitingSince = intake.updated_at || intake.created_at; nextAction = ['submitted', 'under_review'].includes(intake.status) ? 'Review technical scope' : 'Complete and submit technical intake'; deadline = intake.deadline; }
@@ -56,19 +67,20 @@ function deriveProjectMission(project: ProjectRow, lead: LeadRow | undefined, ac
 
 export async function getDashboardSnapshot(supabase: SupabaseClient, organisationId: string): Promise<DashboardSnapshot> {
   const warnings: string[] = []; const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-  const [prospectResult, leadResult, intakeResult, partnerQuoteResult, reviewResult, quoteResult, projectResult, taskResult, activityResult] = await Promise.all([
+  const [prospectResult, leadResult, intakeResult, partnerQuoteResult, reviewResult, quoteResult, quoteIssueResult, projectResult, taskResult, activityResult] = await Promise.all([
     supabase.from('prospects').select('id, company_name, contact_name, project_type, requirement_summary, status, source, assigned_to, next_action, next_action_at, next_follow_up_at, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
     supabase.from('leads').select('id, company_name, contact_name, contact_email, project_type, title, notes, service, status, priority, owner_id, reference, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
     supabase.from('technical_intakes').select('id, lead_id, description, deliverables, deadline, discipline, status, submitted_at, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
     supabase.from('partner_quotes').select('id, lead_id, status, price, currency, valid_until, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
     supabase.from('commercial_reviews').select('id, lead_id, status, client_price, margin_percent, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
-    supabase.from('quotes').select('id, lead_id, status, quote_number, total, currency, issued_at, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
+    supabase.from('quotes').select('id, lead_id, revision, status, quote_number, total, currency, issued_at, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
+    supabase.from('quote_issue_records').select('quote_id,quote_revision,client_response,client_response_at').eq('organisation_id',organisationId).order('created_at',{ascending:false}).limit(200),
     supabase.from('projects').select('id, lead_id, status, project_number, title, project_stage, due_date, created_at, updated_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(200),
     supabase.from('tasks').select('id, entity_type, entity_id, title, status, priority, due_at, created_at, updated_at').eq('organisation_id', organisationId).in('status', ['open', 'in_progress', 'blocked']).order('created_at', { ascending: false }).limit(200),
     supabase.from('activity_events').select('id, entity_type, entity_id, event_type, event_data, created_at').eq('organisation_id', organisationId).order('created_at', { ascending: false }).limit(40),
   ]);
-  [prospectResult, leadResult, intakeResult, partnerQuoteResult, reviewResult, quoteResult, projectResult, taskResult, activityResult].forEach((result, index) => { if (result.error) warnings.push(`Mission control query ${index + 1}: ${result.error.message}`); });
-  const prospects = (prospectResult.data ?? []) as ProspectRow[]; const leads = (leadResult.data ?? []) as LeadRow[]; const intakes = (intakeResult.data ?? []) as IntakeRow[]; const partnerQuotes = (partnerQuoteResult.data ?? []) as PartnerQuoteRow[]; const reviews = (reviewResult.data ?? []) as ReviewRow[]; const quotes = (quoteResult.data ?? []) as QuoteRow[]; const projects = (projectResult.data ?? []) as ProjectRow[]; const tasks = (taskResult.data ?? []) as TaskRow[]; const activity = (activityResult.data ?? []) as DashboardActivity[];
+  [prospectResult, leadResult, intakeResult, partnerQuoteResult, reviewResult, quoteResult, quoteIssueResult, projectResult, taskResult, activityResult].forEach((result, index) => { if (result.error) warnings.push(`Mission control query ${index + 1}: ${result.error.message}`); });
+  const prospects = (prospectResult.data ?? []) as ProspectRow[]; const leads = (leadResult.data ?? []) as LeadRow[]; const intakes = (intakeResult.data ?? []) as IntakeRow[]; const partnerQuotes = (partnerQuoteResult.data ?? []) as PartnerQuoteRow[]; const reviews = (reviewResult.data ?? []) as ReviewRow[]; const quotes = (quoteResult.data ?? []) as QuoteRow[]; const quoteIssues = (quoteIssueResult.data ?? []) as QuoteIssueRow[]; const projects = (projectResult.data ?? []) as ProjectRow[]; const tasks = (taskResult.data ?? []) as TaskRow[]; const activity = (activityResult.data ?? []) as DashboardActivity[];
 
   const activeProspects = prospects.filter(row => !['converted','not_a_fit'].includes(row.status));
   const projectOwnedLeadIds = new Set(projects.map(project => project.lead_id));
@@ -77,7 +89,7 @@ export async function getDashboardSnapshot(supabase: SupabaseClient, organisatio
   const activeLeadIds = new Set(activeLeads.map(lead => lead.id));
 
   const prospectCases: MissionCase[] = activeProspects.map((row) => ({ id: row.id, kind: 'prospect', company: row.company_name, contact: row.contact_name, reference: `PROSPECT-${row.id.slice(0, 8).toUpperCase()}`, requirement: row.requirement_summary || 'Initial requirement submitted; structured scope not yet recorded.', service: row.project_type || 'Engineering requirement', stage: 'prospect', stageLabel: 'Prospect qualification', status: row.status, priority: 'normal', createdAt: row.created_at, updatedAt: row.updated_at || row.created_at, waitingSince: row.updated_at || row.created_at, nextAction: row.next_action || (row.status === 'qualified' ? 'Create governed Case 360' : 'Review and qualify prospect'), href: `/workspace/acquisition/${row.id}`, deadline: row.next_follow_up_at || row.next_action_at, amount: null, timeline: activity.filter((event) => event.entity_type === 'prospect' && event.entity_id === row.id).slice(0, 8) }));
-  const leadCases = activeLeads.map((lead) => deriveLeadCase(lead, intakes, partnerQuotes, reviews, quotes, activity));
+  const leadCases = activeLeads.map((lead) => deriveLeadCase(lead, intakes, partnerQuotes, reviews, quotes, quoteIssues, activity));
   const projectCases = activeProjects.map(project => deriveProjectMission(project, leads.find(lead => lead.id === project.lead_id), activity));
   const cases = [...prospectCases, ...leadCases, ...projectCases].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   const pipeline: DashboardSnapshot['pipeline'] = { prospect: [], lead: [], technical: [], partner: [], commercial: [], quote: [], project: [] }; cases.forEach((item) => pipeline[item.stage].push(item));
