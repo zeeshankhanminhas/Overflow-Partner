@@ -30,6 +30,7 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
   const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(partnerReviews?.length),partnerResponseReady:Boolean(partnerReviews?.some(r=>['approved','approved_with_conditions'].includes(r.status))),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
   const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
   const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
+  const quoteDocument=documents.find(d=>d.document_type==='client-quote' && d.status==='approved');
   const stage=String(queueRecord?.workflow_stage||'assessment');
   const view=resolveCaseQueuePresentation(stage);
   const normalised=stage.toLowerCase().replaceAll('_','-');
@@ -82,7 +83,7 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
           <button type="submit" className={styles.submit}>Approve position and generate Client Quote</button>
         </form>
       </div>:null}
-      {workflow.clientQuote&&['draft','internal_review'].includes(workflow.clientQuote.status)?<div className={styles.actionCard}>
+      {workflow.clientQuote&&quoteDocument&&['draft','internal_review'].includes(workflow.clientQuote.status)?<div className={styles.actionCard}>
         <h2>Issue approved Client Quote</h2>
         <p>Send the controlled quotation to the authorised client contact. The quote is marked issued only after the email provider accepts the message. Check the recipient before submitting.</p>
         <form action={issueQuoteAction}>
