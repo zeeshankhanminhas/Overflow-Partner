@@ -10,8 +10,9 @@ import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction
 import MarginSimulator from '@/app/workspace/leads/[id]/MarginSimulator';
 import QuoteIssueContractFields from '@/app/workspace/leads/[id]/QuoteIssueContractFields';
 
-export default async function CasePage({params}:{params:Promise<{id:string}>}){
+export default async function CasePage({params,searchParams}:{params:Promise<{id:string}>,searchParams:Promise<{error?:string,success?:string}>}){
   const {id}=await params;
+  const feedback=await searchParams;
   const {supabase,organisationId}=await requireUserContext();
   const [leadResult,queueResult,documentsResult]=await Promise.all([
     supabase.from('leads').select('id,title,company_name,status,reference,created_at')
@@ -63,6 +64,8 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
     governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
     <section id="case-decision" className={styles.panel}>
+      {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Quotation not sent</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
+      {feedback.success?<div role="status" className={styles.successNotice}><strong>Action completed</strong><p>{feedback.success}</p></div>:null}
       {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
         <h2>Set commercial position</h2>
         <p>Use the approved partner price to calculate the client price and margin.</p>
