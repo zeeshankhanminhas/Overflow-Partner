@@ -3,6 +3,7 @@ import styles from './clientPortal.module.css';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken, createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
+import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Client Portal | Overflow Partner', robots: { index: false, follow: false } };
@@ -25,7 +26,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const db = createSupabaseClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:issue,error:issueError} = await db.from('quote_issue_records').select('organisation_id,quote_id,quote_revision,client_response').eq('quote_id',access.quoteId).eq('quote_revision',access.revision).maybeSingle();
   if (issueError || !issue) return unavailable();
-  const {data:quote,error:quoteError} = await db.from('quotes').select('id,organisation_id,quote_number,revision,status,total,currency,valid_until').eq('id',access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
+  const {data:quote,error:quoteError} = await db.from('quotes').select('id,organisation_id,lead_id,quote_number,revision,status,total,currency,valid_until').eq('id',access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(String(quote.status))) return unavailable();
   const [paymentResult,releaseResult,projectResult,contractResult] = await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
@@ -44,7 +45,34 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const actions: {label:string;response:ClientQuoteResponse}[] = [
     {label:'Accept quotation',response:'accepted'}, {label:'Request more time',response:'more_time'}, {label:'Decline quotation',response:'declined'},
   ];
-  const canPay = accepted && !paid && !released && !project && !contractResult.error && ['payment','deposit'].includes(String(contractResult.data?.release_basis)) && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
+  const openingAmount=Number(contractResult.data?.opening_amount);
+  const openingPaymentPending=accepted && !paid && !released && !project && !paymentResult.error && !releaseResult.error && !projectResult.error &&
+    !contractResult.error && ['payment','deposit'].includes(String(contractResult.data?.release_basis)) &&
+    Number.isFinite(openingAmount) && openingAmount>0 && openingAmount<=Number(quote.total);
+  const stripeMode=stripeRuntimeMode();
+  const staged=Math.round(openingAmount*100)<Math.round(Number(quote.total)*100);
+  const stripeConfigured=stripeMode==='live' ||
+    (stripeMode==='qa' && Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) &&
+      (staged?process.env.OP_STRIPE_DEPOSIT_TEST_ENABLED==='true':process.env.OP_STRIPE_FULL_PAYMENT_ONLY==='true'));
+  let stripeAuthorised=false;
+  if(openingPaymentPending&&stripeConfigured){
+    const signatory=await db.from('quote_client_signatory_attestations').select('quote_id')
+      .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+    if(!signatory.error&&signatory.data){
+      if(stripeMode==='live')stripeAuthorised=true;
+      else if(stripeMode==='qa'){
+        const [lead,authorisation]=await Promise.all([
+          db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle(),
+          db.from('op_sandbox_payment_authorisations').select('quote_id').eq('organisation_id',issue.organisation_id)
+            .eq('quote_id',quote.id).eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle(),
+        ]);
+        stripeAuthorised=!lead.error&&!authorisation.error&&Boolean(lead.data?.company_name?.startsWith('OP QA TEST')&&authorisation.data);
+      }
+    }
+  }
+  const bankReady=process.env.OP_BANK_SETTLEMENT_VERIFICATION_ENABLED==='true' &&
+    Boolean(process.env.OP_BANK_NAME&&process.env.OP_BANK_ACCOUNT_NUMBER&&process.env.OP_BANK_SORT_CODE);
+  const canPay=openingPaymentPending && process.env.OP_PACKAGE01_PAYMENTS_ENABLED==='true' && (stripeAuthorised||bankReady);
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
   let finalReviewAccepted=false;
   let finalSettlementVerified=false;
@@ -83,6 +111,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         {contractResult.data?.release_basis==='no_advance_payment'?<p className={styles.note}>Agreed release condition: no advance payment due, subject to authorisation.</p>:null}
         {canDecide?<div className={styles.section}><p className={styles.eyebrow}>YOUR NEXT ACTION</p><h3>Respond to your quotation</h3><div className={styles.actions}>{actions.map(({label,response})=><Link key={response} className={styles.action+' '+(response==='accepted'?styles.primary:'')} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`}>{label}</Link>)}</div></div>:null}
         {canPay?<div className={styles.section}><p className={styles.eyebrow}>NEXT STEP</p><h3>Opening payment</h3><p className={styles.note}>Project mobilisation begins only after the agreed payment has been verified.</p><Link className={styles.action+' '+styles.primary} href={paymentHref}>Continue to payment</Link></div>:null}
+        {openingPaymentPending&&!canPay?<div className={styles.section}><p className={styles.eyebrow}>OPENING PAYMENT · ARRANGEMENTS PENDING</p><h3>{displayMoney(openingAmount,String(quote.currency||'GBP'))} agreed opening amount</h3><p className={styles.note}>The quotation is accepted, but an authorised payment channel is not yet available for this record. Please contact Overflow Partner for verified payment instructions. No project will be opened from an unverified payment.</p></div>:null}
         {finalReviewAccepted&&!finalSettlementVerified?<div className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
         {finalSettlementVerified&&!finalReleaseApproved?<p className={styles.note}>Final payment received. Approved engineering files await Overflow Partner's release authorisation.</p>:null}
         {finalReleaseApproved?<div className={styles.section}><h3>Approved delivery</h3><Link className={styles.action+' '+styles.primary} href={finalFilesHref}>Download approved engineering files</Link></div>:null}
