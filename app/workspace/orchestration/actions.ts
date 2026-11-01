@@ -172,7 +172,7 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
   // Persist the exact approved revision PDF in the outbox so BOTH delivery paths
   // attach the same document (including provider retries and worker recovery).
   const quoteAttachment = { filename: `${quote.quote_number}-R${quote.revision}-Client-Quote.pdf`, content: pdf.toString('base64'), content_type: 'application/pdf' };
-  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message: `${message}\n\nYou can return to your private client portal to see the latest quotation and project status: ${portalUrl}`, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks], emailAttachments: [quoteAttachment] };
+  const payload = { company: companyName, reference: quote.quote_number, validUntil: quote.valid_until, heading: 'Your Client Quote is ready', message, clientQuoteFacts: facts, actions: [{label:'Open your client portal',url:portalUrl},...responseLinks], emailAttachments: [quoteAttachment] };
   const outboxId = await queueLifecycleEmail(supabase, {
     organisationId, scenario: 'quote.issued', recipientEmail, recipientName, subject,
     actionUrl: publicSiteUrl(), payload, entityType: 'quote', entityId: quoteId,
