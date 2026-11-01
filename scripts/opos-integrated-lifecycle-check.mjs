@@ -26,6 +26,11 @@ check('Quotation revision and expiration guarded for manual release',actions.inc
 check('Portal remains persistent and can return to payment',portal.includes('createClientPortalToken')&&portal.includes('Continue to payment'));
 check('Payment portal shows contractual opening amount instead of quote total',payment.includes('openingAmount = Number(contract.opening_amount)')&&payment.includes('formatAmount(openingAmount)'));
 check('Staged deposit cannot show a full-amount Stripe Checkout action',payment.includes('hasStagedPayment')&&payment.includes('stripeAvailable ?'));
+check('Paid Stripe event prevents duplicate client portal payment',portal.includes('stripePaymentPending')&&portal.includes('!stripePaymentPending')&&portal.includes("from('quote_stripe_payment_events')"));
+check('Payment return never offers Checkout while settlement is pending',payment.includes('settlementPending || stripeReturnPending')&&payment.includes("from('quote_stripe_payment_events')")&&payment.includes('Do not attempt another payment'));
+check('Server checkout rejects already verified Stripe event',checkout.includes('stripeEvidenceResult.error')&&checkout.includes('stripeEvidenceResult.data')&&checkout.includes("from('quote_stripe_payment_events')"));
+check('Client payment success requires verified ledger or provider evidence',payment.includes('verifiedStripeEvent')&&payment.includes("stripe_return === 'success'")&&payment.includes('Stripe payment evidence received'));
+
 
 check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
 check('Checkout separates test keys from gated live Stripe environment',checkout.includes('stripeRuntimeMode()')&&checkout.includes("mode==='live'?'sk_live_':'sk_test_'")&&checkout.includes('checkoutOrigin(mode)'));
