@@ -6,7 +6,7 @@ import WorkRecordV2 from '../../WorkRecordV2';
 import {getWorkflowCase} from '@/lib/orchestration/service';
 import {getCaseDocumentRequirements} from '@/lib/cases/documentRequirements';
 import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
-import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction,issueQuoteAction} from '@/app/workspace/orchestration/actions';
+import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction,issueQuoteAction,resendClientQuoteAction} from '@/app/workspace/orchestration/actions';
 import MarginSimulator from '@/app/workspace/leads/[id]/MarginSimulator';
 import QuoteIssueContractFields from '@/app/workspace/leads/[id]/QuoteIssueContractFields';
 
@@ -28,6 +28,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const {data:partnerReviews}=await supabase.from('partner_review_requests').select('id,status').eq('organisation_id',organisationId).eq('lead_id',id).limit(1);
   if(!workflow)notFound();
   const scopeApproved=workflow.technicalIntake?.status==='approved';
+  const {data:quoteIssue}=workflow.clientQuote?.status==='issued' ? await supabase.from('quote_issue_records').select('recipient_name,recipient_email,client_response,quote_revision').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).maybeSingle() : {data:null};
   const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(partnerReviews?.length),partnerResponseReady:Boolean(partnerReviews?.some(r=>['approved','approved_with_conditions'].includes(r.status))),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
   const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
   const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
@@ -61,11 +62,24 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       {label:'Record status',value:String(lead.status||'Not recorded').replaceAll('_',' ')},
       {label:'Current stage',value:stage.replaceAll('_',' ')},
     ]}
-    governedHref={'/workspace/leads/'+id+'#case-decision'}
+    governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
     <section id="case-decision" className={styles.panel}>
       {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Quotation not sent</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
       {feedback.success?<div role="status" className={styles.successNotice}><strong>Action completed</strong><p>{feedback.success}</p></div>:null}
+      {workflow.clientQuote?.status==='issued'&&quoteIssue&&!quoteIssue.client_response&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
+        <div className={styles.eyebrow}>CLIENT QUOTATION · ISSUED</div>
+        <h2>Resend issued quotation</h2>
+        <p>Resend the current approved revision to its original authorised recipient. This preserves the quotation and issuance audit history.</p>
+        <p><strong>Recipient:</strong> {quoteIssue.recipient_name||'Client'} · {quoteIssue.recipient_email}</p>
+        <form action={resendClientQuoteAction}>
+          <input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+          <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
+          <button type="submit" className={styles.submit}>Resend Client Quote email</button>
+        </form>
+      </div>:null}
       {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
         <h2>Set commercial position</h2>
         <p>Use the approved partner price to calculate the client price and margin.</p>
