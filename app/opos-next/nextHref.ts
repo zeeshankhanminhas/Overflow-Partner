@@ -13,6 +13,10 @@ export function nextHref(href:string){
    [/^\/workspace\/leads\/([0-9a-f-]{36})\/?$/i,'/opos-next/cases/'],
    [/^\/workspace\/projects\/([0-9a-f-]{36})\/?$/i,'/opos-next/projects/'],
    [/^\/workspace\/projects\/([0-9a-f-]{36})\/(?:delivery|execution)\/?$/i,'/opos-next/projects/'],
+   [/^\/workspace\/partners\/([0-9a-f-]{36})\/?$/i,'/opos-next/partners/'],
+   [/^\/workspace\/tasks\/([0-9a-f-]{36})\/?$/i,'/opos-next/tasks/'],
+   [/^\/workspace\/documents\/([0-9a-f-]{36})\/?$/i,'/opos-next/documents/'],
+   [/^\/workspace\/invoices\/([0-9a-f-]{36})\/?$/i,'/opos-next/finance/'],
    [/^\/outreach\/([0-9a-f-]{36})\/?$/i,'/opos-next/outreach/'],
  ];
  for(const [pattern,target] of records){const match=path.match(pattern);if(match)return target+match[1];}
