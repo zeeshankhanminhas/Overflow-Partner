@@ -30,6 +30,10 @@ check('Paid Stripe event prevents duplicate client portal payment',portal.includ
 check('Payment return never offers Checkout while settlement is pending',payment.includes('settlementPending || stripeReturnPending')&&payment.includes("from('quote_stripe_payment_events')")&&payment.includes('Do not attempt another payment'));
 check('Server checkout rejects already verified Stripe event',checkout.includes('stripeEvidenceResult.error')&&checkout.includes('stripeEvidenceResult.data')&&checkout.includes("from('quote_stripe_payment_events')"));
 check('Client payment success requires verified ledger or provider evidence',payment.includes('verifiedStripeEvent')&&payment.includes("stripe_return === 'success'")&&payment.includes('Stripe payment evidence received'));
+check('QA preflight validates signatory against frozen approved contact before checkout',read('app/opos-next/qa-readiness/page.tsx').includes('signatoryMatches')&&read('app/opos-next/qa-readiness/page.tsx').includes('authorised_contact_name')&&read('app/opos-next/qa-readiness/page.tsx').includes('stripeEvent.data?.stripe_session_id'));
+check('QA webhook refuses to acknowledge verified payments when finalizer is disabled',webhook.includes("mode==='qa' && process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED!=='true'")&&webhook.includes("return new Response('Verified payment stored; project release requires retry',{status:503})"));
+check('Payment finalizer failures report retryable error without exposing tokens',webhook.includes('Governed opening finalization failed')&&webhook.includes("reason: String(reconcileError.message||'unknown').slice(0,220)"));
+
 
 
 check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
