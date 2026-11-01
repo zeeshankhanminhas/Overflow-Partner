@@ -26,6 +26,26 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  if(record.error)throw new Error('Project record could not be loaded.');
  if(!record.data)notFound();
  const data=record.data;
+ // Surface partner, technical QA and client-issue evidence inside Workspace 2.0.
+ // These queries are read-only: no partner invitation, Work Order or client release is inferred.
+ const [assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult]=await Promise.all([
+   supabase.from('project_execution_assignments').select('id,execution_state,partner_contact_name,release_reference,released_at,execution_cycle')
+     .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
+   supabase.from('partner_execution_sessions').select('id,status,expires_at,first_opened_at')
+     .eq('organisation_id',organisationId).eq('project_id',id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+   supabase.from('partner_delivery_submissions').select('id,revision,review_status,submitted_at,delivery_summary')
+     .eq('organisation_id',organisationId).eq('project_id',id).order('submitted_at',{ascending:false}).limit(5),
+   supabase.from('project_delivery_items').select('id,title,status,internal_review_status,client_review_status')
+     .eq('organisation_id',organisationId).eq('project_id',id).order('created_at',{ascending:false}).limit(20),
+   supabase.from('project_client_transmittals').select('id,transmittal_reference,issued_at,recipient_name')
+     .eq('organisation_id',organisationId).eq('project_id',id).order('issued_at',{ascending:false}).limit(1).maybeSingle(),
+ ]);
+ const evidenceUnavailable=[assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult].some(result=>Boolean(result.error));
+ const assignment=assignmentResult.data;
+ const partnerSession=sessionResult.data;
+ const submissions=submissionResult.data||[];
+ const deliveryItems=deliveryResult.data||[];
+ const transmittal=transmittalResult.data;
  const stage=normaliseProjectStage(data.project_stage);
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
@@ -122,6 +142,35 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        </section>:null}
      </div>
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
+   </section>
+   <section className={css.section} aria-label="Execution partner and delivery evidence">
+     <div className={css.sectionHeading}><h2>Execution partner &amp; QA evidence</h2></div>
+     <div className={css.card}>
+       <span className={css.overline}>CONTROLLED DELIVERY POSITION</span>
+       {evidenceUnavailable?<p role="alert" className={css.meta}>Some delivery evidence could not be retrieved. Treat missing information as unverified, not as an approval.</p>:null}
+       <div className={css.factRow} style={{marginTop:16}}>
+         <span>Work Order / execution: <strong>{assignment?String(assignment.execution_state||'Status not recorded').replaceAll('_',' '):'No assignment recorded'}</strong></span>
+         <span>Partner access: <strong>{partnerSession?String(partnerSession.status||'Status not recorded').replaceAll('_',' '):'No invitation recorded'}</strong></span>
+         <span>Technical submissions: <strong>{submissions.length}{submissions.length===5?' (latest five)':''}</strong></span>
+         <span>Client review issue: <strong>{transmittal?'Issued '+date(transmittal.issued_at):'Not recorded'}</strong></span>
+       </div>
+       {assignment?<p className={css.meta} style={{marginTop:18}}>Partner: {assignment.partner_contact_name||'Contact not recorded'} · Work Order reference: {assignment.release_reference||'Not recorded'} · Released: {date(assignment.released_at)} · Execution cycle: {assignment.execution_cycle||1}</p>:null}
+       {partnerSession?<p className={css.meta} style={{marginTop:10}}>Partner session first opened: {date(partnerSession.first_opened_at)} · Expires: {date(partnerSession.expires_at)}. This is session evidence, not proof of Work Order acceptance.</p>:null}
+       {submissions.length?<div style={{marginTop:22}}><h3 style={{fontSize:16,marginBottom:12}}>Latest engineering submissions</h3>
+         <ul style={{paddingLeft:20}}>{submissions.map(item=><li key={item.id} style={{marginBottom:10}}>
+           <strong>Revision {item.revision||'Unspecified'}</strong> · {String(item.review_status||'Review pending').replaceAll('_',' ')} · {date(item.submitted_at)}
+           {item.delivery_summary?<p className={css.meta}>{item.delivery_summary}</p>:null}
+         </li>)}</ul>
+       </div>:<p className={css.meta} style={{marginTop:20}}>No partner engineering submission is recorded. Technical QA cannot be presumed complete.</p>}
+       {deliveryItems.length?<div style={{marginTop:22}}><h3 style={{fontSize:16,marginBottom:12}}>Delivery item checkpoints</h3>
+         <ul style={{paddingLeft:20}}>{deliveryItems.map(item=><li key={item.id} style={{marginBottom:10}}>
+           <strong>{item.title}</strong> · {String(item.status||'Pending').replaceAll('_',' ')}
+           <span className={css.meta}> · Internal QA: {String(item.internal_review_status||'Not recorded').replaceAll('_',' ')} · Client: {String(item.client_review_status||'Not recorded').replaceAll('_',' ')}</span>
+         </li>)}</ul>
+       </div>:null}
+       {transmittal?<p className={css.meta} style={{marginTop:20}}>Last client transmittal: {transmittal.transmittal_reference||'Reference not recorded'} · {date(transmittal.issued_at)} · {transmittal.recipient_name||'Recipient not recorded'}.</p>:null}
+       <p className={css.meta} style={{marginTop:22}}>This panel displays existing evidence only. Partner acceptance, technical QA approval, client review and settlement remain separate governed decisions; this screen does not issue or download controlled files.</p>
+     </div>
    </section>
  </>;
 }
