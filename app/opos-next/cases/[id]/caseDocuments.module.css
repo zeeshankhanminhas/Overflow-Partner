@@ -27,3 +27,9 @@
 .nextStep p{margin:8px 0 0;font-size:13px;line-height:1.7;color:#b9c0cc}
 .actionCard .submit{font-size:14px;padding:15px 20px;min-height:48px}
 @media(max-width:600px){.offerSummary,.fieldGrid{grid-template-columns:1fr}.actionCard{padding:18px}.offerSummary strong{font-size:21px}}
+
+.errorNotice,.successNotice{border-radius:12px;padding:18px 20px;margin-bottom:20px;font-size:14px;line-height:1.65}
+.errorNotice{background:#2b191c;border:1px solid #a95160;color:#ffe2e5}
+.successNotice{background:#13251d;border:1px solid #477d62;color:#e3f6e9}
+.errorNotice strong,.successNotice strong{display:block;font-size:15px;margin-bottom:6px}
+.errorNotice p,.successNotice p{margin:4px 0}
