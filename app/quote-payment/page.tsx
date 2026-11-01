@@ -13,9 +13,9 @@ function unavailable(title:string,detail='Please contact Overflow Partner for as
  </section></div></main>;
 }
 
-export default async function QuotePaymentPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+export default async function QuotePaymentPage({ searchParams }: { searchParams: Promise<{ token?: string; stripe_return?: string }> }) {
   if (process.env.OP_PACKAGE01_PAYMENTS_ENABLED !== 'true') return unavailable('Payment page not yet available','Secure online payment is not currently enabled.');
-  const { token = '' } = await searchParams;
+  const { token = '', stripe_return = '' } = await searchParams;
   const access = token ? verifyClientPortalToken(token) : null;
   if (!access) return unavailable('Payment link unavailable','Please request a fresh secure link from Overflow Partner.');
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -33,14 +33,20 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   if(!['payment','deposit'].includes(String(contract.release_basis)))return unavailable('No online payment is due',`Quotation ${quote.quote_number} is governed by its agreed ${contract.release_basis==='purchase_order'?'purchase-order':'no-advance'} release condition. Overflow Partner will verify the required authority before mobilisation.`);
   // Fail closed on missing financial evidence and an already-created Project.
   // A transient ledger error must never offer a second opening-payment action.
-  const [paymentResult,releaseResult,projectResult]=await Promise.all([
+  const [paymentResult,releaseResult,projectResult,stripeEvidenceResult]=await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('projects').select('id,project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_stripe_payment_events').select('stripe_session_id,verified_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).eq('stripe_payment_status','paid').limit(1).maybeSingle(),
   ]);
-  if(paymentResult.error||releaseResult.error||projectResult.error)
+  if(paymentResult.error||releaseResult.error||projectResult.error||stripeEvidenceResult.error)
     return unavailable('Payment verification temporarily unavailable','The financial ledger could not be verified. No new payment is requested until this check succeeds.');
   const confirmed = Boolean(paymentResult.data?.confirmed_at || releaseResult.data?.confirmed_at || projectResult.data?.id);
+  const verifiedStripeEvent = Boolean(stripeEvidenceResult.data?.stripe_session_id);
+  // A verified Stripe event is not the same as a completed financial release.
+  // Never offer another Checkout while the original payment awaits reconciliation.
+  const settlementPending = !confirmed && verifiedStripeEvent;
+  const stripeReturnPending = !confirmed && stripe_return === 'success';
   const bankName=process.env.OP_BANK_NAME;
   const bankAccount=process.env.OP_BANK_ACCOUNT_NUMBER;
   const bankSort=process.env.OP_BANK_SORT_CODE;
@@ -60,12 +66,15 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   return <main className={css.page}><div className={css.shell}>
     <p className={css.brand}><span>◈</span> OVERFLOW PARTNER</p>
     <p className={css.eyebrow}>SECURE CLIENT PORTAL / COMMERCIAL SETTLEMENT</p>
-    <h1 className={css.title}>{confirmed?'Commercial release recorded':'Complete your opening payment'}</h1>
+    <h1 className={css.title}>{confirmed?'Commercial release recorded':settlementPending?'Payment received · verification pending':stripeReturnPending?'Verifying Stripe payment':'Complete your opening payment'}</h1>
     <p className={css.intro}>Quotation {quote.quote_number} · Revision {quote.revision}</p>
     <section className={css.panel}>
       <div className={css.status}><p className={css.eyebrow}>AGREED OPENING PAYMENT</p><h2>{amount}</h2><p>Total quotation {formatAmount(quoteTotal)}{hasStagedPayment?' · Final balance is payable before native engineering handover.':''}</p></div>
       <p className={css.note}>Only the agreed opening amount is due now. Do not pay the full quotation value unless that is explicitly your accepted opening amount.</p>
-      {confirmed?<div className={css.section}><h3>Opening release already recorded</h3><p className={css.note}>{projectResult.data?.id?'A Project record already exists for this quotation.':'Payment or authorised commercial release has already been recorded.'} No additional opening payment is requested here.</p></div>:<>
+      {confirmed?<div className={css.section}><h3>Opening release already recorded</h3><p className={css.note}>{projectResult.data?.id?'A Project record already exists for this quotation.':'Payment or authorised commercial release has already been recorded.'} No additional opening payment is requested here.</p></div>:settlementPending || stripeReturnPending?<div className={css.section}>
+        <h3>{settlementPending?'Stripe payment evidence received':'Waiting for Stripe confirmation'}</h3>
+        <p className={css.note}>{settlementPending?'Your payment has been verified by Stripe. Our team is completing the controlled financial release and Project setup.':'Stripe has returned you from Checkout. We are waiting for independently verified payment evidence.'} Do not attempt another payment. Refresh this page later to check progress.</p>
+      </div>:<>
         <div className={css.section}><h3>Secure card payment</h3>
           {stripeAvailable ? <form action={createStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Continue to Stripe Checkout →</button></form>
             :<p className={css.note}>{hasStagedPayment?'Secure Stripe deposit Checkout is not currently enabled for this quotation.':'Secure online Checkout is not yet enabled.'} Please contact Overflow Partner before transferring funds.</p>}
