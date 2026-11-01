@@ -1,4 +1,5 @@
 import {notFound} from 'next/navigation';
+import styles from './caseDocuments.module.css';
 import {requireUserContext} from '@/lib/auth/context';
 import {resolveCaseQueuePresentation} from '@/lib/presentation/queueState';
 import WorkRecordV2 from '../../WorkRecordV2';
@@ -58,7 +59,7 @@ export default async function CasePage({params}:{params:Promise<{id:string}>}){
     ]}
     governedHref={'/opos-next/cases/'+id+'#case-evidence'}
     previous="/opos-next/cases"/>
-    <section id="case-evidence" style={{maxWidth:960,margin:"24px auto",padding:"0 24px"}}>
+    <section id="case-evidence" className={styles.panel}>
       <DocumentGenerationPanel context="case" recordId={id} quoteId={workflow.clientQuote?.id} returnTo={`/opos-next/cases/${id}`} stageLabel={caseDocuments.stageLabel} items={caseDocuments.items}/>
       {workflow.technicalIntake&&!scopeApproved?<form action={approveIntakeAction} style={{marginTop:24}}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="intake_id" value={workflow.technicalIntake.id}/><button className="button" type="submit">Approve technical scope after document approval</button></form>:null}
     </section></>;
