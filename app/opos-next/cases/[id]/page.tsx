@@ -29,6 +29,12 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   if(!workflow)notFound();
   const scopeApproved=workflow.technicalIntake?.status==='approved';
   const {data:quoteIssue}=workflow.clientQuote?.status==='issued' ? await supabase.from('quote_issue_records').select('recipient_name,recipient_email,client_response,quote_revision').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).maybeSingle() : {data:null};
+  const clientAccepted=quoteIssue?.client_response==='accepted';
+  const {data:releaseContract}=clientAccepted&&workflow.clientQuote ? await supabase.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).eq('quote_revision',workflow.clientQuote.revision).maybeSingle() : {data:null};
+  const openingAmount=Number(releaseContract?.opening_amount);
+  const awaitingAdvance=clientAccepted&&['payment','deposit'].includes(String(releaseContract?.release_basis));
+  const nextDecisionTitle=clientAccepted?(awaitingAdvance?'Awaiting advance payment verification':'Awaiting contractual release verification'):view.nextAction.label;
+  const nextDecisionDescription=clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client accepted the quotation. Opening payment of £${openingAmount.toFixed(2)} must be received and verified before Project 360 can be created.`:'Client accepted the quotation. Confirm the agreed opening amount and verify payment before creating Project 360.'):'Client accepted the quotation. Verify the agreed release condition before Project 360 can be created.'):view.summary;
   const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(partnerReviews?.length),partnerResponseReady:Boolean(partnerReviews?.some(r=>['approved','approved_with_conditions'].includes(r.status))),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
   const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
   const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
@@ -42,15 +48,15 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     title={lead.title||lead.company_name}
     subtitle={lead.company_name+' · Controlled pre-project commercial record'}
     state={view.state} owner="Overflow Partner"
-    nextTitle={view.nextAction.label}
-    nextDescription={view.summary}
+    nextTitle={nextDecisionTitle}
+    nextDescription={nextDecisionDescription}
     stages={[
       {name:'Requirements',detail:'Governed scope'},
       {name:'Feasibility',detail:'Partner technical assessment'},
       {name:'Commercial offer',detail:'Price and quote decisions'},
       {name:'Commitment',detail:'Client decision and advance'},
     ]}
-    stageIndex={stageIndex} waiting={waiting}
+    stageIndex={clientAccepted?3:stageIndex} waiting={clientAccepted||waiting}
     evidence={[
       {label:'Case record',value:lead.reference||id.slice(0,8)},
       {label:'Governed workflow position',value:queueResult.error?'Unavailable — verify in controlled record':view.state},
@@ -59,8 +65,8 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     ]}
     facts={[
       {label:'Company',value:lead.company_name},
-      {label:'Record status',value:String(lead.status||'Not recorded').replaceAll('_',' ')},
-      {label:'Current stage',value:stage.replaceAll('_',' ')},
+      {label:'Record status',value:clientAccepted?'Quotation accepted':String(lead.status||'Not recorded').replaceAll('_',' ')},
+      {label:'Current stage',value:clientAccepted?'Commitment — release pending':stage.replaceAll('_',' ')},
     ]}
     governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
