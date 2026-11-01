@@ -39,7 +39,7 @@ export default async function NotificationEvidencePage({
     </section>:null}
     <section className={css.section} aria-label="Outbound notification evidence">
       <div className={css.sectionHeading}><h2>Recent delivery attempts</h2><span className={css.meta}>Organisation-scoped records · newest first</span></div>
-      {messages.length?<ul className={css.queue}>{messages.map((item:{id:string;event_key:string;status:string;attempts:number;sent_at:string|null;last_error:string|null;created_at:string})=>
+      {messages.length?<ul className={css.queue}>{messages.map((item:{id:string;entity_type:string;entity_id:string;event_key:string;status:string;attempts:number;sent_at:string|null;last_error:string|null;created_at:string})=>
         <li key={item.id}><div style={{padding:'18px 0'}}>
           <strong>{item.event_key.replaceAll('.',' · ')} — {label(item.status)}</strong>
           <p className={css.meta}>Queued {when(item.created_at)} · Attempts {item.attempts} · Provider accepted {when(item.sent_at)}</p>
