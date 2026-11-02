@@ -47,7 +47,7 @@ export async function ensureApprovedPartnerAssignment(
  db:SupabaseClient,organisationId:string,userId:string,projectId:string,scopeDocumentId:string
 ){
   if(process.env.VERCEL_ENV==='preview'&&!isKnownIsolatedQaBackend())throw new Error('Automatic partner work-order QA requires a genuinely isolated database.');
-  const {project,partner,partnerQuote}=await governedPartner(db,organisationId,projectId);
+  const {project,partner}=await governedPartner(db,organisationId,projectId);
   if(!['mobilisation','ready_for_execution'].includes(String(project.project_stage)))
     throw new Error('Automatic Work Order issuance requires a financially released project in Mobilisation.');
   const {data:scope}=await db.from('documents').select('id,document_type,project_id,status,is_current_revision')
