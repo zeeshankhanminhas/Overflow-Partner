@@ -39,6 +39,18 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     p_organisation_id:organisationId,p_quote_id:quote.id,
   });
   const preprojectReady=!lineageError&&lineage?.ready===true;
+  const missingLineageReasons:Record<string,string>={
+    issued_quotation_missing:'No current issued quotation: review the quotation and issuance record.',
+    approved_commercial_review_missing:'Approved pre-quotation commercial review is missing.',
+    approved_partner_price_lineage_missing:'Approved partner pricing does not match the commercial quotation lineage.',
+    approved_nda_partner_missing:'Selected Execution Partner is not yet approved and NDA-ready. Review its status and verified confidentiality evidence in the Partner register.',
+    approved_technical_intake_missing:'Approved technical intake evidence was not recorded before the quotation.',
+    approved_client_requirements_missing:'Approved Client Requirements Record is missing from the technical intake.',
+    approved_partner_technical_assessment_missing:'Approved Execution Partner assessment evidence is missing or mismatched.',
+  };
+  const lineageReason=String(lineage?.reason||'unavailable');
+  const lineageExplanation=lineageError?'Readiness verification failed. No payment may proceed.':
+    missingLineageReasons[lineageReason]||'Required technical or commercial approval evidence could not be verified.';
   let origin='';let originOkay=false;
   try{origin=qaPublicOrigin();originOkay=true;}catch{/* Leave unavailable on fail-closed diagnostics. */}
   const stripeTestKey=Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'));
@@ -55,8 +67,8 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
   const checks:Check[]=[
     {label:'Isolated QA database',pass:true,detail:'Separate preview-only Supabase backend verified'},
     {label:'Stable QA URL',pass:originOkay,detail:originOkay?origin:'Missing or mismatched preview branch address'},
-    {label:'Accepted controlled quotation',pass:accepted,detail:accepted?'Accepted revision '+quote.revision:'Accepted revision evidence missing'},
-    {label:'Pre-project technical and commercial lineage',pass:preprojectReady,detail:preprojectReady?'Approved technical intake, partner assessment, approved commercial review and NDA-ready selected partner':'Unverified or incomplete governance evidence ('+String(lineage?.reason||'unavailable')+')'},
+    {label:'Client response to issued quotation',pass:accepted,detail:accepted?'Client responded accepted for revision '+quote.revision+'; contractual release is separate.':'Accepted response for the current revision is missing'},
+    {label:'Pre-project technical and commercial lineage',pass:preprojectReady,detail:preprojectReady?'Approved technical intake, partner assessment, approved commercial review and NDA-ready selected partner':lineageExplanation},
     {label:'Opening payment terms',pass:contractOkay,detail:contractOkay?String(contract.data?.release_basis)+' · '+String(contract.data?.opening_amount)+' '+quote.currency:'Frozen deposit/payment terms not available'},
     {label:'Named acceptance evidence matches frozen terms',pass:signatoryMatches,detail:signatoryMatches?'Authorised contact and attested signatory match exactly':'Missing or mismatched signatory identity'},
     {label:'QA email configuration',pass:process.env.OP_QA_EMAIL_SENDING_ENABLED==='true'&&Boolean(process.env.RESEND_API_KEY)&&Boolean(process.env.RESEND_FROM_EMAIL),detail:'Isolated QA recipient allowlist still enforced'},
@@ -85,6 +97,12 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
       <h1 style={{fontSize:28,fontWeight:650}}>Payment and portal readiness</h1>
       <p style={{opacity:.75}}>Quotation {quote.quote_number} · No funds, authorisations, or case records are changed by this page.</p>
     </div>
+    {!preprojectReady?<div style={{padding:16,border:'1px solid #946b35',borderRadius:12}}>
+      <strong>Operator action · pre-project evidence incomplete</strong>
+      <p style={{marginTop:8}}>{lineageExplanation}</p>
+      <p style={{marginTop:10,fontSize:13,opacity:.8}}>Do not change a partner to approved, assert a signed NDA, or issue a replacement quotation without evidence and authorised review.</p>
+      <Link href="/opos-next/partners" style={{display:'inline-block',marginTop:12,color:'inherit',textDecoration:'underline'}}>Review Execution Partner register →</Link>
+    </div>:null}
     <div style={{padding:16,border:'1px solid currentColor',borderRadius:12}}>
       <strong>{project.data?.id?'Project 360 created':settlementPending?'Stripe payment verified · project release pending':paymentReady?'Checkout preflight passed':'Checkout preflight blocked'}</strong>
       <p style={{marginTop:8,opacity:.8}}>{settlementPending?'Do not attempt another Stripe payment. Signed payment evidence is recorded; final project release is still being verified.':'This is a configuration and database preflight, not proof of delivered email, real Stripe Checkout, or a reconciled webhook.'}</p>
