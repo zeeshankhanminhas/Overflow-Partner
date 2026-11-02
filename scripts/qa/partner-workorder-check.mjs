@@ -33,7 +33,7 @@ const ids={
 };
 const tables={
   projects:[{id:ids.project,organisation_id:ids.org,quote_id:ids.quote,project_number:'OP-QA-WO-1',
-    project_stage:'mobilisation',start_date:'2026-10-24',due_date:null}],
+    project_stage:'mobilisation',start_date:'2026-10-24',due_date:null,created_by:ids.actor}],
   quotes:[{id:ids.quote,organisation_id:ids.org,commercial_review_id:ids.commercial}],
   commercial_reviews:[{id:ids.commercial,organisation_id:ids.org,partner_quote_id:ids.partnerQuote,status:'approved',approved_at:'2026-10-20T00:00:00Z'}],
   partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner,price:180,currency:'GBP',status:'selected',lead_time_days:12,delivery_commitment:'12 business days',commercial_assumptions:'Client input on time',exclusions:'Unapproved redesign'}],
@@ -47,6 +47,8 @@ const tables={
   project_execution_assignments:[],
   partner_execution_sessions:[],
   partner_work_orders:[],
+  project_work_order_handoffs:[],
+  activity_events:[],
 };
 let gate={authorised:true,basis:'deposit',required:300,received:300};
 const uuidFor=(table)=>table==='partner_execution_sessions'?ids.session:table==='partner_work_orders'?ids.workOrder:ids.assignment;
@@ -88,7 +90,11 @@ class Builder {
 const db={
   from(table){if(!Object.hasOwn(tables,table))throw new Error('Undeclared QA table '+table);
     return {select:()=>new Builder(table),insert:value=>new Builder(table,'insert',value),
-      update:value=>new Builder(table,'update',value)};},
+      update:value=>new Builder(table,'update',value),
+      upsert:async(value)=>{const index=tables[table].findIndex(row=>row.project_id===value.project_id);
+        if(index>=0)Object.assign(tables[table][index],value);
+        else tables[table].push({...value});
+        return {data:value,error:null};}};},
   rpc:async(name)=>{
     assert.equal(name,'op_project_financial_gate','Only governed finance gate may authorise work');
     return {data:gate,error:null};
@@ -114,6 +120,8 @@ process.env.NEXT_PUBLIC_SITE_URL='https://qa.example.invalid';
 try {
   const {ensureApprovedPartnerAssignment,releaseApprovedPartnerWorkOrder}=
     require(resolve(root,'lib/execution/autoWorkOrder.ts'));
+  const {issueWorkOrderAfterVerifiedOpeningPayment}=
+    require(resolve(root,'lib/execution/paymentWorkOrderHandoff.ts'));
   async function blocked(action,substring,description){
     await assert.rejects(action(),error=>error instanceof Error && error.message.includes(substring),description);
     check(true,description);
@@ -167,6 +175,17 @@ try {
   check(tables.partner_execution_sessions.length===1,'Retry creates no second execution portal');
   check(tables.partner_work_orders.length===1,'Retry never creates a second Work Order or partner price');
   check(emails[1].idempotencyKey===emails[0].idempotencyKey,'Retry uses stable outbox idempotency key');
+  const handoff=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
+  check(handoff.status==='queued','Verified opening payment handoff issues the existing priced order');
+  check(tables.project_work_order_handoffs.length===1&&tables.project_work_order_handoffs[0].status==='queued',
+    'Handoff persists one queued record in Project 360');
+  check(tables.partner_work_orders.length===1,'Webhook replay does not issue another Work Order');
+  check(tables.partner_execution_sessions.length===1,'Webhook replay does not create another partner portal');
+  tables.quotes[0].commercial_review_id=null;
+  const blockedHandoff=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
+  check(blockedHandoff.status==='awaiting_evidence','Missing earlier commercial selection leaves controlled pending evidence');
+  check(tables.partner_work_orders.length===1,'No reassignment or price change when original commercial selection disappears');
+  check(tables.project_work_order_handoffs[0].status==='awaiting_evidence','Project 360 displays a durable automatic handoff blocker');
   console.log('OPOS partner-workorder QA passed: '+checks+' checks, fake email only, no network.');
 }finally {
   Module._load=originalLoad;
