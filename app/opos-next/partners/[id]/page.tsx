@@ -2,6 +2,9 @@ import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
 import QaReadinessForm from '../QaReadinessForm';
+import PartnerGovernanceForms from '../PartnerGovernanceForms';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import {createClient} from '@supabase/supabase-js';
 
 const QA_ORG='717262cb-68da-4e7b-a9fa-238dc6c5d16b';
 
@@ -17,8 +20,26 @@ export default async function PartnerDetail({params,searchParams}:{params:Promis
   const qa=organisationId===QA_ORG && partner.company_name.startsWith('QA - ');
   const {data:qaApproval,error:qaApprovalError}=qa?await supabase.from('activity_events').select('id,created_at').eq('organisation_id',QA_ORG).eq('entity_type','partner').eq('entity_id',id).eq('event_type','qa.partner_simulated_readiness_approved').order('created_at',{ascending:false}).limit(1).maybeSingle():{data:null,error:null};
   if(qaApprovalError)throw new Error('QA readiness evidence could not be loaded.');
-  const nda=partner.nda_signed===true && !!partner.nda_signed_at;
-  const approved=partner.status==='approved';
+  const qaGovernanceEnabled=isKnownIsolatedQaBackend();
+  // Evidence tables are deliberately service-role read-only. Admin access
+  // stays on the server and is filtered by the authenticated organisation.
+  let ndaVerified=false;
+  let independentlyApproved=false;
+  if(qaGovernanceEnabled && !qa){
+    const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if(!url||!key)throw new Error('QA partner governance backend unavailable.');
+    const admin=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+    const [ndaCheck,approvalCheck]=await Promise.all([
+      admin.from('op_partner_nda_verifications').select('id').eq('organisation_id',organisationId).eq('partner_id',id).eq('is_current',true).maybeSingle(),
+      admin.from('op_partner_internal_approvals').select('id').eq('organisation_id',organisationId).eq('partner_id',id).eq('is_current',true).maybeSingle(),
+    ]);
+    if(ndaCheck.error||approvalCheck.error)throw new Error('Governance evidence could not be verified.');
+    ndaVerified=Boolean(ndaCheck.data?.id);
+    independentlyApproved=Boolean(approvalCheck.data?.id);
+  }
+  const nda=partner.nda_signed===true && !!partner.nda_signed_at && (!qaGovernanceEnabled||qa||ndaVerified);
+  const approved=partner.status==='approved' && (!qaGovernanceEnabled||qa||independentlyApproved);
   const eligible=approved && nda && !!partner.email;
   const steps=[
     {name:'Contact and capability',complete:!!partner.email && !!partner.services,description:'Capture a named contact, controlled email destination and engineering capabilities.'},
@@ -55,6 +76,7 @@ export default async function PartnerDetail({params,searchParams}:{params:Promis
       </div>
     </section>
     {qa && !eligible && !qaApproval?<QaReadinessForm partnerId={partner.id}/>:null}
+    {qaGovernanceEnabled && !qa?<PartnerGovernanceForms partnerId={partner.id} ndaVerified={ndaVerified} approved={independentlyApproved}/>:null}
     <section style={{border:'1px solid #4446',borderRadius:12,padding:20,marginTop:26}}>
       <h2 style={{fontSize:18,marginBottom:10}}>Capabilities and controlled context</h2>
       <p style={{fontSize:14}}>{partner.services||'Capabilities not recorded'}</p>
