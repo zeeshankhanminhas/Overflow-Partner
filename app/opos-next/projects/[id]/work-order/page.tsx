@@ -49,7 +49,7 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
     if(!reviewError&&review?.partner_quote_id&&String(review.status)==='approved'){
       const {data:pq}=await supabase.from('partner_quotes').select('partner_id,status')
         .eq('organisation_id',organisationId).eq('id',review.partner_quote_id).maybeSingle();
-      if(pq?.partner_id&&pq.status==='selected'){
+      if(pq?.partner_id&&['received','selected'].includes(String(pq.status))){
         const {data:partner}=await supabase.from('partners').select('id,company_name,status,nda_signed,email')
           .eq('organisation_id',organisationId).eq('id',pq.partner_id).maybeSingle();
         if(partner){selectedPartnerId=partner.id;partnerName=partner.company_name;partnerApproved=partner.status==='approved';partnerNda=Boolean(partner.nda_signed);partnerEmail=Boolean(partner.email);}
