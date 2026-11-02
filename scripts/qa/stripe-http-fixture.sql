@@ -70,11 +70,11 @@ insert into public.partner_review_requests(
 );
 insert into public.partner_review_responses(
  id,organisation_id,partner_review_request_id,feasibility,confidence_percent,
- capability_confirmed,capacity_status,pricing_readiness,declaration_checked,reviewer_name,submitted_at
+ capability_confirmed,capacity_status,pricing_readiness,declaration_checked,reviewer_name,estimated_engineering_hours,estimated_lead_time_days,submitted_at
 ) values (
  '00000000-0000-4000-8000-000000009930','00000000-0000-4000-8000-000000009922',
  '00000000-0000-4000-8000-000000009929','feasible',100,true,'available',
- 'ready',true,'CI Simulation',now()-interval '20 hours'
+ 'ready',true,'CI Simulation',35,7,now()-interval '20 hours'
 );
 insert into public.partner_review_internal_decisions(
  organisation_id,partner_review_request_id,partner_review_response_id,decision,
