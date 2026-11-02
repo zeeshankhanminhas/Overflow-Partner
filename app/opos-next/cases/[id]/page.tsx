@@ -50,7 +50,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
     subtitle={lead.company_name+' · Controlled pre-project commercial record'}
-    state={clientAccepted?'Quotation accepted':view.state} owner="Overflow Partner"
+    state={clientAccepted?'Client response accepted · release pending':view.state} owner="Overflow Partner"
     nextTitle={nextDecisionTitle}
     nextDescription={nextDecisionDescription}
     stages={[
@@ -62,13 +62,13 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     stageIndex={clientAccepted?3:stageIndex} waiting={clientAccepted||waiting}
     evidence={[
       {label:'Case record',value:lead.reference||id.slice(0,8)},
-      {label:'Governed workflow position',value:clientAccepted?'Accepted — release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
+      {label:'Governed workflow position',value:clientAccepted?'Client response recorded — formal release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
       {label:'Client Requirements Record',value:clientRequirements?`${clientRequirements.reference||'Document'} · ${clientRequirements.status}`:'Missing'},
       {label:'Partner Technical Assessment Report',value:partnerAssessment?`${partnerAssessment.reference||'Document'} · ${partnerAssessment.status}`:'Not generated'},
     ]}
     facts={[
       {label:'Company',value:lead.company_name},
-      {label:'Record status',value:clientAccepted?'Quotation accepted':String(lead.status||'Not recorded').replaceAll('_',' ')},
+      {label:'Record status',value:clientAccepted?'Client responded: accepted — project not released':String(lead.status||'Not recorded').replaceAll('_',' ')},
       {label:'Current stage',value:clientAccepted?'Commitment — release pending':stage.replaceAll('_',' ')},
     ]}
     governedHref={'/opos-next/cases/'+id+'#case-decision'}
