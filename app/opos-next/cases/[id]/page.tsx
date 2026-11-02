@@ -30,6 +30,19 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const workflow=await getWorkflowCase(supabase,organisationId,id);
   const {data:partnerReviews}=await supabase.from('partner_review_requests').select('id,status').eq('organisation_id',organisationId).eq('lead_id',id).limit(1);
   if(!workflow)notFound();
+  // QA operator warning: do not change or reissue an accepted quotation in place.
+  const inspectTaxTerms=isKnownIsolatedQaBackend() &&
+    ['owner','admin'].includes(profile.role) &&
+    workflow.clientQuote?.status==='issued' &&
+    Number(workflow.clientQuote.vat)>0 &&
+    Boolean(workflow.partnerQuote?.id);
+  const {data:terms,error:termsError}=inspectTaxTerms
+    ? await supabase.from('partner_quotes').select('exclusions')
+      .eq('organisation_id',organisationId).eq('id',workflow.partnerQuote!.id).maybeSingle()
+    : {data:null,error:null};
+  const taxConflict=inspectTaxTerms && !termsError &&
+    /\b(?:VAT|value[\s-]*added[\s-]*tax)\b/i.test(String(terms?.exclusions||''));
+  const taxCheckFailed=inspectTaxTerms && Boolean(termsError);
   const scopeApproved=workflow.technicalIntake?.status==='approved';
   const {data:quoteIssue}=workflow.clientQuote?.status==='issued' ? await supabase.from('quote_issue_records').select('recipient_name,recipient_email,client_response,quote_revision').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).maybeSingle() : {data:null};
   const clientAccepted=quoteIssue?.client_response==='accepted';
@@ -44,8 +57,8 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const view=resolveCaseQueuePresentation(stage);
   const normalised=stage.toLowerCase().replaceAll('_','-');
   const stageIndex=normalised.includes('project')?3:normalised.includes('commercial')||normalised.includes('quote')?2:normalised.includes('partner')?1:0;
-  const nextDecisionTitle=clientAccepted?(awaitingAdvance?'Verify pre-project approvals and opening payment':'Awaiting contractual release verification'):view.nextAction.label;
-  const nextDecisionDescription=clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client response recorded. Verify the technical and approved Execution Partner lineage before requesting the £${openingAmount.toFixed(2)} advance. Project 360 requires independent payment verification.`:'Client response recorded. Complete technical, partner and opening-payment approvals before Project 360.'):'Client response recorded. Verify the agreed release condition before Project 360 can be created.'):view.summary;
+  const nextDecisionTitle=taxConflict?'Resolve inconsistent VAT in issued client quotation':clientAccepted?(awaitingAdvance?'Verify pre-project approvals and opening payment':'Awaiting contractual release verification'):view.nextAction.label;
+  const nextDecisionDescription=taxConflict?'The accepted quotation charges VAT while the exclusions also say VAT is excluded. Keep the existing revision unchanged, stop payment and request a controlled correction with renewed client approval.':clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client response recorded. Verify the technical and approved Execution Partner lineage before requesting the £${openingAmount.toFixed(2)} advance. Project 360 requires independent payment verification.`:'Client response recorded. Complete technical, partner and opening-payment approvals before Project 360.'):'Client response recorded. Verify the agreed release condition before Project 360 can be created.'):view.summary;
   const waiting=view.nextAction.kind==='wait'&&!view.approval?.required;
   return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
@@ -78,6 +91,16 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       <h2>Check approval evidence before requesting payment</h2>
       <p>A recorded client response is not proof of verified partner approval, confidentiality, or opening payment. The client portal deliberately withholds payment while any gate fails.</p>
       <p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>Review the exact readiness checks and partner register →</Link></p>
+    </section>:null}
+    {taxConflict?<section className={styles.panel} role="alert" aria-label="Client quotation VAT conflict">
+      <div className={styles.eyebrow}>QA DEFECT · CLIENT QUOTATION</div>
+      <h2>Conflicting VAT terms — payment blocked</h2>
+      <p>This issued client quotation charges VAT but also states that VAT is excluded. Preserve the existing accepted revision and audit trail. No opening payment should be requested.</p>
+      <p><strong>Next owner: OP commercial reviewer.</strong> Correct the client-facing wording through an authorised, version-preserving quotation revision and obtain fresh client acceptance.</p>
+    </section>:null}
+    {taxCheckFailed?<section className={styles.panel} role="alert">
+      <h2>Quotation terms could not be checked</h2>
+      <p>The commercial reviewer must verify the client-facing exclusions before any payment request.</p>
     </section>:null}
     <section id="case-decision" className={styles.panel}>
       {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Action could not be completed</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
