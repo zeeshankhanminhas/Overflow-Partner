@@ -121,9 +121,9 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       </div>:null}
       {workflow.clientQuote&&quoteIssue?.client_response==='accepted'&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
         <div className={styles.eyebrow}>CLIENT PORTAL · ACCESS RECOVERY</div>
-        <h2>Send fresh client portal link</h2>
+        <h2>{taxConflict||taxCheckFailed?'Portal link resending is paused':'Send fresh client portal link'}</h2>
         {isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>View QA delivery and payment readiness</Link></p>:null}
-        <p>Send secure access to the original authorised recipient without changing the accepted quotation or payment status.</p>
+        <p>{taxConflict||taxCheckFailed?'Do not re-invite the client to a quotation with unresolved commercial terms. The original accepted record remains unchanged.':'Send secure access to the original authorised recipient without changing the accepted quotation or payment status.'}</p>
         <p><strong>Recipient:</strong> {quoteIssue.recipient_email}</p>
         {taxConflict||taxCheckFailed
           ? <p role="status" className={styles.pausedNotice}><strong>Resend paused for this quotation.</strong> The accepted client quotation needs its VAT wording checked and corrected before another portal invitation is sent. Previously sent links remain available for status viewing.</p>
