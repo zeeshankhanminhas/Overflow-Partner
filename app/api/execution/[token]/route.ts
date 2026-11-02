@@ -39,7 +39,7 @@ export async function GET(_:Request,context:{params:Promise<{token:string}>}){
   try{
     const{token}=await context.params;const{supabase,session,assignment}=await loadSession(token);if(!session||!assignment)return NextResponse.json({message:'This Partner Execution link is invalid, expired or revoked.'},{status:404});
     const now=new Date().toISOString();const firstOpen=!session.first_opened_at;await supabase.from('partner_execution_sessions').update({status:session.status==='invited'?'opened':session.status,first_opened_at:session.first_opened_at||now,last_opened_at:now}).eq('id',session.id);if(firstOpen)await audit(supabase,assignment,'partner_execution.workspace_opened',{sessionId:session.id,recipientEmail:session.recipient_email});
-    const[projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult]=await Promise.all([
+    const[projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult,workOrderResult]=await Promise.all([
       supabase.from('projects').select('id,project_number,title,start_date,due_date,project_stage').eq('id',assignment.project_id).single(),
       supabase.from('partners').select('id,company_name,contact_name').eq('id',assignment.partner_id).single(),
       assignment.scope_document_id?supabase.from('documents').select('id,title,reference,status,revision_code,issue_purpose').eq('id',assignment.scope_document_id).maybeSingle():Promise.resolve({data:null,error:null}),
@@ -48,9 +48,10 @@ export async function GET(_:Request,context:{params:Promise<{token:string}>}){
       supabase.from('partner_execution_exceptions').select('id,severity,title,description,delivery_impact,required_from,status,raised_at,resolved_at,resolution_note').eq('assignment_id',assignment.id).order('raised_at',{ascending:false}).limit(20),
       supabase.from('partner_delivery_submissions').select('id,execution_cycle,revision,delivery_summary,deliverables_manifest,submitted_by_name,submitted_by_role,submitted_at,review_status').eq('assignment_id',assignment.id).order('submitted_at',{ascending:false}).limit(20),
       supabase.from('partner_work_order_acceptances').select('id,accepted_by_name,accepted_by_role,accepted_at,scope_document_id').eq('assignment_id',assignment.id).eq('organisation_id',assignment.organisation_id).maybeSingle(),
+      supabase.from('partner_work_orders').select('reference,partner_price,currency,lead_time_days,delivery_commitment,payment_terms,commercial_assumptions,exclusions,issued_at,scope_reference').eq('organisation_id',assignment.organisation_id).eq('assignment_id',assignment.id).maybeSingle(),
     ]);
-    for(const result of [projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult])if(result.error)throw result.error;
-    return NextResponse.json({execution:{assignment_id:assignment.id,execution_state:assignment.execution_state,execution_cycle:assignment.execution_cycle||1,release_reference:assignment.release_reference,planned_start_date:assignment.planned_start_date,committed_due_date:assignment.committed_due_date,reporting_cadence:assignment.reporting_cadence,release_notes:assignment.release_notes,released_at:assignment.released_at},project:projectResult.data,partner:partnerResult.data,controlled_scope:scopeResult.data,work_order_acceptance:workOrderAcceptanceResult.data,commencement:commencementResult.data,progress_updates:progressResult.data||[],exceptions:exceptionsResult.data||[],delivery_submissions:submissionsResult.data||[]});
+    for(const result of [projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult,workOrderResult])if(result.error)throw result.error;
+    return NextResponse.json({execution:{assignment_id:assignment.id,execution_state:assignment.execution_state,execution_cycle:assignment.execution_cycle||1,release_reference:assignment.release_reference,planned_start_date:assignment.planned_start_date,committed_due_date:assignment.committed_due_date,reporting_cadence:assignment.reporting_cadence,release_notes:assignment.release_notes,released_at:assignment.released_at},project:projectResult.data,partner:partnerResult.data,controlled_scope:scopeResult.data,work_order_acceptance:workOrderAcceptanceResult.data,work_order:workOrderResult.data,commencement:commencementResult.data,progress_updates:progressResult.data||[],exceptions:exceptionsResult.data||[],delivery_submissions:submissionsResult.data||[]});
   }catch(error){console.error('Partner execution load failed',error);return NextResponse.json({message:'Unable to load the Partner Execution workspace.'},{status:500});}
 }
 
@@ -65,7 +66,7 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     const cycleComplete=assignment.execution_state==='delivery_submitted';const workspaceUrl=appUrl(`/workspace/projects/${assignment.project_id}`);const partnerUrl=appUrl(`/execution/${token}`);
 
     if(payload.action==='accept_work_order'){
-      if(project.project_stage!=='ready_for_execution'||assignment.execution_state!=='awaiting_acknowledgement')return NextResponse.json({message:'Work Order acceptance is available only after controlled mobilisation and formal issue.'},{status:409});
+      if(!['mobilisation','ready_for_execution'].includes(String(project.project_stage))||assignment.execution_state!=='awaiting_acknowledgement')return NextResponse.json({message:'Work Order acceptance requires an issued Work Order on a verified, non-executing project.'},{status:409});
       const {data,error}=await supabase.rpc('op_record_partner_work_order_acceptance',{
         p_assignment_id:assignment.id,p_session_id:session.id,
         p_accepted_by_name:payload.accepted_by_name,p_accepted_by_role:payload.accepted_by_role,
