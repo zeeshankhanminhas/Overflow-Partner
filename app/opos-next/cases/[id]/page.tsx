@@ -86,7 +86,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     ]}
     governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
-    {clientAccepted&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
+    {clientAccepted&&!taxConflict&&!taxCheckFailed&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
       <div className={styles.eyebrow}>ISOLATED QA · PRE-PROJECT READINESS</div>
       <h2>Check approval evidence before requesting payment</h2>
       <p>A recorded client response is not proof of verified partner approval, confidentiality, or opening payment. The client portal deliberately withholds payment while any gate fails.</p>
@@ -96,7 +96,8 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       <div className={styles.eyebrow}>QA DEFECT · CLIENT QUOTATION</div>
       <h2>Conflicting VAT terms — payment blocked</h2>
       <p>This issued client quotation charges VAT but also states that VAT is excluded. Preserve the existing accepted revision and audit trail. No opening payment should be requested.</p>
-      <p><strong>Next owner: OP commercial reviewer.</strong> Correct the client-facing wording through an authorised, version-preserving quotation revision and obtain fresh client acceptance.</p>
+      <p><strong>Next owner: OP commercial reviewer.</strong> Resolve the client-facing exclusions and prepare a version-preserving quotation correction. The currently accepted quotation must remain in the audit trail; a corrected version requires fresh client approval.</p>
+      <p><Link href="#case-evidence">Review existing controlled documents →</Link> · <Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote?.id}`}>View payment readiness checks →</Link></p>
     </section>:null}
     {taxCheckFailed?<section className={styles.panel} role="alert">
       <h2>Quotation terms could not be checked</h2>
@@ -124,12 +125,14 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
         {isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>View QA delivery and payment readiness</Link></p>:null}
         <p>Send secure access to the original authorised recipient without changing the accepted quotation or payment status.</p>
         <p><strong>Recipient:</strong> {quoteIssue.recipient_email}</p>
-        <form action={sendFreshPortalLink}>
-          <input type="hidden" name="lead_id" value={id}/>
-          <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
-          <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
-          <button type="submit" className={styles.submit}>Send fresh client portal link</button>
-        </form>
+        {taxConflict||taxCheckFailed
+          ? <p role="status" className={styles.pausedNotice}><strong>Resend paused for this quotation.</strong> The accepted client quotation needs its VAT wording checked and corrected before another portal invitation is sent. Previously sent links remain available for status viewing.</p>
+          : <form action={sendFreshPortalLink}>
+            <input type="hidden" name="lead_id" value={id}/>
+            <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+            <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
+            <button type="submit" className={styles.submit}>Send fresh client portal link</button>
+          </form>}
       </div>:null}
       {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
         <h2>Set commercial position</h2>
