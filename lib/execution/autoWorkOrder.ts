@@ -66,7 +66,8 @@ export async function ensureApprovedPartnerAssignment(
   const {data:assignment,error}=await db.from('project_execution_assignments').insert({
     organisation_id:organisationId,project_id:projectId,partner_id:partner.id,
     scope_document_id:scopeDocumentId,partner_contact_name:partner.contact_name||null,
-    partner_contact_email:partner.email,planned_start_date:project.start_date||null,
+    // Project creation date is NOT permission to commence partner work.
+    partner_contact_email:partner.email,planned_start_date:null,
     committed_due_date:project.due_date||null,reporting_cadence:'milestone',
     release_notes:'Controlled partner work order; milestone reporting required. No direct client contact.',
     created_by:userId,execution_state:'not_released',
