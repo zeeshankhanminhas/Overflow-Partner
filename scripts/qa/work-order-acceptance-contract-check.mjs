@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 const src=p=>readFileSync(p,'utf8');
 const sql=src('supabase/migrations/20261102002000_governed_partner_work_order_acceptance.sql');
 const readSql=src('supabase/migrations/20261102002100_partner_wo_acceptance_member_read.sql');
+const agreementSql=src('supabase/migrations/20261102002500_execution_partner_agreement_evidence_gate.sql');
 const api=src('app/api/execution/[token]/route.ts');
 const portal=src('components/execution/PartnerWorkSurface.tsx');
 const auto=src('lib/execution/autoWorkOrder.ts');
@@ -33,6 +34,9 @@ const tests=[
   ['Readiness surfaces missing partner lineage without fabricating approval',readiness.includes('commercial_review_id')&&readiness.includes('Not commercially selected')&&readiness.includes('not approved')],
   ['Operator retry is QA-only and identity-authorised',action.includes('assertIsolatedQaBackend()')&&action.includes("assertRole(profile.role,['owner','admin'])")],
   ['Outbox is never represented as delivered solely because queued',action.includes('queued (not yet delivered)')&&readiness.includes("email?.status==='sent'&&email.provider_message_id")],
+  ['Execution Partner Agreement is independently verified before assignment',agreementSql.includes('trg_op_execution_partner_agreement_before_assignment')&&agreementSql.includes('signed_at<=a.verified_at')&&agreementSql.includes('reviewer.role::text')],
+  ['Agreement evidence remains mandatory at formal Work Order acceptance',agreementSql.includes('trg_op_partner_agreement_before_wo_acceptance')&&auto.includes("from('partner_execution_agreement_evidence')")],
+  ['Readiness displays missing signed agreement instead of assuming compliance',readiness.includes('partnerAgreementVerified')&&readiness.includes('not been independently verified')],
   ['Partner payment not offered as an advance',sql.includes('subject to client final payment')&&portal.includes('no partner advance is authorized')],
 ];
 for(const [label,ok] of tests){assert.ok(ok,label);console.log('PASS '+label);}
