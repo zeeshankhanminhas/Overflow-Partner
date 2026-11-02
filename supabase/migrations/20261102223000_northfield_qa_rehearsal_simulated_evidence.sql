@@ -96,15 +96,23 @@ begin
  if not exists(select 1 from public.documents
    where lead_id=v_lead and document_type='scope-of-work'
     and is_current_revision and status::text in ('approved','issued','published')) then
+   -- Exercise normal controlled document transitions, even for fake scope:
+   -- Draft → In Review → Approved. Never manufacture an approved INSERT.
    insert into public.documents(organisation_id,lead_id,technical_intake_id,
-     created_by,document_type,reference,title,status,version,approved_by,approved_at)
+     created_by,document_type,reference,title,status,version)
    select v_org,v_lead,d.technical_intake_id,v_reviewer,'scope-of-work',
      'QA-NORTHFIELD-SIMULATED-SCOPE-001',
      'QA SIMULATION - scope inherited from approved client requirements',
-     'approved',1,v_reviewer,v_t
+     'draft',1
    from public.documents d where d.lead_id=v_lead
      and d.document_type='client-requirements' and d.status::text='approved'
    order by d.created_at desc limit 1;
+   update public.documents set status='in_review'
+     where organisation_id=v_org and lead_id=v_lead
+     and reference='QA-NORTHFIELD-SIMULATED-SCOPE-001' and status='draft';
+   update public.documents set status='approved',approved_by=v_reviewer,approved_at=v_t
+     where organisation_id=v_org and lead_id=v_lead
+     and reference='QA-NORTHFIELD-SIMULATED-SCOPE-001' and status='in_review';
  end if;
  insert into public.activity_events(
  organisation_id,entity_type,entity_id,user_id,event_type,event_data)
