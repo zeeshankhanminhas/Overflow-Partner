@@ -1,11 +1,10 @@
 'use server';
 
-import { createHash, randomBytes } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
-import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
-import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
+import { releaseApprovedPartnerWorkOrder } from '@/lib/execution/autoWorkOrder';
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 
 const roles = ['owner','admin','operator','engineering','commercial'] as const;
 const cadenceValues = ['milestone','daily','every_2_business_days','weekly','on_change'] as const;
@@ -68,29 +67,26 @@ export async function saveExecutionAssignmentAction(formData: FormData) {
   redirect(destination);
 }
 
+/** Explicit retry uses exactly the SAME governed partner Work Order release path
+ * as automatic mobilisation. No session rotation or manual bypass of finance/SOW.
+ */
 export async function generateExecutionLinkAction(formData: FormData) {
-  const projectId=required(formData,'project_id');let destination=`/workspace/projects/${projectId}/execution`;
-  try{
-    const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
-    const {data:assignment,error:assignmentError}=await supabase.from('project_execution_assignments').select('id,project_id,partner_id,partner_contact_name,partner_contact_email,scope_document_id,execution_state,committed_due_date').eq('organisation_id',organisationId).eq('project_id',projectId).single();
-    if(assignmentError||!assignment)throw new Error(assignmentError?.message||'Create the controlled execution assignment first.');
-    if(!assignment.scope_document_id)throw new Error('Controlled execution scope is required before Partner release.');
-    if(['closed','cancelled'].includes(String(assignment.execution_state)))throw new Error('This execution assignment is no longer active.');
-    const {data:project}=await supabase.from('projects').select('project_number,title').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
-    const {data:partner}=await supabase.from('partners').select('company_name,contact_name').eq('organisation_id',organisationId).eq('id',assignment.partner_id).maybeSingle();
-    const placeholderToken=randomBytes(32).toString('base64url');const placeholderHash=createHash('sha256').update(placeholderToken).digest('hex');
-    const due=assignment.committed_due_date?new Date(`${assignment.committed_due_date}T23:59:59Z`):new Date();const minimumExpiry=new Date(Date.now()+90*24*60*60*1000);due.setUTCDate(due.getUTCDate()+30);const expiresAt=due.getTime()>minimumExpiry.getTime()?due:minimumExpiry;
-    await supabase.from('partner_execution_sessions').update({status:'revoked'}).eq('organisation_id',organisationId).eq('assignment_id',assignment.id).in('status',['invited','opened','active']);
-    const {data:session,error:sessionError}=await supabase.from('partner_execution_sessions').insert({organisation_id:organisationId,assignment_id:assignment.id,project_id:projectId,partner_id:assignment.partner_id,recipient_email:assignment.partner_contact_email,token_hash:placeholderHash,status:'invited',expires_at:expiresAt.toISOString(),created_by:user.id}).select('id').single();
-    if(sessionError||!session)throw new Error(sessionError?.message||'Secure execution session could not be created.');
-    const signedToken=createExecutionSessionToken(session.id);const signedHash=createHash('sha256').update(signedToken).digest('hex');
-    const {error:tokenError}=await supabase.from('partner_execution_sessions').update({token_hash:signedHash}).eq('id',session.id);if(tokenError)throw new Error(tokenError.message);
-    const now=new Date().toISOString();const {error:releaseError}=await supabase.from('project_execution_assignments').update({execution_state:assignment.execution_state==='not_released'?'awaiting_acknowledgement':assignment.execution_state,released_at:now}).eq('organisation_id',organisationId).eq('id',assignment.id);if(releaseError)throw new Error(releaseError.message);
-    await audit(supabase,organisationId,user.id,projectId,'partner_execution.secure_link_issued',{assignmentId:assignment.id,sessionId:session.id,recipientEmail:assignment.partner_contact_email,scopeDocumentId:assignment.scope_document_id,expiresAt:expiresAt.toISOString(),canonicalLifecycle:true,reopenableSignedLink:true});
-    const baseUrl=(process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');const link=`${baseUrl}/execution/${signedToken}`;
-    await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_work.released',recipientEmail:assignment.partner_contact_email,recipientName:assignment.partner_contact_name||partner?.contact_name||partner?.company_name,actionUrl:link,payload:{company:partner?.company_name,reference:project?.project_number,project:project?.title,dueDate:assignment.committed_due_date},entityType:'project',entityId:projectId,idempotencyKey:`partner-work:released:${session.id}`,subject:`Work package released · ${project?.project_number||'Overflow Partner'}`}).catch(()=>null);
-    refresh(projectId);destination=executionUrl(projectId,{success:'Secure Partner Execution link generated and email queued.',execution_link:link});
-  }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Execution link could not be generated.'});}
+  const projectId=required(formData,'project_id');
+  let destination=`/workspace/projects/${projectId}/execution`;
+  try {
+    if(process.env.VERCEL_ENV==='preview')assertIsolatedQaBackend();
+    const {supabase,user,profile,organisationId}=await requireUserContext();
+    assertRole(profile.role,[...roles]);
+    const released=await releaseApprovedPartnerWorkOrder(supabase,organisationId,user.id,projectId);
+    await audit(supabase,organisationId,user.id,projectId,'partner_execution.work_order_release_requested',{
+      assignmentId:released.assignmentId,sessionId:released.sessionId,queuedOutboxId:released.queuedId,
+      source:'governed_retry',emailStatus:'queued_not_delivered'
+    });
+    refresh(projectId);
+    destination=executionUrl(projectId,{success:'Work Order queued to the approved partner. Check delivery evidence; queueing does not prove email receipt.'});
+  }catch(error) {
+    destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Governed Work Order release failed.'});
+  }
   redirect(destination);
 }
 
