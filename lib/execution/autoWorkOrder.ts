@@ -24,7 +24,8 @@ async function governedPartner(db:SupabaseClient,organisationId:string,projectId
     throw new Error('Approved commercial review must already identify the selected partner before client quotation.');
   const {data:partnerQuote}=await db.from('partner_quotes').select('id,lead_id,partner_id,price,currency,status,lead_time_days,delivery_commitment,commercial_assumptions,exclusions')
     .eq('organisation_id',organisationId).eq('id',review.partner_quote_id).single();
-  if(!partnerQuote?.partner_id || partnerQuote.status!=='selected')throw new Error('Execution Partner must have been commercially selected before client quotation.');
+  if(!partnerQuote?.partner_id || !['received','selected'].includes(String(partnerQuote.status)))
+    throw new Error('Approved commercial review must reference a valid received Partner quotation.');
   if(!Number.isFinite(Number(partnerQuote.price)) || Number(partnerQuote.price)<=0)
     throw new Error('Commercially approved partner price must be positive.');
   const {data:partner}=await db.from('partners')
