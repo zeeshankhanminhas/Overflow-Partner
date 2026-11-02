@@ -47,6 +47,7 @@ const tables={
   project_execution_assignments:[],
   partner_execution_sessions:[],
   partner_work_orders:[],
+  partner_work_order_acceptances:[],
   project_work_order_handoffs:[],
   activity_events:[],
 };
