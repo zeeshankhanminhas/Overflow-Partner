@@ -72,7 +72,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       {name:'Commercial offer',detail:'Price and quote decisions'},
       {name:'Commitment',detail:'Client decision and advance'},
     ]}
-    stageIndex={clientAccepted?3:stageIndex} waiting={clientAccepted||waiting}
+    stageIndex={clientAccepted?3:stageIndex} waiting={taxConflict?false:clientAccepted||waiting}
     evidence={[
       {label:'Case record',value:lead.reference||id.slice(0,8)},
       {label:'Governed workflow position',value:clientAccepted?'Client response recorded — formal release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
@@ -84,7 +84,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       {label:'Record status',value:clientAccepted?'Client responded: accepted — project not released':String(lead.status||'Not recorded').replaceAll('_',' ')},
       {label:'Current stage',value:clientAccepted?'Commitment — release pending':stage.replaceAll('_',' ')},
     ]}
-    governedHref={'/opos-next/cases/'+id+'#case-decision'}
+    governedHref={taxConflict?'#quote-tax-control':'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
     {clientAccepted&&!taxConflict&&!taxCheckFailed&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
       <div className={styles.eyebrow}>ISOLATED QA · PRE-PROJECT READINESS</div>
@@ -92,7 +92,7 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       <p>A recorded client response is not proof of verified partner approval, confidentiality, or opening payment. The client portal deliberately withholds payment while any gate fails.</p>
       <p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>Review the exact readiness checks and partner register →</Link></p>
     </section>:null}
-    {taxConflict?<section className={styles.panel} role="alert" aria-label="Client quotation VAT conflict">
+    {taxConflict?<section id="quote-tax-control" className={styles.panel} role="alert" aria-label="Client quotation VAT conflict">
       <div className={styles.eyebrow}>QA DEFECT · CLIENT QUOTATION</div>
       <h2>Conflicting VAT terms — payment blocked</h2>
       <p>This issued client quotation charges VAT but also states that VAT is excluded. Preserve the existing accepted revision and audit trail. No opening payment should be requested.</p>
