@@ -42,8 +42,24 @@ export async function POST(request: Request) {
   const {data:quote,error}=await db.from('quotes').select('id,lead_id,organisation_id,revision,total,currency').eq('id',quoteId).eq('organisation_id',organisationId).eq('revision',revision).maybeSingle();
   if (error || !quote) return new Response('Quote cannot be verified',{status:422});
   if(mode==='qa'){
-    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle();
-    if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) return new Response('Sandbox evidence restricted to QA cases',{status:422});
+    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name,reference').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle();
+    const northfield=qaLead?.reference==='OP-LEAD-2026-0001' &&
+      qaLead.company_name==='QA - Northfield Demonstration Engineering' &&
+      quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99' &&
+      organisationId==='717262cb-68da-4e7b-a9fa-238dc6c5d16b';
+    if (qaError || !(qaLead?.company_name?.startsWith('OP QA TEST')||northfield))
+      return new Response('Sandbox evidence restricted to explicitly authorised QA cases',{status:422});
+    if (northfield){
+      const [replay,acknowledgement]=await Promise.all([
+        db.from('op_qa_northfield_replay').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',organisationId)
+          .gt('expires_at',new Date().toISOString()).maybeSingle(),
+        db.from('op_qa_northfield_addendum_acceptances').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',organisationId).maybeSingle(),
+      ]);
+      if(replay.error||acknowledgement.error||!replay.data||!acknowledgement.data)
+        return new Response('Northfield sandbox correction acknowledgement not verified',{status:422});
+    }
     const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
       .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',organisationId)
       .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
