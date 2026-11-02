@@ -117,6 +117,14 @@ export async function releaseApprovedPartnerWorkOrder(
   // Immutable, explicitly priced Work Order; inherits the approved Partner quote.
   // A retry must NEVER choose a different Partner, price, currency or scope.
   const expectedReference=project.project_number+'/WO-01';
+  // Stamp the first release BEFORE writing the immutable Work Order snapshot.
+  // The DB immutability trigger intentionally blocks later release-field changes.
+  // Retry preserves the original reference/time; never reissue or reprice.
+  const {error:releaseError}=await db.from('project_execution_assignments')
+    .update({execution_state:'awaiting_acknowledgement',released_at:assignment.released_at||new Date().toISOString(),release_reference:expectedReference})
+    .eq('organisation_id',organisationId).eq('id',assignment.id);
+  if(releaseError)throw new Error(releaseError.message);
+
   const {data:existingWorkOrder,error:workOrderError}=await db.from('partner_work_orders')
     .select('id,partner_id,partner_quote_id,scope_document_id,reference,partner_price,currency,status')
     .eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
@@ -202,10 +210,6 @@ export async function releaseApprovedPartnerWorkOrder(
       if(hashError)throw new Error(hashError.message);
     }
   }
-  const {error:releaseError}=await db.from('project_execution_assignments')
-    .update({execution_state:'awaiting_acknowledgement',released_at:assignment.released_at||new Date().toISOString(),release_reference:expectedReference})
-    .eq('organisation_id',organisationId).eq('id',assignment.id);
-  if(releaseError)throw new Error(releaseError.message);
   const actionUrl=base+'/execution/'+createExecutionSessionToken(sessionId);
   const queued=await queueLifecycleEmail(db,{
     organisationId,scenario:'partner_work.released',recipientEmail:partner.email,
