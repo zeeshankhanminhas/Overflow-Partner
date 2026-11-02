@@ -4,6 +4,11 @@ begin;
 alter table public.quotes disable trigger user;
 alter table public.documents disable trigger user;
 alter table public.quote_issue_records disable trigger user;
+-- Fixture setup intentionally bypasses creation-order triggers on the
+-- disposable local database ONLY; actual Project and payment gates remain ON.
+alter table public.partner_review_requests disable trigger user;
+alter table public.partner_quotes disable trigger user;
+alter table public.commercial_reviews disable trigger user;
 
 insert into auth.users(id,email)
 values ('00000000-0000-4000-8000-000000009921','stripe-http-qa@example.invalid');
@@ -143,5 +148,8 @@ insert into public.op_sandbox_payment_authorisations(
 
 alter table public.quotes enable trigger user;
 alter table public.documents enable trigger user;
+alter table public.partner_review_requests enable trigger user;
+alter table public.partner_quotes enable trigger user;
+alter table public.commercial_reviews enable trigger user;
 alter table public.quote_issue_records enable trigger user;
 commit;
