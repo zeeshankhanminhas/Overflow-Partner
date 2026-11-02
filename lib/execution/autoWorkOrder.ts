@@ -27,6 +27,12 @@ async function governedPartner(db:SupabaseClient,organisationId:string,projectId
     .eq('organisation_id',organisationId).eq('id',partnerQuote.partner_id).single();
   if(!partner||partner.status!=='approved'||!partner.nda_signed||!partner.email)
     throw new Error('Selected execution partner must be approved, NDA-signed and have an email.');
+  const {data:agreement,error:agreementError}=await db.from('partner_execution_agreement_evidence')
+    .select('id,signed_at,verified_at').eq('organisation_id',organisationId).eq('partner_id',partner.id)
+    .eq('is_current',true).maybeSingle();
+  if(agreementError || !agreement?.id || !agreement.signed_at || !agreement.verified_at ||
+     new Date(agreement.signed_at).getTime()>new Date(agreement.verified_at).getTime())
+    throw new Error('Current signed, independently verified Execution Partner Agreement is required before Work Order release.');
   return {project,partner};
 }
 
