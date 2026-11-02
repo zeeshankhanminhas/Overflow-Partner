@@ -3,7 +3,7 @@ import {redirect} from 'next/navigation';
 import {revalidatePath} from 'next/cache';
 import {requireUserContext,assertRole} from '@/lib/auth/context';
 import {assertIsolatedQaBackend} from '@/lib/qa/isolation';
-import {ensureApprovedPartnerAssignment,releaseApprovedPartnerWorkOrder} from '@/lib/execution/autoWorkOrder';
+import {issueWorkOrderAfterVerifiedOpeningPayment} from '@/lib/execution/paymentWorkOrderHandoff';
 
 export async function retryGovernedWorkOrderAction(formData:FormData){
   const projectId=String(formData.get('project_id')||'');
@@ -14,20 +14,11 @@ export async function retryGovernedWorkOrderAction(formData:FormData){
     assertIsolatedQaBackend();
     const {supabase,organisationId,user,profile}=await requireUserContext();
     assertRole(profile.role,['owner','admin']);
-    const {data:project,error:projectError}=await supabase.from('projects')
-      .select('id,project_stage,quote_id').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
-    if(projectError||!project)throw new Error('Project could not be verified.');
-    if(project.project_stage!=='ready_for_execution')throw new Error('Complete governed Mobilisation before Work Order release.');
-    const {data:scopes,error:scopeError}=await supabase.from('documents')
-      .select('id').eq('organisation_id',organisationId).eq('project_id',projectId)
-      .eq('document_type','statement-of-work').eq('is_current_revision',true)
-      .in('status',['approved','issued','published']).order('created_at',{ascending:false}).limit(2);
-    if(scopeError||scopes?.length!==1)throw new Error('Exactly one current approved Statement of Work is required.');
-    await ensureApprovedPartnerAssignment(supabase,organisationId,user.id,projectId,scopes[0].id);
-    const result=await releaseApprovedPartnerWorkOrder(supabase,organisationId,user.id,projectId);
+    const result=await issueWorkOrderAfterVerifiedOpeningPayment(supabase,organisationId,projectId);
+    if(result.status!=='queued')throw new Error(result.reason||'Work Order issuance remains blocked by missing governed evidence.');
     revalidatePath('/opos-next/projects/'+projectId);
     revalidatePath(target);
-    params='success='+encodeURIComponent('Controlled Partner Work Order queued (not yet delivered). Assignment '+result.assignmentId.slice(0,8)+'.');
+    params='success='+encodeURIComponent('The original payment-triggered Work Order handoff was retried; partner notification is queued, not yet proven delivered.');
   }catch(error){
     params='error='+encodeURIComponent(error instanceof Error?error.message:'Work Order release was blocked.');
   }
