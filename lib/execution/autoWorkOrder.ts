@@ -99,7 +99,7 @@ export async function releaseApprovedPartnerWorkOrder(
     throw new Error('Verified cleared opening deposit (not PO, credit or manual override) is required before partner work-order release.');
   }
   const {data:assignment,error:assignmentError}=await db.from('project_execution_assignments')
-    .select('id,partner_id,scope_document_id,partner_contact_email,partner_contact_name,committed_due_date,execution_state,execution_cycle')
+    .select('id,partner_id,scope_document_id,partner_contact_email,partner_contact_name,committed_due_date,execution_state,execution_cycle,released_at,release_reference')
     .eq('organisation_id',organisationId).eq('project_id',projectId).single();
   if(assignmentError||!assignment)throw new Error('Approved partner execution assignment is missing.');
   if(assignment.partner_id!==partner.id||!['not_released','awaiting_acknowledgement'].includes(assignment.execution_state))
@@ -149,6 +149,12 @@ export async function releaseApprovedPartnerWorkOrder(
         throw new Error('Concurrent Work Order conflict requires investigation.');
     }
   }
+  // A formally accepted Work Order cannot be re-issued, re-priced, or re-invited.
+  const {data:acceptance,error:acceptanceError}=await db.from('partner_work_order_acceptances')
+    .select('id').eq('organisation_id',organisationId).eq('assignment_id',assignment.id).maybeSingle();
+  if(acceptanceError)throw new Error('Work Order acceptance register is unavailable.');
+  if(acceptance?.id)return {assignmentId:assignment.id,sessionId:'already-accepted',queuedId:'already-accepted'};
+
   // Fail before writing session tokens if a stable, trusted customer-facing origin is unavailable.
   const base=process.env.VERCEL_ENV==='preview'
     ? qaPublicOrigin()
@@ -195,7 +201,7 @@ export async function releaseApprovedPartnerWorkOrder(
     }
   }
   const {error:releaseError}=await db.from('project_execution_assignments')
-    .update({execution_state:'awaiting_acknowledgement',released_at:new Date().toISOString(),release_reference:expectedReference})
+    .update({execution_state:'awaiting_acknowledgement',released_at:assignment.released_at||new Date().toISOString(),release_reference:expectedReference})
     .eq('organisation_id',organisationId).eq('id',assignment.id);
   if(releaseError)throw new Error(releaseError.message);
   const actionUrl=base+'/execution/'+createExecutionSessionToken(sessionId);
