@@ -58,4 +58,4 @@ begin
    raise exception 'No Execution Partner assignment before a verified opening deposit.';
  end if;
  return new;
-end;$;
+end;$$;
