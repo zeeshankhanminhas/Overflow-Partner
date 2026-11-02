@@ -6,6 +6,10 @@ const checkout=read('app/quote-payment/stripe-action.ts');
 const paymentPage=read('app/quote-payment/page.tsx');
 const clientPortal=read('app/client-portal/page.tsx');
 const operatorReadiness=read('app/opos-next/qa-readiness/page.tsx');
+const portalResend=read('app/opos-next/cases/[id]/portal-link-action.ts');
+const casePage=read('app/opos-next/cases/[id]/page.tsx');
+const caseCss=read('app/opos-next/cases/[id]/caseDocuments.module.css');
+const taxMigration=read('supabase/migrations/20261102203000_qa_block_historic_vat_conflict_prepayment.sql');
 
 const checks=[
   ['Project insert is guarded at the database level',
@@ -46,6 +50,24 @@ const checks=[
     clientPortal.includes("db.rpc('op_preproject_lineage_readiness'")&&
     clientPortal.includes('openingPaymentPending && preprojectReady')&&
     clientPortal.includes('openingPaymentPending&&!preprojectReady')],
+  ['Accepted historic VAT contradiction blocks new opening payments in QA',
+    taxMigration.includes("'quote_tax_terms_conflict'")&&
+    taxMigration.includes("'quote_tax_totals_mismatch'")],
+  ['No new client portal email can be requested for a VAT-conflicting accepted quote',
+    portalResend.includes("admin.rpc('op_preproject_lineage_readiness'")&&
+    portalResend.includes("blockedTaxReasons.includes(String(readiness?.reason||''))")&&
+    portalResend.indexOf("blockedTaxReasons.includes(")<portalResend.indexOf('queueLifecycleEmail(supabase,')],
+  ['Case 360 shows a genuine next decision and links to its controlled documents',
+    casePage.includes('waiting={taxConflict?false:clientAccepted||waiting}')&&
+    casePage.includes('governedHref={taxConflict?')&&
+    casePage.includes('id="quote-tax-control"')&&casePage.includes('href="#case-evidence"')],
+  ['Broken quotation portal resend is visibly paused instead of offered as an active action',
+    casePage.includes('taxConflict||taxCheckFailed')&&
+    casePage.includes('Resend paused for this quotation.')&&
+    casePage.includes("Portal link resending is paused")],
+  ['Case 360 actions align with the main workspace and paused controls are readable',
+    caseCss.includes('max-width:1030px')&&
+    caseCss.includes('.actionCard .pausedNotice')],
   ['Operator readiness shows concrete missing governance evidence',
     operatorReadiness.includes("db.rpc('op_preproject_lineage_readiness'")&&
     operatorReadiness.includes("Pre-project technical and commercial lineage")],
