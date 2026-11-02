@@ -44,8 +44,8 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const view=resolveCaseQueuePresentation(stage);
   const normalised=stage.toLowerCase().replaceAll('_','-');
   const stageIndex=normalised.includes('project')?3:normalised.includes('commercial')||normalised.includes('quote')?2:normalised.includes('partner')?1:0;
-  const nextDecisionTitle=clientAccepted?(awaitingAdvance?'Awaiting advance payment verification':'Awaiting contractual release verification'):view.nextAction.label;
-  const nextDecisionDescription=clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client accepted the quotation. Opening payment of £${openingAmount.toFixed(2)} must be received and verified before Project 360 can be created.`:'Client accepted the quotation. Confirm the agreed opening amount and verify payment before creating Project 360.'):'Client accepted the quotation. Verify the agreed release condition before Project 360 can be created.'):view.summary;
+  const nextDecisionTitle=clientAccepted?(awaitingAdvance?'Verify pre-project approvals and opening payment':'Awaiting contractual release verification'):view.nextAction.label;
+  const nextDecisionDescription=clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client response recorded. Verify the technical and approved Execution Partner lineage before requesting the £${openingAmount.toFixed(2)} advance. Project 360 requires independent payment verification.`:'Client response recorded. Complete technical, partner and opening-payment approvals before Project 360.'):'Client response recorded. Verify the agreed release condition before Project 360 can be created.'):view.summary;
   const waiting=view.nextAction.kind==='wait'&&!view.approval?.required;
   return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
@@ -73,6 +73,12 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     ]}
     governedHref={'/opos-next/cases/'+id+'#case-decision'}
     previous="/opos-next/cases"/>
+    {clientAccepted&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
+      <div className={styles.eyebrow}>ISOLATED QA · PRE-PROJECT READINESS</div>
+      <h2>Check approval evidence before requesting payment</h2>
+      <p>A recorded client response is not proof of verified partner approval, confidentiality, or opening payment. The client portal deliberately withholds payment while any gate fails.</p>
+      <p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>Review the exact readiness checks and partner register →</Link></p>
+    </section>:null}
     <section id="case-decision" className={styles.panel}>
       {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Action could not be completed</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
       {feedback.success?<div role="status" className={styles.successNotice}><strong>Action completed</strong><p>{feedback.success}</p></div>:null}
