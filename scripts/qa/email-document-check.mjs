@@ -74,6 +74,24 @@ for (const suffix of ['.ts', '.tsx']) {
     module._compile(result.outputText, filename);
   };
 }
+const { assertClientQuoteTaxIntegrity } = require(resolve(root, 'lib/quotes/clientTaxIntegrity.ts'));
+assert.doesNotThrow(()=>assertClientQuoteTaxIntegrity({subtotal:1791.04,vat:358.21,total:2149.25,exclusions:'Manufacturing and site testing excluded.'}));
+check(true,'Consistent VAT-inclusive client quotation terms accepted');
+assert.throws(
+  ()=>assertClientQuoteTaxIntegrity({
+    subtotal:1791.04,vat:358.21,total:2149.25,
+    exclusions:'VAT, physical manufacturing, material procurement and external testing are excluded.',
+  }),
+  /exclusions mention VAT while VAT is charged/,
+  'The actual Northfield QA wording contradiction must be rejected'
+);
+check(true,'Northfield VAT-exclusion versus charged VAT rejected before new issue');
+assert.throws(
+  ()=>assertClientQuoteTaxIntegrity({subtotal:1000,vat:200,total:1100,exclusions:'Installation excluded'}),
+  /do not reconcile/,
+  'A mismatched price ledger must be rejected'
+);
+check(true,'Inconsistent subtotal/VAT/total rejected');
 const { createClientQuotePdf } = require(resolve(root, 'lib/quotes/clientQuotePdf.ts'));
 const { createControlledPdf } = require(resolve(root, 'lib/notifications/controlledPdf.ts'));
 const { queueLifecycleEmail, lifecycleEmailScenarios } = require(resolve(root, 'lib/notifications/scenarios.ts'));
