@@ -9,6 +9,7 @@ import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { renderNotificationEmail } from '@/lib/notifications/templates';
 import { scheduleDormantOpportunityNurture } from '@/lib/notifications/schedules';
 import { createClientQuotePdf } from '@/lib/quotes/clientQuotePdf';
+import { assertClientQuoteTaxIntegrity } from '@/lib/quotes/clientTaxIntegrity';
 import { openingPayment, finalBalance, OPOS_POLICY } from '@/lib/lifecycle/voiceAgreedContract';
 import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
@@ -127,6 +128,15 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
     throw new Error('Unimplemented release terms cannot be issued to a client.');
   }
 
+  }
+  // Do not reissue or silently rewrite an accepted/sent historical quotation.
+  // For any new issue, detect contradictory client-facing tax terms before
+  // email/PDF construction and before the notification outbox is created.
+  if (deliveryKind === 'issue') {
+    assertClientQuoteTaxIntegrity({
+      subtotal:Number(quote.subtotal),vat:Number(quote.vat),total:Number(quote.total),
+      exclusions:clientTerms?.exclusions,
+    });
   }
   const currency = String(quote.currency || 'GBP').trim().toUpperCase();
   const facts: Array<{label:string;value:string}> = [
