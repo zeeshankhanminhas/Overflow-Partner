@@ -6,16 +6,18 @@ import { z } from 'zod';
 import { executionSessionIdFromToken } from '@/lib/execution/sessionToken';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { queueOperationsAlert } from '@/lib/notifications/internal';
+import { qaPublicOrigin } from '@/lib/qa/publicOrigin';
 
+const workOrderAcceptanceSchema=z.object({action:z.literal('accept_work_order'),accepted_by_name:z.string().trim().min(2).max(200),accepted_by_role:z.string().trim().min(2).max(200),acceptance_confirmed:z.literal(true)});
 const commencementSchema=z.object({action:z.literal('commencement'),execution_lead_name:z.string().trim().min(2).max(200),execution_lead_role:z.string().trim().max(200).optional().default(''),planned_commencement_date:z.string().trim().min(8),forecast_delivery_date:z.string().trim().min(8),scope_reviewed:z.literal(true),inputs_received:z.literal(true),capacity_confirmed:z.literal(true),no_unresolved_blocker:z.literal(true),assumptions:z.string().trim().max(5000).optional().default(''),declaration_checked:z.literal(true),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
 const progressSchema=z.object({action:z.literal('progress'),progress_state:z.enum(['on_track','at_risk','blocked']),percent_complete:z.union([z.coerce.number().min(0).max(100),z.literal('')]).optional(),work_completed:z.string().trim().min(2).max(10000),work_in_progress:z.string().trim().min(2).max(10000),forecast_delivery_date:z.string().trim().optional().default(''),next_update_date:z.string().trim().optional().default(''),notes:z.string().trim().max(5000).optional().default(''),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
 const exceptionSchema=z.object({action:z.literal('exception'),severity:z.enum(['low','medium','high','critical']),title:z.string().trim().min(2).max(300),description:z.string().trim().min(2).max(10000),delivery_impact:z.string().trim().max(5000).optional().default(''),required_from:z.enum(['overflow_partner','client','partner','unknown']).default('overflow_partner'),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
 const deliverySchema=z.object({action:z.literal('delivery'),revision:z.string().trim().max(100).optional().default(''),delivery_summary:z.string().trim().min(2).max(10000),deliverables_manifest:z.string().trim().min(2).max(15000),declaration_checked:z.literal(true),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
-const submissionSchema=z.discriminatedUnion('action',[commencementSchema,progressSchema,exceptionSchema,deliverySchema]);
+const submissionSchema=z.discriminatedUnion('action',[workOrderAcceptanceSchema,commencementSchema,progressSchema,exceptionSchema,deliverySchema]);
 
 function admin(){const url=process.env.NEXT_PUBLIC_SUPABASE_URL;const key=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY;if(!url||!key)throw new Error('Supabase server credentials are not configured.');return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});}
 const hashToken=(token:string)=>createHash('sha256').update(token).digest('hex');
-function appUrl(path=''){const base=(process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');return `${base}${path}`;}
+function appUrl(path=''){const base=process.env.VERCEL_ENV==='preview'?qaPublicOrigin():(process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');return `${base}${path}`;}
 function refreshProject(projectId:string){revalidatePath(`/workspace/projects/${projectId}`);revalidatePath(`/workspace/projects/${projectId}/execution`);revalidatePath(`/workspace/projects/${projectId}/delivery`);revalidatePath('/workspace/projects');}
 
 async function loadSession(token:string){
@@ -26,6 +28,8 @@ async function loadSession(token:string){
   if(error||!session)return{supabase,session:null,assignment:null};
   if(new Date(session.expires_at).getTime()<Date.now()&&!['expired','revoked'].includes(session.status)){await supabase.from('partner_execution_sessions').update({status:'expired'}).eq('id',session.id);return{supabase,session:null,assignment:null};}
   if(['expired','revoked'].includes(session.status))return{supabase,session:null,assignment:null};
+  // Signed partner tokens must still match the stored invitation hash after rotation/revocation.
+  if(session.token_hash!==hashToken(token))return{supabase,session:null,assignment:null};
   const{data:assignment,error:assignmentError}=await supabase.from('project_execution_assignments').select('*').eq('id',session.assignment_id).eq('project_id',session.project_id).maybeSingle();
   if(assignmentError||!assignment||['closed','cancelled'].includes(assignment.execution_state))return{supabase,session:null,assignment:null};return{supabase,session,assignment};
 }
@@ -35,7 +39,7 @@ export async function GET(_:Request,context:{params:Promise<{token:string}>}){
   try{
     const{token}=await context.params;const{supabase,session,assignment}=await loadSession(token);if(!session||!assignment)return NextResponse.json({message:'This Partner Execution link is invalid, expired or revoked.'},{status:404});
     const now=new Date().toISOString();const firstOpen=!session.first_opened_at;await supabase.from('partner_execution_sessions').update({status:session.status==='invited'?'opened':session.status,first_opened_at:session.first_opened_at||now,last_opened_at:now}).eq('id',session.id);if(firstOpen)await audit(supabase,assignment,'partner_execution.workspace_opened',{sessionId:session.id,recipientEmail:session.recipient_email});
-    const[projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult]=await Promise.all([
+    const[projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult]=await Promise.all([
       supabase.from('projects').select('id,project_number,title,start_date,due_date,project_stage').eq('id',assignment.project_id).single(),
       supabase.from('partners').select('id,company_name,contact_name').eq('id',assignment.partner_id).single(),
       assignment.scope_document_id?supabase.from('documents').select('id,title,reference,status,revision_code,issue_purpose').eq('id',assignment.scope_document_id).maybeSingle():Promise.resolve({data:null,error:null}),
@@ -43,9 +47,10 @@ export async function GET(_:Request,context:{params:Promise<{token:string}>}){
       supabase.from('partner_progress_updates').select('id,progress_state,percent_complete,work_completed,work_in_progress,forecast_delivery_date,next_update_date,notes,submitted_by_name,submitted_by_role,submitted_at').eq('assignment_id',assignment.id).order('submitted_at',{ascending:false}).limit(20),
       supabase.from('partner_execution_exceptions').select('id,severity,title,description,delivery_impact,required_from,status,raised_at,resolved_at,resolution_note').eq('assignment_id',assignment.id).order('raised_at',{ascending:false}).limit(20),
       supabase.from('partner_delivery_submissions').select('id,execution_cycle,revision,delivery_summary,deliverables_manifest,submitted_by_name,submitted_by_role,submitted_at,review_status').eq('assignment_id',assignment.id).order('submitted_at',{ascending:false}).limit(20),
+      supabase.from('partner_work_order_acceptances').select('id,accepted_by_name,accepted_by_role,accepted_at,scope_document_id').eq('assignment_id',assignment.id).eq('organisation_id',assignment.organisation_id).maybeSingle(),
     ]);
-    for(const result of [projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult])if(result.error)throw result.error;
-    return NextResponse.json({execution:{assignment_id:assignment.id,execution_state:assignment.execution_state,execution_cycle:assignment.execution_cycle||1,release_reference:assignment.release_reference,planned_start_date:assignment.planned_start_date,committed_due_date:assignment.committed_due_date,reporting_cadence:assignment.reporting_cadence,release_notes:assignment.release_notes,released_at:assignment.released_at},project:projectResult.data,partner:partnerResult.data,controlled_scope:scopeResult.data,commencement:commencementResult.data,progress_updates:progressResult.data||[],exceptions:exceptionsResult.data||[],delivery_submissions:submissionsResult.data||[]});
+    for(const result of [projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult])if(result.error)throw result.error;
+    return NextResponse.json({execution:{assignment_id:assignment.id,execution_state:assignment.execution_state,execution_cycle:assignment.execution_cycle||1,release_reference:assignment.release_reference,planned_start_date:assignment.planned_start_date,committed_due_date:assignment.committed_due_date,reporting_cadence:assignment.reporting_cadence,release_notes:assignment.release_notes,released_at:assignment.released_at},project:projectResult.data,partner:partnerResult.data,controlled_scope:scopeResult.data,work_order_acceptance:workOrderAcceptanceResult.data,commencement:commencementResult.data,progress_updates:progressResult.data||[],exceptions:exceptionsResult.data||[],delivery_submissions:submissionsResult.data||[]});
   }catch(error){console.error('Partner execution load failed',error);return NextResponse.json({message:'Unable to load the Partner Execution workspace.'},{status:500});}
 }
 
@@ -59,7 +64,21 @@ export async function POST(request:Request,context:{params:Promise<{token:string
     if(projectError||!project)throw projectError||new Error('Project not found.');
     const cycleComplete=assignment.execution_state==='delivery_submitted';const workspaceUrl=appUrl(`/workspace/projects/${assignment.project_id}`);const partnerUrl=appUrl(`/execution/${token}`);
 
+    if(payload.action==='accept_work_order'){
+      if(project.project_stage!=='ready_for_execution'||assignment.execution_state!=='awaiting_acknowledgement')return NextResponse.json({message:'Work Order acceptance is available only after controlled mobilisation and formal issue.'},{status:409});
+      const {data,error}=await supabase.rpc('op_record_partner_work_order_acceptance',{
+        p_assignment_id:assignment.id,p_session_id:session.id,
+        p_accepted_by_name:payload.accepted_by_name,p_accepted_by_role:payload.accepted_by_role,
+      });
+      if(error)return NextResponse.json({message:error.message||'Work Order acceptance blocked by commercial governance.'},{status:409});
+      refreshProject(assignment.project_id);
+      return NextResponse.json({success:true,accepted_at:data?.acceptedAt,already_recorded:!!data?.alreadyRecorded,message:'Controlled Work Order formally accepted. You may now confirm commencement.'});
+    }
+
     if(payload.action==='commencement'){
+      const {data:accepted,error:acceptanceError}=await supabase.from('partner_work_order_acceptances')
+        .select('id').eq('organisation_id',assignment.organisation_id).eq('assignment_id',assignment.id).maybeSingle();
+      if(acceptanceError || !accepted)return NextResponse.json({message:'Formally accept the issued Work Order before declaring commencement.'},{status:409});
       const{data:existing}=await supabase.from('partner_commencement_declarations').select('id').eq('assignment_id',assignment.id).maybeSingle();if(existing)return NextResponse.json({message:'A commencement declaration is already recorded for this execution assignment.'},{status:409});
       const{data,error}=await supabase.rpc('op_record_partner_commencement',{p_assignment_id:assignment.id,p_session_id:session.id,p_execution_lead_name:payload.execution_lead_name,p_execution_lead_role:payload.execution_lead_role||'',p_planned_commencement_date:payload.planned_commencement_date,p_forecast_delivery_date:payload.forecast_delivery_date,p_assumptions:payload.assumptions||'',p_submitted_by_name:payload.submitted_by_name,p_submitted_by_role:payload.submitted_by_role||''});if(error)throw error;
       await queueOperationsAlert(supabase,{organisationId:assignment.organisation_id,eventKey:'internal.partner_work.started',subject:`Partner confirmed start · ${project.project_number}`,heading:'Delivery Partner confirmed start',message:`${partner?.company_name||'The Delivery Partner'} confirmed commencement for ${project.project_number}.`,actionUrl:workspaceUrl,entityType:'project',entityId:assignment.project_id,idempotencyKey:`ops:partner-start:${assignment.id}`});
