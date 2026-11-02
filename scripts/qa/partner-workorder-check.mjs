@@ -38,6 +38,7 @@ const tables={
   partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner}],
   partners:[{id:ids.partner,organisation_id:ids.org,company_name:'OP QA Technical Partner',
     contact_name:'QA Engineer',email:'partner@example.invalid',status:'approved',nda_signed:true}],
+  partner_execution_agreement_evidence:[{id:'10000000-0000-4000-8000-000000000011',organisation_id:ids.org,partner_id:ids.partner,is_current:true,signed_at:'2026-10-01T00:00:00.000Z',verified_at:'2026-10-02T00:00:00.000Z'}],
   documents:[{id:ids.sow,organisation_id:ids.org,project_id:ids.project,
     document_type:'statement-of-work',status:'draft',is_current_revision:true}],
   project_execution_assignments:[],
@@ -117,6 +118,10 @@ try {
     'approved Statement of Work','Unapproved SOW cannot create assignment');
   check(tables.project_execution_assignments.length===0,'No assignment before SOW approval');
   tables.documents[0].status='approved';
+  const agreementEvidence=tables.partner_execution_agreement_evidence.shift();
+  await blocked(()=>ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow),
+    'Execution Partner Agreement','Unsigned Execution Partner Agreement cannot release');
+  tables.partner_execution_agreement_evidence.push(agreementEvidence);
   const assigned=await ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow);
   check(assigned.partner_id===ids.partner,'Approved scope inherits commercially selected partner');
   check(assigned.scope_document_id===ids.sow,'Assignment inherits the exact approved SOW');
