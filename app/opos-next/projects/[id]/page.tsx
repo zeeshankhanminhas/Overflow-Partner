@@ -8,6 +8,7 @@ import {updateProjectMobilisationAction,advanceProjectStageAction} from '@/app/w
 import {recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/client-actions';
 import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
+import {retryGovernedWorkOrderAction} from './work-order/action';
 import css from '../../opos.module.css';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
@@ -28,7 +29,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const data=record.data;
  // Surface partner, technical QA and client-issue evidence inside Workspace 2.0.
  // These queries are read-only: no partner invitation, Work Order or client release is inferred.
- const [assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult]=await Promise.all([
+ const [assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult,workOrderResult]=await Promise.all([
    supabase.from('project_execution_assignments').select('id,execution_state,partner_contact_name,release_reference,released_at,execution_cycle')
      .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
    supabase.from('partner_execution_sessions').select('id,status,expires_at,first_opened_at')
@@ -41,11 +42,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      .eq('organisation_id',organisationId).eq('project_id',id).order('issued_at',{ascending:false}).limit(1).maybeSingle(),
    supabase.from('partner_work_order_acceptances').select('id,accepted_at,accepted_by_name,accepted_by_role')
      .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
+   supabase.from('partner_work_orders').select('id,reference,issued_at')
+     .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
  ]);
- const evidenceUnavailable=[assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult].some(result=>Boolean(result.error));
+ const evidenceUnavailable=[assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult,workOrderResult].some(result=>Boolean(result.error));
  const assignment=assignmentResult.data;
  const partnerSession=sessionResult.data;
  const workOrderAcceptance=workOrderAcceptanceResult.data;
+ const issuedWorkOrder=workOrderResult.data;
  const submissions=submissionResult.data||[];
  const deliveryItems=deliveryResult.data||[];
  const transmittal=transmittalResult.data;
@@ -67,18 +71,52 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const blockedReasons=[...(Array.isArray(readiness.reasons)?readiness.reasons:[]),...(stage==='mobilisation'&&!financial.authorised?[financial.reason]:[])];
  const mayAdvance=canWrite&&readiness.ready&&(stage!=='mobilisation'||financial.authorised);
  const stageHasStandardAction=!['ready_for_client_issue','client_review','completion','closed'].includes(stage);
+ // Work Order issuance is NOT the same as advancing the mobilisation stage.
+ // It uses the existing authenticated action, approved technical scope, and
+ // verified deposit; no SOW shortcut or synthetic acceptance is required.
+ const workOrderCanIssue=qaWritable && !evidenceUnavailable &&
+   ['owner','admin'].includes(String(profile.role)) &&
+   stage==='mobilisation' && financial.authorised && !issuedWorkOrder?.id;
+ const needsWorkOrder=stage==='mobilisation' && !issuedWorkOrder?.id;
  const stageIndex=stage==='mobilisation'?0:stage==='ready_for_execution'?1:['in_progress','internal_review','partner_correction'].includes(stage)?2:3;
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
      title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
      state={meta.label} owner="Overflow Partner / assigned delivery team"
-     nextTitle={completed?'Project completion recorded':meta.action}
-     nextDescription={completed?'The project is closed. Its history remains accessible.':meta.objective+' '+(blockedReasons.length?'Resolve the recorded readiness dependencies before advancing.':'Review the current stage controls below.')}
+     nextTitle={completed?'Project completion recorded':needsWorkOrder?'Issue the Execution Partner Work Order':meta.action}
+     nextDescription={completed?'The project is closed. Its history remains accessible.':needsWorkOrder?'Issue the governed Work Order against the approved scope and verified advance. Mobilisation completion is a later, separate step.':meta.objective+' '+(blockedReasons.length?'Resolve the recorded readiness dependencies before advancing.':'Review the current stage controls below.')}
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:'Partner acceptance required'},{name:'Execution',detail:'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={completed}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Stage readiness',value:readiness.ready?'Requirements satisfied':'Outstanding requirements'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={'/opos-next/projects/'+id+'#project-controls'} previous="/opos-next/projects"/>
+     governedHref={'/opos-next/projects/'+id+(needsWorkOrder?'#work-order-issue':'#project-controls')} previous="/opos-next/projects"/>
+   {stage==='mobilisation'?<section id="work-order-issue" className={css.section} aria-label="Execution Partner Work Order" style={{scrollMarginTop:24}}>
+     <div className={css.sectionHeading}><h2>Execution Partner Work Order</h2></div>
+     <div className={css.card}>
+       <span className={css.overline}>NEXT OPERATIONAL STEP · SEPARATE FROM STAGE ADVANCEMENT</span>
+       <h2 className={css.cardTitle}>{issuedWorkOrder?.id?'Work Order issued':financial.authorised?'Issue Work Order to selected QA partner':'Awaiting verified opening payment'}</h2>
+       <p className={css.cardDescription}>{issuedWorkOrder?.id?
+         'The governed Work Order is already issued. The Execution Partner must still formally accept it before engineering work can commence.':
+         'The accepted quotation, paid opening advance and approved project scope support a governed Work Order. Issuing it creates the partner assignment and secure invitation; it does not complete mobilisation or begin work.'}</p>
+       {issuedWorkOrder?.id?<p className={css.meta} style={{marginTop:14}}>Reference: <strong>{issuedWorkOrder.reference}</strong></p>:null}
+       {workOrderCanIssue?<form action={retryGovernedWorkOrderAction} style={{marginTop:18}}>
+         <input type="hidden" name="project_id" value={id}/>
+         <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
+           Issue Partner Work Order &amp; queue invitation →
+         </button>
+       </form>:null}
+       {!issuedWorkOrder?.id&&!workOrderCanIssue?<p className={css.meta} role="status" style={{marginTop:16}}>
+         {evidenceUnavailable?'The Work Order evidence could not be loaded; please check the detailed readiness page.':
+         !financial.authorised?'A verified opening deposit is required.':
+         'Only a QA workspace owner or administrator can issue the Work Order.'}
+       </p>:null}
+       <p className={css.meta} style={{marginTop:18}}>
+         <Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/work-order'}>
+           Open detailed Work Order readiness and partner acceptance →
+         </Link>
+       </p>
+     </div>
+   </section>:null}
    <section id="project-controls" className={css.section} aria-label="Governed project controls">
      <div className={css.sectionHeading}><h2>Project stage controls</h2></div>
      {feedback.error?<p role="alert" className={css.empty}>Action blocked: {String(feedback.error).slice(0,450)}</p>:null}
@@ -98,11 +136,12 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Save mobilisation controls →</button>
          </form>
        </details>:null}
+       {stage==='mobilisation'&&!mayAdvance?<p className={css.meta} style={{marginTop:16}}>Stage advancement is intentionally separate from Work Order issuance. It becomes available only after the approved project Statement of Work, partner assignment and remaining mobilisation evidence are complete.</p>:null}
        {!completed&&stageHasStandardAction&&canWrite?<form action={advanceProjectStageAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:25}}>
          <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
          <input type="hidden" name="target_stage" value={meta.next||''}/>
          <label style={{display:'grid',gap:7}}>Decision note (optional)<textarea name="note" rows={3} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
-         <div style={{display:'flex',gap:12,flexWrap:'wrap'}}><button type="submit" disabled={!mayAdvance} className={css.action} style={{border:0,cursor:mayAdvance?'pointer':'not-allowed',opacity:mayAdvance?1:.45,marginTop:0}}>{meta.action} →</button>
+         <div style={{display:'flex',gap:12,flexWrap:'wrap'}}><button type="submit" disabled={!mayAdvance} className={css.action} style={{border:0,cursor:mayAdvance?'pointer':'not-allowed',opacity:mayAdvance?1:.45,marginTop:0}}>{stage==='mobilisation'?'Complete mobilisation & advance':meta.action} →</button>
          {stage==='internal_review'?<button type="submit" name="target_stage" value="partner_correction" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Request partner correction →</button>:null}</div>
        </form>:null}
        {stage==='ready_for_client_issue'?<section style={{marginTop:24}}>
