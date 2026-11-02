@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { releaseApprovedPartnerWorkOrder } from '@/lib/execution/autoWorkOrder';
+import { ensureApprovedPartnerAssignment,releaseApprovedPartnerWorkOrder } from '@/lib/execution/autoWorkOrder';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { projectStages, type ProjectStage } from '@/lib/projects/stages';
 import { assertCanAdvanceProjectStage } from '@/lib/business/invariants';
@@ -103,6 +103,14 @@ export async function advanceProjectStageAction(formData: FormData) {
     let workOrderIssue='';
     if(targetStage==='ready_for_execution' && process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'){
       try{
+        // The financially governed project and stage must exist before release.
+        // Resolve the CURRENT approved SOW; never guess or create an approval.
+        const {data:approvedScopes,error:scopeError}=await supabase.from('documents')
+          .select('id').eq('organisation_id',organisationId).eq('project_id',projectId)
+          .eq('document_type','statement-of-work').eq('is_current_revision',true)
+          .in('status',['approved','issued','published']).order('created_at',{ascending:false}).limit(2);
+        if(scopeError || approvedScopes?.length!==1)throw new Error('Exactly one current approved Statement of Work is required for automatic Work Order issuance.');
+        await ensureApprovedPartnerAssignment(supabase,organisationId,user.id,projectId,approvedScopes[0].id);
         await releaseApprovedPartnerWorkOrder(supabase,organisationId,user.id,projectId);
       }catch(workOrderError){
         workOrderIssue=workOrderError instanceof Error?workOrderError.message:'Partner work order could not be queued.';
@@ -126,7 +134,7 @@ export async function advanceProjectStageAction(formData: FormData) {
         }
       }
     }
-    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced but automatic partner work order needs attention: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'?'Partner work order queued for the approved execution partner.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
+    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced but automatic partner work order needs attention: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'?'Partner Work Order queued for the approved Execution Partner; delivery and formal acceptance remain unverified.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
   } catch (error) { destination = projectUrl(projectId,{error:error instanceof Error ? error.message : 'Project stage could not be advanced.',focus:'record-next-action'}); }
   redirect(modernProjectReturn(formData,destination));
 }
