@@ -74,7 +74,14 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   }
   const bankReady=process.env.OP_BANK_SETTLEMENT_VERIFICATION_ENABLED==='true' &&
     Boolean(process.env.OP_BANK_NAME&&process.env.OP_BANK_ACCOUNT_NUMBER&&process.env.OP_BANK_SORT_CODE);
-  const canPay=openingPaymentPending && process.env.OP_PACKAGE01_PAYMENTS_ENABLED==='true' && (stripeAuthorised||bankReady);
+  const {data:lineage,error:lineageError}=openingPaymentPending
+    ? await db.rpc('op_preproject_lineage_readiness',{
+        p_organisation_id:issue.organisation_id,p_quote_id:quote.id,
+      })
+    : {data:{ready:true},error:null};
+  const preprojectReady=!lineageError && lineage?.ready===true;
+  const canPay=openingPaymentPending && preprojectReady &&
+    process.env.OP_PACKAGE01_PAYMENTS_ENABLED==='true' && (stripeAuthorised||bankReady);
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
   let finalReviewAccepted=false;
   let finalSettlementVerified=false;
@@ -115,7 +122,8 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         {stripePaymentPending?<div className={styles.section}><p className={styles.eyebrow}>PAYMENT EVIDENCE RECEIVED</p><h3>Project setup is being verified</h3><p className={styles.note}>Stripe has confirmed your opening payment. OP is completing the release checks. No additional payment is required. Please check back later.</p></div>:null}
         {stripeEvidenceResult.error?<div className={styles.section}><p className={styles.eyebrow}>FINANCIAL RECORDS TEMPORARILY UNAVAILABLE</p><p className={styles.note}>Payment processing is on hold while we verify the ledger. No additional payment can be requested.</p></div>:null}
         {canPay?<div className={styles.section}><p className={styles.eyebrow}>NEXT STEP</p><h3>Opening payment</h3><p className={styles.note}>Project mobilisation begins only after the agreed payment has been verified.</p><Link className={styles.action+' '+styles.primary} href={paymentHref}>Continue to payment</Link></div>:null}
-        {openingPaymentPending&&!canPay?<div className={styles.section}><p className={styles.eyebrow}>OPENING PAYMENT · ARRANGEMENTS PENDING</p><h3>{displayMoney(openingAmount,String(quote.currency||'GBP'))} agreed opening amount</h3><p className={styles.note}>The quotation is accepted, but an authorised payment channel is not yet available for this record. Please contact Overflow Partner for verified payment instructions. No project will be opened from an unverified payment.</p></div>:null}
+        {openingPaymentPending&&!preprojectReady?<div className={styles.section}><p className={styles.eyebrow}>PRE-PROJECT CONTROL</p><h3>Approval checks in progress</h3><p className={styles.note}>Overflow Partner is verifying the approved engineering and commercial position. No opening payment is requested until the record is ready.</p></div>:null}
+        {openingPaymentPending&&preprojectReady&&!canPay?<div className={styles.section}><p className={styles.eyebrow}>OPENING PAYMENT · ARRANGEMENTS PENDING</p><h3>{displayMoney(openingAmount,String(quote.currency||'GBP'))} agreed opening amount</h3><p className={styles.note}>The quotation is accepted, but an authorised payment channel is not yet available for this record. Please contact Overflow Partner for verified payment instructions. No project will be opened from an unverified payment.</p></div>:null}
         {finalReviewAccepted&&!finalSettlementVerified?<div className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
         {finalSettlementVerified&&!finalReleaseApproved?<p className={styles.note}>Final payment received. Approved engineering files await Overflow Partner's release authorisation.</p>:null}
         {finalReleaseApproved?<div className={styles.section}><h3>Approved delivery</h3><Link className={styles.action+' '+styles.primary} href={finalFilesHref}>Download approved engineering files</Link></div>:null}
