@@ -25,6 +25,16 @@ export async function issueWorkOrderAfterVerifiedOpeningPayment(
   const {data:existing,error:existingError}=await db.from('project_work_order_handoffs')
     .select('status,attempts,assignment_id').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
   if(existingError)throw new Error('Existing Work Order handoff could not be checked.');
+  // Stripe may replay the same signed payment months after work has begun.
+  // A successfully issued, immutable Work Order must never be downgraded
+  // just because its project has since advanced beyond Mobilisation.
+  if(existing?.status==='queued'){
+    const {data:priorOrder,error:priorOrderError}=await db.from('partner_work_orders')
+      .select('id,assignment_id').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
+    if(priorOrderError)throw new Error('Previously issued Work Order could not be checked.');
+    if(priorOrder?.id&&priorOrder.assignment_id===existing.assignment_id)
+      return {status:'queued',assignmentId:existing.assignment_id};
+  }
 
   let outcome:WorkOrderHandoffResult;
   let workOrderId:string|null=null;
