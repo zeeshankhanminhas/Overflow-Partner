@@ -43,6 +43,8 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     issued_quotation_missing:'No current issued quotation: review the quotation and issuance record.',
     approved_commercial_review_missing:'Approved pre-quotation commercial review is missing.',
     approved_partner_price_lineage_missing:'Approved partner pricing does not match the commercial quotation lineage.',
+    quote_tax_totals_mismatch:'The quotation subtotal, VAT and total do not reconcile. Correct the controlled client quotation before requesting any payment.',
+    quote_tax_terms_conflict:'This issued quotation charges VAT but its exclusions also say VAT is excluded. Preserve the accepted revision and obtain a corrected, approved quotation with fresh client acceptance.',
     approved_nda_partner_missing:'Selected Execution Partner is not yet approved and NDA-ready. Review its status and verified confidentiality evidence in the Partner register.',
     approved_technical_intake_missing:'Approved technical intake evidence was not recorded before the quotation.',
     approved_client_requirements_missing:'Approved Client Requirements Record is missing from the technical intake.',
