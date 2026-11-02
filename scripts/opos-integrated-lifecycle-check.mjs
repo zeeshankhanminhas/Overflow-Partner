@@ -23,7 +23,7 @@ check('Governance uses delivery risk, safety and complexity', ['technicalComplex
 check('Formal partner evidence is required before Commercial Review',invariants.includes('partner_review_request_id') && invariants.includes('formalReview.status'));
 check('Preliminary consultation cannot authorise quotation',contract.includes("purpose === 'formal_assessment' && approved"));
 check('Quotation revision and expiration guarded for manual release',actions.includes("quote_revision") && actions.includes("currentQuote.valid_until"));
-check('Portal remains persistent and can return to payment',portal.includes('createClientPortalToken')&&portal.includes('Continue to payment'));
+check('Portal remains persistent and completes opening payment directly',portal.includes('createClientPortalToken')&&portal.includes('action={createStripeCheckout}')&&portal.includes('STEP 2 · OPENING PAYMENT'));
 check('Payment portal shows contractual opening amount instead of quote total',payment.includes('openingAmount = Number(contract.opening_amount)')&&payment.includes('formatAmount(openingAmount)'));
 check('Staged deposit cannot show a full-amount Stripe Checkout action',payment.includes('hasStagedPayment')&&payment.includes('stripeAvailable ?'));
 check('Paid Stripe event prevents duplicate client portal payment',portal.includes('stripePaymentPending')&&portal.includes('!stripePaymentPending')&&portal.includes("from('quote_stripe_payment_events')"));
