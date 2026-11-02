@@ -42,7 +42,6 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
   let partnerNda=false;
   let partnerEmail=false;
   let partnerAgreementVerified=false;
-  let partnerQuoteSelected=false;
   const quote=quoteResult.data;
   if(quote?.commercial_review_id){
     const {data:review,error:reviewError}=await supabase.from('commercial_reviews')
@@ -51,7 +50,6 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
       const {data:pq}=await supabase.from('partner_quotes').select('partner_id,status')
         .eq('organisation_id',organisationId).eq('id',review.partner_quote_id).maybeSingle();
       if(pq?.partner_id&&pq.status==='selected'){
-        partnerQuoteSelected=true;
         const {data:partner}=await supabase.from('partners').select('id,company_name,status,nda_signed,email')
           .eq('organisation_id',organisationId).eq('id',pq.partner_id).maybeSingle();
         if(partner){selectedPartnerId=partner.id;partnerName=partner.company_name;partnerApproved=partner.status==='approved';partnerNda=Boolean(partner.nda_signed);partnerEmail=Boolean(partner.email);}
@@ -86,12 +84,12 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
   const assignmentMatched=Boolean(assignment&&selectedPartnerId&&assignment.partner_id===selectedPartnerId
     &&approvedCandidates.length===1&&assignment.scope_document_id===approvedCandidates[0].id);
   if(assignment&&!assignmentMatched)blockers.push('Existing assignment does not match the commercially approved partner and current scope.');
-  const actionable=blockers.length===0 && !workOrder?.issued_at && ['owner','admin'].includes(String(profile.role));
   const email=notificationResult.data;
   const workOrder=workOrderResult.data;
   const handoff=handoffResult.data;
   if([quoteResult,financialResult,sowResult,assignmentResult,acceptanceResult,workOrderResult,handoffResult].some(result=>Boolean(result.error)))
     blockers.push('Some governed evidence could not be retrieved; issuance is locked until verification is restored.');
+  const actionable=blockers.length===0 && !workOrder?.issued_at && ['owner','admin'].includes(String(profile.role));
   const actualStatus=accepted?.id?'Formally accepted':workOrder?.issued_at?
     'Work Order issued · partner acceptance pending':blockers.length?'Blocked · evidence required':'Ready for automatic issue';
   return <div className={css.shell} style={{maxWidth:1000,margin:'0 auto',padding:'38px 20px',display:'grid',gap:24}}>
