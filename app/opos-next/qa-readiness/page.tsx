@@ -35,6 +35,10 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     db.from('projects').select('id').eq('organisation_id',organisationId).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_stripe_payment_events').select('stripe_session_id,verified_at,amount_total,currency').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('quote_revision',quote.revision).eq('stripe_payment_status','paid').limit(1).maybeSingle(),
   ]);
+  const {data:lineage,error:lineageError}=await db.rpc('op_preproject_lineage_readiness',{
+    p_organisation_id:organisationId,p_quote_id:quote.id,
+  });
+  const preprojectReady=!lineageError&&lineage?.ready===true;
   let origin='';let originOkay=false;
   try{origin=qaPublicOrigin();originOkay=true;}catch{/* Leave unavailable on fail-closed diagnostics. */}
   const stripeTestKey=Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'));
@@ -52,6 +56,7 @@ export default async function QaReadiness({searchParams}:{searchParams:Promise<{
     {label:'Isolated QA database',pass:true,detail:'Separate preview-only Supabase backend verified'},
     {label:'Stable QA URL',pass:originOkay,detail:originOkay?origin:'Missing or mismatched preview branch address'},
     {label:'Accepted controlled quotation',pass:accepted,detail:accepted?'Accepted revision '+quote.revision:'Accepted revision evidence missing'},
+    {label:'Pre-project technical and commercial lineage',pass:preprojectReady,detail:preprojectReady?'Approved technical intake, partner assessment, approved commercial review and NDA-ready selected partner':'Unverified or incomplete governance evidence ('+String(lineage?.reason||'unavailable')+')'},
     {label:'Opening payment terms',pass:contractOkay,detail:contractOkay?String(contract.data?.release_basis)+' · '+String(contract.data?.opening_amount)+' '+quote.currency:'Frozen deposit/payment terms not available'},
     {label:'Named acceptance evidence matches frozen terms',pass:signatoryMatches,detail:signatoryMatches?'Authorised contact and attested signatory match exactly':'Missing or mismatched signatory identity'},
     {label:'QA email configuration',pass:process.env.OP_QA_EMAIL_SENDING_ENABLED==='true'&&Boolean(process.env.RESEND_API_KEY)&&Boolean(process.env.RESEND_FROM_EMAIL),detail:'Isolated QA recipient allowlist still enforced'},
