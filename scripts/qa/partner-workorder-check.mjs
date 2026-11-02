@@ -73,7 +73,7 @@ class Builder {
     if(this.op==='insert'){
       const input=Array.isArray(this.value)?this.value:[this.value];
       const added=input.map((row,i)=>({...row,id:row.id||uuidFor(this.table),created_at:new Date().toISOString(),
-        execution_cycle:row.execution_cycle||1}));
+        execution_cycle:row.execution_cycle||1,...(this.table==='partner_work_orders'?{status:'issued'}:{})}));
       tables[this.table].push(...added);
       return added;
     }
