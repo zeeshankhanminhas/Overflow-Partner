@@ -1,4 +1,5 @@
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { qaPublicOrigin } from '@/lib/qa/publicOrigin';
 import { createHash,randomBytes } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
@@ -129,11 +130,12 @@ export async function releaseApprovedPartnerWorkOrder(
     if(hashError)throw new Error(hashError.message);
   }
   const {error:releaseError}=await db.from('project_execution_assignments')
-    .update({execution_state:'awaiting_acknowledgement',released_at:new Date().toISOString()})
+    .update({execution_state:'awaiting_acknowledgement',released_at:new Date().toISOString(),release_reference:project.project_number+'/WO-01'})
     .eq('organisation_id',organisationId).eq('id',assignment.id);
   if(releaseError)throw new Error(releaseError.message);
-  const base=process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_URL
-    ? 'https://'+process.env.VERCEL_URL
+  // A partner invitation must never point at a disposable deployment or the live domain from QA.
+  const base=process.env.VERCEL_ENV==='preview'
+    ? qaPublicOrigin()
     : (process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');
   const actionUrl=base+'/execution/'+createExecutionSessionToken(sessionId);
   const queued=await queueLifecycleEmail(db,{
