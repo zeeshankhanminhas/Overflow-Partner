@@ -42,6 +42,14 @@ export async function createStripeCheckout(formData: FormData) {
      String(contract.currency).toUpperCase()!==String(quote.currency).toUpperCase()){
     throw new Error('Stripe Checkout requires frozen payment terms matching the accepted quotation.');
   }
+  // A client must never be charged for a quotation that cannot create a
+  // governed Project 360. This is a service-role-only, read-only preflight.
+  const {data:lineage,error:lineageError}=await db.rpc('op_preproject_lineage_readiness',{
+    p_organisation_id:issue.organisation_id,p_quote_id:quote.id,
+  });
+  if(lineageError || lineage?.ready!==true)
+    throw new Error('Opening payment is unavailable until the technical and commercial approval chain has been verified. Contact Overflow Partner; do not pay again.');
+
   const quotedTotal = Number(quote.total);
   const openingAmount = Number(contract.opening_amount);
   const expectedOpening = contract.release_basis === 'deposit' ? openingPayment(quotedTotal) : quotedTotal;
