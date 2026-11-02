@@ -47,6 +47,15 @@ export default async function QuotePaymentPage({ searchParams }: { searchParams:
   // Never offer another Checkout while the original payment awaits reconciliation.
   const settlementPending = !confirmed && verifiedStripeEvent;
   const stripeReturnPending = !confirmed && stripe_return === 'success';
+  // Existing verified payments remain visible. Only an unpaid quotation must
+  // pass pre-project lineage before any new Stripe or bank-payment invitation.
+  if(!confirmed && !settlementPending && !stripeReturnPending){
+    const {data:lineage,error:lineageError}=await db.rpc('op_preproject_lineage_readiness',{
+      p_organisation_id:issue.organisation_id,p_quote_id:quote.id,
+    });
+    if(lineageError || lineage?.ready!==true)
+      return unavailable('Project readiness verification pending','Our team is completing the approved technical and commercial checks. No payment is requested until those checks are complete.');
+  }
   const bankName=process.env.OP_BANK_NAME;
   const bankAccount=process.env.OP_BANK_ACCOUNT_NUMBER;
   const bankSort=process.env.OP_BANK_SORT_CODE;
