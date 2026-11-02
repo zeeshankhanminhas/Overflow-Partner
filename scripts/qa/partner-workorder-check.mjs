@@ -182,6 +182,13 @@ try {
     'Handoff persists one queued record in Project 360');
   check(tables.partner_work_orders.length===1,'Webhook replay does not issue another Work Order');
   check(tables.partner_execution_sessions.length===1,'Webhook replay does not create another partner portal');
+  tables.projects[0].project_stage='in_progress';
+  const afterExecutionReplay=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
+  check(afterExecutionReplay.status==='queued','Late signed Stripe retry preserves issued WO after project enters execution');
+  check(tables.partner_work_orders.length===1&&tables.project_work_order_handoffs[0].status==='queued',
+    'Late webhook retry cannot downgrade issued, accepted execution work');
+  tables.projects[0].project_stage='mobilisation';
+  tables.project_work_order_handoffs.length=0;
   tables.quotes[0].commercial_review_id=null;
   const blockedHandoff=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
   check(blockedHandoff.status==='awaiting_evidence','Missing earlier commercial selection leaves controlled pending evidence');
