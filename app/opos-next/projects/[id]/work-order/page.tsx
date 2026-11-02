@@ -37,6 +37,7 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
   let partnerApproved=false;
   let partnerNda=false;
   let partnerEmail=false;
+  let partnerAgreementVerified=false;
   const quote=quoteResult.data;
   if(quote?.commercial_review_id){
     const {data:review,error:reviewError}=await supabase.from('commercial_reviews')
@@ -51,6 +52,12 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
       }
     }
   }
+  if(selectedPartnerId){
+    const {data:agreement,error:agreementError}=await supabase.from('partner_execution_agreement_evidence')
+      .select('id,signed_at,verified_at').eq('organisation_id',organisationId).eq('partner_id',selectedPartnerId)
+      .eq('is_current',true).maybeSingle();
+    partnerAgreementVerified=!agreementError&&Boolean(agreement?.id&&agreement.signed_at&&agreement.verified_at&&new Date(agreement.signed_at).getTime()<=new Date(agreement.verified_at).getTime());
+  }
   const sow=sowResult.data||[];
   const approved=sow.filter(x=>['approved','issued','published'].includes(x.status)&&x.is_current_revision);
   const financial=financialResult.data as {authorised?:boolean;basis?:string;received?:number;required?:number}|null;
@@ -63,6 +70,7 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
   if(selectedPartnerId&&!partnerApproved)blockers.push('The commercially selected Execution Partner is not approved.');
   if(selectedPartnerId&&!partnerNda)blockers.push('The commercially selected Execution Partner has no signed NDA evidence.');
   if(selectedPartnerId&&!partnerEmail)blockers.push('The Execution Partner has no verified delivery email.');
+  if(selectedPartnerId&&!partnerAgreementVerified)blockers.push('The signed Execution Partner Agreement has not been independently verified.');
   if(approved.length!==1)blockers.push('Exactly one current approved Statement of Work is required.');
   if(!project.due_date)blockers.push('The project delivery due date is not recorded.');
   if(project.project_stage!=='ready_for_execution')blockers.push('The controlled Mobilisation stage must first be completed.');
@@ -96,6 +104,7 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
       <div className={css.factRow} style={{marginTop:18}}>
         <span>Verified opening deposit: <strong>{settled?'Confirmed':'Not verified'}</strong></span>
         <span>Commercial partner: <strong>{partnerName}</strong></span>
+        <span>Execution Partner Agreement: <strong>{partnerAgreementVerified?'Verified':'Not verified'}</strong></span>
         <span>Approved SOW: <strong>{approved.length===1?(approved[0].reference||'Available'):'Not ready'}</strong></span>
         <span>Project stage: <strong>{String(project.project_stage).replaceAll('_',' ')}</strong></span>
         <span>Work Order issue: <strong>{assignment?.released_at?'Recorded':'Not issued'}</strong></span>
