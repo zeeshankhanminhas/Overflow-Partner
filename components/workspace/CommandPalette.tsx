@@ -8,15 +8,15 @@ type Result={entity_type:string;entity_id:string;title:string;subtitle:string|nu
 const n=primaryNavigation;
 const RECENT_KEY='overflow-partner:recent-work';
 const quick=[
-  {title:n.missionControl.label,subtitle:'Current operating position and next intervention',href:n.missionControl.href},
-  {title:n.approvals.label,subtitle:'Authority decisions ready for review',href:n.approvals.href},
-  {title:n.companies.label,subtitle:'Prospect and client company master records',href:n.companies.href},
-  {title:n.contacts.label,subtitle:'Decision-makers and technical contacts',href:n.contacts.href},
-  {title:n.cases.label,subtitle:'Pre-project technical and commercial control',href:n.cases.href},
-  {title:n.projects.label,subtitle:'Controlled engineering delivery',href:n.projects.href},
-  {title:n.payments.label,subtitle:'Receivables, liabilities and settlement evidence',href:n.payments.href},
-  {title:n.documents.label,subtitle:'Controlled document registry and revisions',href:n.documents.href},
-  {title:n.issues.label,subtitle:'Off-plan conditions requiring intervention',href:n.issues.href},
+  {title:n.linkedinFunnel.label,subtitle:'Cold conversations before CRM',href:n.linkedinFunnel.href},
+  {title:n.missionControl.label,subtitle:'Top priority and next steps',href:n.missionControl.href},
+  {title:n.opportunities.label,subtitle:'Enquiries and commercial Cases',href:n.opportunities.href},
+  {title:n.projects.label,subtitle:'Mobilisation, execution, delivery and closeout',href:n.projects.href},
+  {title:n.finance.label,subtitle:'Client payments and partner settlement',href:n.finance.href},
+  {title:n.documents.label,subtitle:'Controlled document register',href:n.documents.href},
+  {title:n.myWork.label,subtitle:'Decisions, issues and dependencies',href:n.myWork.href},
+  {title:n.more.label,subtitle:'People, companies, partners and supporting tools',href:n.more.href},
+
 ];
 
 const iconProps={width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round' as const,strokeLinejoin:'round' as const,'aria-hidden':true};

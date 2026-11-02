@@ -1,5 +1,7 @@
 # Overflow Partner Full Productisation Sprint
 
+**Status: HISTORICAL implementation plan.** The old navigation, dark workspace and module placement described below are preserved only to explain previous releases, not as current UI/IA instructions. [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md) supersedes them.
+
 ## Purpose
 
 This document records the product architecture and completion boundary for the full workspace productisation pass. It is an implementation map, not a second product strategy.

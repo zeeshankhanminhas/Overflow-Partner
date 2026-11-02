@@ -1,5 +1,7 @@
 # Phase 3 — Launch Validation and Reliability
 
+**Status: HISTORICAL launch plan.** The former phase-scoped “no navigation redesign” constraint is not a current product instruction. [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md) governs new IA/UI. The security, authentication, reliability and business integrity gates remain in force.
+
 ## Objective
 
 Move Overflow Partner from a feature-complete operating system to a release that is repeatedly verifiable in production.

@@ -31,7 +31,7 @@ export default async function ApprovalsPage(){
       href:item.href,
       actionLabel:'Open decision',
       tone:'waiting' as const,
-      inspect:<ContextActions label={`Inspect ${item.title}`}><WorkspaceDrawer triggerLabel="Inspect" eyebrow="Decision context" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open decision</Link>}><InteractionFacts><InteractionFact label="Decision">{item.type}</InteractionFact><InteractionFact label="Record">{item.recordLabel}</InteractionFact><InteractionFact label="Source">{sourceLabel(item.source)}</InteractionFact><InteractionFact label="Waiting">{age(item.createdAt)}</InteractionFact><InteractionFact label="Value">{item.value!==undefined?money(item.value,item.currency):'Not value-based'}</InteractionFact></InteractionFacts><WorkspaceContextLinks title="Related context" links={related}/></WorkspaceDrawer></ContextActions>,
+      inspect:<ContextActions label={`Inspect ${item.title}`}><WorkspaceDrawer triggerLabel="Details" eyebrow="Decision context" title={item.title} description={item.reason} footer={<Link className="button" href={item.href}>Open decision</Link>}><InteractionFacts><InteractionFact label="Decision">{item.type}</InteractionFact><InteractionFact label="Record">{item.recordLabel}</InteractionFact><InteractionFact label="Source">{sourceLabel(item.source)}</InteractionFact><InteractionFact label="Waiting">{age(item.createdAt)}</InteractionFact><InteractionFact label="Value">{item.value!==undefined?money(item.value,item.currency):'Not value-based'}</InteractionFact></InteractionFacts><WorkspaceContextLinks title="Related context" links={related}/></WorkspaceDrawer></ContextActions>,
     };
   });
   const blockedItems=blocked.map(item=>({

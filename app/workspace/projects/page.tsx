@@ -118,7 +118,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
   const caseEntry=<Link className="button secondary" href="/workspace/leads">Open Cases</Link>;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Choose a Project from the portfolio. Inspect the operating position in place, then open Project 360 only when you need to perform record-level work." actions={caseEntry} />
+    <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Open a Project directly to continue delivery. Use Details only for a quick summary." actions={caseEntry} />
 
     <ProductMetrics label="Project portfolio summary">
       <ProductMetric label="Active portfolio" value={enriched.filter(p=>p.stage!=='closed').length} detail="Current project-owned work" />
@@ -137,7 +137,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
       {pageRows.length===0?<ProductEmptyState title="No projects match this view" description="Change the portfolio filter or clear search to broaden the register." />:<div className="project-portfolio-register">
         <div className="project-portfolio-head" aria-hidden="true"><span>Project</span><span>Operating state</span><span>Owner</span><span>Due</span><span>Value</span><span>Delivery</span><span>Waiting on</span><span>What happens next</span></div>
         {pageRows.map((p:any)=><div className={`project-portfolio-row ${p.attention?'project-portfolio-row--attention':''}`} key={p.id}>
-          <div data-label="Project"><strong>{p.project_number}</strong><span>{p.title}</span><small>{p.detail?.lead?.company_name||'Client not recorded'}</small></div>
+          <div data-label="Project"><Link className="op-record-primary-link" href={`/workspace/projects/${p.id}`}><strong>{p.project_number}</strong><span>{p.title}</span></Link><small>{p.detail?.lead?.company_name||'Client not recorded'}</small></div>
           <div data-label="Operating state"><ProductStatus tone={p.presentation.tone}>{p.presentation.state}</ProductStatus><small>{p.attention?'Needs attention':p.presentation.tone==='waiting'?'On plan · waiting':'On plan'}</small></div>
           <div data-label="Owner"><strong>{p.detail?.project_manager?.full_name||'Unassigned'}</strong></div>
           <div data-label="Due"><strong>{formatDate(p.due_date)}</strong>{p.overdue?<small>Overdue</small>:null}</div>
@@ -147,7 +147,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
           <div data-label="What happens next">
             <strong>{p.presentation.nextAction.label}{p.presentation.nextAction.available?' →':''}</strong>
             <ContextActions label={`Actions for ${p.project_number}`}>
-              <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Project" title={`${p.project_number} · ${p.title}`} description={p.presentation.summary} footer={<Link className="button" href={`/workspace/projects/${p.id}`}>Open Project 360</Link>}>
+              <WorkspaceDrawer triggerLabel="Details" eyebrow="Project" title={`${p.project_number} · ${p.title}`} description={p.presentation.summary} footer={<Link className="button" href={`/workspace/projects/${p.id}`}>Open Project 360</Link>}>
                 <InteractionFacts>
                   <InteractionFact label="Operating state">{p.presentation.state}</InteractionFact>
                   <InteractionFact label="Client">{p.detail?.lead?.company_name||'Not recorded'}</InteractionFact>
@@ -163,7 +163,6 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
                 </InteractionFacts>
                 {p.attention?<div className="product-notice product-notice--attention"><strong>Needs attention</strong><div>{p.presentation.blockers?.[0]||p.finance.reason||'Review the Project operating state.'}</div></div>:<p className="interaction-summary__lead">{p.presentation.summary}</p>}
               </WorkspaceDrawer>
-              <Link className="button secondary" href={`/workspace/projects/${p.id}`}>Open</Link>
               {developerDeleteEnabled?<DecisionDialog triggerLabel="Delete test project" triggerClassName="button secondary product-action product-action--destructive" eyebrow="Developer test control" title={`Delete ${p.project_number}?`} description="Permanent test-data cleanup. Related delivery, financial and controlled-document test records will also be removed."><form action={developerDeleteRecordAction} className="stack"><input type="hidden" name="entity_type" value="project"/><input type="hidden" name="entity_id" value={p.id}/><input type="hidden" name="return_to" value="/workspace/projects"/><div className="product-notice product-notice--critical"><strong>Permanent project deletion</strong><div>{p.project_number} · {p.title} and its dependent test records will be removed.</div></div><WorkspaceConsequenceGuard actionLabel="Delete test project" pendingLabel="Deleting project…" confirmationLabel={`I understand ${p.project_number} and its dependent test records will be permanently deleted.`} consequence="Project delivery, financial and document test records will be removed." recovery="This action cannot be undone." className="button product-action product-action--destructive"/></form></DecisionDialog>:null}
             </ContextActions>
           </div>

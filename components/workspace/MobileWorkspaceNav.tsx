@@ -1,50 +1,40 @@
 'use client';
-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-type IconName = 'home' | 'opportunities' | 'projects' | 'approvals' | 'documents';
-
-function NavIcon({ name }: { name: IconName }) {
-  const common = { width: 21, height: 21, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
-  if (name === 'home') return <svg {...common}><path d="M3 10.8 12 3l9 7.8"/><path d="M5.5 9.7V21h13V9.7"/><path d="M9.5 21v-6h5v6"/></svg>;
-  if (name === 'opportunities') return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>;
-  if (name === 'projects') return <svg {...common}><path d="M4 6.5h6l1.5 2H20v9.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M4 9h16"/></svg>;
-  if (name === 'approvals') return <svg {...common}><path d="M7 3.5h10v17H7z"/><path d="m9.5 12 1.8 1.8 3.5-4"/></svg>;
-  return <svg {...common}><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5v4h4"/><path d="M9 12h6"/><path d="M9 15.5h6"/></svg>;
+type IconName='outreach'|'home'|'opportunities'|'projects'|'more';
+function Icon({name}:{name:IconName}){
+  const props={width:21,height:21,viewBox:'0 0 24 24',fill:'none',
+    stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round' as const,
+    strokeLinejoin:'round' as const,'aria-hidden':true as const};
+  if(name==='outreach')return <svg {...props}><path d="M4 5.5h16v11H9l-5 3v-14Z"/><path d="M8 10h8M8 13h5"/></svg>;
+  if(name==='home')return <svg {...props}><path d="M3 10.8 12 3l9 7.8M5.5 9.7V21h13V9.7M9.5 21v-6h5v6"/></svg>;
+  if(name==='opportunities')return <svg {...props}><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 5V3h8v2M8 11h8M8 15h5"/></svg>;
+  if(name==='projects')return <svg {...props}><path d="M4 6.5h6l1.5 2H20v9.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 9h16"/></svg>;
+  return <svg {...props}><circle cx="5" cy="6" r="1"/><circle cx="12" cy="6" r="1"/><circle cx="19" cy="6" r="1"/><circle cx="5" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="19" cy="14" r="1"/></svg>;
 }
-
-function isActive(pathname: string, href: string) {
-  if (href === '/workspace') return pathname === '/workspace';
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export default function MobileWorkspaceNav({
-  home,
-  opportunities,
-  projects,
-  approvals,
-  documents,
-}: {
-  home: string;
-  opportunities: string;
-  projects: string;
-  approvals: string;
-  documents: string;
-}) {
-  const pathname = usePathname();
-  const items = [
-    { label: 'Outreach', href: '/outreach', icon: 'opportunities' as const },
-    { label: 'Home', href: home, icon: 'home' as const },
-    { label: 'Projects', href: projects, icon: 'projects' as const },
-    { label: 'Approvals', href: approvals, icon: 'approvals' as const },
-    { label: 'Documents', href: documents, icon: 'documents' as const },
-  ];
-
-  return <nav className="midts-mobile-nav op-mobile-nav" aria-label="Mobile workspace navigation">
-    {items.map((item) => <Link key={item.label} href={item.href} className={isActive(pathname, item.href) ? 'is-active' : undefined} aria-current={isActive(pathname, item.href) ? 'page' : undefined}>
-      <NavIcon name={item.icon}/>
-      <span>{item.label}</span>
+const options=[
+  {label:'Outreach',href:'/outreach',icon:'outreach' as const},
+  {label:'Home',href:'/workspace',icon:'home' as const},
+  {label:'Opportunities',href:'/workspace/opportunities',icon:'opportunities' as const},
+  {label:'Projects',href:'/workspace/projects',icon:'projects' as const},
+  {label:'More',href:'/workspace/more',icon:'more' as const},
+];
+export default function MobileWorkspaceNav(){
+  const pathname=usePathname();
+  const active=(href:string)=>href==='/workspace'?pathname===href
+    :href==='/workspace/opportunities'
+      ? pathname===href||pathname.startsWith('/workspace/acquisition')||pathname.startsWith('/workspace/leads')||pathname.startsWith('/workspace/quotes')
+    :href==='/workspace/more'
+      ? pathname===href||pathname.startsWith('/workspace/payments')||pathname.startsWith('/workspace/documents')
+        ||pathname.startsWith('/workspace/approvals')||pathname.startsWith('/workspace/settings')
+        ||pathname.startsWith('/workspace/companies')||pathname.startsWith('/workspace/contacts')
+      :pathname===href||pathname.startsWith(href+'/');
+  return <nav className="midts-mobile-nav op-mobile-nav op-mobile-nav--clear" aria-label="Mobile workspace navigation">
+    {options.map(item=><Link key={item.href} href={item.href}
+      className={active(item.href)?'is-active':undefined}
+      aria-current={active(item.href)?'page':undefined}>
+      <Icon name={item.icon}/><span>{item.label}</span>
     </Link>)}
   </nav>;
 }
