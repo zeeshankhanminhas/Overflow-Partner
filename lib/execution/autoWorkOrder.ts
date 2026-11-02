@@ -86,7 +86,7 @@ export async function releaseApprovedPartnerWorkOrder(
  db:SupabaseClient,organisationId:string,userId:string,projectId:string
 ){
   if(process.env.VERCEL_ENV==='preview'&&!isKnownIsolatedQaBackend())throw new Error('Automatic partner work-order QA requires a genuinely isolated database.');
-  const {project,partner}=await governedPartner(db,organisationId,projectId);
+  const {project,partner,partnerQuote}=await governedPartner(db,organisationId,projectId);
   if(!['mobilisation','ready_for_execution'].includes(String(project.project_stage)))
     throw new Error('Work Order issue is permitted only after verified advance, before execution begins.');
   const {data:finance,error:financeError}=await db.rpc('op_project_financial_gate',{p_project_id:projectId});
