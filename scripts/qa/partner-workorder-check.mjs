@@ -36,7 +36,7 @@ const tables={
     project_stage:'mobilisation',start_date:'2026-10-24',due_date:null,created_by:ids.actor}],
   quotes:[{id:ids.quote,organisation_id:ids.org,commercial_review_id:ids.commercial}],
   commercial_reviews:[{id:ids.commercial,organisation_id:ids.org,partner_quote_id:ids.partnerQuote,status:'approved',approved_at:'2026-10-20T00:00:00Z'}],
-  partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner,price:180,currency:'GBP',status:'selected',lead_time_days:12,delivery_commitment:'12 business days',commercial_assumptions:'Client input on time',exclusions:'Unapproved redesign'}],
+  partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner,price:180,currency:'GBP',status:'received',lead_time_days:12,delivery_commitment:'12 business days',commercial_assumptions:'Client input on time',exclusions:'Unapproved redesign'}],
   partners:[{id:ids.partner,organisation_id:ids.org,company_name:'OP QA Technical Partner',
     contact_name:'QA Engineer',email:'partner@example.invalid',status:'approved',nda_signed:true}],
   partner_execution_agreement_evidence:[{id:'10000000-0000-4000-8000-000000000011',organisation_id:ids.org,partner_id:ids.partner,is_current:true,signed_at:'2026-10-01T00:00:00.000Z',verified_at:'2026-10-02T00:00:00.000Z'}],
