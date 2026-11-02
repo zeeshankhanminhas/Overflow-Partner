@@ -29,23 +29,27 @@ const ids={
   sow:'10000000-0000-4000-8000-000000000008',
   assignment:'10000000-0000-4000-8000-000000000009',
   session:'10000000-0000-4000-8000-000000000010',
+  workOrder:'10000000-0000-4000-8000-000000000012',
 };
 const tables={
   projects:[{id:ids.project,organisation_id:ids.org,quote_id:ids.quote,project_number:'OP-QA-WO-1',
-    project_stage:'mobilisation',start_date:'2026-10-24',due_date:'2026-11-07'}],
+    project_stage:'mobilisation',start_date:'2026-10-24',due_date:null}],
   quotes:[{id:ids.quote,organisation_id:ids.org,commercial_review_id:ids.commercial}],
-  commercial_reviews:[{id:ids.commercial,organisation_id:ids.org,partner_quote_id:ids.partnerQuote}],
-  partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner}],
+  commercial_reviews:[{id:ids.commercial,organisation_id:ids.org,partner_quote_id:ids.partnerQuote,status:'approved',approved_at:'2026-10-20T00:00:00Z'}],
+  partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner,price:180,currency:'GBP',status:'selected',lead_time_days:12,delivery_commitment:'12 business days',commercial_assumptions:'Client input on time',exclusions:'Unapproved redesign'}],
   partners:[{id:ids.partner,organisation_id:ids.org,company_name:'OP QA Technical Partner',
     contact_name:'QA Engineer',email:'partner@example.invalid',status:'approved',nda_signed:true}],
   partner_execution_agreement_evidence:[{id:'10000000-0000-4000-8000-000000000011',organisation_id:ids.org,partner_id:ids.partner,is_current:true,signed_at:'2026-10-01T00:00:00.000Z',verified_at:'2026-10-02T00:00:00.000Z'}],
   documents:[{id:ids.sow,organisation_id:ids.org,project_id:ids.project,
-    document_type:'statement-of-work',status:'draft',is_current_revision:true}],
+    document_type:'scope-of-work',reference:'OP-SCOPE-QA-1',revision_code:'A',status:'draft',is_current_revision:true},
+    {id:'10000000-0000-4000-8000-000000000013',organisation_id:ids.org,project_id:ids.project,
+      document_type:'statement-of-work',reference:'OP-DRAFT-SOW',status:'draft',is_current_revision:true}],
   project_execution_assignments:[],
   partner_execution_sessions:[],
+  partner_work_orders:[],
 };
 let gate={authorised:true,basis:'deposit',required:300,received:300};
-const uuidFor=(table)=>table==='partner_execution_sessions'?ids.session:ids.assignment;
+const uuidFor=(table)=>table==='partner_execution_sessions'?ids.session:table==='partner_work_orders'?ids.workOrder:ids.assignment;
 class Builder {
   constructor(table,op='read',value=null){
     this.table=table;this.op=op;this.value=value;this.conditions=[];this.sorted=false;this.first=Infinity;
@@ -115,8 +119,8 @@ try {
     check(true,description);
   }
   await blocked(()=>ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow),
-    'approved Statement of Work','Unapproved SOW cannot create assignment');
-  check(tables.project_execution_assignments.length===0,'No assignment before SOW approval');
+    'approved technical scope','Unapproved technical scope cannot create assignment');
+  check(tables.project_execution_assignments.length===0,'No assignment before technical scope approval');
   tables.documents[0].status='approved';
   const agreementEvidence=tables.partner_execution_agreement_evidence.shift();
   await blocked(()=>ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow),
@@ -124,12 +128,10 @@ try {
   tables.partner_execution_agreement_evidence.push(agreementEvidence);
   const assigned=await ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow);
   check(assigned.partner_id===ids.partner,'Approved scope inherits commercially selected partner');
-  check(assigned.scope_document_id===ids.sow,'Assignment inherits the exact approved SOW');
+  check(assigned.scope_document_id===ids.sow,'Assignment inherits the pre-quotation approved execution scope');
   await ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow);
   check(tables.project_execution_assignments.length===1,'Assignment is idempotent');
-  await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
-    'Mobilisation must complete','No work order before governed mobilisation');
-  tables.projects[0].project_stage='ready_for_execution';
+  check(tables.projects[0].project_stage==='mobilisation','Project remains in mobilisation while Work Order is issued');
   for(const basis of ['po','credit','manual','none']){
     gate={authorised:true,basis,required:300,received:300};
     await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
@@ -141,14 +143,18 @@ try {
   gate={authorised:true,basis:'deposit',required:300,received:300};
   tables.documents[0].is_current_revision=false;
   await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
-    'Current controlled SOW','Outdated SOW cannot release work');
+    'Current controlled technical scope','Outdated technical scope cannot issue Work Order');
   tables.documents[0].is_current_revision=true;
   tables.partners[0].nda_signed=false;
   await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
     'NDA-signed','No NDA means no partner work order');
   tables.partners[0].nda_signed=true;
   const released=await releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project);
-  check(released.assignmentId===ids.assignment,'Correct commercial assignment is released');
+  check(released.assignmentId===ids.assignment,'Correct commercial assignment is released during mobilisation');
+  check(tables.partner_work_orders.length===1,'Exactly one immutable priced Work Order issued after paid deposit');
+  check(Number(tables.partner_work_orders[0].partner_price)===180,'Partner cost inherited from selected quote, never client sale price');
+  check(tables.partner_work_orders[0].scope_document_id===ids.sow,'Work Order binds originally approved technical scope');
+  check(tables.project_execution_assignments[0].release_reference==='OP-QA-WO-1/WO-01','Work Order reference is deterministic');
   check(tables.partner_execution_sessions.length===1,'One secure execution session created');
   check(emails.length===1,'Exactly one queued fake partner work-order notification');
   check(emails[0].recipientEmail==='partner@example.invalid','Only governed partner receives invitation');
@@ -159,6 +165,7 @@ try {
   const repeated=await releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project);
   check(repeated.sessionId===released.sessionId,'Retry reuses same execution token session');
   check(tables.partner_execution_sessions.length===1,'Retry creates no second execution portal');
+  check(tables.partner_work_orders.length===1,'Retry never creates a second Work Order or partner price');
   check(emails[1].idempotencyKey===emails[0].idempotencyKey,'Retry uses stable outbox idempotency key');
   console.log('OPOS partner-workorder QA passed: '+checks+' checks, fake email only, no network.');
 }finally {
