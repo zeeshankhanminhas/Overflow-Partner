@@ -52,9 +52,10 @@ export async function saveExecutionAssignmentAction(formData: FormData) {
     if(partner.status!=='approved'||!partner.nda_signed) throw new Error('The commercially selected Execution Partner must remain approved and NDA-ready.');
     if(scopeError||!scope||scope.project_id!==projectId||scope.document_type!=='statement-of-work'||!['approved','issued','published'].includes(String(scope.status))||!scope.is_current_revision) throw new Error('Select the current approved Statement of Work as the controlled execution scope.');
     const payload={organisation_id:organisationId,project_id:projectId,partner_id:partnerId,scope_document_id:scopeDocumentId,partner_contact_name:String(formData.get('partner_contact_name')||'').trim()||null,partner_contact_email:contactEmail,planned_start_date:String(formData.get('planned_start_date')||'')||null,committed_due_date:String(formData.get('committed_due_date')||'')||project.due_date||null,reporting_cadence:cadence,release_notes:String(formData.get('release_notes')||'').trim()||null,created_by:user.id};
-    const {data:existing,error:existingError}=await supabase.from('project_execution_assignments').select('id,execution_state').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
+    const {data:existing,error:existingError}=await supabase.from('project_execution_assignments').select('id,execution_state,released_at').eq('organisation_id',organisationId).eq('project_id',projectId).maybeSingle();
     if(existingError) throw new Error(existingError.message);
     if(existing){
+      if(existing.released_at)throw new Error('Issued Work Order is immutable. Request a governed scope or commercial change rather than editing the original assignment.');
       if(!['not_released','awaiting_acknowledgement'].includes(String(existing.execution_state))) throw new Error('Execution has already commenced. Partner identity and controlled release basis are now locked.');
       const {error}=await supabase.from('project_execution_assignments').update(payload).eq('organisation_id',organisationId).eq('id',existing.id);if(error)throw new Error(error.message);
       await audit(supabase,organisationId,user.id,projectId,'partner_execution.assignment_updated',{assignmentId:existing.id,partnerId,scopeDocumentId,canonicalLifecycle:true});
