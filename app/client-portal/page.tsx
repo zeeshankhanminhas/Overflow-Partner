@@ -6,6 +6,8 @@ import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quote
 import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 import { createStripeCheckout } from '@/app/quote-payment/stripe-action';
 import { acceptClientQuotationInPortal } from './accept-action';
+import { acceptNorthfieldQaCorrection } from './qa-correction-action';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Client Portal | Overflow Partner', robots: { index: false, follow: false } };
@@ -30,6 +32,20 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   if (issueError || !issue) return unavailable();
   const {data:quote,error:quoteError} = await db.from('quotes').select('id,organisation_id,lead_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('id',access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(String(quote.status))) return unavailable();
+  // The R01 QA history stays immutable. Its VAT correction is a separately
+  // acknowledged simulated addendum, never treated as a legal revision.
+  const qaReplayEnabled=isKnownIsolatedQaBackend() &&
+    quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99';
+  const [qaReplayResult,qaAcceptanceResult]=qaReplayEnabled ? await Promise.all([
+    db.from('op_qa_northfield_replay').select('correction_text,expires_at')
+      .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id)
+      .gt('expires_at',new Date().toISOString()).maybeSingle(),
+    db.from('op_qa_northfield_addendum_acceptances').select('accepted_at')
+      .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+  ]) : [{data:null,error:null},{data:null,error:null}];
+  const qaCorrection=qaReplayResult.error?null:qaReplayResult.data;
+  const qaCorrectionAcknowledged=!qaAcceptanceResult.error && Boolean(qaAcceptanceResult.data?.accepted_at);
+
   const [paymentResult,releaseResult,projectResult,contractResult,stripeEvidenceResult] = await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('release_basis,confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
@@ -140,6 +156,20 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
           </form>
           <div className={styles.actions}>{actions.filter(a=>a.response!=='accepted').map(({label,response})=><Link key={response} className={styles.action} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`}>{label}</Link>)}</div>
         </div>:null}
+        {qaCorrection?<div className={styles.section} aria-label="Fictional QA commercial correction">
+          <p className={styles.eyebrow}>QA REHEARSAL ONLY · R01 CORRECTION</p>
+          <h3>Confirm corrected VAT-inclusive test terms</h3>
+          <p className={styles.note}>{qaCorrection.correction_text}</p>
+          <p className={styles.note}>This is a simulated amendment for testing the customer journey, not a legally executed variation or a replacement for the historical R01 PDF. The previously accepted quotation remains on record.</p>
+          {!qaCorrectionAcknowledged?<form className={styles.acceptanceForm} action={acceptNorthfieldQaCorrection}>
+            <input type="hidden" name="token" value={token}/>
+            <label>Authorised QA signatory<input name="signatory_name" required defaultValue={String(contractResult.data?.authorised_contact_name||'')}/></label>
+            <label>QA contact email<input name="signatory_email" type="email" required defaultValue={String(contractResult.data?.authorised_contact_email||'')}/></label>
+            <label className={styles.authorityConfirmation}><input name="qa_correction_acknowledged" type="checkbox" value="yes" required/><span>I acknowledge the corrected VAT-inclusive terms solely for this fictional Northfield QA rehearsal and understand this is not a real payment obligation.</span></label>
+            <button className={styles.action+' '+styles.primary} type="submit">Confirm QA terms and continue</button>
+          </form>:<p className={styles.note}><strong>QA correction acknowledged.</strong> Continue to the opening payment test when the sandbox is ready.</p>}
+          {notice==='qa_addendum_unavailable'?<p role="alert" className={styles.note}>The QA correction could not be recorded. Check the named test contact; no payment has been requested.</p>:null}
+        </div>:null}
         {stripePaymentPending?<div className={styles.section}><p className={styles.eyebrow}>PAYMENT EVIDENCE RECEIVED</p><h3>Project setup is being verified</h3><p className={styles.note}>Stripe has confirmed your opening payment. OP is completing the release checks. No additional payment is required. Please check back later.</p></div>:null}
         {stripeEvidenceResult.error?<div className={styles.section}><p className={styles.eyebrow}>FINANCIAL RECORDS TEMPORARILY UNAVAILABLE</p><p className={styles.note}>Payment processing is on hold while we verify the ledger. No additional payment can be requested.</p></div>:null}
         {canPay?<div className={styles.section}><p className={styles.eyebrow}>STEP 2 · OPENING PAYMENT</p>
@@ -154,7 +184,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
           <p className={styles.eyebrow}>STEP 3 · VERIFICATION</p><h3>Checking Stripe payment confirmation</h3>
           <p className={styles.note}>You have returned from Checkout. The independent payment verification is still running. Do not submit another payment.</p>
         </div>:null}
-        {openingPaymentPending&&!preprojectReady?<div className={styles.section}><p className={styles.eyebrow}>PRE-PROJECT CONTROL</p><h3>Approval checks in progress</h3><p className={styles.note}>Overflow Partner is verifying the approved engineering and commercial position. No opening payment is requested until the record is ready.</p></div>:null}
+        {openingPaymentPending&&!preprojectReady&&!qaCorrection?<div className={styles.section}><p className={styles.eyebrow}>PRE-PROJECT CONTROL</p><h3>Approval checks in progress</h3><p className={styles.note}>Overflow Partner is verifying the approved engineering and commercial position. No opening payment is requested until the record is ready.</p></div>:null}
         {openingPaymentPending&&preprojectReady&&!canPay?<div className={styles.section}><p className={styles.eyebrow}>OPENING PAYMENT · ARRANGEMENTS PENDING</p><h3>{displayMoney(openingAmount,String(quote.currency||'GBP'))} agreed opening amount</h3><p className={styles.note}>The quotation is accepted, but an authorised payment channel is not yet available for this record. Please contact Overflow Partner for verified payment instructions. No project will be opened from an unverified payment.</p></div>:null}
         {finalReviewAccepted&&!finalSettlementVerified?<div className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
         {finalSettlementVerified&&!finalReleaseApproved?<p className={styles.note}>Final payment received. Approved engineering files await Overflow Partner's release authorisation.</p>:null}
