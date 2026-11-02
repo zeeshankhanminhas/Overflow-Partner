@@ -11,6 +11,7 @@ on:
       - 'app/workspace/orchestration/actions.ts'
       - 'scripts/qa/email-document-check.mjs'
       - 'scripts/qa/partner-workorder-check.mjs'
+      - 'scripts/qa/work-order-acceptance-contract-check.mjs'
       - 'lib/execution/**'
       - '.github/workflows/email-document-qa.yml'
   pull_request:
@@ -61,5 +62,7 @@ jobs:
           fi
       - name: Render actual emails and PDFs, process fake outbox and retries
         run: node scripts/qa/email-document-check.mjs
-      - name: Validate approved-SOW partner work order and fake invitation
+      - name: Validate payment-triggered partner Work Order and fake invitation
         run: node scripts/qa/partner-workorder-check.mjs
+      - name: Validate immutable Work Order, acceptance and financial gate contracts
+        run: node scripts/qa/work-order-acceptance-contract-check.mjs
