@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { ensureApprovedPartnerAssignment,releaseApprovedPartnerWorkOrder } from '@/lib/execution/autoWorkOrder';
+import { issueWorkOrderAfterVerifiedOpeningPayment } from '@/lib/execution/paymentWorkOrderHandoff';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { projectStages, type ProjectStage } from '@/lib/projects/stages';
 import { assertCanAdvanceProjectStage } from '@/lib/business/invariants';
@@ -101,24 +101,15 @@ export async function advanceProjectStageAction(formData: FormData) {
     await assertCanAdvanceProjectStage(supabase, organisationId, projectId, targetStage);
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id:projectId,p_target_stage:targetStage,p_actor_id:user.id,p_note:note||null }); if (error) throw new Error(error.message);
     let workOrderIssue='';
+    // Primary Work Order issue happens at verified opening-payment reconciliation.
+    // This is only automatic recovery if evidence was genuinely unavailable then.
+    // It never creates a new partner selection or discretionary approval step.
     if(targetStage==='ready_for_execution' && process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'){
       try{
-        // The financially governed project and stage must exist before release.
-        // Resolve the CURRENT approved SOW; never guess or create an approval.
-        const {data:approvedScopes,error:scopeError}=await supabase.from('documents')
-          .select('id').eq('organisation_id',organisationId).eq('project_id',projectId)
-          .eq('document_type','statement-of-work').eq('is_current_revision',true)
-          .in('status',['approved','issued','published']).order('created_at',{ascending:false}).limit(2);
-        if(scopeError || approvedScopes?.length!==1)throw new Error('Exactly one current approved Statement of Work is required for automatic Work Order issuance.');
-        await ensureApprovedPartnerAssignment(supabase,organisationId,user.id,projectId,approvedScopes[0].id);
-        await releaseApprovedPartnerWorkOrder(supabase,organisationId,user.id,projectId);
-      }catch(workOrderError){
-        workOrderIssue=workOrderError instanceof Error?workOrderError.message:'Partner work order could not be queued.';
-        await supabase.from('activity_events').insert({
-          organisation_id:organisationId,entity_type:'project',entity_id:projectId,
-          user_id:user.id,event_type:'partner_work_order_action_required',
-          event_data:{message:workOrderIssue,retryRequired:true},
-        });
+        const outcome=await issueWorkOrderAfterVerifiedOpeningPayment(supabase,organisationId,projectId);
+        if(outcome.status!=='queued')workOrderIssue=outcome.reason||'Work Order evidence remains incomplete.';
+      }catch(error){
+        workOrderIssue=error instanceof Error?error.message:'Work Order recovery needs verification.';
       }
     }
     if(targetStage==='closed'){
@@ -134,7 +125,7 @@ export async function advanceProjectStageAction(formData: FormData) {
         }
       }
     }
-    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced but automatic partner work order needs attention: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'?'Partner Work Order queued for the approved Execution Partner; delivery and formal acceptance remain unverified.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
+    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced; the prior Work Order handoff still needs evidence: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'&&!workOrderIssue?'Governed partner Work Order handoff checked; review delivery and acceptance evidence.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
   } catch (error) { destination = projectUrl(projectId,{error:error instanceof Error ? error.message : 'Project stage could not be advanced.',focus:'record-next-action'}); }
   redirect(modernProjectReturn(formData,destination));
 }
