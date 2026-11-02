@@ -219,16 +219,25 @@ const projectStageActions=read('app/workspace/projects/[id]/actions.ts');
 const uniqueWorkOrderSessions=read('supabase/migrations/20261021082000_unique_partner_execution_session.sql');
 check('Work order partner is inherited from accepted quote commercial assessment',
   autoWorkOrder.includes("from('commercial_reviews')")&&autoWorkOrder.includes("from('partner_quotes')"));
-check('Automatic execution partner assignment requires existing current approved SOW',
-  autoWorkOrder.includes("document_type!=='statement-of-work'")&&autoWorkOrder.includes("is_current_revision"));
-check('Approved SOW creates controlled partner assignment only when release flag enabled',
-  documentReviewActions.includes("OP_AUTO_PARTNER_RELEASE_ENABLED==='true'")&&documentReviewActions.includes('ensureApprovedPartnerAssignment'));
-check('Work order only queued after governed ready-for-execution stage and confirmed funds',
-  autoWorkOrder.includes("project_stage!=='ready_for_execution'")&&autoWorkOrder.includes("finance?.authorised!==true"));
-check('Project stage advancement triggers partner work-order issuance',
-  projectStageActions.includes('releaseApprovedPartnerWorkOrder(supabase'));
-check('Work order email never includes client company or quote margin',
-  !autoWorkOrder.includes("project:project.title")&&autoWorkOrder.includes("project:'Controlled engineering work order'"));
+const paymentWorkOrderHandoff=read('lib/execution/paymentWorkOrderHandoff.ts');
+const stripeOpeningWebhook=read('app/api/stripe/webhook/route.ts');
+check('Automatic Work Order assignment requires current approved pre-quote technical scope',
+  autoWorkOrder.includes("'scope-of-work'")&&autoWorkOrder.includes("is_current_revision")&&
+  paymentWorkOrderHandoff.includes("doc.document_type==='scope-of-work'"));
+check('Mobilisation SOW approval never selects or reassigns the already approved partner',
+  !documentReviewActions.includes('ensureApprovedPartnerAssignment')&&
+  !documentReviewActions.includes('releaseApprovedPartnerWorkOrder'));
+check('Work Order issued at verified opening-payment Project creation, never before confirmed funds',
+  stripeOpeningWebhook.includes('issueWorkOrderAfterVerifiedOpeningPayment')&&
+  paymentWorkOrderHandoff.includes('ensureApprovedPartnerAssignment')&&
+  autoWorkOrder.includes("finance?.authorised!==true")&&autoWorkOrder.includes("finance?.basis!=='deposit'"));
+check('Project stage advancement only retries an existing governed payment handoff',
+  projectStageActions.includes('issueWorkOrderAfterVerifiedOpeningPayment')&&
+  !projectStageActions.includes('releaseApprovedPartnerWorkOrder(supabase'));
+check('Work Order email includes only partner-facing project reference and cost, not client identity or sale price',
+  !autoWorkOrder.includes("project:project.title")&&
+  autoWorkOrder.includes("project:'Controlled engineering Work Order'")&&
+  autoWorkOrder.includes('partnerPrice:Number(partnerQuote.price)'));
 check('Concurrent partner execution sessions are unique by active assignment',
   uniqueWorkOrderSessions.includes('ux_op_one_live_partner_execution_session'));
 check('No partner work-order email in non-isolated Preview',
