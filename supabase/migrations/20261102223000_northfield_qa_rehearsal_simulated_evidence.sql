@@ -46,7 +46,11 @@ begin
      and q.id=v_quote and q.revision=1 and q.status::text='issued'
      and q.total=2149.25 and p.id=v_partner
      and p.company_name='QA - Precision Mechanical Design Ltd'
- ) then raise exception 'Northfield QA replay preconditions failed'; end if;
+ ) then
+   -- Clean disposable CI databases and production (without this exact
+   -- fictional QA case) do not receive any synthetic replay records.
+   return;
+ end if;
  if not exists (select 1 from public.profiles where id=v_reviewer
   and organisation_id=v_org and is_active and role::text in ('owner','admin')) then
   raise exception 'Named QA operator unavailable'; end if;
