@@ -27,8 +27,11 @@ export async function createStripeCheckout(formData: FormData) {
   const {data:quote,error:quoteError}=await db.from('quotes').select('id,lead_id,quote_number,revision,status,total,currency,valid_until').eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(quote.status)) throw new Error('Current quotation unavailable.');
   if(mode==='qa'){
-    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
-    if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
+    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name,reference').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
+    const isNorthfield=qaLead?.reference==='OP-LEAD-2026-0001' &&
+      qaLead.company_name==='QA - Northfield Demonstration Engineering';
+    if (qaError || !(qaLead?.company_name?.startsWith('OP QA TEST')||isNorthfield))
+      throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
     const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
       .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
       .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
@@ -88,8 +91,8 @@ export async function createStripeCheckout(formData: FormData) {
   params.set('metadata[quote_revision]',String(quote.revision));
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('metadata[payment_stage]','opening');
-  params.set('success_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
-  params.set('cancel_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
+  params.set('success_url',`${site}/client-portal?token=${encodeURIComponent(token)}&stripe_return=success`);
+  params.set('cancel_url',`${site}/client-portal?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-${mode}-opening-${quote.id}-r${quote.revision}-${pennies}`},body:params.toString(),cache:'no-store'});
   const session=await response.json();
   if (!response.ok || !session.url || !session.id) throw new Error('Stripe Checkout is temporarily unavailable.');

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && npm run stripe-live:check && npm run visual-lock:check && npm run qa-backend:check && npm run qa-origin:check && npm run qa-workorder:check && npm run qa-preproject:check && npm run qa-partner-governance:check && next build",
+    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && npm run stripe-live:check && npm run visual-lock:check && npm run qa-backend:check && npm run qa-origin:check && npm run qa-workorder:check && npm run qa-unified-portal:check && npm run qa-preproject:check && npm run qa-partner-governance:check && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -23,6 +23,7 @@
     "qa-backend:check": "node scripts/qa/opos-qa-backend-check.mjs",
     "qa-origin:check": "node --experimental-strip-types scripts/qa/qa-origin-check.mjs",
     "qa-workorder:check": "node scripts/qa/partner-workorder-check.mjs && node scripts/qa/work-order-acceptance-contract-check.mjs",
+    "qa-unified-portal:check":"node scripts/qa/unified-customer-portal-check.mjs",
     "qa-preproject:check": "node scripts/qa/preproject-lineage-contract-check.mjs",
     "qa-partner-governance:check": "node scripts/qa/partner-governance-check.mjs"
   },

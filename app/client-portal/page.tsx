@@ -4,6 +4,8 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken, createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
 import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
+import { createStripeCheckout } from '@/app/quote-payment/stripe-action';
+import { acceptClientQuotationInPortal } from './accept-action';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Client Portal | Overflow Partner', robots: { index: false, follow: false } };
@@ -16,8 +18,8 @@ function displayMoney(amount: number, currency: string) {
 function unavailable() {
   return <main style={{ minHeight: '100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#1e2926' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
 }
-export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string}>}) {
-  const { token = '' } = await searchParams;
+export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string;stripe_return?:string;notice?:string}>}) {
+  const { token = '',stripe_return='',notice='' } = await searchParams;
   const access = token ? verifyClientPortalToken(token) : null;
   if (!access) return unavailable();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -26,13 +28,13 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const db = createSupabaseClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:issue,error:issueError} = await db.from('quote_issue_records').select('organisation_id,quote_id,quote_revision,client_response').eq('quote_id',access.quoteId).eq('quote_revision',access.revision).maybeSingle();
   if (issueError || !issue) return unavailable();
-  const {data:quote,error:quoteError} = await db.from('quotes').select('id,organisation_id,lead_id,quote_number,revision,status,total,currency,valid_until').eq('id',access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
+  const {data:quote,error:quoteError} = await db.from('quotes').select('id,organisation_id,lead_id,quote_number,revision,status,subtotal,vat,total,currency,valid_until').eq('id',access.quoteId).eq('organisation_id',issue.organisation_id).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(String(quote.status))) return unavailable();
   const [paymentResult,releaseResult,projectResult,contractResult,stripeEvidenceResult] = await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('release_basis,confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('projects').select('id,project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
-    process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? db.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
+    process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? db.from('quote_release_contracts').select('release_basis,opening_amount,authorised_contact_name,authorised_contact_email').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
     db.from('quote_stripe_payment_events').select('stripe_session_id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).eq('stripe_payment_status','paid').limit(1).maybeSingle(),
   ]);
   // Fail closed on finance errors; never infer that money has arrived.
@@ -64,11 +66,14 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       if(stripeMode==='live')stripeAuthorised=true;
       else if(stripeMode==='qa'){
         const [lead,authorisation]=await Promise.all([
-          db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle(),
+          db.from('leads').select('company_name,reference').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle(),
           db.from('op_sandbox_payment_authorisations').select('quote_id').eq('organisation_id',issue.organisation_id)
             .eq('quote_id',quote.id).eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle(),
         ]);
-        stripeAuthorised=!lead.error&&!authorisation.error&&Boolean(lead.data?.company_name?.startsWith('OP QA TEST')&&authorisation.data);
+        stripeAuthorised=!lead.error&&!authorisation.error&&Boolean(authorisation.data && (
+          lead.data?.company_name?.startsWith('OP QA TEST') ||
+          (lead.data?.reference==='OP-LEAD-2026-0001' && lead.data?.company_name==='QA - Northfield Demonstration Engineering')
+        ));
       }
     }
   }
@@ -80,7 +85,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       })
     : {data:{ready:true},error:null};
   const preprojectReady=!lineageError && lineage?.ready===true;
-  const canPay=openingPaymentPending && preprojectReady &&
+  const canPay=openingPaymentPending && preprojectReady && stripe_return!=='success' &&
     process.env.OP_PACKAGE01_PAYMENTS_ENABLED==='true' && (stripeAuthorised||bankReady);
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
   let finalReviewAccepted=false;
@@ -118,10 +123,37 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         {project?<div className={styles.section}><h3>Project reference</h3><p>{project.project_number}</p></div>:null}
         {contractResult.data?.release_basis==='purchase_order'?<p className={styles.note}>Agreed release condition: authorised purchase order, subject to verification.</p>:null}
         {contractResult.data?.release_basis==='no_advance_payment'?<p className={styles.note}>Agreed release condition: no advance payment due, subject to authorisation.</p>:null}
-        {canDecide?<div className={styles.section}><p className={styles.eyebrow}>YOUR NEXT ACTION</p><h3>Respond to your quotation</h3><div className={styles.actions}>{actions.map(({label,response})=><Link key={response} className={styles.action+' '+(response==='accepted'?styles.primary:'')} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`}>{label}</Link>)}</div></div>:null}
+        <div className={styles.section}>
+          <p className={styles.eyebrow}>QUOTATION · COMMERCIAL SUMMARY</p><h3>Review your quotation and opening amount</h3>
+          <p className={styles.note}>Subtotal {displayMoney(Number(quote.subtotal),String(quote.currency||'GBP'))} · VAT {displayMoney(Number(quote.vat),String(quote.currency||'GBP'))} · Total {displayMoney(Number(quote.total),String(quote.currency||'GBP'))}.</p>
+          {Number.isFinite(openingAmount)&&openingAmount>0?<p className={styles.note}><strong>Opening payment: {displayMoney(openingAmount,String(quote.currency||'GBP'))}</strong>. Remaining balance: {displayMoney(Number(quote.total)-openingAmount,String(quote.currency||'GBP'))}.</p>:null}
+          <p className={styles.note}>Review the scope, assumptions, exclusions and full contractual terms in the approved PDF attached to your quotation email before accepting.</p>
+        </div>
+        {notice==='acceptance_unavailable'?<p className={styles.note} role="alert">The quotation could not be accepted. Please verify the authorised signatory and current terms. No payment was requested.</p>:null}
+        {canDecide?<div className={styles.section}><p className={styles.eyebrow}>STEP 1 · ACCEPT QUOTATION</p><h3>Authorised client acceptance</h3>
+          <form action={acceptClientQuotationInPortal} className={styles.acceptanceForm}>
+            <input type="hidden" name="token" value={token}/>
+            <label>Full name of authorised signatory<input name="signatory_name" minLength={2} required defaultValue={String(contractResult.data?.authorised_contact_name||'')} autoComplete="name"/></label>
+            <label>Business email<input name="signatory_email" type="email" required defaultValue={String(contractResult.data?.authorised_contact_email||'')} autoComplete="email"/></label>
+            <label className={styles.authorityConfirmation}><input type="checkbox" name="authority_attested" value="yes" required/><span>I am authorised to accept this quotation, including its scope, price and payment terms, on behalf of the client.</span></label>
+            <button className={styles.action+' '+styles.primary} type="submit">Accept and continue to opening payment</button>
+          </form>
+          <div className={styles.actions}>{actions.filter(a=>a.response!=='accepted').map(({label,response})=><Link key={response} className={styles.action} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`}>{label}</Link>)}</div>
+        </div>:null}
         {stripePaymentPending?<div className={styles.section}><p className={styles.eyebrow}>PAYMENT EVIDENCE RECEIVED</p><h3>Project setup is being verified</h3><p className={styles.note}>Stripe has confirmed your opening payment. OP is completing the release checks. No additional payment is required. Please check back later.</p></div>:null}
         {stripeEvidenceResult.error?<div className={styles.section}><p className={styles.eyebrow}>FINANCIAL RECORDS TEMPORARILY UNAVAILABLE</p><p className={styles.note}>Payment processing is on hold while we verify the ledger. No additional payment can be requested.</p></div>:null}
-        {canPay?<div className={styles.section}><p className={styles.eyebrow}>NEXT STEP</p><h3>Opening payment</h3><p className={styles.note}>Project mobilisation begins only after the agreed payment has been verified.</p><Link className={styles.action+' '+styles.primary} href={paymentHref}>Continue to payment</Link></div>:null}
+        {canPay?<div className={styles.section}><p className={styles.eyebrow}>STEP 2 · OPENING PAYMENT</p>
+          <h3>Pay {displayMoney(openingAmount,String(quote.currency||'GBP'))} securely</h3>
+          <p className={styles.note}>Your quotation has been accepted. Stripe Checkout opens securely for card entry and returns you to this portal. Project 360 is created only after independently verified payment.</p>
+          {stripeAuthorised?<form action={createStripeCheckout}>
+            <input type="hidden" name="token" value={token}/>
+            <button type="submit" className={styles.action+' '+styles.primary}>Pay {displayMoney(openingAmount,String(quote.currency||'GBP'))} with card</button>
+          </form>:bankReady?<Link className={styles.action+' '+styles.primary} href={paymentHref}>View bank transfer instructions</Link>:null}
+        </div>:null}
+        {stripe_return==='success'&&!paid&&!project?<div className={styles.section} role="status">
+          <p className={styles.eyebrow}>STEP 3 · VERIFICATION</p><h3>Checking Stripe payment confirmation</h3>
+          <p className={styles.note}>You have returned from Checkout. The independent payment verification is still running. Do not submit another payment.</p>
+        </div>:null}
         {openingPaymentPending&&!preprojectReady?<div className={styles.section}><p className={styles.eyebrow}>PRE-PROJECT CONTROL</p><h3>Approval checks in progress</h3><p className={styles.note}>Overflow Partner is verifying the approved engineering and commercial position. No opening payment is requested until the record is ready.</p></div>:null}
         {openingPaymentPending&&preprojectReady&&!canPay?<div className={styles.section}><p className={styles.eyebrow}>OPENING PAYMENT · ARRANGEMENTS PENDING</p><h3>{displayMoney(openingAmount,String(quote.currency||'GBP'))} agreed opening amount</h3><p className={styles.note}>The quotation is accepted, but an authorised payment channel is not yet available for this record. Please contact Overflow Partner for verified payment instructions. No project will be opened from an unverified payment.</p></div>:null}
         {finalReviewAccepted&&!finalSettlementVerified?<div className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
