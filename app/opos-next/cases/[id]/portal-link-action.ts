@@ -91,6 +91,18 @@ export async function sendFreshPortalLink(formData: FormData) {
     if(quoteError)throw quoteError;
     if(!quote||Number(quote.revision)!==Number(issue.quote_revision)||!['issued','accepted'].includes(quote.status))
       throw new Error('Quotation revision mismatch.');
+    // QA testing rule: never resend a customer-facing link into a known,
+    // contradictory commercial contract. Status-only access remains available
+    // through links already delivered, but no new invitation is issued until
+    // an authorised, version-preserving correction has been approved.
+    const {data:readiness,error:readinessError}=await admin.rpc('op_preproject_lineage_readiness',{
+      p_organisation_id:organisationId,p_quote_id:quoteId,
+    });
+    if(readinessError)throw new Error('Quotation integrity could not be verified. No new portal email was sent.');
+    const blockedTaxReasons=['quote_tax_terms_conflict','quote_tax_totals_mismatch'];
+    if(blockedTaxReasons.includes(String(readiness?.reason||''))) {
+      throw new Error('This accepted quotation has contradictory VAT terms. Preserve the issued version and obtain a controlled correction before resending the portal link. No email was sent.');
+    }
     const origin=qaPublicOrigin();
     const link=new URL('/client-portal',origin);
     link.searchParams.set('token',createClientPortalToken(quoteId,Number(quote.revision)));
