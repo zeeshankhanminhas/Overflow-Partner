@@ -32,7 +32,45 @@ const notificationWorker = read('app/api/notifications/process/route.ts');
 const notificationProvider = read('lib/notifications/emailProvider.ts');
 
 
+const workOrderPage=read('app/opos-next/projects/[id]/work-order/page.tsx');
+const clientPortalPage=read('app/client-portal/page.tsx');
+const clientPortalCss=read('app/client-portal/clientPortal.module.css');
+const partnerPortal=read('components/execution/PartnerWorkSurface.tsx');
+const partnerPortalCss=read('app/partner-execution-parity.css');
+const legacyProjectPage=read('app/workspace/projects/[id]/page.tsx');
+const legacyCasePage=read('app/workspace/leads/[id]/page.tsx');
+const workRecordCss=read('app/opos-next/work-record.module.css');
+
 const checks = [
+  ['Workspace 2.0 uses a single 1030px content grid with no nested shell in Work Order',
+    styles.includes('.detailPage{width:100%;max-width:1030px') &&
+    workRecordCss.includes('.page{width:100%;max-width:1030px') &&
+    workOrderPage.includes('className={css.detailPage}') &&
+    !workOrderPage.includes('className={css.shell}')],
+  ['Work Order and Project 360 use one shared evidence layout rather than scattered labels',
+    workOrderPage.includes('className={css.detailFacts}') &&
+    projectPage.includes('className={css.detailFacts}') &&
+    workOrderPage.includes('WORK ORDER · CURRENT POSITION')],
+  ['Northfield released case links to its existing Project 360 rather than asking for new payment',
+    casePage.includes("linkedProject?'Project opened'") &&
+    casePage.includes("governedHref={linkedProject?'/opos-next/projects/'+linkedProject.id") &&
+    casePage.includes('historicalVatDiscrepancy&&!linkedProject?.id')],
+  ['Scoped legacy record pages send the tested Northfield QA record to the modern UI',
+    legacyProjectPage.includes("redirect('/opos-next/projects/'+id)") &&
+    legacyCasePage.includes("redirect('/opos-next/cases/'+id)") &&
+    legacyProjectPage.includes('isKnownIsolatedQaBackend()') &&
+    legacyCasePage.includes('isKnownIsolatedQaBackend()')],
+  ['Customer Portal shows project context after quote has converted, preserving payment record',
+    clientPortalPage.includes("select('id,project_number,project_stage')") &&
+    clientPortalPage.includes("project?'Your engineering project.'") &&
+    clientPortalPage.includes('clientStage') &&
+    clientPortalCss.includes('.projectSummary')],
+  ['Partner Portal is separate but shares OP brand type and scoped responsive styles',
+    partnerPortal.includes('op-partner-portal min-h-screen') &&
+    partnerPortalCss.includes('.op-partner-portal') &&
+    !partnerPortalCss.includes('main.min-h-screen.bg-\\[\\#f5f4ef\\]') &&
+    partnerPortalCss.includes('@media(max-width:700px)')],
+
   ['QA Preview outbound email is restricted to three exact Gmail aliases',
     qaEmailGuard.includes('isKnownIsolatedQaBackend()') &&
     qaEmailGuard.includes('OP_QA_TEST_INBOX') &&
