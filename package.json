@@ -23,7 +23,7 @@
     "qa-backend:check": "node scripts/qa/opos-qa-backend-check.mjs",
     "qa-origin:check": "node --experimental-strip-types scripts/qa/qa-origin-check.mjs",
     "qa-workorder:check": "node scripts/qa/partner-workorder-check.mjs && node scripts/qa/work-order-acceptance-contract-check.mjs",
-    "qa-unified-portal:check":"node scripts/qa/unified-customer-portal-check.mjs",
+    "qa-unified-portal:check":"node scripts/qa/unified-customer-portal-check.mjs && node scripts/qa/dedicated-account-portals-check.mjs",
     "qa-preproject:check": "node scripts/qa/preproject-lineage-contract-check.mjs",
     "qa-partner-governance:check": "node scripts/qa/partner-governance-check.mjs"
   },
