@@ -20,6 +20,13 @@ export async function deliverNotificationEmail(row: OutboxRow) {
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL must be configured.');
 
+  // When a previously rejected QA alias is re-enveloped to the verified
+  // primary inbox, the payload changes. Resend treats the same idempotency
+  // key with a different payload as a 409 conflict. Use a stable, separate
+  // key for this ONE QA transport variant; all its retries retain that key.
+  const providerIdempotencyKey=envelopeRecipient.toLowerCase()===row.recipient_email.trim().toLowerCase()
+    ? `overflow-partner-${row.id}`
+    : `overflow-partner-${row.id}-qa-primary`;
   const { html, text } = await renderNotificationEmail(row);
   const replyTo = process.env.RESEND_REPLY_TO_EMAIL;
   const response = await fetch('https://api.resend.com/emails', {
@@ -27,7 +34,7 @@ export async function deliverNotificationEmail(row: OutboxRow) {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'Idempotency-Key': `overflow-partner-${row.id}`,
+      'Idempotency-Key': providerIdempotencyKey,
     },
     body: JSON.stringify({
       from,
