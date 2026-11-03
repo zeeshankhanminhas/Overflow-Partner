@@ -35,6 +35,7 @@ const dormantReason = 'Dormant: the governed workflow already records this decis
 
 export const workspaceDocuments: WorkspaceDocumentItem[] = [
   { slug: 'partner-technical-assessment-report', title: 'Partner Technical Assessment Report', dataStatus: 'preview-only', lifecycle: active, description: `Controlled partner assessment of feasibility, assumptions, risks, lead time and pricing readiness. ${previewOnly}` },
+  { slug: 'technical-review', title: 'Internal Technical Review', dataStatus: 'live-backed', lifecycle: active, description: 'Controlled internal QA of the current partner engineering submission and its files before client release.' },
   { slug: 'commercial-approval', title: 'Internal Commercial Approval Record', dataStatus: 'preview-only', lifecycle: 'dormant', dormantReason, description: `Internal record of partner cost, client price, margin and approval reasoning. ${dormantReason}` },
   { slug: 'client-quote', title: 'Client Quotation', dataStatus: 'preview-only', lifecycle: active, description: `Client quotation showing scope, price, delivery and payment terms without internal cost or margin. ${previewOnly}` },
   { slug: 'scope-of-work', title: 'Scope of Work', dataStatus: 'preview-only', lifecycle: 'dormant', dormantReason: 'Dormant: the approved Technical Scope is the Case boundary and the Statement of Work is the single delivery agreement.', description: `Superseded by the approved Technical Scope in Case 360 and the Statement of Work in Project 360.` },
@@ -58,7 +59,6 @@ export function isDormantWorkspaceDocument(slug: string) {
 
 export const legacyDocumentAliases: Partial<Record<WorkspaceDocumentSlug, WorkspaceDocumentSlug>> = {
   'requirement-sheet': 'client-requirements',
-  'technical-review': 'partner-technical-assessment-report',
   quote: 'client-quote',
 };
 
