@@ -204,16 +204,24 @@ export const documentLanguage: Record<WorkspaceDocumentSlug, DocumentLanguage> =
     ],
   },
   'technical-review': {
-    purpose: 'Records whether the engineering request is clear enough and technically suitable to progress.',
-    audience: 'Overflow Partner technical reviewers',
-    visibility: 'Internal / Technical',
-    issueCondition: 'Requires the current intake, source files and relevant clarifications.',
-    closingStatement: 'Technical approval means the request can move forward. It does not approve the client price.',
+    purpose: 'Records Overflow Partner’s internal technical quality decision on the current Execution Partner delivery, distinct from the earlier feasibility assessment.',
+    audience: 'Overflow Partner internal engineering reviewer and authorised approver',
+    visibility: 'Internal QA only / Not client-facing',
+    issueCondition: 'Inspect the actual current-cycle submission and attached files, sign the technical review and separately approve it before client release.',
+    closingStatement: 'This internal technical decision applies only to the referenced submitted revision. It is not client acceptance or authority to manufacture.',
     sections: [
-      { title: 'Technical readiness', entries: [
-        { heading: 'Conclusion', body: 'The technical decision identifies whether the requirement is ready, ready subject to conditions, awaiting clarification or unsuitable to progress.' },
-        { heading: 'Risks and gaps', body: 'The review evidence identifies unclear requirements, missing data, incompatible formats, standards issues, tolerance risks and programme concerns.' },
-        { heading: 'Required action', body: 'Each open item requires a named owner, responsible party and completion condition before approval.' },
+      { title: 'Submission traceability', entries: [
+        { heading: 'Current submission', body: 'Verify the Work Order reference, project, execution cycle, submission revision, filename and attachment count against the controlled delivery.' },
+        { heading: 'Scope alignment', body: 'Inspect the delivered drawings and supporting evidence against the approved Statement of Work, technical scope, and agreed deliverables.' },
+      ]},
+      { title: 'Engineering quality checks', entries: [
+        { heading: 'Dimensions and technical content', body: 'Check dimensions, units, tolerances, material specifications, drawing notes and inspection requirements for clarity and consistency.' },
+        { heading: 'Revision and completeness', body: 'Confirm drawing identifiers, revision codes, file readability, completeness and correct naming of all submitted files.' },
+        { heading: 'Risks and discrepancies', body: 'Identify errors, omissions and deviations requiring Partner correction. Escalate outstanding technical questions rather than approve incomplete evidence.' },
+      ]},
+      { title: 'Controlled internal decision', entries: [
+        { heading: 'Review declaration', body: 'The reviewer must inspect the actual attached engineering files before applying an electronic signature. Merely advancing the project stage is not an inspection.' },
+        { heading: 'Approval authority', body: 'Only an authorised approver can approve the signed internal review. Client package preparation and view-only release remain separate protected actions.' },
       ]},
     ],
   },
