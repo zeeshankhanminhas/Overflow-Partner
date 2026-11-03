@@ -94,6 +94,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      : String(assignment.execution_state||'Status not recorded').replaceAll('_',' ')
    : 'No assignment recorded';
  const stageIndex=stage==='mobilisation'?0:stage==='ready_for_execution'?(workOrderAccepted?2:1):['in_progress','internal_review','partner_correction'].includes(stage)?2:3;
+ const waitingForEngineering=stage==='in_progress'&&submissions.length===0;
  const agreedDue=String(data.due_date||'').slice(0,10);
  const partnerForecast=String(partnerProgress?.forecast_delivery_date||partnerCommencement?.forecast_delivery_date||'').slice(0,10);
  const scheduleVariance=Boolean(agreedDue&&partnerForecast&&partnerForecast>agreedDue);
@@ -101,11 +102,11 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
      title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
      state={meta.label} owner="Overflow Partner / assigned delivery team"
-     nextTitle={completed?'Project completion recorded':needsWorkOrder?'Issue the Execution Partner Work Order':waitingForPartnerStart?'Partner to confirm commencement':meta.action}
-     nextDescription={completed?'The project is closed. Its history remains accessible.':needsWorkOrder?'Issue the governed Work Order against the approved scope and verified advance. Mobilisation completion is a later, separate step.':waitingForPartnerStart?'The Work Order has been formally accepted. The Execution Partner must confirm scope, inputs, capacity and planned start in their existing secure Partner Portal. OPOS then advances to In Progress automatically.':meta.objective+' '+(blockedReasons.length?'Resolve the recorded readiness dependencies before advancing.':'Review the current stage controls below.')}
+     nextTitle={completed?'Project completion recorded':needsWorkOrder?'Issue the Execution Partner Work Order':waitingForPartnerStart?'Partner to confirm commencement':waitingForEngineering?'Await engineering progress and delivery':meta.action}
+     nextDescription={completed?'The project is closed. Its history remains accessible.':needsWorkOrder?'Issue the governed Work Order against the approved scope and verified advance. Mobilisation completion is a later, separate step.':waitingForPartnerStart?'The Work Order has been formally accepted. The Execution Partner must confirm scope, inputs, capacity and planned start in their existing secure Partner Portal. OPOS then advances to In Progress automatically.':waitingForEngineering?'Partner execution has commenced. Await the engineering progress report and a controlled delivery submission from the existing Partner Portal. OP technical quality review is a separate next-stage decision.':meta.objective+' '+(blockedReasons.length?'Resolve the recorded readiness dependencies before advancing.':'Review the current stage controls below.')}
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={completed}
-     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Stage readiness',value:readiness.ready?'Requirements satisfied':'Outstanding requirements'}]}
+     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
      governedHref={'/opos-next/projects/'+id+(needsWorkOrder?'#work-order-issue':'#project-controls')} previous="/opos-next/projects"/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
@@ -151,8 +152,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        <span className={css.overline}>CURRENT RELEASE GATE</span><h2 className={css.cardTitle}>{meta.label}</h2>
        <p className={css.cardDescription}>{meta.completion}</p>
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
-       {blockedReasons.length?<div style={{marginTop:20}}><strong>Outstanding evidence</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:<p className={css.meta} style={{marginTop:18}}>Stage-readiness service reports no outstanding reasons.</p>}
-       {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This view does not redirect to legacy pages.</p>:null}
+       {blockedReasons.length?<div style={{marginTop:20}}><strong>Evidence required for the next stage</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:<p className={css.meta} style={{marginTop:18}}>Stage-readiness service reports no outstanding reasons.</p>}
+       {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This page retains the current governed controls while testing is isolated.</p>:null}
        {stage==='mobilisation'&&canWrite?<details style={{marginTop:22}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
          <summary style={{cursor:'pointer',fontWeight:600}}>Set mobilisation owner and programme</summary>
          <form action={updateProjectMobilisationAction} style={{display:'grid',gap:15,marginTop:18,maxWidth:600}}>
@@ -173,7 +174,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        </form>:null}
        {stage==='ready_for_client_issue'?<section style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · secure preview required</h3>
-         <p className={css.meta}>This stage is deliberately blocked in Workspace 2.0 until a secure, watermarked, view-only browser review is implemented. The legacy email-PDF attachment flow would allow downloading the review package and does not meet the agreed release policy. Native/editable files remain reserved for final verified payment and owner approval.</p>
+         <p className={css.meta}>This stage is deliberately blocked in Workspace 2.0 until a secure, watermarked, view-only browser review is implemented. An unprotected PDF attachment would allow downloading the review package and does not meet the agreed release policy. Native/editable files remain reserved for final verified payment and owner approval.</p>
        </section>:null}
        {stage==='client_review'&&canWrite&&!latestClientReview?<section style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
@@ -219,13 +220,13 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        <p className={css.meta} style={{marginTop:12}}>Work Order is issued only to the commercially selected, NDA-ready Execution Partner against the current approved Statement of Work. Formal acceptance precedes commencement.</p>
        <Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/work-order'}>Review Work Order readiness and acceptance →</Link>
        {evidenceUnavailable?<p role="alert" className={css.meta}>Some delivery evidence could not be retrieved. Treat missing information as unverified, not as an approval.</p>:null}
-       <div className={css.factRow} style={{marginTop:16}}>
-         <span>Work Order / execution: <strong>{assignmentDisplay}</strong></span>
-         <span>Formal Work Order acceptance: <strong>{workOrderAccepted?'Recorded':'Not recorded'}</strong></span>
-         <span>Partner access: <strong>{partnerSession?String(partnerSession.status||'Status not recorded').replaceAll('_',' '):'No invitation recorded'}</strong></span>
-         <span>Technical submissions: <strong>{submissions.length}{submissions.length===5?' (latest five)':''}</strong></span>
-         <span>Client review issue: <strong>{transmittal?'Issued '+date(transmittal.issued_at):'Not recorded'}</strong></span>
-       </div>
+       <dl className={css.detailFacts}>
+         <div><dt>Execution Partner position</dt><dd>{assignmentDisplay}</dd></div>
+         <div><dt>Formal Work Order acceptance</dt><dd>{workOrderAccepted?'Recorded':'Not recorded'}</dd></div>
+         <div><dt>Secure Partner Portal</dt><dd>{partnerSession?String(partnerSession.status||'Status not recorded').replaceAll('_',' '):'No invitation recorded'}</dd></div>
+         <div><dt>Engineering submissions</dt><dd>{submissions.length}{submissions.length===5?' (latest five)':''}</dd></div>
+         <div><dt>Client review package</dt><dd>{transmittal?'Issued '+date(transmittal.issued_at):'Not issued'}</dd></div>
+       </dl>
        {assignment?<p className={css.meta} style={{marginTop:18}}>Partner: {assignment.partner_contact_name||'Contact not recorded'} · Work Order reference: {assignment.release_reference||'Not recorded'} · Released: {date(assignment.released_at)} · Execution cycle: {assignment.execution_cycle||1}</p>:null}
        {partnerSession?<p className={css.meta} style={{marginTop:10}}>Partner session first opened: {date(partnerSession.first_opened_at)} · Expires: {date(partnerSession.expires_at)}. This is session evidence, not proof of Work Order acceptance.</p>:null}
        {workOrderAcceptance?.accepted_at?<p className={css.meta} style={{marginTop:10}}>Formal acceptance: {workOrderAcceptance.accepted_by_name} ({workOrderAcceptance.accepted_by_role}), {date(workOrderAcceptance.accepted_at)}.</p>:null}

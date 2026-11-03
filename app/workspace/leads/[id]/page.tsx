@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { requireUserContext } from '@/lib/auth/context';
 import { getWorkflowCase } from '@/lib/orchestration/service';
 import { acceptQuoteAction, approveCommercialAction, approveIntakeAction, createCommercialReviewAction, createIntakeShellAction, issueQuoteAction, recordQuoteOutcomeAction, resendClientQuoteAction, reviseQuoteAction } from '../../orchestration/actions';
@@ -25,7 +26,12 @@ function Fact({label,value}:{label:string;value:React.ReactNode}){return <div cl
 const caseStages=['Technical scope','Partner assessment','Commercial position','Client Quote','Handoff'] as const;
 
 export default async function Case360Page({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|string[]|undefined>>}){
-  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
+  const {id}=await params;
+  // QA Northfield's governed case is presented only through Case 360 v2.
+  // Preserve historic records and server actions; do not render two UIs.
+  if(isKnownIsolatedQaBackend()&&id==='671883d9-8cf2-4433-9848-65ec37e4e312')
+    redirect('/opos-next/cases/'+id);
+  const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
   let workflow;try{workflow=await getWorkflowCase(supabase,organisationId,id)}catch{notFound()}
   if(!workflow)notFound();
 
