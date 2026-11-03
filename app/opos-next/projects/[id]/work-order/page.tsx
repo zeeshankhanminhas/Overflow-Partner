@@ -97,7 +97,9 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
     email.status!=='sent');
   const canRetryInvitation=deliveryPending&&['owner','admin'].includes(String(profile.role))&&
     String(project.id)==='b447f586-bf79-4839-be5e-1af607d9ca43';
-  const actualStatus=accepted?.id?'Formally accepted':deliveryPending?
+  const issued=Boolean(workOrder?.issued_at);
+  const executionLive=['in_progress','internal_review','partner_correction','ready_for_client_issue','issued_to_client','client_review','completion','closed'].includes(String(project.project_stage));
+  const actualStatus=accepted?.id?(executionLive?'Work Order accepted · execution active':'Work Order formally accepted'):deliveryPending?
     'Work Order issued · partner invitation pending':workOrder?.issued_at?
     'Work Order issued · partner acceptance pending':blockers.length?'Blocked · evidence required':'Ready for automatic issue';
   return <article className={css.detailPage}>
@@ -109,8 +111,18 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
     <section className={css.detailPanel+" "+css.detailLead}>
       <span className={css.overline}>WORK ORDER · CURRENT POSITION</span>
       <h2 className={css.cardTitle}>{actualStatus}</h2>
-      <p className={css.cardDescription}>{accepted?.id?'The named Execution Partner has accepted the controlled Work Order. Commencement still requires completed mobilisation.':workOrder?.issued_at?'The Work Order has been issued against the previously approved partner and scope. Formal partner acceptance and commencement remain separate.':blockers.length?'Correct the original commercial or scope evidence; no second partner selection or internal approval is required.':'The signed payment-to-project handoff can issue the already-approved partner Work Order. Partner acceptance is required before commencement.'}</p>
-      {blockers.length?<ul style={{paddingLeft:20,marginTop:18}}>{blockers.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul>:null}
+      <p className={css.cardDescription}>{accepted?.id?
+        executionLive?'The Execution Partner has formally accepted WO-01 and commencement has been recorded. Engineering progress, deliverables and internal OP quality review are the next controlled milestones. This Work Order remains the immutable commercial basis.':
+        'The Execution Partner formally accepted this Work Order. OPOS must authorise mobilisation and the partner must separately confirm commencement before technical work begins.':
+        issued?'The governed Work Order was issued against the approved scope and selected partner. Await formal partner acceptance before commencement.':
+        blockers.length?'Resolve the recorded contractual or technical evidence before issuing a Work Order.':
+        'All pre-issue checks have passed. Issue the original governed Work Order, then verify the partner invitation and formal acceptance.'}</p>
+      {!issued&&blockers.length?<ul className={css.detailList}>{blockers.map((reason,index)=><li key={index}>{reason}</li>)}</ul>:null}
+      {issued?<div className={css.factRow} style={{marginTop:18}}>
+        <span>Work Order <strong>{workOrder?.reference}</strong></span>
+        <span>Commercial price <strong>{workOrder?.currency} {Number(workOrder?.partner_price).toFixed(2)}</strong></span>
+        <span>Partner acceptance <strong>{accepted?.accepted_at?'Recorded':'Pending'}</strong></span>
+      </div>:null}
       {canRetryInvitation?<form action={retryNorthfieldQaInvitationAction} style={{marginTop:22}}>
         <input type="hidden" name="project_id" value={id}/>
         <p className={css.meta}>The original Work Order is issued. Resend rejected its test-recipient alias. This action retries only the existing email to your verified primary QA inbox; it does not issue another Work Order.</p>
@@ -125,23 +137,29 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
     </section>
     <section className={css.detailPanel}>
       <span className={css.overline}>CONTROLLED EVIDENCE</span>
-      <div className={css.factRow} style={{marginTop:18}}>
-        <span>Verified opening deposit: <strong>{settled?'Confirmed':'Not verified'}</strong></span>
-        <span>Commercial partner: <strong>{partnerName}</strong></span>
-        <span>Execution Partner Agreement: <strong>{partnerAgreementVerified?'Verified':'Not verified'}</strong></span>
-        <span>Approved execution scope: <strong>{approvedCandidates.length===1?(approvedCandidates[0].reference||'Available'):'Not ready'}</strong></span>
-        <span>Project SOW for mobilisation: <strong>{approved.some(x=>(x as {document_type?:string}).document_type==='statement-of-work')?'Approved':'Not yet approved'}</strong></span>
-        <span>Project stage: <strong>{String(project.project_stage).replaceAll('_',' ')}</strong></span>
-        <span>Work Order issue: <strong>{workOrder?.issued_at?workOrder.reference:'Not issued'}</strong></span>
-        <span>Partner commercial price: <strong>{workOrder?.issued_at?workOrder.currency+' '+Number(workOrder.partner_price).toFixed(2):'Not issued'}</strong></span>
-        <span>Automatic payment handoff: <strong>{handoff?.status?handoff.status.replaceAll('_',' '):'Not attempted'}</strong></span>
-        <span>Partner acceptance: <strong>{accepted?.accepted_at?'Recorded':'Not recorded'}</strong></span>
-        <span>Partner notification: <strong>{email?.status==='sent'&&email.sent_at?'Provider accepted':email?.status||'Not queued'}</strong></span>
-      </div>
+      <dl className={css.detailFacts}>
+        <div><dt>Execution Partner</dt><dd>{partnerName}</dd></div>
+        <div><dt>Opening payment</dt><dd>{settled?'Verified':'Not verified'}</dd></div>
+        <div><dt>Work Order</dt><dd>{workOrder?.reference||'Not issued'}</dd></div>
+        <div><dt>Partner price</dt><dd>{issued?workOrder?.currency+' '+Number(workOrder?.partner_price).toFixed(2):'Not issued'}</dd></div>
+        <div><dt>Work Order acceptance</dt><dd>{accepted?.accepted_at?'Formally accepted':'Pending'}</dd></div>
+        <div><dt>Partner invitation</dt><dd>{email?.status==='sent'&&email.sent_at?'Accepted by email provider':email?.status||'Not recorded'}</dd></div>
+        <div><dt>Project lifecycle</dt><dd>{String(project.project_stage).replaceAll('_',' ')}</dd></div>
+        <div><dt>Current approved scope</dt><dd>{approvedCandidates.length===1?(approvedCandidates[0].reference||'Available'):'Not ready'}</dd></div>
+      </dl>
+      <details className={css.detailHistory}>
+        <summary>View original release and governance checks</summary>
+        <div className={css.detailFacts}>
+          <div><dt>Partner Agreement</dt><dd>{partnerAgreementVerified?'Verified':'Not verified'}</dd></div>
+          <div><dt>Approved project Statement of Work</dt><dd>{approved.some(x=>(x as {document_type?:string}).document_type==='statement-of-work')?'Approved':'Not yet approved'}</dd></div>
+          <div><dt>Payment-triggered handoff</dt><dd>{issued?'Work Order issued':handoff?.status?handoff.status.replaceAll('_',' '):'Not attempted'}</dd></div>
+          <div><dt>Partner contact recorded</dt><dd>{partnerEmail?'Yes':'No'}</dd></div>
+        </div>
+      </details>
       {accepted?.accepted_at?<p className={css.meta} style={{marginTop:18}}>Accepted by {accepted.accepted_by_name} ({accepted.accepted_by_role}) on {new Date(accepted.accepted_at).toLocaleString('en-GB')}. Acceptance is evidenced by the signed partner-session action, not merely opening the page.</p>:null}
       {handoff?.last_blocker&&!workOrder?.issued_at?<p role="alert" className={css.meta}>Payment handoff blocker: {String(handoff.last_blocker).slice(0,300)}</p>:null}
-      {email?.last_error?<p role="alert" className={css.meta}>Notification error: {String(email.last_error).slice(0,300)}</p>:null}
-      <p className={css.meta} style={{marginTop:18}}>A queued email does not prove delivery. Work commencement, engineering submissions, client review, final payment and partner settlement require their own verified gates. No partner advance is authorised.</p>
+      {email?.last_error&&email?.status!=='sent'?<p role="alert" className={css.meta}>Current notification issue: {String(email.last_error).slice(0,300)}</p>:null}
+      <p className={css.meta} style={{marginTop:18}}>Email-provider acceptance does not prove the recipient opened the invitation. Formal Work Order acceptance, partner commencement, technical QA, client approval and settlement remain separately governed. No partner advance is authorised.</p>
     </section>
   </article>;
 }
