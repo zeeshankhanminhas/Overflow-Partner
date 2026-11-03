@@ -39,6 +39,26 @@ check(operatorAction.includes("event_type:'qa.partner_work_order_operator_reques
   operatorAction.includes('user_id:user.id'),
   'Work Order operator action records the signed-in actor in audit evidence');
 
+// Validate that the same authorised operator action completes the QA email
+// handoff without a preview-only cron or a second user workflow.
+const qaMailer=readFileSync(resolve(root,'lib/notifications/qaWorkOrderDelivery.ts'),'utf8');
+const standardMailer=readFileSync(resolve(root,'app/api/notifications/process/route.ts'),'utf8');
+const sharedProvider=readFileSync(resolve(root,'lib/notifications/emailProvider.ts'),'utf8');
+const queuedIndex=operatorAction.indexOf('issueWorkOrderAfterVerifiedOpeningPayment(serviceDb,organisationId,projectId)');
+const emailIndex=operatorAction.indexOf('deliverNorthfieldQaPartnerInvitation(serviceDb,organisationId,projectId)');
+check(queuedIndex>=0&&emailIndex>queuedIndex,
+  'Partner email attempts only after the governed Work Order was issued');
+check(qaMailer.includes("projectId!=='b447f586-bf79-4839-be5e-1af607d9ca43'")&&
+  qaMailer.includes("event_key','partner_work.released'")&&
+  qaMailer.includes("'auto:work-order:'")&&qaMailer.includes("eq('attempts',row.attempts)")&&
+  qaMailer.includes("is('locked_at',null)"),
+  'Immediate delivery is bound to exact Northfield project, issued assignment and atomic outbox claim');
+check(qaMailer.includes("OP_QA_EMAIL_SENDING_ENABLED")&&
+  qaMailer.includes("op_complete_notification")&&qaMailer.includes("op_fail_notification")&&
+  standardMailer.includes('await deliverNotificationEmail(row)')&&
+  qaMailer.includes('await deliverNotificationEmail(claimed as OutboxRow)')&&
+  sharedProvider.includes("Idempotency-Key"),
+  'Preview dispatch and ordinary worker share provider idempotency and outbox evidence');
 const ids={
   org:'10000000-0000-4000-8000-000000000001',
   actor:'10000000-0000-4000-8000-000000000002',
