@@ -5,6 +5,7 @@ import {createClient as createPrivilegedClient} from '@supabase/supabase-js';
 import {requireUserContext,assertRole} from '@/lib/auth/context';
 import {assertIsolatedQaBackend} from '@/lib/qa/isolation';
 import {issueWorkOrderAfterVerifiedOpeningPayment} from '@/lib/execution/paymentWorkOrderHandoff';
+import {deliverNorthfieldQaPartnerInvitation} from '@/lib/notifications/qaWorkOrderDelivery';
 
 export async function retryGovernedWorkOrderAction(formData:FormData){
   const projectId=String(formData.get('project_id')||'');
@@ -50,7 +51,21 @@ export async function retryGovernedWorkOrderAction(formData:FormData){
 
     revalidatePath('/opos-next/projects/'+projectId);
     revalidatePath(target);
-    params='success='+encodeURIComponent('The original payment-triggered Work Order handoff was retried; partner notification is queued, not yet proven delivered.');
+    // The Preview environment has no automatic Vercel Cron invocation.
+    // Deliver only the exact newly queued QA partner invitation here, using
+    // the same Resend provider and idempotent notification record as the
+    // ordinary worker. Work Order issuance remains successful if delivery
+    // fails; never reissue an immutable order merely to resend an email.
+    let invitationStatus='The partner invitation is queued; delivery has not been confirmed.';
+    try{
+      const delivery=await deliverNorthfieldQaPartnerInvitation(serviceDb,organisationId,projectId);
+      invitationStatus=delivery.status==='sent'
+        ?'The partner invitation was accepted by the email provider; formal partner acceptance is still required.'
+        :'Partner invitation remains pending. '+String(delivery.reason||'');
+    }catch{
+      invitationStatus='Partner invitation has not yet been confirmed; check its existing outbox record, not a new Work Order.';
+    }
+    params='success='+encodeURIComponent('The governed Work Order was issued. '+invitationStatus);
   }catch(error){
     params='error='+encodeURIComponent(error instanceof Error?error.message:'Work Order release was blocked.');
   }
