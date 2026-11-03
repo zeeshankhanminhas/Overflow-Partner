@@ -18,6 +18,27 @@ const check=(predicate,description)=>{
   checks++;
   console.log('PASS '+description);
 };
+// Regression for the actual Northfield failure: the authenticated browser
+// Supabase client is SELECT-only for privileged Work Order and handoff tables.
+// Privileged writes must use a separate server-side client AFTER user checks.
+const operatorAction=readFileSync(resolve(root,'app/opos-next/projects/[id]/work-order/action.ts'),'utf8');
+const qaCheck=operatorAction.indexOf('assertIsolatedQaBackend()');
+const userCheck=operatorAction.indexOf('requireUserContext()');
+const roleCheck=operatorAction.indexOf("assertRole(profile.role,['owner','admin'])");
+const scopedProject=operatorAction.indexOf("eq('organisation_id',organisationId)");
+const serverClient=operatorAction.indexOf('createPrivilegedClient(apiUrl,serviceKey');
+const releaseCall=operatorAction.indexOf('issueWorkOrderAfterVerifiedOpeningPayment(serviceDb,organisationId,projectId)');
+check(qaCheck>=0&&userCheck>qaCheck&&roleCheck>userCheck&&
+  scopedProject>roleCheck&&serverClient>scopedProject&&releaseCall>serverClient,
+  'QA operator, active owner/admin and organisation project verified BEFORE privileged Work Order writer');
+check(operatorAction.includes('SUPABASE_SERVICE_ROLE_KEY')&&
+  operatorAction.includes('persistSession:false')&&
+  !operatorAction.includes('issueWorkOrderAfterVerifiedOpeningPayment(supabase,'),
+  'Handoff uses a separate server-only administrative client, never browser JWT or public key');
+check(operatorAction.includes("event_type:'qa.partner_work_order_operator_requested'")&&
+  operatorAction.includes('user_id:user.id'),
+  'Work Order operator action records the signed-in actor in audit evidence');
+
 const ids={
   org:'10000000-0000-4000-8000-000000000001',
   actor:'10000000-0000-4000-8000-000000000002',
