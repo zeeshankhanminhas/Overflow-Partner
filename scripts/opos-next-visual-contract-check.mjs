@@ -29,6 +29,7 @@ const qaNew = read('app/opos-next/opportunities/new/page.tsx');
 const qaIsolation = read('lib/qa/isolation.ts');
 const notificationQueue = read('lib/notifications/queue.ts');
 const notificationWorker = read('app/api/notifications/process/route.ts');
+const notificationProvider = read('lib/notifications/emailProvider.ts');
 
 
 const checks = [
@@ -38,7 +39,8 @@ const checks = [
     qaEmailGuard.includes('+client@gmail.com') && qaEmailGuard.includes('+partner@gmail.com')],
   ['QA email recipient is checked at enqueue and at actual delivery',
     notificationQueue.includes('assertQaRecipientAllowed(input.recipientEmail)') &&
-    notificationWorker.includes('assertQaRecipientAllowed(row.recipient_email)') &&
+    notificationProvider.includes('assertQaRecipientAllowed(row.recipient_email)') &&
+    notificationWorker.includes('deliverNotificationEmail(row)') &&
     notificationWorker.includes('OPOS-QA outbound worker is locked') &&
     notificationWorker.includes("OP_QA_EMAIL_SENDING_ENABLED !== 'true'")],
   ['QA website intake refuses unapproved addresses before creating records',
