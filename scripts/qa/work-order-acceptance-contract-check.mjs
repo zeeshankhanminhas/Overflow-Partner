@@ -20,7 +20,20 @@ const action=src('app/opos-next/projects/[id]/work-order/action.ts');
 const stageMeta=src('lib/projects/stages.ts');
 const partnerStageRpc=src('app/api/execution/[token]/route.ts');
 
+const commencementGate=src('supabase/migrations/20261103154500_partner_commencement_canonical_stage_context.sql');
 const tests=[
+  ['Partner start uses the unchanged substantive stage checks inside a verified internal handoff',
+   commencementGate.includes("p_actor_id is null")&&
+   commencementGate.includes("v_current_stage='ready_for_execution'")&&
+   commencementGate.includes("p_target_stage='in_progress'")&&
+   commencementGate.includes("join public.partner_work_order_acceptances w")&&
+   commencementGate.includes("a.execution_state='executing'")&&
+   commencementGate.includes("public.op_project_stage_readiness_with_duplicate_scope_gate(v_project.id)")],
+  ['Ordinary operator transitions still require authenticated membership',
+   commencementGate.includes("v_readiness:=public.op_project_stage_readiness(v_project.id)")&&
+   commencementGate.includes("if auth.uid() is distinct from p_actor_id")&&
+   commencementGate.includes("elsif auth.uid() is not null then")],
+
   ['Project 360 shows formal WO acceptance before stale assignment acknowledgement',
     project.includes("workOrderAccepted&&assignment.execution_state==='awaiting_acknowledgement'")&&
     project.includes('Work Order accepted · partner start pending')&&
