@@ -29,7 +29,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const data=record.data;
  // Surface partner, technical QA and client-issue evidence inside Workspace 2.0.
  // These queries are read-only: no partner invitation, Work Order or client release is inferred.
- const [assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult,workOrderResult]=await Promise.all([
+ const [assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult,workOrderResult,commencementResult,progressResult]=await Promise.all([
    supabase.from('project_execution_assignments').select('id,execution_state,partner_contact_name,release_reference,released_at,execution_cycle')
      .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
    supabase.from('partner_execution_sessions').select('id,status,expires_at,first_opened_at')
@@ -44,12 +44,18 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
    supabase.from('partner_work_orders').select('id,reference,issued_at')
      .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
+   supabase.from('partner_commencement_declarations').select('id,planned_commencement_date,forecast_delivery_date,submitted_at')
+     .eq('organisation_id',organisationId).eq('project_id',id).order('submitted_at',{ascending:false}).limit(1).maybeSingle(),
+   supabase.from('partner_progress_updates').select('id,progress_state,forecast_delivery_date,submitted_at')
+     .eq('organisation_id',organisationId).eq('project_id',id).order('submitted_at',{ascending:false}).limit(1).maybeSingle(),
  ]);
- const evidenceUnavailable=[assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult,workOrderResult].some(result=>Boolean(result.error));
+ const evidenceUnavailable=[assignmentResult,sessionResult,submissionResult,deliveryResult,transmittalResult,workOrderAcceptanceResult,workOrderResult,commencementResult,progressResult].some(result=>Boolean(result.error));
  const assignment=assignmentResult.data;
  const partnerSession=sessionResult.data;
  const workOrderAcceptance=workOrderAcceptanceResult.data;
  const issuedWorkOrder=workOrderResult.data;
+ const partnerCommencement=commencementResult.data;
+ const partnerProgress=progressResult.data;
  const submissions=submissionResult.data||[];
  const deliveryItems=deliveryResult.data||[];
  const transmittal=transmittalResult.data;
@@ -88,6 +94,9 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      : String(assignment.execution_state||'Status not recorded').replaceAll('_',' ')
    : 'No assignment recorded';
  const stageIndex=stage==='mobilisation'?0:stage==='ready_for_execution'?(workOrderAccepted?2:1):['in_progress','internal_review','partner_correction'].includes(stage)?2:3;
+ const agreedDue=String(data.due_date||'').slice(0,10);
+ const partnerForecast=String(partnerProgress?.forecast_delivery_date||partnerCommencement?.forecast_delivery_date||'').slice(0,10);
+ const scheduleVariance=Boolean(agreedDue&&partnerForecast&&partnerForecast>agreedDue);
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
      title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
@@ -99,6 +108,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Stage readiness',value:readiness.ready?'Requirements satisfied':'Outstanding requirements'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
      governedHref={'/opos-next/projects/'+id+(needsWorkOrder?'#work-order-issue':'#project-controls')} previous="/opos-next/projects"/>
+   {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
+     <div className={css.card}>
+       <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
+       <h2 className={css.cardTitle}>Partner forecast exceeds agreed delivery date</h2>
+       <p className={css.cardDescription}>Partner forecast: <strong>{date(partnerForecast)}</strong>. Project / Work Order due date: <strong>{date(data.due_date)}</strong>. The partner's forecast is not an authorised change to the commercial commitment. Review the delivery risk, mitigation and any formal change decision separately.</p>
+       {partnerProgress?<p className={css.meta} style={{marginTop:12}}>Latest partner-reported delivery health: <strong>{String(partnerProgress.progress_state||'Not provided').replaceAll('_',' ')}</strong>.</p>:null}
+     </div>
+   </section>:null}
    {stage==='mobilisation'?<section id="work-order-issue" className={css.section} aria-label="Execution Partner Work Order" style={{scrollMarginTop:24}}>
      <div className={css.sectionHeading}><h2>Execution Partner Work Order</h2></div>
      <div className={css.card}>

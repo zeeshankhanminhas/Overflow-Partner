@@ -18,10 +18,20 @@ const project=src('app/opos-next/projects/[id]/page.tsx');
 const readiness=src('app/opos-next/projects/[id]/work-order/page.tsx');
 const action=src('app/opos-next/projects/[id]/work-order/action.ts');
 const stageMeta=src('lib/projects/stages.ts');
+const executionSurface=src('components/execution/PartnerWorkSurface.tsx');
 const partnerStageRpc=src('app/api/execution/[token]/route.ts');
 
 const commencementGate=src('supabase/migrations/20261103154500_partner_commencement_canonical_stage_context.sql');
 const tests=[
+  ['Partner and OP show forecast variance without changing the agreed deadline',
+   executionSurface.includes('forecastBeyondCommitment')&&
+   executionSurface.includes('The forecast does not amend the agreed deadline')&&
+   project.includes('scheduleVariance')&&
+   project.includes("The partner's forecast is not an authorised change to the commercial commitment")],
+  ['Execution portal replaces obsolete pre-start instructions after commencement',
+   executionSurface.includes('Your start confirmation has been recorded')&&
+   executionSurface.includes('Submit completed engineering work only with the required files')],
+
   ['Partner start uses the unchanged substantive stage checks inside a verified internal handoff',
    commencementGate.includes("p_actor_id is null")&&
    commencementGate.includes("v_current_stage='ready_for_execution'")&&
