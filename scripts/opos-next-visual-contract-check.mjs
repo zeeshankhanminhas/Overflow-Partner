@@ -39,7 +39,9 @@ const checks = [
     qaEmailGuard.includes('+client@gmail.com') && qaEmailGuard.includes('+partner@gmail.com')],
   ['QA email recipient is checked at enqueue and at actual delivery',
     notificationQueue.includes('assertQaRecipientAllowed(input.recipientEmail)') &&
-    notificationProvider.includes('assertQaRecipientAllowed(row.recipient_email)') &&
+    notificationProvider.includes('qaDeliveryEnvelopeRecipient(row.recipient_email)') &&
+    qaEmailGuard.includes('assertQaRecipientAllowed(email)') &&
+    notificationProvider.includes('to: [envelopeRecipient]') &&
     notificationWorker.includes('deliverNotificationEmail(row)') &&
     notificationWorker.includes('OPOS-QA outbound worker is locked') &&
     notificationWorker.includes("OP_QA_EMAIL_SENDING_ENABLED !== 'true'")],
