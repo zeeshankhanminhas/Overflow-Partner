@@ -17,8 +17,22 @@ const manual=src('app/workspace/projects/[id]/execution/actions.ts');
 const project=src('app/opos-next/projects/[id]/page.tsx');
 const readiness=src('app/opos-next/projects/[id]/work-order/page.tsx');
 const action=src('app/opos-next/projects/[id]/work-order/action.ts');
+const stageMeta=src('lib/projects/stages.ts');
+const partnerStageRpc=src('app/api/execution/[token]/route.ts');
 
 const tests=[
+  ['Project 360 shows formal WO acceptance before stale assignment acknowledgement',
+    project.includes("workOrderAccepted&&assignment.execution_state==='awaiting_acknowledgement'")&&
+    project.includes('Work Order accepted · partner start pending')&&
+    project.includes("workOrderAccepted?2:1")],
+  ['Ready-for-execution UI accurately distinguishes pending commencement',
+    stageMeta.includes("completion: 'The partner commencement declaration is required before execution begins.'")&&
+    project.includes('Partner to confirm commencement')&&
+    project.includes('OPOS moves to In Progress only after that declaration is recorded.')],
+  ['Partner confirmation still requires the authenticated session and governed RPC',
+    partnerStageRpc.includes("if(payload.action==='commencement')")&&
+    partnerStageRpc.includes("supabase.rpc('op_record_partner_commencement'")],
+
   ['Acceptance has a unique controlled assignment identity',sql.includes('unique(assignment_id)')&&sql.includes('scope_document_id uuid not null')&&sql.includes('session_id uuid not null')],
   ['Acceptance RPC restricted to service role, not anonymous clients',sql.includes('revoke all on function public.op_record_partner_work_order_acceptance')&&sql.includes('grant execute on function public.op_record_partner_work_order_acceptance(uuid,uuid,text,text) to service_role')],
   ['Project Work Order status is read-only for organisation members',readSql.includes('grant select')&&readSql.includes('p.id=auth.uid()')&&!readSql.includes('grant insert')],

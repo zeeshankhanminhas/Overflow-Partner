@@ -13,9 +13,9 @@ export const projectStageMeta: Record<ProjectStage, { label: string; objective: 
     action: 'Release to Execution Partner',
   },
   ready_for_execution: {
-    label: 'Ready to release',
-    objective: 'The approved delivery basis is ready with the Execution Partner.',
-    completion: 'Partner commencement received.',
+    label: 'Ready for execution',
+    objective: 'The approved project and accepted Work Order are ready; the Execution Partner must confirm commencement.',
+    completion: 'The partner commencement declaration is required before execution begins.',
     next: 'in_progress',
     action: 'Await Partner start',
   },
