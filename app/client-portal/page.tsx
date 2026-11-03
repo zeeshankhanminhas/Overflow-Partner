@@ -49,7 +49,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const [paymentResult,releaseResult,projectResult,contractResult,stripeEvidenceResult] = await Promise.all([
     db.from('quote_payment_confirmations').select('confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     db.from('quote_release_confirmations').select('release_basis,confirmed_at').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
-    db.from('projects').select('id,project_number').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('projects').select('id,project_number,project_stage').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
     process.env.OP_CONTRACTUAL_RELEASE_ENABLED === 'true' ? db.from('quote_release_contracts').select('release_basis,opening_amount,authorised_contact_name,authorised_contact_email').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle() : Promise.resolve({data:null,error:null}),
     db.from('quote_stripe_payment_events').select('stripe_session_id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).eq('stripe_payment_status','paid').limit(1).maybeSingle(),
   ]);
@@ -123,20 +123,29 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   }
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
-  const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : stripePaymentPending ? 'Payment under verification' : stripe_return==='success' ? 'Checkout completed · verification pending' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
+  // A linked project supersedes the original quotation as the client-facing
+  // heading. The quotation remains available as a controlled historic record.
+  const projectStage=String(project?.project_stage||'');
+  const projectActive=['in_progress','partner_correction'].includes(projectStage);
+  const clientStage=projectStage==='ready_for_execution'?'Preparing to start':
+    projectActive?'Engineering in progress':
+    projectStage==='internal_review'?'Internal quality review':
+    ['ready_for_client_issue','issued_to_client','client_review'].includes(projectStage)?'Engineering delivery in review':
+    ['completion','closed'].includes(projectStage)?'Delivery and closeout':'Project opened';
+  const status = project ? clientStage : paid ? 'Opening payment confirmed' : stripePaymentPending ? 'Payment under verification' : stripe_return==='success' ? 'Checkout completed · verification pending' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   const daysRemaining=dueDate>0?Math.max(0,Math.ceil((dueDate-Date.now())/86400000)):0;
   const expiryText=quote.valid_until?new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(quote.valid_until+'T12:00:00Z')):'Not specified';
   return <main className={styles.page}>
     <div className={styles.shell}>
       <div className={styles.brand}><span>OP</span> OVERFLOW PARTNER</div>
-      <p className={styles.eyebrow}>SECURE CLIENT PORTAL / COMMERCIAL</p>
-      <h1 className={styles.title}>Your quotation.<br/>One clear next step.</h1>
-      <p className={styles.intro}>A private place to review your commercial position, respond to the quotation and follow the progress of your engineering work.</p>
+      <p className={styles.eyebrow}>SECURE CLIENT PORTAL / {project?'PROJECT':'COMMERCIAL'}</p>
+      <h1 className={styles.title}>{project?'Your engineering project.':'Your quotation.'}<br/>One clear next step.</h1>
+      <p className={styles.intro}>{project?'Your project is underway. Follow its controlled status here; the original quotation and payment record remain available below.':'A private place to review your commercial position, respond to the quotation and follow the progress of your engineering work.'}</p>
       <section className={styles.panel}>
-        <div className={styles.topline}><div><p className={styles.eyebrow}>CLIENT QUOTATION</p><div className={styles.reference}>{quote.quote_number} · Revision {quote.revision}</div></div><div><p className={styles.eyebrow}>VALID UNTIL</p><div className={styles.reference}>{expiryText}</div><div className={styles.expiry}>{daysRemaining>0?daysRemaining+' day'+(daysRemaining===1?'':'s')+' remaining':'Validity period ended'}</div></div></div>
-        <div className={styles.status}><p className={styles.eyebrow}>CURRENT STATUS</p><h2>{status}</h2><p>{project?'Your project has been opened. We will share delivery details as they are agreed.':released?'The verified contractual release condition has been confirmed.':paid?'Your opening payment has been recorded. Project setup is the next step.':stripePaymentPending?'Stripe payment evidence is verified. We are completing the controlled release and project setup. Please do not pay again.':stripe_return==='success'?'Stripe Checkout has returned successfully, but verified payment evidence has not reached OPOS yet. No project has been created. Please do not pay again.':accepted?'Your quotation has been accepted. The agreed opening payment or release condition must be verified before project setup.':'Review the quotation and record your decision before its expiry.'}</p></div>
+        <div className={styles.topline}><div><p className={styles.eyebrow}>{project?'PROJECT REFERENCE':'CLIENT QUOTATION'}</p><div className={styles.reference}>{project?project.project_number:quote.quote_number+' · Revision '+quote.revision}</div></div><div><p className={styles.eyebrow}>{project?'ORIGINAL QUOTATION':'VALID UNTIL'}</p><div className={styles.reference}>{project?quote.quote_number+' · Revision '+quote.revision:expiryText}</div><div className={styles.expiry}>{project?'Accepted commercial record preserved':daysRemaining>0?daysRemaining+' day'+(daysRemaining===1?'':'s')+' remaining':'Validity period ended'}</div></div></div>
+        <div className={styles.status}><p className={styles.eyebrow}>CURRENT STATUS</p><h2>{status}</h2><p>{project?(projectActive?'The Execution Partner has confirmed commencement. Engineering work is in progress, with controlled review and delivery still to follow.':'Your project has been opened. Delivery and review updates will appear as they are verified.'):released?'The verified contractual release condition has been confirmed.':paid?'Your opening payment has been recorded. Project setup is the next step.':stripePaymentPending?'Stripe payment evidence is verified. We are completing the controlled release and project setup. Please do not pay again.':stripe_return==='success'?'Stripe Checkout has returned successfully, but verified payment evidence has not reached OPOS yet. No project has been created. Please do not pay again.':accepted?'Your quotation has been accepted. The agreed opening payment or release condition must be verified before project setup.':'Review the quotation and record your decision before its expiry.'}</p></div>
         <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':stripePaymentPending?'Stripe verified · release pending':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
-        {project?<div className={styles.section}><h3>Project reference</h3><p>{project.project_number}</p></div>:null}
+        {project?<div className={styles.projectSummary}><div><span className={styles.eyebrow}>PROJECT STATUS</span><h3>{clientStage}</h3><p>Project {project.project_number} · Controlled engineering delivery</p></div><div><span className={styles.eyebrow}>NEXT MILESTONE</span><p>{projectActive?'Engineering submission and internal OP quality review':projectStage==='ready_for_execution'?'Partner commencement confirmation':'Controlled delivery and review update'}</p></div></div>:null}
         {contractResult.data?.release_basis==='purchase_order'?<p className={styles.note}>Agreed release condition: authorised purchase order, subject to verification.</p>:null}
         {contractResult.data?.release_basis==='no_advance_payment'?<p className={styles.note}>Agreed release condition: no advance payment due, subject to authorisation.</p>:null}
         <div className={styles.section}>
@@ -158,7 +167,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         </div>:null}
         {qaCorrection?<div className={styles.section} aria-label="Fictional QA commercial correction">
           <p className={styles.eyebrow}>QA REHEARSAL ONLY · R01 CORRECTION</p>
-          <h3>Confirm corrected VAT-inclusive test terms</h3>
+          <h3>{qaCorrectionAcknowledged?'Historical QA correction · acknowledged':'Confirm corrected VAT-inclusive test terms'}</h3>
           <p className={styles.note}>{qaCorrection.correction_text}</p>
           <p className={styles.note}>This is a simulated amendment for testing the customer journey, not a legally executed variation or a replacement for the historical R01 PDF. The previously accepted quotation remains on record.</p>
           {!qaCorrectionAcknowledged?<form className={styles.acceptanceForm} action={acceptNorthfieldQaCorrection}>
@@ -167,7 +176,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
             <label>QA contact email<input name="signatory_email" type="email" required defaultValue={String(contractResult.data?.authorised_contact_email||'')}/></label>
             <label className={styles.authorityConfirmation}><input name="qa_correction_acknowledged" type="checkbox" value="yes" required/><span>I acknowledge the corrected VAT-inclusive terms solely for this fictional Northfield QA rehearsal and understand this is not a real payment obligation.</span></label>
             <button className={styles.action+' '+styles.primary} type="submit">Confirm QA terms and continue</button>
-          </form>:<p className={styles.note}><strong>QA correction acknowledged.</strong> Continue to the opening payment test when the sandbox is ready.</p>}
+          </form>:<p className={styles.note}><strong>Historical QA test acknowledgement recorded.</strong> The existing project remains governed by its recorded commercial evidence; this is not a new payment request.</p>}
           {notice==='qa_addendum_unavailable'?<p role="alert" className={styles.note}>The QA correction could not be recorded. Check the named test contact; no payment has been requested.</p>:null}
         </div>:null}
         {stripePaymentPending?<div className={styles.section}><p className={styles.eyebrow}>PAYMENT EVIDENCE RECEIVED</p><h3>Project setup is being verified</h3><p className={styles.note}>Stripe has confirmed your opening payment. OP is completing the release checks. No additional payment is required. Please check back later.</p></div>:null}
