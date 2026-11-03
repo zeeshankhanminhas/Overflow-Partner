@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { renderNotificationEmail } from '@/lib/notifications/templates';
-import { assertQaRecipientAllowed } from '@/lib/qa/email-guard';
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import {deliverNotificationEmail,type OutboxRow} from '@/lib/notifications/emailProvider';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type OutboxRow = {
-  id: string;
-  event_key: string;
-  category: string;
-  recipient_email: string;
-  recipient_name: string | null;
-  subject: string;
-  template_key: string;
-  payload: Record<string, unknown>;
-};
+
 
 function authorised(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -31,42 +21,7 @@ function adminClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-async function deliver(row: OutboxRow) {
-  assertQaRecipientAllowed(row.recipient_email);
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from) throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL must be configured.');
 
-  const { html, text } = await renderNotificationEmail(row);
-  const replyTo = process.env.RESEND_REPLY_TO_EMAIL;
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': `overflow-partner-${row.id}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [row.recipient_email],
-      subject: row.subject,
-      html,
-      text,
-      ...(Array.isArray(row.payload?.emailAttachments) ? { attachments: row.payload.emailAttachments } : {}),
-      ...(replyTo ? { reply_to: replyTo } : {}),
-      headers: {
-        'X-Overflow-Partner-Event': row.event_key,
-        'X-Overflow-Partner-Outbox': row.id,
-      },
-    }),
-  });
-
-  const body = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string };
-  if (!response.ok || !body.id) {
-    throw new Error(body.message || body.name || `Resend returned HTTP ${response.status}.`);
-  }
-  return body.id;
-}
 
 export async function GET(request: NextRequest) {
   if (!authorised(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -84,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     for (const row of rows) {
       try {
-        const providerId = await deliver(row);
+        const providerId = await deliverNotificationEmail(row);
         const { error: completeError } = await supabase.rpc('op_complete_notification', {
           p_id: row.id,
           p_provider_message_id: providerId,
