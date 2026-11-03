@@ -81,7 +81,11 @@ export async function issueWorkOrderAfterVerifiedOpeningPayment(
     last_blocker:outcome.reason||null,attempts:Number(existing?.attempts||0)+1,
     updated_at:new Date().toISOString()
   },{onConflict:'project_id'});
-  if(stateError)throw new Error('Work Order outcome could not be committed; webhook must retry.');
+  if(stateError)throw new Error(
+    'Governed Work Order outcome could not be saved (database '+String(stateError.code||'unknown')+
+    '). Check server-only release permissions; the previous steps may have been saved. '+
+    'Inspect the current Work Order before retrying to avoid duplicate actions.'
+  );
 
   // Only one operational event for a new status. Replays are naturally
   // idempotent at partner_work_orders / assignment / session / outbox layers.
