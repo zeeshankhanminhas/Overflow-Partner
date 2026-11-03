@@ -8,7 +8,10 @@ export async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
   const redesignPreview = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "design/opos-decision-first-ia";
-  const safeNext = next === "/opos-next" ? next : (redesignPreview ? "/opos-next" : "/workspace");
+  // Only pre-approved internal destinations are accepted. Never redirect to
+  // arbitrary paths from a login form or cross-organisation portal URLs.
+  const externalKind=next==='/portal/client'?'client':next==='/portal/partner'?'partner':null;
+  const safeNext = externalKind?next:next === "/opos-next" ? next : (redesignPreview ? "/opos-next" : "/workspace");
 
   if (!email || !password) {
     redirect("/login?error=Email%20and%20password%20are%20required.");
@@ -19,6 +22,18 @@ export async function signIn(formData: FormData) {
 
   if (error || !data.user) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
+  }
+
+  if(externalKind){
+    // External users are not required to have an employee profile, and a
+    // Supabase Auth session alone does not grant any project access.
+    const {data:accounts,error:membershipError}=await supabase.rpc('portal_my_workspaces');
+    if(membershipError||!(accounts||[]).some((account:{portal_kind:string})=>account.portal_kind===externalKind)){
+      await supabase.auth.signOut();
+      redirect('/login?next='+encodeURIComponent(safeNext)+'&error='+
+        encodeURIComponent('This sign-in is not authorised for the selected client or partner account.'));
+    }
+    redirect(safeNext);
   }
 
   const { data: profile, error: profileError } = await supabase

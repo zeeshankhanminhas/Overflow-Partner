@@ -10,6 +10,8 @@ export const nextNavigation = [
   {label:'Partners',href:'/opos-next/partners',group:'OPERATIONS'},
   {label:'Finance',href:'/opos-next/finance',group:'OPERATIONS'},
   {label:'Documents',href:'/opos-next/documents',group:'OPERATIONS'},
+  {label:'Client Workspace',href:'/portal/client',group:'PORTAL PREVIEW'},
+  {label:'Partner Workspace',href:'/portal/partner',group:'PORTAL PREVIEW'},
 ] as const;
 
 export function isNextActive(pathname:string,href:string) {
