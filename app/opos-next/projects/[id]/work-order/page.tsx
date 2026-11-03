@@ -100,14 +100,14 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
   const actualStatus=accepted?.id?'Formally accepted':deliveryPending?
     'Work Order issued · partner invitation pending':workOrder?.issued_at?
     'Work Order issued · partner acceptance pending':blockers.length?'Blocked · evidence required':'Ready for automatic issue';
-  return <div className={css.shell} style={{maxWidth:1000,margin:'0 auto',padding:'38px 20px',display:'grid',gap:24}}>
-    <Link className={css.secondaryLink} href={'/opos-next/projects/'+id}>← Project 360</Link>
-    <header><span className={css.overline}>ISOLATED QA · PROJECT 360</span><h1 style={{fontSize:32,fontWeight:650,marginTop:12}}>Execution Partner Work Order</h1>
-      <p className={css.meta}>{project.project_number} · {project.title}</p></header>
-    {feedback.error?<p role="alert" className={css.empty}>Action blocked: {feedback.error.slice(0,450)}</p>:null}
-    {feedback.success?<p role="status" className={css.empty}>{feedback.success.slice(0,450)}</p>:null}
-    <section className={css.card}>
-      <span className={css.overline}>ONE NEXT ACTION</span>
+  return <article className={css.detailPage}>
+    <Link className={css.detailBack} href={'/opos-next/projects/'+id}>← Back to Project 360</Link>
+    <header className={css.detailHeader}><span className={css.overline}>WORK / PROJECT 360 / WORK ORDER</span><h1 className={css.detailTitle}>Execution Partner Work Order</h1>
+      <p className={css.detailSubtitle}>{project.project_number} · {project.title}</p></header>
+    {feedback.error?<p role="alert" className={css.detailNotice+" "+css.detailNoticeError}>Action blocked: {feedback.error.slice(0,450)}</p>:null}
+    {feedback.success?<p role="status" className={css.detailNotice+" "+css.detailNoticeSuccess}>{feedback.success.slice(0,450)}</p>:null}
+    <section className={css.detailPanel+" "+css.detailLead}>
+      <span className={css.overline}>WORK ORDER · CURRENT POSITION</span>
       <h2 className={css.cardTitle}>{actualStatus}</h2>
       <p className={css.cardDescription}>{accepted?.id?'The named Execution Partner has accepted the controlled Work Order. Commencement still requires completed mobilisation.':workOrder?.issued_at?'The Work Order has been issued against the previously approved partner and scope. Formal partner acceptance and commencement remain separate.':blockers.length?'Correct the original commercial or scope evidence; no second partner selection or internal approval is required.':'The signed payment-to-project handoff can issue the already-approved partner Work Order. Partner acceptance is required before commencement.'}</p>
       {blockers.length?<ul style={{paddingLeft:20,marginTop:18}}>{blockers.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul>:null}
@@ -123,7 +123,7 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
         <button className={css.action} type="submit" style={{border:0,cursor:'pointer'}}>Retry automatic Work Order handoff →</button>
       </form>:null}
     </section>
-    <section className={css.card}>
+    <section className={css.detailPanel}>
       <span className={css.overline}>CONTROLLED EVIDENCE</span>
       <div className={css.factRow} style={{marginTop:18}}>
         <span>Verified opening deposit: <strong>{settled?'Confirmed':'Not verified'}</strong></span>
@@ -143,5 +143,5 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
       {email?.last_error?<p role="alert" className={css.meta}>Notification error: {String(email.last_error).slice(0,300)}</p>:null}
       <p className={css.meta} style={{marginTop:18}}>A queued email does not prove delivery. Work commencement, engineering submissions, client review, final payment and partner settlement require their own verified gates. No partner advance is authorised.</p>
     </section>
-  </div>;
+  </article>;
 }

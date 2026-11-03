@@ -35,7 +35,7 @@
 .workArea { min-width: 0; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 37px; height: 64px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--faint); letter-spacing: .05em; gap: 16px; }
 .previewChip { padding: 6px 11px; border: 1px solid var(--border); color: var(--subtle); border-radius: 999px; font-size: 11px; letter-spacing: normal; }
-.main { max-width: 1220px; margin: 0 auto; padding: 52px 48px 100px; min-width: 0; }
+.main { max-width: 1130px; margin: 0 auto; padding: 46px 42px 90px; min-width: 0; }
 .eyebrow { font-size: 11px; text-transform: uppercase; font-weight: 600; letter-spacing: .12em; color: var(--faint); margin: 0 0 12px; }
 .title { font-size: clamp(26px,3vw,36px); line-height: 1.16; letter-spacing: -.04em; font-weight: 600; color: var(--text); margin: 0; }
 .subhead { margin: 12px 0 0; max-width: 700px; font-size: 14px; color: var(--subtle); }
@@ -199,3 +199,31 @@
  .shell .mobileHeader {padding:0 18px;}
  .shell .main {padding-top:37px;}
 }
+
+/* Unified Workspace 2.0 operator detail grammar: no nested workspace shell. */
+.detailPage{width:100%;max-width:1030px;margin:0 auto;display:grid;gap:24px;min-width:0}
+.detailHeader{display:grid;gap:9px;min-width:0}
+.detailTitle{font-size:clamp(29px,3vw,38px);line-height:1.15;letter-spacing:-.045em;font-weight:650;margin:0;overflow-wrap:anywhere}
+.detailSubtitle{font-size:14px;line-height:1.65;color:var(--subtle);margin:0;overflow-wrap:anywhere}
+.detailBack{display:inline-flex;width:fit-content;color:var(--subtle);font-size:13px;font-weight:550;min-height:28px}
+.detailBack:hover{color:var(--text)}
+.detailPanel{padding:27px 29px;background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:0}
+.detailLead{background:var(--raised);border-color:var(--border-strong)}
+.detailFacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px;margin:14px 0 0}
+.detailFacts>div{min-width:0;border-top:1px solid var(--border);padding:14px 0}
+.detailFacts dt{font-size:11px;line-height:1.5;color:var(--faint);margin:0 0 6px}
+.detailFacts dd{font-size:13px;line-height:1.6;font-weight:560;color:var(--text);margin:0;overflow-wrap:anywhere}
+.detailNotice{border:1px solid var(--border-strong);border-left:3px solid var(--faint);border-radius:10px;background:var(--raised);padding:16px 19px;font-size:13px;line-height:1.6;color:var(--subtle);overflow-wrap:anywhere}
+.detailNoticeError{border-left-color:var(--critical)}
+.detailNoticeSuccess{border-left-color:var(--success)}
+.detailHistory{margin-top:20px;border-top:1px solid var(--border);padding-top:17px}
+.detailHistory summary{font-size:13px;min-height:34px;cursor:pointer;font-weight:550}
+.detailHistory p{font-size:13px;line-height:1.6;color:var(--subtle)}
+.section{max-width:1030px;margin-left:auto;margin-right:auto}
+.sectionHeading h2{font-size:15px;letter-spacing:-.01em}
+.shell .card{line-height:1.6}
+.shell .action{min-height:44px;font-size:13px;cursor:pointer}
+.shell .action:disabled{cursor:not-allowed;opacity:.48}
+.shell .factRow{gap:12px 22px;line-height:1.6}
+.shell .factRow span{overflow-wrap:anywhere}
+@media(max-width:700px){.detailPage{gap:19px}.detailTitle{font-size:29px}.detailPanel{padding:21px 19px}.detailFacts{grid-template-columns:1fr}.shell .main{padding:30px 18px 70px}}

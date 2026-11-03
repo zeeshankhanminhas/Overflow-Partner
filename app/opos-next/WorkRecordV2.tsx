@@ -4,11 +4,11 @@ import css from './work-record.module.css';
 type Stage = {name:string;detail:string};
 type Fact={label:string;value:string};
 export default function WorkRecordV2({
-  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,
+  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,actionLabel='Review current controls',
 }:{
   eyebrow:string;title:string;subtitle:string;state:string;owner:string;
   nextTitle:string;nextDescription:string;stages:Stage[];stageIndex:number;
-  evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;
+  evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;actionLabel?:string;
 }){
   return <article className={css.page}>
     <p className={css.eyebrow}>{eyebrow}</p>
@@ -24,7 +24,7 @@ export default function WorkRecordV2({
       <p>{nextDescription}</p>
       {waiting?<p style={{marginTop:16,fontSize:12}}>No decision is assumed until the outstanding evidence arrives.</p>:null}
       {!waiting?<div className={css.decisionActions}>
-        <Link className={css.primary} href={governedHref}>Review current controls ↗</Link>
+        <Link className={css.primary} href={governedHref}>{actionLabel} ↗</Link>
       </div>:null}
     </section>
     <section className={css.section} aria-label="Lifecycle position">
