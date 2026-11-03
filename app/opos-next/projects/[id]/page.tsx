@@ -60,6 +60,25 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const deliveryItems=deliveryResult.data||[];
  const transmittal=transmittalResult.data;
  const stage=normaliseProjectStage(data.project_stage);
+
+ // Bring real current-cycle partner evidence and the two governed QA documents
+ // into the Internal Review decision itself. A stage move is not QA approval.
+ let internalQaDocuments: Array<{id:string;document_type:string;status:string;reference:string|null}> = [];
+ let internalQaFiles: Array<{id:string;original_filename:string;size_bytes:number|null}> = [];
+ let internalQaEvidenceUnavailable = false;
+ if(stage==='internal_review'){
+   const [qaDocs,qaFiles]=await Promise.all([
+     supabase.from('documents').select('id,document_type,status,reference')
+       .eq('organisation_id',organisationId).eq('project_id',id)
+       .in('document_type',['technical-review','document-register']),
+     supabase.from('partner_delivery_submission_files').select('id,original_filename,size_bytes')
+       .eq('organisation_id',organisationId).eq('project_id',id)
+       .eq('submission_id',submissions[0]?.id||'00000000-0000-0000-0000-000000000000'),
+   ]);
+   internalQaEvidenceUnavailable=Boolean(qaDocs.error||qaFiles.error);
+   internalQaDocuments=qaDocs.data||[];
+   internalQaFiles=qaFiles.data||[];
+ }
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
  const financial=resolveFinancialGate(financialResult.error?null:financialResult.data);
@@ -153,6 +172,32 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        <p className={css.cardDescription}>{meta.completion}</p>
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
        {blockedReasons.length?<div style={{marginTop:20}}><strong>Evidence required for the next stage</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:<p className={css.meta} style={{marginTop:18}}>Stage-readiness service reports no outstanding reasons.</p>}
+       {stage==='internal_review'?<section aria-label="Internal technical QA evidence" style={{display:'grid',gap:15,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
+         <h3 style={{fontSize:17,margin:0}}>Internal technical QA · R01</h3>
+         <p className={css.meta}>Review the actual current-cycle Partner delivery and its files before signing or approving either controlled document. Moving into Internal Review did not inspect or approve the engineering work.</p>
+         {internalQaEvidenceUnavailable?<p role="alert">Internal QA document or file evidence could not be loaded. Do not approve until it is available.</p>:null}
+         <div>
+           <strong>Submitted engineering files</strong>
+           {internalQaFiles.length?<ul style={{paddingLeft:20,marginTop:10}}>{internalQaFiles.map(file=><li key={file.id} style={{marginBottom:10}}>
+             <Link className={css.secondaryLink} target="_blank" rel="noreferrer" href={'/opos-next/projects/'+id+'/delivery/'+file.id}>Inspect {file.original_filename||'submitted attachment'} ↗</Link>
+             <span className={css.meta}> · {Math.ceil(Number(file.size_bytes||0)/1024)} KB</span>
+           </li>)}</ul>:<p className={css.meta}>No files are available for the current submission. Technical approval must stay blocked.</p>}
+         </div>
+         <div>
+           <strong>Two controlled review documents</strong>
+           <ol style={{paddingLeft:20,marginTop:10}}>{([
+             {slug:'technical-review',label:'Technical Review · inspect scope, drawings, revisions and risks'},
+             {slug:'document-register',label:'Document Register · verify filenames, revision and traceability'},
+           ] as const).map(item=>{
+             const record=internalQaDocuments.find(row=>row.document_type===item.slug);
+             return <li key={item.slug} style={{marginBottom:12}}>
+               {record?<><Link className={css.secondaryLink} href={'/opos-next/documents/'+record.id}>{item.label} ↗</Link><span className={css.meta}> · {record.reference} · {String(record.status).replaceAll('_',' ')}</span></>
+                 :<span className={css.meta}>{item.label} — no controlled record; approval is not available</span>}
+             </li>;
+           })}</ol>
+         </div>
+         <p className={css.meta}>For each document: review evidence → submit for review → electronically sign with your actual reviewer authority → separately approve as authorised owner/admin. Only then will the release-stage button unlock. No automatic engineering approval is granted.</p>
+       </section>:null}
        {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This page retains the current governed controls while testing is isolated.</p>:null}
        {stage==='mobilisation'&&canWrite?<details style={{marginTop:22}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
          <summary style={{cursor:'pointer',fontWeight:600}}>Set mobilisation owner and programme</summary>
