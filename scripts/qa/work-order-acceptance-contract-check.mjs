@@ -38,7 +38,7 @@ const tests=[
   ['Project 360 links to readiness in modern UI',project.includes("+'/work-order'")&&project.includes('workOrderAcceptance')],
   ['Readiness surfaces missing partner lineage without fabricating approval',readiness.includes('commercial_review_id')&&readiness.includes('Not commercially selected')&&readiness.includes('not approved')],
   ['Operator retry is QA-only and identity-authorised',action.includes('assertIsolatedQaBackend()')&&action.includes("assertRole(profile.role,['owner','admin'])")],
-  ['Outbox is never represented as delivered solely because queued',action.includes('not yet proven delivered')&&readiness.includes("email?.status==='sent'&&email.provider_message_id")],
+  ['Outbox is never represented as delivered solely because queued',action.includes("delivery.status==='sent'")&&action.includes('accepted by the email provider')&&action.includes('formal partner acceptance is still required')&&readiness.includes("email?.status==='sent'&&email.provider_message_id")],
   ['Execution Partner Agreement is independently verified before assignment',agreementSql.includes('trg_op_execution_partner_agreement_before_assignment')&&agreementSql.includes('signed_at<=a.verified_at')&&agreementSql.includes('reviewer.role::text')],
   ['Agreement evidence remains mandatory at formal Work Order acceptance',agreementSql.includes('trg_op_partner_agreement_before_wo_acceptance')&&auto.includes("from('partner_execution_agreement_evidence')")],
   ['Readiness displays missing signed agreement instead of assuming compliance',readiness.includes('partnerAgreementVerified')&&readiness.includes('not been independently verified')],
