@@ -58,8 +58,9 @@ const checks=[
     portalResend.includes("blockedTaxReasons.includes(String(readiness?.reason||''))")&&
     portalResend.indexOf("blockedTaxReasons.includes(")<portalResend.indexOf('queueLifecycleEmail(supabase,')],
   ['Case 360 shows a genuine next decision and links to its controlled documents',
-    casePage.includes('waiting={taxConflict?false:clientAccepted||waiting}')&&
-    casePage.includes('governedHref={taxConflict?')&&
+    casePage.includes('waiting={linkedProject?false:taxConflict?false:clientAccepted||waiting}')&&
+    casePage.includes("governedHref={linkedProject?'/opos-next/projects/'+linkedProject.id:taxConflict?")&&
+    casePage.includes("const taxConflict=historicalVatDiscrepancy&&!linkedProject?.id")&&
     casePage.includes('id="quote-tax-control"')&&casePage.includes('href="#case-evidence"')],
   ['Broken quotation portal resend is visibly paused instead of offered as an active action',
     casePage.includes('taxConflict||taxCheckFailed')&&
