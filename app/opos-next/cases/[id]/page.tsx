@@ -30,6 +30,11 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const workflow=await getWorkflowCase(supabase,organisationId,id);
   const {data:partnerReviews}=await supabase.from('partner_review_requests').select('id,status').eq('organisation_id',organisationId).eq('lead_id',id).limit(1);
   if(!workflow)notFound();
+  // Case 360 is a historical commercial record after verified project release.
+  // Never keep the legacy "awaiting payment" decision once its Project 360 exists.
+  const {data:linkedProject}=workflow.clientQuote?.id?await supabase.from('projects')
+    .select('id,project_number,project_stage').eq('organisation_id',organisationId)
+    .eq('quote_id',workflow.clientQuote.id).maybeSingle():{data:null};
   // QA operator warning: do not change or reissue an accepted quotation in place.
   const inspectTaxTerms=isKnownIsolatedQaBackend() &&
     ['owner','admin'].includes(profile.role) &&
@@ -40,9 +45,12 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
     ? await supabase.from('partner_quotes').select('exclusions')
       .eq('organisation_id',organisationId).eq('id',workflow.partnerQuote!.id).maybeSingle()
     : {data:null,error:null};
-  const taxConflict=inspectTaxTerms && !termsError &&
+  const historicalVatDiscrepancy=inspectTaxTerms && !termsError &&
     /\b(?:VAT|value[\s-]*added[\s-]*tax)\b/i.test(String(terms?.exclusions||''));
-  const taxCheckFailed=inspectTaxTerms && Boolean(termsError);
+  // Preserve the historical record, but do not present an already released
+  // QA project as newly blocked on its original immutable quote wording.
+  const taxConflict=historicalVatDiscrepancy&&!linkedProject?.id;
+  const taxCheckFailed=inspectTaxTerms && Boolean(termsError) && !linkedProject?.id;
   const scopeApproved=workflow.technicalIntake?.status==='approved';
   const {data:quoteIssue}=workflow.clientQuote?.status==='issued' ? await supabase.from('quote_issue_records').select('recipient_name,recipient_email,client_response,quote_revision').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).maybeSingle() : {data:null};
   const clientAccepted=quoteIssue?.client_response==='accepted';
@@ -57,13 +65,13 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
   const view=resolveCaseQueuePresentation(stage);
   const normalised=stage.toLowerCase().replaceAll('_','-');
   const stageIndex=normalised.includes('project')?3:normalised.includes('commercial')||normalised.includes('quote')?2:normalised.includes('partner')?1:0;
-  const nextDecisionTitle=taxConflict?'Resolve inconsistent VAT in issued client quotation':clientAccepted?(awaitingAdvance?'Verify pre-project approvals and opening payment':'Awaiting contractual release verification'):view.nextAction.label;
-  const nextDecisionDescription=taxConflict?'The accepted quotation charges VAT while the exclusions also say VAT is excluded. Keep the existing revision unchanged, stop payment and request a controlled correction with renewed client approval.':clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client response recorded. Verify the technical and approved Execution Partner lineage before requesting the £${openingAmount.toFixed(2)} advance. Project 360 requires independent payment verification.`:'Client response recorded. Complete technical, partner and opening-payment approvals before Project 360.'):'Client response recorded. Verify the agreed release condition before Project 360 can be created.'):view.summary;
+  const nextDecisionTitle=linkedProject?'Project opened · follow execution in Project 360':taxConflict?'Resolve inconsistent VAT in issued client quotation':clientAccepted?(awaitingAdvance?'Verify pre-project approvals and opening payment':'Awaiting contractual release verification'):view.nextAction.label;
+  const nextDecisionDescription=linkedProject?'The existing quotation, client acceptance and verified opening payment led to '+linkedProject.project_number+'. Continue in its current Project 360; do not request the opening payment or create another project.':taxConflict?'The accepted quotation charges VAT while the exclusions also say VAT is excluded. Keep the existing revision unchanged, stop payment and request a controlled correction with renewed client approval.':clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client response recorded. Verify the technical and approved Execution Partner lineage before requesting the £${openingAmount.toFixed(2)} advance. Project 360 requires independent payment verification.`:'Client response recorded. Complete technical, partner and opening-payment approvals before Project 360.'):'Client response recorded. Verify the agreed release condition before Project 360 can be created.'):view.summary;
   const waiting=view.nextAction.kind==='wait'&&!view.approval?.required;
   return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
     title={lead.title||lead.company_name}
     subtitle={lead.company_name+' · Controlled pre-project commercial record'}
-    state={clientAccepted?'Client response accepted · release pending':view.state} owner="Overflow Partner"
+    state={linkedProject?'Project opened':clientAccepted?'Client response accepted · release pending':view.state} owner="Overflow Partner"
     nextTitle={nextDecisionTitle}
     nextDescription={nextDecisionDescription}
     stages={[
@@ -72,21 +80,23 @@ export default async function CasePage({params,searchParams}:{params:Promise<{id
       {name:'Commercial offer',detail:'Price and quote decisions'},
       {name:'Commitment',detail:'Client decision and advance'},
     ]}
-    stageIndex={clientAccepted?3:stageIndex} waiting={taxConflict?false:clientAccepted||waiting}
+    stageIndex={clientAccepted?3:stageIndex} waiting={linkedProject?false:taxConflict?false:clientAccepted||waiting}
     evidence={[
       {label:'Case record',value:lead.reference||id.slice(0,8)},
-      {label:'Governed workflow position',value:clientAccepted?'Client response recorded — formal release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
+      ...(linkedProject?[{label:'Linked Project 360',value:linkedProject.project_number}]:[]),
+      {label:'Governed workflow position',value:linkedProject?'Committed · project released':clientAccepted?'Client response recorded — formal release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
       {label:'Client Requirements Record',value:clientRequirements?`${clientRequirements.reference||'Document'} · ${clientRequirements.status}`:'Missing'},
       {label:'Partner Technical Assessment Report',value:partnerAssessment?`${partnerAssessment.reference||'Document'} · ${partnerAssessment.status}`:'Not generated'},
     ]}
     facts={[
       {label:'Company',value:lead.company_name},
-      {label:'Record status',value:clientAccepted?'Client responded: accepted — project not released':String(lead.status||'Not recorded').replaceAll('_',' ')},
-      {label:'Current stage',value:clientAccepted?'Commitment — release pending':stage.replaceAll('_',' ')},
+      {label:'Record status',value:linkedProject?'Project opened · historical case retained':clientAccepted?'Client responded: accepted — project not released':String(lead.status||'Not recorded').replaceAll('_',' ')},
+      {label:'Current stage',value:linkedProject?'Project '+String(linkedProject.project_stage).replaceAll('_',' '):clientAccepted?'Commitment — release pending':stage.replaceAll('_',' ')},
     ]}
-    governedHref={taxConflict?'#quote-tax-control':'/opos-next/cases/'+id+'#case-decision'}
-    previous="/opos-next/cases"/>
-    {clientAccepted&&!taxConflict&&!taxCheckFailed&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
+    governedHref={linkedProject?'/opos-next/projects/'+linkedProject.id:taxConflict?'#quote-tax-control':'/opos-next/cases/'+id+'#case-decision'}
+    previous="/opos-next/cases" actionLabel={linkedProject?'Open Project 360':'Review current controls'}/>
+    {linkedProject&&historicalVatDiscrepancy?<section className={styles.panel} aria-label="Historical QA quotation wording"><details className={styles.historyNote}><summary>Historical QA quotation wording · preserved in the audit record</summary><p>The original accepted R01 wording contains a VAT inconsistency. The isolated Northfield QA correction and acknowledgement are historical test evidence, not a newly executed legal contract or a reason to request a second advance. The accepted quotation record remains unchanged.</p></details></section>:null}
+    {clientAccepted&&!linkedProject&&!taxConflict&&!taxCheckFailed&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
       <div className={styles.eyebrow}>ISOLATED QA · PRE-PROJECT READINESS</div>
       <h2>Check approval evidence before requesting payment</h2>
       <p>A recorded client response is not proof of verified partner approval, confidentiality, or opening payment. The client portal deliberately withholds payment while any gate fails.</p>

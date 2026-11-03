@@ -75,3 +75,20 @@
 
 .workButton:disabled{opacity:.48;cursor:not-allowed;background:#bbbcc0;border-color:#bbbcc0}
 .workButton:disabled:hover{background:#bbbcc0}
+
+/* Opportunity and Case 360 now follow the same Workspace 2.0 header grid. */
+.frame{width:100%;max-width:1030px;margin:0 auto;padding:0;border:0;border-radius:0;background:transparent}
+.header{align-items:center;gap:16px;flex-wrap:wrap}
+.headerTitle{font-size:11px;color:#989ba3;letter-spacing:.1em;text-transform:uppercase;font-weight:650}
+.headerDescription{font-size:13px;color:#b8bac0}
+.rule{margin:20px 0 24px;background:#303238}
+.title{font-size:clamp(29px,3vw,38px);line-height:1.15;overflow-wrap:anywhere}
+.subtitle{font-size:14px;line-height:1.6}
+.section{margin-top:33px}
+.overline{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9a9da5}
+.description{font-size:14px;line-height:1.65;max-width:72ch}
+.journey{gap:11px}
+.stage{background:#101113;border-color:#303238}
+.evidence{background:#101113;border-color:#303238}
+.workArea{max-width:100%;padding:23px 25px}
+@media(max-width:700px){.frame{padding:0}.title{font-size:29px}.journey{grid-template-columns:1fr;gap:8px}.stage{min-height:0;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 14px}.stageName{margin-top:0;font-size:13px}.workArea{padding:20px 18px}}
