@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {requireUserContext} from '@/lib/auth/context';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
-import {retryGovernedWorkOrderAction} from './action';
+import {retryGovernedWorkOrderAction,retryNorthfieldQaInvitationAction} from './action';
 import css from '../../../opos.module.css';
 
 export const dynamic='force-dynamic';
@@ -28,9 +28,9 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
       .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
     supabase.from('partner_work_order_acceptances').select('id,assignment_id,scope_document_id,accepted_by_name,accepted_by_role,accepted_at')
       .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
-    supabase.from('notification_outbox').select('id,status,provider_message_id,last_error,attempts')
-      .eq('organisation_id',organisationId).eq('entity_id',id).like('subject','Work package released%')
-      .order('created_at',{ascending:false}).limit(1).maybeSingle(),
+    // Signed-in workspace members read delivery state via the authorised
+    // organisation-scoped RPC. Raw outbox SELECT is intentionally RLS-hidden.
+    supabase.rpc('op_list_notification_delivery',{p_limit:150}),
     supabase.from('partner_work_orders').select('id,reference,partner_price,currency,scope_document_id,issued_at')
       .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
     supabase.from('project_work_order_handoffs').select('status,last_blocker,attempts,updated_at')
@@ -84,13 +84,21 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
   const assignmentMatched=Boolean(assignment&&selectedPartnerId&&assignment.partner_id===selectedPartnerId
     &&approvedCandidates.length===1&&assignment.scope_document_id===approvedCandidates[0].id);
   if(assignment&&!assignmentMatched)blockers.push('Existing assignment does not match the commercially approved partner and current scope.');
-  const email=notificationResult.data;
+  const email=Array.isArray(notificationResult.data)
+    ? notificationResult.data.find((row:{entity_id?:string;event_key?:string})=>
+        row.entity_id===id&&row.event_key==='partner_work.released')||null
+    : null;
   const workOrder=workOrderResult.data;
   const handoff=handoffResult.data;
   if([quoteResult,financialResult,sowResult,assignmentResult,acceptanceResult,workOrderResult,handoffResult].some(result=>Boolean(result.error)))
     blockers.push('Some governed evidence could not be retrieved; issuance is locked until verification is restored.');
   const actionable=blockers.length===0 && !workOrder?.issued_at && ['owner','admin'].includes(String(profile.role));
-  const actualStatus=accepted?.id?'Formally accepted':workOrder?.issued_at?
+  const deliveryPending=Boolean(workOrder?.issued_at&&!accepted?.id&&email&&
+    email.status!=='sent');
+  const canRetryInvitation=deliveryPending&&['owner','admin'].includes(String(profile.role))&&
+    String(project.id)==='b447f586-bf79-4839-be5e-1af607d9ca43';
+  const actualStatus=accepted?.id?'Formally accepted':deliveryPending?
+    'Work Order issued · partner invitation pending':workOrder?.issued_at?
     'Work Order issued · partner acceptance pending':blockers.length?'Blocked · evidence required':'Ready for automatic issue';
   return <div className={css.shell} style={{maxWidth:1000,margin:'0 auto',padding:'38px 20px',display:'grid',gap:24}}>
     <Link className={css.secondaryLink} href={'/opos-next/projects/'+id}>← Project 360</Link>
@@ -103,6 +111,13 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
       <h2 className={css.cardTitle}>{actualStatus}</h2>
       <p className={css.cardDescription}>{accepted?.id?'The named Execution Partner has accepted the controlled Work Order. Commencement still requires completed mobilisation.':workOrder?.issued_at?'The Work Order has been issued against the previously approved partner and scope. Formal partner acceptance and commencement remain separate.':blockers.length?'Correct the original commercial or scope evidence; no second partner selection or internal approval is required.':'The signed payment-to-project handoff can issue the already-approved partner Work Order. Partner acceptance is required before commencement.'}</p>
       {blockers.length?<ul style={{paddingLeft:20,marginTop:18}}>{blockers.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul>:null}
+      {canRetryInvitation?<form action={retryNorthfieldQaInvitationAction} style={{marginTop:22}}>
+        <input type="hidden" name="project_id" value={id}/>
+        <p className={css.meta}>The original Work Order is issued. Resend rejected its test-recipient alias. This action retries only the existing email to your verified primary QA inbox; it does not issue another Work Order.</p>
+        <button className={css.action} type="submit" style={{border:0,cursor:'pointer',marginTop:12}}>
+          Deliver existing QA partner invitation →
+        </button>
+      </form>:null}
       {actionable&&!accepted?.id?<form action={retryGovernedWorkOrderAction} style={{marginTop:22}}>
         <input type="hidden" name="project_id" value={id}/>
         <button className={css.action} type="submit" style={{border:0,cursor:'pointer'}}>Retry automatic Work Order handoff →</button>
@@ -121,7 +136,7 @@ export default async function WorkOrderReadiness({params,searchParams}:{params:P
         <span>Partner commercial price: <strong>{workOrder?.issued_at?workOrder.currency+' '+Number(workOrder.partner_price).toFixed(2):'Not issued'}</strong></span>
         <span>Automatic payment handoff: <strong>{handoff?.status?handoff.status.replaceAll('_',' '):'Not attempted'}</strong></span>
         <span>Partner acceptance: <strong>{accepted?.accepted_at?'Recorded':'Not recorded'}</strong></span>
-        <span>Partner notification: <strong>{email?.status==='sent'&&email.provider_message_id?'Provider accepted':email?.status||'Not queued'}</strong></span>
+        <span>Partner notification: <strong>{email?.status==='sent'&&email.sent_at?'Provider accepted':email?.status||'Not queued'}</strong></span>
       </div>
       {accepted?.accepted_at?<p className={css.meta} style={{marginTop:18}}>Accepted by {accepted.accepted_by_name} ({accepted.accepted_by_role}) on {new Date(accepted.accepted_at).toLocaleString('en-GB')}. Acceptance is evidenced by the signed partner-session action, not merely opening the page.</p>:null}
       {handoff?.last_blocker&&!workOrder?.issued_at?<p role="alert" className={css.meta}>Payment handoff blocker: {String(handoff.last_blocker).slice(0,300)}</p>:null}

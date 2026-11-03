@@ -1,5 +1,5 @@
 import { renderNotificationEmail } from '@/lib/notifications/templates';
-import { assertQaRecipientAllowed } from '@/lib/qa/email-guard';
+import { qaDeliveryEnvelopeRecipient } from '@/lib/qa/email-guard';
 
 // Shared by the ordinary notification worker and the exact QA Work Order
 // handoff. All successful email sends use the same Resend idempotency key.
@@ -15,7 +15,7 @@ export type OutboxRow = {
 };
 
 export async function deliverNotificationEmail(row: OutboxRow) {
-  assertQaRecipientAllowed(row.recipient_email);
+  const envelopeRecipient=qaDeliveryEnvelopeRecipient(row.recipient_email);
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL must be configured.');
@@ -31,7 +31,9 @@ export async function deliverNotificationEmail(row: OutboxRow) {
     },
     body: JSON.stringify({
       from,
-      to: [row.recipient_email],
+      // The outbox retains the original fictional contact. Resend test-mode
+      // delivery targets only the owner's verified primary test address.
+      to: [envelopeRecipient],
       subject: row.subject,
       html,
       text,

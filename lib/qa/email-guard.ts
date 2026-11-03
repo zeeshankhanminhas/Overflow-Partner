@@ -23,3 +23,16 @@ export function assertQaRecipientAllowed(email: string): void {
     throw new Error('OPOS-QA email blocked: recipient is not in the isolated test inbox allowlist.');
   }
 }
+
+
+// Keep the fictional QA identity (+client / +partner) in the OPOS record,
+// while routing PREVIEW transport to the Resend account's verified test inbox.
+// Never redirect production email or allow an unapproved external recipient.
+export function qaDeliveryEnvelopeRecipient(email:string):string {
+  assertQaRecipientAllowed(email);
+  if(process.env.VERCEL_ENV!=='preview') return email;
+  const base=String(process.env.OP_QA_TEST_INBOX||'').trim().toLowerCase();
+  if(!base||!qaAllowedRecipientAddresses().has(base))
+    throw new Error('The primary verified QA inbox is unavailable; no email was sent.');
+  return base;
+}

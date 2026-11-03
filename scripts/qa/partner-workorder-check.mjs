@@ -42,6 +42,8 @@ check(operatorAction.includes("event_type:'qa.partner_work_order_operator_reques
 // Validate that the same authorised operator action completes the QA email
 // handoff without a preview-only cron or a second user workflow.
 const qaMailer=readFileSync(resolve(root,'lib/notifications/qaWorkOrderDelivery.ts'),'utf8');
+const transportGuard=readFileSync(resolve(root,'lib/qa/email-guard.ts'),'utf8');
+const operatorPage=readFileSync(resolve(root,'app/opos-next/projects/[id]/work-order/page.tsx'),'utf8');
 const standardMailer=readFileSync(resolve(root,'app/api/notifications/process/route.ts'),'utf8');
 const sharedProvider=readFileSync(resolve(root,'lib/notifications/emailProvider.ts'),'utf8');
 const queuedIndex=operatorAction.indexOf('issueWorkOrderAfterVerifiedOpeningPayment(serviceDb,organisationId,projectId)');
@@ -59,6 +61,20 @@ check(qaMailer.includes("OP_QA_EMAIL_SENDING_ENABLED")&&
   qaMailer.includes('await deliverNotificationEmail(claimed as OutboxRow)')&&
   sharedProvider.includes("Idempotency-Key"),
   'Preview dispatch and ordinary worker share provider idempotency and outbox evidence');
+check(sharedProvider.includes('qaDeliveryEnvelopeRecipient(row.recipient_email)')&&
+      sharedProvider.includes('to: [envelopeRecipient]')&&
+      transportGuard.includes("if(process.env.VERCEL_ENV!=='preview') return email;")&&
+      transportGuard.includes('qaAllowedRecipientAddresses().has(base)'),
+  'Resend preview transport routes only approved QA aliases to verified primary inbox; production unchanged');
+check(operatorAction.includes('retryNorthfieldQaInvitationAction')&&
+      operatorAction.includes('You can only send testing emails to your own email address')&&
+      operatorAction.includes('deliverNorthfieldQaPartnerInvitation(db,organisationId,projectId)')&&
+      !operatorAction.includes('issueWorkOrderAfterVerifiedOpeningPayment(db,organisationId,projectId)'),
+  'Existing issued Work Order is never reissued just to retry its provider-rejected invitation');
+check(operatorPage.includes('op_list_notification_delivery')&&
+      operatorPage.includes('Deliver existing QA partner invitation')&&
+      !operatorPage.includes("supabase.from('notification_outbox')"),
+  'Work Order UI reads real organisation-scoped outbox state and shows a separate existing-invitation action');
 const ids={
   org:'10000000-0000-4000-8000-000000000001',
   actor:'10000000-0000-4000-8000-000000000002',
