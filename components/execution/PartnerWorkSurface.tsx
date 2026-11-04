@@ -3,6 +3,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PartnerDeliveryFiles from '@/components/execution/PartnerDeliveryFiles';
 import { BusinessActivityTimeline } from '@/components/workspace/OperationalObjects';
+import {canonicalProjectDecision} from '@/lib/presentation/canonicalProjectDecision';
 
 type State={work_order?:{reference:string;partner_price:number;currency:string;lead_time_days?:number|null;delivery_commitment?:string|null;payment_terms:string;commercial_assumptions?:string|null;exclusions?:string|null;issued_at:string;scope_reference:string}|null;work_order_acceptance?:{accepted_by_name:string;accepted_by_role:string;accepted_at:string}|null;execution?:{execution_state:string;committed_due_date?:string|null;reporting_cadence?:string;release_notes?:string|null};project?:{project_number:string;title:string;due_date?:string|null;project_stage:string};partner?:{company_name:string;contact_name?:string|null};controlled_scope?:{title:string;reference:string;revision_code?:string|null}|null;commencement?:Record<string,any>|null;progress_updates?:Array<Record<string,any>>;exceptions?:Array<Record<string,any>>;delivery_submissions?:Array<Record<string,any>>;message?:string};
 type Mode='accept'|'start'|'progress'|'issue'|'submit'|null;
@@ -16,15 +17,32 @@ export default function PartnerWorkSurface(){
  if(loading)return <main className="min-h-screen bg-[#f5f4ef] p-10"><div className="mx-auto max-w-6xl animate-pulse"><div className="h-4 w-32 bg-black/10"/><div className="mt-7 h-12 w-2/3 bg-black/10"/></div></main>;
  if(!state.execution||!state.project)return <main className="min-h-screen bg-[#f5f4ef] p-10"><div className="mx-auto max-w-5xl"><h1 className="text-4xl font-semibold">Partner workspace unavailable</h1><p className="mt-4">{clean(state.message)}</p></div></main>;
  const woAccepted=Boolean(state.work_order_acceptance),canAccept=Boolean(state.work_order)&&!woAccepted&&state.execution.execution_state==='awaiting_acknowledgement'&&['mobilisation','ready_for_execution'].includes(state.project.project_stage);const commenced=Boolean(state.commencement),updates=state.progress_updates||[],issues=state.exceptions||[],submissions=state.delivery_submissions||[],openIssues=issues.filter(i=>['open','acknowledged'].includes(String(i.status))),submitted=state.execution.execution_state==='delivery_submitted',correction=state.project.project_stage==='partner_correction',canWork=['in_progress','partner_correction'].includes(state.project.project_stage)&&!submitted,canStart=woAccepted&&state.project.project_stage==='ready_for_execution'&&!commenced,latest=updates[0];
- const status=!woAccepted?'Work Order acceptance required':state.project.project_stage==='mobilisation'?'Mobilisation pending':!commenced?'Ready to start':submitted?'Work submitted':openIssues.length?'Issue needs attention':correction?'Changes requested':latest?.progress_state==='at_risk'?'At risk':latest?.progress_state==='blocked'?'Blocked':'In progress';const readyToSubmit=commenced&&canWork&&!openIssues.length&&(correction||Number(latest?.percent_complete||0)>=100);
-  const primaryMode:Mode=canAccept?'accept':canStart?'start':commenced&&canWork?(readyToSubmit?'submit':'progress'):null;
-  const next=!woAccepted?(canAccept?'Accept your controlled Work Order':'Await an authorised Work Order'):
-    state.project.project_stage==='mobilisation'?'Await OP mobilisation approval':
-    !commenced?'Confirm your start':
-    submitted?'Await Overflow Partner review':
-    openIssues.length?'Report progress on the open issue':
-    correction?'Submit corrected engineering work':
-    readyToSubmit?'Submit completed engineering work':'Report your engineering progress';
+ // Shared canonical situation; session guards remain authoritative for actions.
+ const core=canonicalProjectDecision({
+   stage:state.project.project_stage,workOrderIssued:Boolean(state.work_order),
+   workOrderAccepted:woAccepted,executionState:state.execution.execution_state,
+   commencementConfirmed:commenced,partnerSubmitted:submitted,
+ });
+ const status=core.key==='completed'?'Completed':
+  core.key==='accept_work_order'?'Work Order acceptance required':
+  core.key==='complete_mobilisation'?'Mobilisation pending':
+  core.key==='confirm_commencement'?'Ready to start':
+  core.key==='await_partner_submission'?'Work submitted':
+  openIssues.length?'Issue needs attention':
+  core.key==='correct_execution'?'Changes requested':
+  latest?.progress_state==='at_risk'?'At risk':latest?.progress_state==='blocked'?'Blocked':'In progress';
+ const readyToSubmit=commenced&&canWork&&!openIssues.length&&(correction||Number(latest?.percent_complete||0)>=100);
+ const primaryMode:Mode=core.key==='accept_work_order'&&canAccept?'accept':
+  core.key==='confirm_commencement'&&canStart?'start':
+  ['perform_execution','correct_execution'].includes(core.key)&&commenced&&canWork?(readyToSubmit?'submit':'progress'):null;
+ const next=core.key==='accept_work_order'?(canAccept?'Accept your controlled Work Order':'Await authorised Work Order access'):
+  core.key==='complete_mobilisation'?'Await OP mobilisation approval':
+  core.key==='confirm_commencement'?'Confirm your start':
+  core.key==='await_partner_submission'?'Await Overflow Partner review':
+  openIssues.length?'Report progress on the open issue':
+  core.key==='correct_execution'?'Submit corrected engineering work':
+  core.key==='perform_execution'?(readyToSubmit?'Submit completed engineering work':'Report your engineering progress'):
+  'Await the next authorised decision';
  const timeline=[...updates.map((i,n)=>({id:`p-${n}-${i.submitted_at}`,at:String(i.submitted_at),title:'Progress updated',detail:<span>{pretty(i.progress_state)}{i.percent_complete!==null&&i.percent_complete!==undefined?` · ${i.percent_complete}%`:''}{i.work_in_progress?` · ${i.work_in_progress}`:''}</span>,source:'Progress'})),...issues.map((i,n)=>({id:`i-${n}-${i.raised_at}`,at:String(i.raised_at),title:'Issue reported',detail:<span>{i.title} · {pretty(i.severity)}</span>,source:'Issue'})),...submissions.map((i,n)=>({id:`s-${n}-${i.submitted_at}`,at:String(i.submitted_at),title:Number(i.execution_cycle||1)>1?'Revised work submitted':'Completed work submitted',detail:<span>{i.delivery_summary}</span>,source:'Delivery'}))].sort((a,b)=>new Date(b.at).getTime()-new Date(a.at).getTime());
  // Explicitly distinguish a partner forecast from an authorised due-date change.
  const committedDue=String(state.execution.committed_due_date||state.project.due_date||'').slice(0,10);
@@ -39,7 +57,7 @@ export default function PartnerWorkSurface(){
  'Work Order acceptance is separate from permission to begin. OP must first complete mobilisation, confirm the approved Statement of Work, scheduled dates and required inputs before you declare commencement.'}</p><div className="mt-6 grid justify-items-start gap-4">
   {primaryMode?<button className={primary} onClick={()=>setMode(primaryMode)}>
     {primaryMode==='accept'?'Review and accept Work Order':primaryMode==='start'?'Confirm engineering start':primaryMode==='submit'?(correction?'Submit corrected drawings':'Submit completed drawings'):'Update engineering progress'} →
-  </button>:<p role="status" className="max-w-xl border-l-2 border-black/30 pl-4 text-sm text-neutral-600">No partner decision is currently authorised. Overflow Partner owns the next handoff.</p>}
+  </button>:<p role="status" className="max-w-xl border-l-2 border-black/30 pl-4 text-sm text-neutral-600">{core.owner==='partner'?'The controlled Work Order or other required evidence must be available before you can act.':'No partner decision is currently authorised. Overflow Partner owns the next handoff.'}</p>}
   {(canStart||(commenced&&canWork))?<details className="w-full border-t border-black/10 pt-4">
     <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-neutral-600">Other permitted actions</summary>
     <div className="mt-3 flex flex-wrap gap-3">
