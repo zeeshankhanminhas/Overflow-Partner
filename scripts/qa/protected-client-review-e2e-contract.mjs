@@ -22,8 +22,8 @@ const cases=[
  ['only OP owner/admin may issue with QA engineering and manifest evidence',
   database.includes("v_role not in ('owner','admin')")&&
   database.includes("v_stage<>'ready_for_client_issue'")&&
-  ['v_gate->>\\'engineering_accepted\\'','v_gate->>\\'manifest_verified\\'',
-   'v_gate->>\\'release_authorised\\''].every(p=>database.includes(p.replaceAll('\\\\','')))],
+   ["v_gate->>'engineering_accepted'","v_gate->>'manifest_verified'",
+    "v_gate->>'release_authorised'"].every(p=>database.includes(p))],
  ['recipient identity is exact company membership and single-valued',
   database.includes("if v_count<>1 then")&&database.includes('m.is_active=true')&&
   database.includes("m.portal_kind='client'")&&database.includes("l.company_id=m.company_id")],
