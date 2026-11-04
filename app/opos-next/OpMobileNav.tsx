@@ -37,7 +37,7 @@ export default function OpMobileNav({ statusLabel }: { statusLabel: string }) {
           <span>{destination.label}</span><span aria-hidden="true">↗</span>
         </Link>;
       })}
-      <details className={css.mobileMore} defaultOpen={secondary.some(item=>isNextActive(pathname,item.href))}>
+      <details className={css.mobileMore} open={secondary.some(item=>isNextActive(pathname,item.href))}>
         <summary>More</summary>
         {secondary.map(destination=>{
           const active=isNextActive(pathname,destination.href);
