@@ -15,6 +15,8 @@ const viewer=read('app/opos-next/projects/[id]/review-preview/WatermarkedPdfView
 const separation=read('supabase/migrations/20261104182500_qa_external_client_identity_separation.sql');
 const recipientMigration=read('supabase/migrations/20261104183000_qa_northfield_client_recipient_invitation.sql');
 const inviteAction=read('app/opos-next/projects/[id]/qa-client-invite-action.ts');
+const manualLinkAction=read('app/opos-next/projects/[id]/qa-manual-client-link-action.ts');
+const manualLinkUI=read('app/opos-next/projects/[id]/QaManualClientAccess.tsx');
 const qaCallback=read('app/auth/callback/QaClientAuthCallback.tsx');
 const loginActions=read('app/login/actions.ts');
 const loginPage=read('app/login/page.tsx');
@@ -42,14 +44,35 @@ const cases=[
    qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
    loginActions.includes('shouldCreateUser:false')&&
    loginPage.includes('Email my secure client sign-in link')],
- ['operator displays client-identity onboarding instead of silently issuing under own login',
-   operator.includes("inviteNorthfieldClientQaAction")&&
-   operator.includes("!qaRecipient?.ready")&&
-   operator.includes("qaRecipient?.ready")&&
-   operator.includes('Invite a separate QA Client account')],
+ ['operator displays the owner-controlled SMTP-free QA activation instead of silently issuing',
+   operator.includes('QaManualClientAccess')&&operator.includes('!qaRecipient?.ready')&&
+   operator.includes('qaRecipient?.ready')&&
+   operator.includes('Activate a separate QA Client account')],
  ['protected client acceptance cannot be inserted without exact client-attested evidence',
    canonicalGuard.includes('protected review requires an actual authenticated client decision'.replace('protected review','protected review'))||
    (canonicalGuard.includes('p_evidence_reference=')&&canonicalGuard.includes('op_qa_client_review_decisions'))],
+ ['SMTP-free QA token is explicit, one-use and limited to the Northfield fixture',
+   manualLinkAction.includes("generateLink({")&&
+   manualLinkAction.includes("const type=known?'magiclink':'invite'")&&
+   manualLinkAction.includes("assertIsolatedQaBackend()")&&
+   manualLinkAction.includes("assertRole(profile.role,['owner','admin'])")&&
+   manualLinkAction.includes("if(id!==NORTHFIELD)")],
+ ['manual QA link never calls Resend, SMTP invitation or sends the token via redirect',
+   !manualLinkAction.includes("inviteUserByEmail(")&&
+   !manualLinkAction.includes("signInWithOtp(")&&
+   !manualLinkAction.includes("redirect(")&&
+   manualLinkAction.includes("data.properties.hashed_token")&&
+   manualLinkAction.includes("token_hash=")&&
+   manualLinkUI.includes("useActionState(")],
+ ['manual onboarding explicitly does not claim real mailbox verification or real client onboarding',
+   manualLinkAction.includes('No email was sent or mailbox ownership verified')&&
+   manualLinkUI.includes('does not verify ownership of the email address')&&
+   manualLinkUI.includes('must not be used to onboard real customers')],
+ ['manual onboarding still assigns a different company-checked authenticated identity',
+   manualLinkAction.includes("if(email===String(user.email")&&
+   manualLinkAction.includes("supabase.rpc('op_qa_assign_northfield_client_invite'")&&
+   manualLinkAction.includes("p_auth_user_id:data.user.id")&&
+   manualLinkUI.includes('private browser')],
  ['issue/decision have separate immutable, private RLS evidence tables',
   database.includes('create table if not exists public.op_qa_client_review_issues(')&&
   database.includes('create table if not exists public.op_qa_client_review_decisions(')&&
