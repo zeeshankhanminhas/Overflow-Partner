@@ -133,6 +133,28 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
     ['ready_for_client_issue','issued_to_client','client_review'].includes(projectStage)?'Engineering delivery in review':
     ['completion','closed'].includes(projectStage)?'Delivery and closeout':'Project opened';
   const status = project ? clientStage : paid ? 'Opening payment confirmed' : stripePaymentPending ? 'Payment under verification' : stripe_return==='success' ? 'Checkout completed · verification pending' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
+  // Display-only guidance; payments, signing and file access are still governed.
+  const clientNext=finalReleaseApproved
+    ? {title:'Your approved engineering files are available',detail:'Final payment and the separate release approval have been verified.',href:finalFilesHref,action:'Open final engineering handover'}
+    : finalReviewAccepted&&!finalSettlementVerified
+    ? {title:'Settle your final engineering balance',detail:'Client review has been accepted. Files remain locked until independent settlement and owner release.',href:finalBalanceHref,action:'Review final balance'}
+    : project
+    ? ['ready_for_client_issue','issued_to_client','client_review'].includes(projectStage)
+      ? {title:'Await your secure engineering review invitation',detail:'A protected, view-only review must be approved and issued. Draft or native downloads remain unavailable.',href:null,action:null}
+      : projectStage==='closed'
+        ? {title:'Your project is complete',detail:'Your controlled delivery history remains available.',href:null,action:null}
+        : projectStage==='internal_review'
+        ? {title:'Overflow Partner is inspecting your drawings',detail:'Our engineering reviewer is checking the submitted files. You do not need to act now.',href:null,action:null}
+        : {title:'Your project is being managed by Overflow Partner',detail:'We will request an action only when your technical or payment decision is required.',href:null,action:null}
+    : stripePaymentPending||stripe_return==='success'
+      ? {title:'Your opening payment is being verified',detail:'Please do not pay again. Project setup awaits independent confirmation.',href:null,action:null}
+    : canDecide
+      ? {title:'Review and respond to your quotation',detail:'Read the controlled offer, scope and validity. Respond using an authorised signatory.',href:'#quote-acceptance',action:'Review quotation'}
+    : accepted&&canPay
+      ? {title:'Complete your authorised opening payment',detail:'Project setup is blocked until the payment is independently verified.',href:'#opening-payment',action:'Go to secure payment'}
+    : accepted
+      ? {title:'Awaiting verified commercial release',detail:'Overflow Partner is checking the release conditions. No additional payment is requested here.',href:null,action:null}
+    : {title:'Awaiting an authorised quotation decision',detail:'Request additional time or contact Overflow Partner if the offer has expired.',href:null,action:null};
   const daysRemaining=dueDate>0?Math.max(0,Math.ceil((dueDate-Date.now())/86400000)):0;
   const expiryText=quote.valid_until?new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(quote.valid_until+'T12:00:00Z')):'Not specified';
   return <main className={styles.page}>
@@ -144,7 +166,13 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       <section className={styles.panel}>
         <div className={styles.topline}><div><p className={styles.eyebrow}>{project?'PROJECT REFERENCE':'CLIENT QUOTATION'}</p><div className={styles.reference}>{project?project.project_number:quote.quote_number+' · Revision '+quote.revision}</div></div><div><p className={styles.eyebrow}>{project?'ORIGINAL QUOTATION':'VALID UNTIL'}</p><div className={styles.reference}>{project?quote.quote_number+' · Revision '+quote.revision:expiryText}</div><div className={styles.expiry}>{project?'Accepted commercial record preserved':daysRemaining>0?daysRemaining+' day'+(daysRemaining===1?'':'s')+' remaining':'Validity period ended'}</div></div></div>
         <div className={styles.status}><p className={styles.eyebrow}>CURRENT STATUS</p><h2>{status}</h2><p>{project?(projectActive?'The Execution Partner has confirmed commencement. Engineering work is in progress, with controlled review and delivery still to follow.':'Your project has been opened. Delivery and review updates will appear as they are verified.'):released?'The verified contractual release condition has been confirmed.':paid?'Your opening payment has been recorded. Project setup is the next step.':stripePaymentPending?'Stripe payment evidence is verified. We are completing the controlled release and project setup. Please do not pay again.':stripe_return==='success'?'Stripe Checkout has returned successfully, but verified payment evidence has not reached OPOS yet. No project has been created. Please do not pay again.':accepted?'Your quotation has been accepted. The agreed opening payment or release condition must be verified before project setup.':'Review the quotation and record your decision before its expiry.'}</p></div>
-        <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':stripePaymentPending?'Stripe verified · release pending':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
+        <section className={styles.nextStep} aria-label="Your one next step">
+           <span className={styles.eyebrow}>{clientNext.action?'YOUR NEXT STEP':'CURRENT DEPENDENCY · NO ACTION REQUIRED'}</span>
+           <h3>{clientNext.title}</h3>
+           <p>{clientNext.detail}</p>
+           {clientNext.href&&clientNext.action?<Link className={styles.action+' '+styles.primary} href={clientNext.href}>{clientNext.action} →</Link>:null}
+         </section>
+         <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':stripePaymentPending?'Stripe verified · release pending':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
         {project?<div className={styles.projectSummary}><div><span className={styles.eyebrow}>PROJECT STATUS</span><h3>{clientStage}</h3><p>Project {project.project_number} · Controlled engineering delivery</p></div><div><span className={styles.eyebrow}>NEXT MILESTONE</span><p>{projectActive?'Engineering submission and internal OP quality review':projectStage==='ready_for_execution'?'Partner commencement confirmation':'Controlled delivery and review update'}</p></div></div>:null}
         {contractResult.data?.release_basis==='purchase_order'?<p className={styles.note}>Agreed release condition: authorised purchase order, subject to verification.</p>:null}
         {contractResult.data?.release_basis==='no_advance_payment'?<p className={styles.note}>Agreed release condition: no advance payment due, subject to authorisation.</p>:null}
@@ -155,7 +183,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
           <p className={styles.note}>Review the scope, assumptions, exclusions and full contractual terms in the approved PDF attached to your quotation email before accepting.</p>
         </div>
         {notice==='acceptance_unavailable'?<p className={styles.note} role="alert">The quotation could not be accepted. Please verify the authorised signatory and current terms. No payment was requested.</p>:null}
-        {canDecide?<div className={styles.section}><p className={styles.eyebrow}>STEP 1 · ACCEPT QUOTATION</p><h3>Authorised client acceptance</h3>
+        {canDecide?<div id="quote-acceptance" className={styles.section}><p className={styles.eyebrow}>STEP 1 · ACCEPT QUOTATION</p><h3>Authorised client acceptance</h3>
           <form action={acceptClientQuotationInPortal} className={styles.acceptanceForm}>
             <input type="hidden" name="token" value={token}/>
             <label>Full name of authorised signatory<input name="signatory_name" minLength={2} required defaultValue={String(contractResult.data?.authorised_contact_name||'')} autoComplete="name"/></label>
@@ -165,7 +193,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
           </form>
           <div className={styles.actions}>{actions.filter(a=>a.response!=='accepted').map(({label,response})=><Link key={response} className={styles.action} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`}>{label}</Link>)}</div>
         </div>:null}
-        {qaCorrection?<div className={styles.section} aria-label="Fictional QA commercial correction">
+        {qaCorrection?<div id="qa-terms" className={styles.section} aria-label="Fictional QA commercial correction">
           <p className={styles.eyebrow}>QA REHEARSAL ONLY · R01 CORRECTION</p>
           <h3>{qaCorrectionAcknowledged?'Historical QA correction · acknowledged':'Confirm corrected VAT-inclusive test terms'}</h3>
           <p className={styles.note}>{qaCorrection.correction_text}</p>
@@ -181,7 +209,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         </div>:null}
         {stripePaymentPending?<div className={styles.section}><p className={styles.eyebrow}>PAYMENT EVIDENCE RECEIVED</p><h3>Project setup is being verified</h3><p className={styles.note}>Stripe has confirmed your opening payment. OP is completing the release checks. No additional payment is required. Please check back later.</p></div>:null}
         {stripeEvidenceResult.error?<div className={styles.section}><p className={styles.eyebrow}>FINANCIAL RECORDS TEMPORARILY UNAVAILABLE</p><p className={styles.note}>Payment processing is on hold while we verify the ledger. No additional payment can be requested.</p></div>:null}
-        {canPay?<div className={styles.section}><p className={styles.eyebrow}>STEP 2 · OPENING PAYMENT</p>
+        {canPay?<div id="opening-payment" className={styles.section}><p className={styles.eyebrow}>STEP 2 · OPENING PAYMENT</p>
           <h3>Pay {displayMoney(openingAmount,String(quote.currency||'GBP'))} securely</h3>
           <p className={styles.note}>Your quotation has been accepted. Stripe Checkout opens securely for card entry and returns you to this portal. Project 360 is created only after independently verified payment.</p>
           {stripeAuthorised?<form action={createStripeCheckout}>
@@ -195,9 +223,9 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         </div>:null}
         {openingPaymentPending&&!preprojectReady&&!qaCorrection?<div className={styles.section}><p className={styles.eyebrow}>PRE-PROJECT CONTROL</p><h3>Approval checks in progress</h3><p className={styles.note}>Overflow Partner is verifying the approved engineering and commercial position. No opening payment is requested until the record is ready.</p></div>:null}
         {openingPaymentPending&&preprojectReady&&!canPay&&stripe_return!=='success'?<div className={styles.section}><p className={styles.eyebrow}>OPENING PAYMENT · ARRANGEMENTS PENDING</p><h3>{displayMoney(openingAmount,String(quote.currency||'GBP'))} agreed opening amount</h3><p className={styles.note}>The quotation is accepted, but an authorised payment channel is not yet available for this record. Please contact Overflow Partner for verified payment instructions. No project will be opened from an unverified payment.</p></div>:null}
-        {finalReviewAccepted&&!finalSettlementVerified?<div className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
+        {finalReviewAccepted&&!finalSettlementVerified?<div id="final-settlement" className={styles.section}><h3>Final engineering balance</h3><Link className={styles.action+' '+styles.primary} href={finalBalanceHref}>Pay final balance</Link></div>:null}
         {finalSettlementVerified&&!finalReleaseApproved?<p className={styles.note}>Final payment received. Approved engineering files await Overflow Partner's release authorisation.</p>:null}
-        {finalReleaseApproved?<div className={styles.section}><h3>Approved delivery</h3><Link className={styles.action+' '+styles.primary} href={finalFilesHref}>Download approved engineering files</Link></div>:null}
+        {finalReleaseApproved?<div id="final-download" className={styles.section}><h3>Approved delivery</h3><Link className={styles.action+' '+styles.primary} href={finalFilesHref}>Download approved engineering files</Link></div>:null}
         <p className={styles.note}>Your approved quotation PDF is attached to the original quotation email. For a replacement document or a fresh secure portal link, reply to that email. Keep your private link confidential.</p>
       </section><p className={styles.footer}>OVERFLOW PARTNER · CONTROLLED ENGINEERING DELIVERY</p>
     </div>
