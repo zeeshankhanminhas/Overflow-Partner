@@ -9,4 +9,10 @@ assert.ok(!page.includes('name="target_stage" value="partner_correction"'),'No b
 for(const token of ['assertIsolatedQaBackend','op_qa_engineering_decision','op_qa_verify_manifest','op_qa_authorise_review_release'])assert.ok(actions.includes(token),token);
 for(const token of ["'submission_id'","'manifest_hash'","'engineering_accepted'","'manifest_verified'","'release_authorised'","Secure watermarked view-only Client Review Package"])assert.ok(migration.includes(token),token);
 assert.ok(migration.includes("v_review is not null")&&migration.includes("v_verified is not null"),'Distinct evidence required');
-console.log('QA workflow contract: PASS (static). Authenticated browser actions remain to be tested.');
+const historicActions=readFileSync('app/workspace/documents/review-actions.ts','utf8');
+const historicRoute=readFileSync('app/opos-next/documents/[id]/page.tsx','utf8');
+const oldCreation=readFileSync('supabase/migrations/20261104095000_qa_stop_duplicate_internal_review_document_autocreation.sql','utf8');
+assert.ok(historicActions.includes("['technical-review','document-register'].includes(document.document_type)"),'Old project-document approval path must be disabled');
+assert.ok(historicRoute.includes('historicOperationalRecord'),'Historical document must route to Project 360');
+assert.ok(oldCreation.includes("v_begin:=strpos"),'Do not auto-create duplicate documents for future submissions');
+console.log('Engineering acceptance, manifest, release and legacy-route QA contracts: PASS (static). Authenticated browser review remains to be tested.');
