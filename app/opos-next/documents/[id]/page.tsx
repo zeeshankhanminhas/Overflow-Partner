@@ -16,15 +16,16 @@ export default async function DocumentPage({params}:{params:Promise<{id:string}>
   const docQuery=new URLSearchParams({document_record:id});
   if(data.project_id)docQuery.set('project',data.project_id);
   else if(data.lead_id)docQuery.set('case',data.lead_id);
-  const reviewHref=getWorkspaceDocument(canonical)?'/opos-next/documents/templates/'+canonical+'?'+docQuery.toString():null;
+  const historicOperationalRecord=Boolean(data.project_id && ['technical-review','document-register'].includes(canonical));
+  const reviewHref=!historicOperationalRecord&&getWorkspaceDocument(canonical)?'/opos-next/documents/templates/'+canonical+'?'+docQuery.toString():null;
   return <><OperatorRecord eyebrow="DOCUMENTS / CONTROLLED RECORD" title={data.title||'Document'}
     position={String(data.control_state||data.status||'Recorded').replaceAll('_',' ')}
-    description="Document issue, approval, signatures and revisions remain governed by the protected document engine."
+    description={historicOperationalRecord?'Historical internal document. Current engineering acceptance and manifest verification are recorded against the Partner submission in Project 360.':'Document issue, approval, signatures and revisions remain governed by the protected document engine.'}
     fields={[{label:'Reference',value:data.reference||id.slice(0,8)},{label:'Type',value:data.document_type||'Not recorded'},
       {label:'Version',value:String(data.version||1)},{label:'Status',value:String(data.status||'Not recorded')}]}
     previous="/opos-next/documents"
     governedHref={reviewHref||relatedHref||undefined}
-    governedLabel={reviewHref?'Open controlled document review':'Open related controlled record'} />
+    governedLabel={reviewHref?'Open controlled document review':historicOperationalRecord?'Open Project 360 engineering QA':'Open related controlled record'} />
     {reviewHref&&relatedHref?<p style={{marginTop:20}}><Link className={css.secondaryLink} href={relatedHref}>Open related {data.project_id?'Project 360':'Case 360'} ↗</Link></p>:null}
   </>;
 }
