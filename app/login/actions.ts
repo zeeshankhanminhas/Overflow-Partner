@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {assertIsolatedQaBackend} from "@/lib/qa/isolation";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -69,4 +70,24 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+
+/** Explicit one-time email sign-in for already-invited QA client accounts only.
+ * Never creates an unsolicited user or grants access by email resemblance.
+ */
+export async function emailQaClientLoginLink(formData:FormData){
+ assertIsolatedQaBackend();
+ const email=String(formData.get('email')||'').trim().toLowerCase();
+ if(email.length>254||!(/^[^@\s]+@[^@\s]+\.[^@\s]+$/).test(email))
+  redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent('Enter a valid QA client email.'));
+ const supabase=await createClient();
+ const origin='https://overflow-partner-git-design-o-9eda95-zeeshankhanminhas-projects.vercel.app';
+ const {error}=await supabase.auth.signInWithOtp({
+   email,
+   options:{shouldCreateUser:false,emailRedirectTo:origin+'/auth/callback'},
+ });
+ if(error)redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent(error.message));
+ redirect('/login?next=%2Fportal%2Fclient&updated='+encodeURIComponent(
+   'If your account is invited, a secure one-time sign-in link has been sent to that email address.'));
 }
