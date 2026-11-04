@@ -88,6 +88,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    await supabase.rpc('op_qa_northfield_client_recipient_state',{p_project_id:id}):null;
  const qaRecipient=(recipientResult&&!recipientResult.error&&recipientResult.data?
   recipientResult.data:null) as QaRecipient|null;
+ const clientInvitePending=Boolean(qaRecipient&&qaRecipient.activeRecipients===1&&
+   !qaRecipient.staffIdentityConflict&&qaRecipient.verifiedRecipients===0);
 
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
@@ -155,9 +157,13 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  // An independent Client login is a prerequisite, not an optional polish task.
  const displayNext=stage==='ready_for_client_issue'&&qaWritable&&
    ['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready
-    ?{...operatorNext,title:'Invite a separate QA Client account',
-       description:'Northfield currently has no independently verified Client identity. Invite a separate QA email before releasing R01 to client review.',
-       action:'Set up independent Client access',anchor:'#release-authorisation',waiting:false}
+    ?{...operatorNext,
+       title:clientInvitePending?'Await independent QA Client sign-in':'Invite a separate QA Client account',
+       description:clientInvitePending
+        ?'The Northfield Client recipient is invited but its email sign-in is not verified. Do not issue R01 until the account confirms access.'
+        :'Northfield has no independently verified Client identity. Invite a separate QA email before releasing R01.',
+       action:clientInvitePending?'View client setup status':'Set up independent Client access',
+       anchor:'#release-authorisation',waiting:clientInvitePending}
     :operatorNext;
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
@@ -302,7 +308,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
              <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&
-               (!qaRecipient?.ready)?
+               (!qaRecipient?.ready&&!clientInvitePending)?
                <div style={{display:'grid',gap:13,maxWidth:650,marginTop:14,
                  padding:20,border:'1px solid #9b6861',borderRadius:8,background:'#211b1d'}}>
                 <strong role="alert">QA client identity must be separated before issue</strong>
@@ -324,6 +330,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
                 </form>
                 <p className={css.meta}>After the invited account confirms its email, this screen will enable the actual controlled R01 issue. No invitation is sent until you submit the form.</p>
                </div>:null}
+             {clientInvitePending?<div style={{display:'grid',gap:9,marginTop:12}}>
+               <p role="status" className={css.meta}><strong>Invitation pending confirmation.</strong> The separate QA client is assigned, but must sign in through its own email link. Do not send duplicate invitations.</p>
+               <Link className={css.action} href="/login?next=%2Fportal%2Fclient">Open separate QA Client sign-in →</Link>
+             </div>:null}
              {qaRecipient?.ready?<p role="status" className={css.meta}>Verified: one independent, email-confirmed QA Client recipient is linked to Northfield.</p>:null}
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued&&qaRecipient?.ready?
                <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
