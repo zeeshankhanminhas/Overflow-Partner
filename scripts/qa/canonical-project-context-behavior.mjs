@@ -48,7 +48,8 @@ const qa=readFileSync('supabase/migrations/20261104094500_qa_engineering_manifes
 assert.ok(source.includes('canonicalProjectDecision({')&&
  source.includes('const situation=canonicalProjectDecision({'),
  'Both external portal and operator next actions must derive canonical decision');
-assert.ok(operator.includes('operatorProjectNextStep({')&&operator.includes('protectedReviewIssued:false'),
+assert.ok(operator.includes('operatorProjectNextStep({')&&operator.includes('protectedReviewIssued:Boolean(staffReview?.issued)')&&
+ operator.includes("supabase.rpc('op_qa_staff_client_review_state'"),
  'Operator must not invent a protected client issue');
 assert.ok(partner.includes('const core=canonicalProjectDecision({')&&partner.includes('core.key'),
  'Partner Work must use canonical decision, not its own independent next stage');
