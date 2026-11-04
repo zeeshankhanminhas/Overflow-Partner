@@ -25,11 +25,11 @@ alter table public.op_qa_release_authorisations enable row level security;
 revoke all on public.op_qa_engineering_reviews,public.op_qa_manifest_verifications,public.op_qa_release_authorisations from public,anon,authenticated;
 grant select on public.op_qa_engineering_reviews,public.op_qa_manifest_verifications,public.op_qa_release_authorisations to authenticated;
 create policy qa_eng_read on public.op_qa_engineering_reviews for select to authenticated using
- (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organisation_id=organisation_id and p.is_active=true));
+ (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organisation_id=op_qa_engineering_reviews.organisation_id and p.is_active=true));
 create policy qa_manifest_read on public.op_qa_manifest_verifications for select to authenticated using
- (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organisation_id=organisation_id and p.is_active=true));
+ (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organisation_id=op_qa_manifest_verifications.organisation_id and p.is_active=true));
 create policy qa_release_read on public.op_qa_release_authorisations for select to authenticated using
- (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organisation_id=organisation_id and p.is_active=true));
+ (exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organisation_id=op_qa_release_authorisations.organisation_id and p.is_active=true));
 
 create function public.op_qa_delivery_gate(p_project_id uuid) returns jsonb
 language plpgsql stable security definer set search_path=public,pg_temp as $fn$
