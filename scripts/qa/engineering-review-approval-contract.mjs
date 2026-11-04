@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const page=readFileSync('app/opos-next/projects/[id]/page.tsx','utf8');
+const actions=readFileSync('app/opos-next/projects/[id]/qa-actions.ts','utf8');
+const migration=readFileSync('supabase/migrations/20261104094500_qa_engineering_manifest_release_separation.sql','utf8');
+for(const token of ['op_qa_delivery_gate','recordEngineeringDecisionAction','verifyDeliveryManifestAction','authoriseClientReviewReleaseAction'])assert.ok(page.includes(token),token);
+assert.ok(!page.includes('Two controlled review documents'),'No legacy doc-approval path');
+assert.ok(!page.includes('name="target_stage" value="partner_correction"'),'No bypass around engineering decision');
+for(const token of ['assertIsolatedQaBackend','op_qa_engineering_decision','op_qa_verify_manifest','op_qa_authorise_review_release'])assert.ok(actions.includes(token),token);
+for(const token of ["'submission_id'","'manifest_hash'","'engineering_accepted'","'manifest_verified'","'release_authorised'","Secure watermarked view-only Client Review Package"])assert.ok(migration.includes(token),token);
+assert.ok(migration.includes("v_review is not null")&&migration.includes("v_verified is not null"),'Distinct evidence required');
+console.log('QA workflow contract: PASS (static). Authenticated browser actions remain to be tested.');

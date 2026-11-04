@@ -9,6 +9,7 @@ import {recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/cli
 import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
 import {retryGovernedWorkOrderAction} from './work-order/action';
+import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction} from './qa-actions';
 import css from '../../opos.module.css';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
@@ -61,24 +62,17 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const transmittal=transmittalResult.data;
  const stage=normaliseProjectStage(data.project_stage);
 
- // Bring real current-cycle partner evidence and the two governed QA documents
- // into the Internal Review decision itself. A stage move is not QA approval.
- let internalQaDocuments: Array<{id:string;document_type:string;status:string;reference:string|null}> = [];
- let internalQaFiles: Array<{id:string;original_filename:string;size_bytes:number|null}> = [];
- let internalQaEvidenceUnavailable = false;
- if(stage==='internal_review'){
-   const [qaDocs,qaFiles]=await Promise.all([
-     supabase.from('documents').select('id,document_type,status,reference')
-       .eq('organisation_id',organisationId).eq('project_id',id)
-       .in('document_type',['technical-review','document-register']),
-     supabase.from('partner_delivery_submission_files').select('id,original_filename,size_bytes')
-       .eq('organisation_id',organisationId).eq('project_id',id)
-       .eq('submission_id',submissions[0]?.id||'00000000-0000-0000-0000-000000000000'),
-   ]);
-   internalQaEvidenceUnavailable=Boolean(qaDocs.error||qaFiles.error);
-   internalQaDocuments=qaDocs.data||[];
-   internalQaFiles=qaFiles.data||[];
- }
+ // Read the canonical, submission-specific QA state. Old document draft/approval
+ // statuses remain historical document records and are not engineering decisions.
+ type QaFile={id:string;filename:string;size:number};
+ type QaGate={submission_id:string|null;revision:string|null;execution_cycle:number|null;files:QaFile[];
+   file_count:number;storage_complete:boolean;manifest_hash:string;
+   engineering_accepted:boolean;manifest_verified:boolean;release_authorised:boolean};
+ const qaGateResult=['internal_review','ready_for_client_issue'].includes(stage)
+   ? await supabase.rpc('op_qa_delivery_gate',{p_project_id:id}) : null;
+ const qaGate=(qaGateResult?.data||null) as QaGate|null;
+ const internalQaEvidenceUnavailable=['internal_review','ready_for_client_issue'].includes(stage)
+   &&(Boolean(qaGateResult?.error)||!qaGate);
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
  const financial=resolveFinancialGate(financialResult.error?null:financialResult.data);
@@ -172,31 +166,62 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        <p className={css.cardDescription}>{meta.completion}</p>
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
        {blockedReasons.length?<div style={{marginTop:20}}><strong>Evidence required for the next stage</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:<p className={css.meta} style={{marginTop:18}}>Stage-readiness service reports no outstanding reasons.</p>}
-       {stage==='internal_review'?<section aria-label="Internal technical QA evidence" style={{display:'grid',gap:15,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
-         <h3 style={{fontSize:17,margin:0}}>Internal technical QA · R01</h3>
-         <p className={css.meta}>Review the actual current-cycle Partner delivery and its files before signing or approving either controlled document. Moving into Internal Review did not inspect or approve the engineering work.</p>
-         {internalQaEvidenceUnavailable?<p role="alert">Internal QA document or file evidence could not be loaded. Do not approve until it is available.</p>:null}
-         <div>
-           <strong>Submitted engineering files</strong>
-           {internalQaFiles.length?<ul style={{paddingLeft:20,marginTop:10}}>{internalQaFiles.map(file=><li key={file.id} style={{marginBottom:10}}>
-             <Link className={css.secondaryLink} target="_blank" rel="noreferrer" href={'/opos-next/projects/'+id+'/delivery/'+file.id}>Inspect {file.original_filename||'submitted attachment'} ↗</Link>
-             <span className={css.meta}> · {Math.ceil(Number(file.size_bytes||0)/1024)} KB</span>
-           </li>)}</ul>:<p className={css.meta}>No files are available for the current submission. Technical approval must stay blocked.</p>}
+       {stage==='internal_review'?<section aria-label="Engineering acceptance and document control" style={{display:'grid',gap:18,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
+         <h3 style={{fontSize:19,margin:0}}>Engineering QA · {qaGate?.revision||'Current submission'}</h3>
+         <p className={css.meta}>The partner submission must be inspected and technically accepted before its document manifest can be verified. These are two different decisions; neither requires approving a generic document template.</p>
+         {internalQaEvidenceUnavailable?<p role="alert">Canonical QA evidence could not be loaded. No technical acceptance is permitted.</p>:null}
+         {qaGate?<div style={{display:'grid',gap:8}}>
+           <p className={css.meta}>Revision <strong>{qaGate.revision||'Not recorded'}</strong> · Execution cycle <strong>{qaGate.execution_cycle||'Unknown'}</strong> · {qaGate.file_count} submitted file(s)</p>
+           <strong>1. Inspect actual engineering evidence</strong>
+           {(qaGate.files||[]).map(file=><p key={file.id} className={css.meta}>
+             <Link className={css.secondaryLink} target="_blank" rel="noreferrer" href={'/opos-next/projects/'+id+'/delivery/'+file.id}>Open {file.filename} ↗</Link>
+             {' · '+Math.ceil(Number(file.size||0)/1024)+' KB'}
+           </p>)}
+           {!qaGate.storage_complete?<p role="alert">The current files are missing from private storage or their manifest is incomplete. Stop review.</p>:null}
+           <p className={css.meta}>Evidence fingerprint: <code>{qaGate.manifest_hash}</code>. This fingerprint ties each decision to the exact submitted revision, files, sizes and storage paths.</p>
+         </div>:null}
+         <div style={{display:'grid',gap:12}}>
+           <strong>2. Engineering review and decision</strong>
+           {qaGate?.engineering_accepted?<p role="status" className={css.meta}>Engineering accepted for this exact submission, with signed reviewer evidence recorded.</p>
+             :qaWritable&&['owner','admin','engineering'].includes(String(profile.role))&&qaGate?.submission_id&&qaGate.storage_complete?
+             <form action={recordEngineeringDecisionAction} style={{display:'grid',gap:12,maxWidth:650}}>
+               <input type="hidden" name="project_id" value={id}/><input type="hidden" name="submission_id" value={qaGate.submission_id}/>
+               <p className={css.meta}>Open the drawings first. Confirm each check only after actual inspection; corrections or rejection do not require all checks.</p>
+               {([
+                 ['scope','Delivered work matches the approved scope and Statement of Work'],
+                 ['completeness','All required outputs are present and legible'],
+                 ['revision','Drawing identifiers, references and revisions are consistent'],
+                 ['quality','Dimensions, interfaces and technical risks have been reviewed'],
+                 ['exceptions','All exceptions, deviations and open issues are resolved'],
+               ] as const).map(([key,label])=><label key={key} style={{display:'flex',alignItems:'flex-start',gap:9}}>
+                 <input type="checkbox" name={key} value="true" style={{marginTop:4}}/>{label}
+               </label>)}
+               <label style={{display:'grid',gap:6}}>Engineering findings and evidence (required)
+                 <textarea required minLength={12} name="findings" rows={4} placeholder="Document findings, drawing references, exceptions and technical rationale." style={{background:'#151619',color:'#fff',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
+               </label>
+               <label style={{display:'grid',gap:6}}>Decision
+                 <select name="decision" required defaultValue="" style={{background:'#151619',color:'#fff',padding:12,border:'1px solid #484b52',borderRadius:8}}>
+                   <option value="" disabled>Choose after inspecting evidence</option>
+                   <option value="accepted">Accept engineering submission</option>
+                   <option value="correction_required">Request partner correction (new revision required)</option>
+                   <option value="rejected">Reject and return to partner</option>
+                 </select>
+               </label>
+               <button className={css.action} style={{border:0}} type="submit">Record engineering decision →</button>
+             </form>:<p className={css.meta}>Engineering decision pending or inaccessible to your current role.</p>}
          </div>
-         <div>
-           <strong>Two controlled review documents</strong>
-           <ol style={{paddingLeft:20,marginTop:10}}>{([
-             {slug:'technical-review',label:'Technical Review · inspect scope, drawings, revisions and risks'},
-             {slug:'document-register',label:'Document Register · verify filenames, revision and traceability'},
-           ] as const).map(item=>{
-             const record=internalQaDocuments.find(row=>row.document_type===item.slug);
-             return <li key={item.slug} style={{marginBottom:12}}>
-               {record?<><Link className={css.secondaryLink} href={'/opos-next/documents/'+record.id}>{item.label} ↗</Link><span className={css.meta}> · {record.reference} · {String(record.status).replaceAll('_',' ')}</span></>
-                 :<span className={css.meta}>{item.label} — no controlled record; approval is not available</span>}
-             </li>;
-           })}</ol>
+         <div style={{display:'grid',gap:12}}>
+           <strong>3. Document-control verification</strong>
+           {qaGate?.manifest_verified?<p role="status" className={css.meta}>Current revision and file manifest verified. No duplicate document-signature workflow is required.</p>
+             :qaGate?.engineering_accepted&&qaWritable&&['owner','admin','operator','engineering'].includes(String(profile.role))?
+             <form action={verifyDeliveryManifestAction} style={{display:'grid',gap:12,maxWidth:650}}>
+               <input type="hidden" name="project_id" value={id}/>
+               <p className={css.meta}>Check filenames, revision, document references, file identity, completeness and intended recipient against the accepted engineering submission.</p>
+               <label style={{display:'flex',gap:10}}><input type="checkbox" required name="confirmed" value="true"/>I verified this exact current-cycle manifest against the accepted deliverables.</label>
+               <button className={css.action} style={{border:0}} type="submit">Verify delivery document manifest →</button>
+             </form>:<p className={css.meta}>Locked until the engineering submission has been accepted.</p>}
          </div>
-         <p className={css.meta}>For each document: review evidence → submit for review → electronically sign with your actual reviewer authority → separately approve as authorised owner/admin. Only then will the release-stage button unlock. No automatic engineering approval is granted.</p>
+         {qaGate?.engineering_accepted&&qaGate?.manifest_verified?<p role="status" className={css.meta}><strong>Ready for package preparation.</strong> Use the project-stage action below. This does not send files or authorise client access.</p>:null}
        </section>:null}
        {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This page retains the current governed controls while testing is isolated.</p>:null}
        {stage==='mobilisation'&&canWrite?<details style={{marginTop:22}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
@@ -215,11 +240,22 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          <input type="hidden" name="target_stage" value={meta.next||''}/>
          <label style={{display:'grid',gap:7}}>Decision note (optional)<textarea name="note" rows={3} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}><button type="submit" disabled={!mayAdvance} className={css.action} style={{border:0,cursor:mayAdvance?'pointer':'not-allowed',opacity:mayAdvance?1:.45,marginTop:0}}>{stage==='mobilisation'?'Complete mobilisation & advance':meta.action} →</button>
-         {stage==='internal_review'?<button type="submit" name="target_stage" value="partner_correction" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Request partner correction →</button>:null}</div>
+</div>
        </form>:null}
-       {stage==='ready_for_client_issue'?<section style={{marginTop:24}}>
-         <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · secure preview required</h3>
-         <p className={css.meta}>This stage is deliberately blocked in Workspace 2.0 until a secure, watermarked, view-only browser review is implemented. An unprotected PDF attachment would allow downloading the review package and does not meet the agreed release policy. Native/editable files remain reserved for final verified payment and owner approval.</p>
+       {stage==='ready_for_client_issue'?<section style={{display:'grid',gap:12,marginTop:24}} aria-label="Client review release authority">
+         <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · release authority</h3>
+         <p className={css.meta}>Technical acceptance and manifest verification establish readiness. Owner release authorisation is a separate approval and does not send the package to a client.</p>
+         {internalQaEvidenceUnavailable?<p role="alert">Release evidence unavailable; release remains blocked.</p>:null}
+         {qaGate?.release_authorised?<p role="status">Authorised for preparation of the current submission. No client package has been sent.</p>
+           :qaGate?.engineering_accepted&&qaGate?.manifest_verified&&qaWritable&&['owner','admin'].includes(String(profile.role))?
+           <form action={authoriseClientReviewReleaseAction} style={{display:'grid',gap:12,maxWidth:650}}>
+             <input type="hidden" name="project_id" value={id}/>
+             <label style={{display:'grid',gap:6}}>Release decision rationale
+               <textarea name="note" rows={3} minLength={12} required placeholder="State the basis for authorising this exact revision for client review." style={{background:'#151619',color:'#fff',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
+             </label>
+             <button className={css.action} style={{border:0}} type="submit">Authorise client-review preparation →</button>
+           </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
+         <p className={css.meta}>External issue remains securely blocked until the watermarked, view-only browser review package is implemented and tested. Native files remain reserved for verified final payment and final handover.</p>
        </section>:null}
        {stage==='client_review'&&canWrite&&!latestClientReview?<section style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
