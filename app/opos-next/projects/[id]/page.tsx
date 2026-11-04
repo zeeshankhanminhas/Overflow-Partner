@@ -316,25 +316,41 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
          <p className={css.meta}>This internal QA preview is not client issue. External release remains blocked until authenticated, recipient-scoped view-only Client Review Portal access is implemented and tested. Native files are reserved for verified final payment and owner-approved final handover.</p>
        </section>:null}
-       {stage==='client_review'&&canWrite&&!latestClientReview&&Boolean(operatorNext.action)?<section id="client-review-outcome" style={{marginTop:24}}>
-         <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
-         <p className={css.meta}>Record actual written evidence only. Do not invent approval or treat silence as acceptance.</p>
-         <form action={recordClientReviewOutcomeAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:18}}>
-           <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
-           <label style={{display:'grid',gap:7}}>Client outcome<select name="outcome" required defaultValue="" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="" disabled>Choose outcome</option><option value="accepted">Accepted</option><option value="accepted_with_comments">Accepted with comments</option><option value="changes_requested">Changes requested</option><option value="rejected">Rejected / correction required</option></select></label>
-           <label style={{display:'grid',gap:7}}>Evidence basis<select name="evidence_basis" defaultValue="email_confirmation" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="email_confirmation">Email confirmation</option><option value="signed_acceptance">Signed acceptance</option><option value="client_portal">Client portal</option><option value="meeting_record">Meeting record</option><option value="other_written">Other written evidence</option></select></label>
-           <label style={{display:'grid',gap:7}}>Evidence reference<input name="evidence_reference" required placeholder="Email/date or signed review reference" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
-           <label style={{display:'grid',gap:7}}>Feedback classification<select name="feedback_category" defaultValue="in_scope_correction" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}><option value="in_scope_correction">In-scope correction</option><option value="revision">Revision to approved design</option><option value="out_of_scope_change">New/out-of-scope work</option></select></label>
-           <label style={{display:'flex',alignItems:'center',gap:10}}><input type="checkbox" name="partner_defect" value="true"/> Partner defect against approved scope</label>
-           <label style={{display:'grid',gap:7}}>Consolidated comments<textarea name="comments" rows={4} placeholder="Include drawing/revision references for requested changes" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
-           <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Record evidenced client outcome →</button>
-         </form>
-       </section>:null}
-       {stage==='client_review'&&!operatorNext.action&&!latestClientReview?<p role="status" className={css.meta} style={{marginTop:18}}>
-          Client decision recording is blocked until a protected review has genuinely been issued and its evidence can be verified.
-        </p>:null}
-        {stage==='client_review'&&latestClientReview?<p className={css.meta} style={{marginTop:20}}>Latest client review recorded: {String(latestClientReview.outcome).replaceAll('_',' ')}. Further action follows the controlled stage gate.</p>:null}
-       {stage==='completion'?<section id="final-release" style={{marginTop:24}}>
+       {stage==='client_review'?<section id="client-review-outcome" aria-label="Governed client review" style={{display:'grid',gap:13,marginTop:24}}>
+          <h3 style={{fontSize:17}}>Authenticated client review decision</h3>
+          {staffReviewEvidenceUnavailable?<p role="alert" className={css.meta}>Client issue/attestation evidence could not be verified; no client decision can be assumed.</p>:null}
+          {staffReview?.issued?<p className={css.meta}>Current controlled R01 review was issued to a verified Client Workspace account. Only its actual signed-in client can respond; this operator cannot impersonate that client.</p>:null}
+          {staffReview?.issued&&!staffReview?.decisionId?<p role="status" className={css.meta}>Awaiting the authorised client's review of the watermarked drawings and their explicit decision.</p>:null}
+          {staffReview?.decisionId?<div className={css.card} style={{display:'grid',gap:11}}>
+           <strong>Authenticated client outcome: {String(staffReview.decision||'').replaceAll('_',' ')}</strong>
+           {staffReview.decisionComments?<p className={css.meta}>Written client feedback: {staffReview.decisionComments}</p>:null}
+           {staffReview.opReconciliationRequired?<p className={css.meta}>OP must reconcile this externally attributable decision into the governed project record. No acceptance can be inferred without this source record.</p>:<p className={css.meta}>Current-cycle client outcome has been reconciled by OP.</p>}
+           {staffReview.opReconciliationRequired&&canWrite?
+             staffReview.decision==='accepted'||staffReview.decision==='accepted_with_comments'?
+               <form action={reconcileProtectedClientReviewAction} style={{display:'grid',gap:12,marginTop:8}}>
+                 <input type="hidden" name="project_id" value={id}/>
+                 <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>Reconcile verified client acceptance →</button>
+               </form>:
+               <p className={css.meta}>The client's correction/rejection is preserved. Partner rework is explicitly blocked until OP classifies the request as an included correction, partner defect or a separately authorised commercial variation.</p>
+             :null}
+          </div>:null}
+          {latestClientReview?<p role="status" className={css.meta}>Governed current-cycle outcome: {String(latestClientReview.outcome).replaceAll('_',' ')}. Every subsequent transition is independently gated.</p>:null}
+          {latestClientReview&&['accepted','accepted_with_comments'].includes(String(latestClientReview.outcome))&&mayAdvance&&canWrite?
+           <form action={advanceProjectStageAction} style={{display:'grid',gap:12,maxWidth:600}}>
+            <input type="hidden" name="opos_next" value="1"/>
+            <input type="hidden" name="project_id" value={id}/>
+            <input type="hidden" name="target_stage" value="completion"/>
+            <label style={{display:'grid',gap:7}}>Transition note
+             <textarea name="note" rows={3} required minLength={12}
+              placeholder="Reference this current-cycle accepted review and the independent completion-readiness controls."
+              style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
+            </label>
+            <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>Advance accepted review to completion →</button>
+           </form>:null}
+          {latestClientReview&&!mayAdvance&&Array.isArray(readiness.reasons)&&readiness.reasons.length?
+           <p className={css.meta}>Further transition blocked: {readiness.reasons.join('; ')}</p>:null}
+        </section>:null}
+        {stage==='completion'?<section id="final-release" style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Final release and settlement</h3>
          <p className={css.meta}>No native files are released without verified final payment, accepted client review, current approved technical submission and a separate authorised owner decision.</p>
          {finalStatus?<div className={css.factRow} style={{marginTop:16}}>
