@@ -11,6 +11,7 @@ import {retryGovernedWorkOrderAction} from './work-order/action';
 import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction,issueProtectedClientReviewAction,reconcileProtectedClientReviewAction} from './qa-actions';
 import css from '../../opos.module.css';
 import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
+import {inviteNorthfieldClientQaAction} from './qa-client-invite-action';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
 type Readiness={ready:boolean;reasons:string[];activityOpen?:number;approvedDocuments?:number;issuedDocuments?:number};
@@ -80,6 +81,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const staffReview=(!staffReviewResult?.error?staffReviewResult?.data:null) as StaffReview|null;
  const staffReviewEvidenceUnavailable=Boolean(staffReviewResult?.error)||
    (['issued_to_client','client_review'].includes(stage)&&!staffReview);
+ type QaRecipient={ready:boolean;activeRecipients:number;staffIdentityConflict:boolean;
+  verifiedRecipients:number;setupRequired:boolean};
+ const recipientResult=isKnownIsolatedQaBackend()&&
+  stage==='ready_for_client_issue'&&['owner','admin'].includes(String(profile.role))?
+   await supabase.rpc('op_qa_northfield_client_recipient_state',{p_project_id:id}):null;
+ const qaRecipient=(recipientResult&&!recipientResult.error&&recipientResult.data?
+  recipientResult.data:null) as QaRecipient|null;
+
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
  const financial=resolveFinancialGate(financialResult.error?null:financialResult.data);
@@ -285,7 +294,31 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          {qaGate?.release_authorised?<div style={{display:'grid',gap:12}}>
              <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
              <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
-             {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued?
+             {qaWritable&&['owner','admin'].includes(String(profile.role))&&
+               (!qaRecipient?.ready)?
+               <div style={{display:'grid',gap:13,maxWidth:650,marginTop:14,
+                 padding:20,border:'1px solid #9b6861',borderRadius:8,background:'#211b1d'}}>
+                <strong role="alert">QA client identity must be separated before issue</strong>
+                <p className={css.meta}>Northfield currently has an OP staff login linked to the Client Workspace, or an unverified client recipient. That cannot establish independent acceptance. Invite a separate email account controlled by your QA client tester before issuing R01.</p>
+                {recipientResult?.error?<p role="alert">Recipient verification failed; external release is blocked until it succeeds.</p>:null}
+                <form action={inviteNorthfieldClientQaAction} style={{display:'grid',gap:12}}>
+                 <input type="hidden" name="project_id" value={id}/>
+                 <label style={{display:'grid',gap:7}}>Separate QA client email
+                  <input type="email" name="email" required placeholder="your-separate-qa-client@example.com"
+                   style={{padding:12,background:'#151619',color:'#fff',border:'1px solid #5d636a',borderRadius:8}}/>
+                 </label>
+                 <label className={css.qaChecklistRow}>
+                  <input type="checkbox" name="confirm_separate_login" value="yes" required/>
+                  <span>I control this separate QA inbox and authorise one test invitation. It must not be the OP operator's login.</span>
+                 </label>
+                 <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
+                  Send separate QA Client Portal invitation →
+                 </button>
+                </form>
+                <p className={css.meta}>After the invited account confirms its email, this screen will enable the actual controlled R01 issue. No invitation is sent until you submit the form.</p>
+               </div>:null}
+             {qaRecipient?.ready?<p role="status" className={css.meta}>Verified: one independent, email-confirmed QA Client recipient is linked to Northfield.</p>:null}
+             {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued&&qaRecipient?.ready?
                <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
                 padding:18,border:'1px solid #454951',borderRadius:8}}>
                  <strong>Issue R01 to the verified Client Portal account</strong>
@@ -313,7 +346,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              </label>
              <button className={css.action} style={{border:0}} type="submit">Authorise client-review preparation →</button>
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
-         <p className={css.meta}>This internal QA preview is not client issue. External release remains blocked until authenticated, recipient-scoped view-only Client Review Portal access is implemented and tested. Native files are reserved for verified final payment and owner-approved final handover.</p>
+         <p className={css.meta}>This internal QA preview is not client issue. The separate Client Portal login, current engineering revision and recipient-specific permissions must be verified before authorised in-app release. Native files remain reserved for verified final payment and owner-approved final handover.</p>
        </section>:null}
        {stage==='client_review'?<section id="client-review-outcome" aria-label="Governed client review" style={{display:'grid',gap:13,marginTop:24}}>
           <h3 style={{fontSize:17}}>Authenticated client review decision</h3>
