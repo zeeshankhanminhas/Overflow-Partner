@@ -1,3 +1,5 @@
+import {canonicalProjectDecision} from './canonicalProjectDecision';
+
 /**
  * Read-only presentation contract shared by OPOS Project 360 and account portals.
  * These decisions NEVER authorise work, payment, sign-off or file access.
@@ -12,28 +14,83 @@ export type NextStep={title:string;description:string;action:string|null;waiting
 
 export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPosition):NextStep {
  const stage=String(project.project_stage||'');
+ // One shared evidence projection decides who owns the handoff. The account RPC
+ // deliberately contains limited data; missing evidence never grants approval.
+ const situation=canonicalProjectDecision({
+  stage,
+  workOrderIssued:Boolean(project.reference),
+  workOrderAccepted:project.work_order_accepted,
+  executionState:project.partner_execution_state,
+ });
+ const view=(title:string,description:string,action:string|null,waiting:boolean):NextStep=>
+  ({title,description,action,waiting});
  if(actor==='client'){
-  if(stage==='closed')return{title:'Your project is complete',description:'Your controlled project history and any authorised final files remain available through secure access.',action:'View project status',waiting:true};
-  if(stage==='completion')return{title:'Final settlement and handover',description:'Open your secure project status to see the verified final balance and whether approved files have been released.',action:'Open secure final status',waiting:false};
-  if(stage==='client_review')return{title:'Controlled engineering review',description:'Overflow Partner will make an approved, secure review issue available only after the view-only package is authorised. Do not use draft or native files.',action:'View review status',waiting:true};
-  if(['ready_for_client_issue','issued_to_client'].includes(stage))return{title:'Overflow Partner is preparing your review',description:'Your engineering files cannot be issued until internal quality checks, release authority and secure review access are complete.',action:'View project status',waiting:true};
-  if(stage==='internal_review')return{title:'Your engineering work is with OP quality control',description:'Overflow Partner is inspecting the submitted engineering evidence. No response or payment is required from you at this point.',action:'View project status',waiting:true};
-  if(stage==='partner_correction')return{title:'Technical corrections are underway',description:'The Execution Partner is preparing revised work. OP must inspect and approve that revision before you can review it.',action:'View project status',waiting:true};
-  if(stage==='in_progress')return{title:'Engineering work is in progress',description:'The Execution Partner is working under OP supervision. OP will contact you when a genuine decision is required.',action:'View project status',waiting:true};
-  return{title:'Overflow Partner is preparing your project',description:'The approved commercial commitment is being mobilised. Your accepted quotation remains accessible in the secure project status.',action:'View project status',waiting:true};
+  switch(stage){
+   case 'closed':return view('Your project is complete','Your controlled project history and any authorised final files remain available through secure access.','View project status',true);
+   case 'completion':return view('Final settlement and handover','Open the secure record to see verified final balances and release status. The project stage alone is not proof of payment.','Open secure final status',true);
+   case 'internal_review':return view('Your engineering work is with OP quality control','Overflow Partner is inspecting the submitted engineering evidence. No response is required from you.','View project status',true);
+   case 'partner_correction':return view('Technical corrections are underway','The Execution Partner is preparing revised work. OP must approve the new revision before client review.','View project status',true);
+   case 'in_progress':return view('Engineering work is in progress','OP is supervising engineering work and will contact you when an authorised decision is required.','View project status',true);
+   case 'ready_for_client_issue':return view('Overflow Partner is preparing your review','Internal quality, file verification and release authority must finish before secure client access.','View project status',true);
+   case 'issued_to_client':
+   case 'client_review':return view('Your controlled review is being prepared',
+    'Review access cannot be inferred from the project stage. A genuinely issued protected review invitation is required.','View review status',true);
+   default:return view('Overflow Partner is preparing your project','Your accepted quotation and project status remain in the secure account.','View project status',true);
+  }
  }
- if(stage==='closed')return{title:'This Work Order is closed',description:'Your approved work and payment history remain recorded. There is no execution action now.',action:'View Work Order status',waiting:true};
- if(stage==='completion')return{title:'Awaiting final settlement',description:'Overflow Partner will complete client settlement and the separate partner payable checks under your agreement.',action:'View Work Order status',waiting:true};
- if(stage==='mobilisation' && !project.work_order_accepted && project.partner_execution_state==='awaiting_acknowledgement'&&project.reference)
-  return{title:'Review and accept your Work Order',description:'Check the controlled scope, price, delivery commitment and obligations. Acceptance does not start engineering work.',action:'Open Work Order acceptance',waiting:false};
- if(stage==='mobilisation')return{title:project.work_order_accepted?'Awaiting OP mobilisation approval':'Awaiting an authorised Work Order',description:'Do not start engineering work until the Work Order is formally accepted and OP has authorised commencement.',action:'View Work Order status',waiting:true};
- if(stage==='ready_for_execution' && !project.work_order_accepted)
-  return{title:'Work Order acceptance is required',description:'Open your secure work area and accept the current issued order if the authorised acceptance is available.',action:'Open Work Order status',waiting:true};
- if(stage==='ready_for_execution')return{title:'Confirm you are ready to start',description:'Confirm the controlled scope, required inputs, delivery capacity and planned start in your secure Partner Work screen.',action:'Confirm commencement',waiting:false};
- if(stage==='partner_correction')return{title:'Submit the requested correction',description:'Review the OP findings, prepare a new engineering revision and submit fresh file evidence.',action:'Open revised delivery',waiting:false};
- if(stage==='in_progress')return{title:'Continue engineering delivery',description:'Report progress and issues, then submit your final work and technical files when genuinely complete.',action:'Open engineering work',waiting:false};
- if(['internal_review','ready_for_client_issue'].includes(stage))return{title:'Await OP engineering review',description:'Your submitted package is with OP for technical QA, document control and release approval. Do not resubmit unless asked.',action:'View submitted work',waiting:true};
- return{title:'Await the controlled client decision',description:'Overflow Partner manages client review, corrections and final settlement. Your approved Work Order remains accessible.',action:'View Work Order status',waiting:true};
+ switch(situation.key){
+  case 'accept_work_order':
+   return project.reference&&project.partner_execution_state==='awaiting_acknowledgement'?
+    view('Review and accept your Work Order','Check scope, price and delivery obligations. Acceptance is separate from commencement.','Open Work Order acceptance',false):
+    view('Await authorised Work Order access','The secure invitation or accepted Work Order evidence must be available before acting.','View Work Order status',true);
+  case 'confirm_commencement':
+   return view('Confirm you are ready to start','Confirm scope, inputs, capacity and planned start using your secure Partner Work session.','Confirm commencement',false);
+  case 'perform_execution':
+   return view('Continue your engineering work','Report progress and issues, and submit completed deliverables when ready.','Open engineering work',false);
+  case 'correct_execution':
+   return view('Submit the requested correction','Review OP findings, prepare a fresh revision and submit new file evidence.','Open revised delivery',false);
+  case 'await_partner_submission':
+   return view('Await Overflow Partner quality review','Your submitted work is under OP review. No further submission is due unless corrections are requested.','View submitted work',true);
+  case 'complete_mobilisation':
+   return view('Await OP mobilisation authority','Even an accepted Work Order does not permit the partner to start before formal commencement.','View Work Order status',true);
+  default:
+   return view(stage==='closed'?'This Work Order is closed':'Await the next authorised decision',
+    'Overflow Partner controls technical acceptance, client review, settlement and closeout.','View Work Order status',true);
+ }
+}
+
+/**
+ * The quote is independently controlled; a project never proves that cash was
+ * received. This wrapper gives the token-based secure client portal the same
+ * project-language contract as the permanent Client Workspace.
+ */
+export type SecureClientPosition={
+ projectStage:string|null;canDecide:boolean;accepted:boolean;canPay:boolean;
+ paymentVerificationPending:boolean;finalReviewAccepted:boolean;
+ finalSettlementVerified:boolean;finalReleaseApproved:boolean;
+ finalFilesHref:string;finalBalanceHref:string;
+};
+export function secureClientNextStep(p:SecureClientPosition):NextStep & {href:string|null}{
+ const result=(title:string,description:string,href:string|null,action:string|null,waiting:boolean)=>
+  ({title,description,href,action,waiting});
+ if(p.finalReleaseApproved)return result('Your approved engineering files are available',
+  'Final payment and separate owner release approval have been verified.',p.finalFilesHref,'Open final engineering handover',false);
+ if(p.finalReviewAccepted&&!p.finalSettlementVerified)return result('Settle your final engineering balance',
+  'An accepted client review precedes final payment. Native engineering files remain locked.',p.finalBalanceHref,'Review final balance',false);
+ if(p.projectStage){
+  const basic=portalProjectNextStep('client',{project_stage:p.projectStage});
+  return result(basic.title,basic.description,null,null,true);
+ }
+ if(p.paymentVerificationPending)return result('Your opening payment is being verified',
+  'Please do not pay again. Project creation requires independent settlement evidence.',null,null,true);
+ if(p.canDecide)return result('Review and respond to your quotation',
+  'Read the controlled terms, scope and validity. Respond as an authorised signatory.','#quote-acceptance','Review quotation',false);
+ if(p.accepted&&p.canPay)return result('Complete your authorised opening payment',
+  'Project creation remains blocked until cleared opening payment is independently verified.','#opening-payment','Go to secure payment',false);
+ if(p.accepted)return result('Awaiting verified commercial release',
+  'Overflow Partner is checking the authorised release conditions. No repeat payment is requested here.',null,null,true);
+ return result('Awaiting an authorised quotation decision',
+  'Request additional time or contact Overflow Partner if the original offer has expired.',null,null,true);
 }
 
 export type OperatorPosition={
