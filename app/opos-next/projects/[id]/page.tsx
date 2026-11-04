@@ -145,7 +145,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      nextDescription={operatorNext.description}
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={operatorNext.waiting}
-     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
+     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:stage==='ready_for_client_issue'?'Protected client issue not recorded':readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
      governedHref={'/opos-next/projects/'+id+operatorNext.anchor} previous="/opos-next/projects" actionLabel={operatorNext.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
@@ -276,7 +276,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · release authority</h3>
          <p className={css.meta}>Technical acceptance and manifest verification establish readiness. Owner release authorisation is a separate approval and does not send the package to a client.</p>
          {internalQaEvidenceUnavailable?<p role="alert">Release evidence unavailable; release remains blocked.</p>:null}
-         {qaGate?.release_authorised?<p role="status">Authorised for preparation of the current submission. No client package has been sent.</p>
+         {qaGate?.release_authorised?<div style={{display:'grid',gap:12}}>
+             <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
+             <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
+           </div>
            :qaGate?.engineering_accepted&&qaGate?.manifest_verified&&qaWritable&&['owner','admin'].includes(String(profile.role))?
            <form action={authoriseClientReviewReleaseAction} style={{display:'grid',gap:12,maxWidth:650}}>
              <input type="hidden" name="project_id" value={id}/>
@@ -285,7 +288,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              </label>
              <button className={css.action} style={{border:0}} type="submit">Authorise client-review preparation →</button>
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
-         <p className={css.meta}>External issue remains securely blocked until the watermarked, view-only browser review package is implemented and tested. Native files remain reserved for verified final payment and final handover.</p>
+         <p className={css.meta}>This internal QA preview is not client issue. External release remains blocked until authenticated, recipient-scoped view-only Client Review Portal access is implemented and tested. Native files are reserved for verified final payment and owner-approved final handover.</p>
        </section>:null}
        {stage==='client_review'&&canWrite&&!latestClientReview&&Boolean(operatorNext.action)?<section id="client-review-outcome" style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
