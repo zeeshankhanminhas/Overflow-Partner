@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {useMemo,useState} from 'react';
 import {
-  steps,phases,scenarioSteps,scenarioNames,actorNames,statusNames,
+  phases,scenarioSteps,scenarioNames,actorNames,statusNames,
   type Actor,type Scenario,type JourneyStep
 } from './journey';
 import styles from './walkthrough.module.css';
