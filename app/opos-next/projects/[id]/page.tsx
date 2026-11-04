@@ -5,7 +5,6 @@ import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import {resolveFinancialGate} from '@/lib/finance/state';
 import {normaliseProjectStage,projectStageMeta} from '@/lib/projects/stages';
 import {updateProjectMobilisationAction,advanceProjectStageAction} from '@/app/workspace/projects/[id]/actions';
-import {recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/client-actions';
 import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
 import {retryGovernedWorkOrderAction} from './work-order/action';
