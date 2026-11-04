@@ -152,17 +152,24 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    finalReleaseApproved:Boolean(finalStatus?.ownerApproved),
    partnerPaid:Boolean(finalStatus?.partnerPaid),
  });
+ // An independent Client login is a prerequisite, not an optional polish task.
+ const displayNext=stage==='ready_for_client_issue'&&qaWritable&&
+   ['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready
+    ?{...operatorNext,title:'Invite a separate QA Client account',
+       description:'Northfield currently has no independently verified Client identity. Invite a separate QA email before releasing R01 to client review.',
+       action:'Set up independent Client access',anchor:'#release-authorisation',waiting:false}
+    :operatorNext;
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
      title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
      state={meta.label} owner="Overflow Partner / assigned delivery team"
-     nextTitle={operatorNext.title}
-     nextDescription={operatorNext.description}
+     nextTitle={displayNext.title}
+     nextDescription={displayNext.description}
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
-     stageIndex={stageIndex} waiting={operatorNext.waiting}
+     stageIndex={stageIndex} waiting={displayNext.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:stage==='ready_for_client_issue'?'Protected client issue not recorded':readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={'/opos-next/projects/'+id+operatorNext.anchor} previous="/opos-next/projects" actionLabel={operatorNext.action||'Review controls'}/>
+     governedHref={'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
