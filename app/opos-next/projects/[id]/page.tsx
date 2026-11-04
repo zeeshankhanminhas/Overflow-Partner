@@ -213,15 +213,19 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              <form action={recordEngineeringDecisionAction} style={{display:'grid',gap:12,maxWidth:650}}>
                <input type="hidden" name="project_id" value={id}/><input type="hidden" name="submission_id" value={qaGate.submission_id}/>
                <p className={css.meta}>Open the drawings first. Confirm each check only after actual inspection; corrections or rejection do not require all checks.</p>
-               {([
-                 ['scope','Delivered work matches the approved scope and Statement of Work'],
-                 ['completeness','All required outputs are present and legible'],
-                 ['revision','Drawing identifiers, references and revisions are consistent'],
-                 ['quality','Dimensions, interfaces and technical risks have been reviewed'],
-                 ['exceptions','All exceptions, deviations and open issues are resolved'],
-               ] as const).map(([key,label])=><label key={key} style={{display:'flex',alignItems:'flex-start',gap:9}}>
-                 <input type="checkbox" name={key} value="true" style={{marginTop:4}}/>{label}
-               </label>)}
+               <fieldset className={css.qaChecklist}>
+                 <legend className={css.qaChecklistLegend}>Engineering acceptance checks</legend>
+                 {([
+                   ['scope','Delivered work matches the approved scope and Statement of Work'],
+                   ['completeness','All required outputs are present and legible'],
+                   ['revision','Drawing identifiers, references and revisions are consistent'],
+                   ['quality','Dimensions, interfaces and technical risks have been reviewed'],
+                   ['exceptions','All exceptions, deviations and open issues are resolved'],
+                 ] as const).map(([key,label])=><label key={key} className={css.qaChecklistRow}>
+                   <input type="checkbox" name={key} value="true"/>
+                   <span>{label}</span>
+                 </label>)}
+               </fieldset>
                <label style={{display:'grid',gap:6}}>Engineering findings and evidence (required)
                  <textarea required minLength={12} name="findings" rows={4} placeholder="Document findings, drawing references, exceptions and technical rationale." style={{background:'#151619',color:'#fff',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
                </label>
@@ -243,7 +247,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              <form action={verifyDeliveryManifestAction} style={{display:'grid',gap:12,maxWidth:650}}>
                <input type="hidden" name="project_id" value={id}/>
                <p className={css.meta}>Check filenames, revision, document references, file identity, completeness and intended recipient against the accepted engineering submission.</p>
-               <label style={{display:'flex',gap:10}}><input type="checkbox" required name="confirmed" value="true"/>I verified this exact current-cycle manifest against the accepted deliverables.</label>
+               <label className={css.qaChecklistRow}><input type="checkbox" required name="confirmed" value="true"/><span>I verified this exact current-cycle manifest against the accepted deliverables.</span></label>
                <button className={css.action} style={{border:0}} type="submit">Verify delivery document manifest →</button>
              </form>:<p className={css.meta}>Locked until the engineering submission has been accepted.</p>}
          </div>
