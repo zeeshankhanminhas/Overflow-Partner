@@ -75,18 +75,19 @@ export default function WatermarkedPdfViewer({projectId,fileId,filename,sourceUr
     <div role="status" style={{display:'flex',justifyContent:'space-between',alignItems:'center',
       gap:12,flexWrap:'wrap',color:'#b2d4bf',fontSize:12}}>
       <span>Verified watermarked PDF · {Math.ceil(preview.bytes/1024)} KB</span>
-      <a href={preview.url} target="_blank" rel="noopener noreferrer"
+      {audience==='operator'?<a href={preview.url} target="_blank" rel="noopener noreferrer"
         style={{color:'#dfe7e8',textDecoration:'underline',textUnderlineOffset:4}}>
         Open in a separate PDF tab
-      </a>
+      </a>:<span>Watermarked browser review · No native file release</span>}
     </div>
     <iframe title={'Watermarked QA preview of '+filename}
       src={preview.url+'#toolbar=0&navpanes=0'}
       style={{border:'1px solid #42464b',borderRadius:8,width:'100%',
         height:'min(84vh,850px)',minHeight:480,background:'#24272b'}}/>
     <p style={{fontSize:12,lineHeight:1.6,color:'#a5a9b1',margin:0}}>
-      If your browser cannot display its built-in PDF frame, use the separate PDF tab above.
-      The original private engineering file is never linked here. These browser-visible bytes are watermarked, but screenshots and extraction cannot be completely prevented.
+      {audience==='operator'?'If your browser cannot display the PDF frame, use the separate QA PDF tab above.':
+       'If the review cannot be displayed on your device, contact Overflow Partner for a controlled technical review alternative.'}
+      The original private engineering file is never linked here. Browser-visible bytes are watermarked, but screenshots and determined extraction cannot be completely prevented.
     </p>
    </div>:null}
  </div>;
