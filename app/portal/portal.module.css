@@ -62,3 +62,44 @@
 .compactDisclosure>summary{cursor:pointer;list-style-position:inside;font-size:13px;font-weight:650;color:#5b685f;min-height:42px;display:flex;align-items:center;gap:8px}
 .compactDisclosure>summary:focus-visible{outline:2px solid #26362a;outline-offset:3px}
 .compactDisclosure>.grid,.compactDisclosure>.card{margin-top:15px}
+
+
+/* Account dashboards: one action, a three-number snapshot and short project list.
+   Full registers, commercial detail and QA information require deliberate disclosure. */
+.dashboardHero{margin-bottom:20px;gap:2px}
+.dashboardHero .title{margin:8px 0 5px;max-width:none;font-size:clamp(26px,3.4vw,38px)}
+.dashboardHero .subtitle{font-size:13px}
+.dashboardSnapshot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid #e1e3df;background:#fff;border-radius:11px;margin:0 0 24px;overflow:hidden}
+.dashboardSnapshot>div{padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.dashboardSnapshot>div+div{border-left:1px solid #e1e3df}
+.dashboardSnapshot strong{font-size:23px;letter-spacing:-.04em;line-height:1.2}
+.dashboardSnapshot span{font-size:11px;line-height:1.4;color:#647069}
+.dashboardSection{margin-top:26px}
+.dashboardSection .sectionHead{margin-bottom:12px}
+.dashboardSection .sectionHead h2{font-size:20px}
+.dashboardList{display:grid;gap:8px}
+.dashboardProject{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 19px;background:#fff;border:1px solid #e1e3df;border-radius:10px;min-width:0}
+.dashboardProject:hover,.dashboardProject:focus-visible{border-color:#929f93}
+.dashboardProject>div{min-width:0}
+.dashboardProject h3{font-size:15px;line-height:1.35;letter-spacing:-.02em;margin:5px 0}
+.dashboardProject p{font-size:12px;line-height:1.45;color:#68746b;margin:0}
+.dashboardStage{flex-shrink:0;display:inline-flex;align-items:center;gap:12px;color:#415b49;font-size:11px;font-weight:650}
+.dashboardStage span{font-size:16px}
+.dashboardMore{margin-top:16px;border-top:1px solid #e0e3dc;padding-top:3px}
+.dashboardMore>summary{cursor:pointer;font-size:12px;font-weight:650;line-height:1.5;color:#536159;min-height:43px;display:flex;align-items:center;gap:7px}
+.dashboardMore>summary::marker{color:#536159}
+.dashboardMore>summary:focus-visible{outline:2px solid #26362a;outline-offset:2px}
+.dashboardMore>.list{margin-top:12px}
+.dashboardRegister{margin-top:12px}
+.dashboardRegister>.section{margin-top:12px}
+.dashboardRegister .grid{grid-template-columns:repeat(2,minmax(0,1fr));margin:12px 0}
+.dashboardRegister .summary strong{font-size:20px}
+.dashboardRegister .notice{margin:12px 0}
+@media(max-width:750px){
+ .dashboardSnapshot>div{padding:12px 9px}
+ .dashboardSnapshot strong{font-size:19px}
+ .dashboardSnapshot span{font-size:10px}
+ .dashboardProject{padding:14px;align-items:flex-start;gap:10px;flex-direction:column}
+ .dashboardStage{justify-content:space-between;width:100%}
+ .dashboardRegister .grid{grid-template-columns:1fr}
+}
