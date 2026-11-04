@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(p,'utf8');
 const migration=read('supabase/migrations/20261104210000_qa_governed_client_feedback_classification.sql');
 const reviewState=read('supabase/migrations/20261104211500_qa_staff_review_classification_projection.sql');
+const entitlement=read('supabase/migrations/20261104213000_qa_reuse_canonical_client_correction_entitlement.sql');
 const operator=read('app/opos-next/projects/[id]/page.tsx');
 const actions=read('app/opos-next/projects/[id]/qa-actions.ts');
 const partner=read('components/execution/PartnerWorkSurface.tsx');
@@ -24,10 +25,11 @@ const cases=[
   migration.includes("v_project.project_stage<>'client_review'")&&
   migration.includes("v_decision.outcome not in ('changes_requested','rejected')")&&
   migration.includes('i.execution_cycle=v_cycle')],
- ['one in-scope included correction across the project',
-  migration.includes("if p_classification='included_correction' then")&&
-  migration.includes("classification='included_correction'")&&
-  migration.includes('if v_used>=1 then raise exception')],
+ ['one included correction comes from the existing canonical entitlement ledger',
+  entitlement.includes("if p_classification='included_correction' then")&&
+  entitlement.includes('public.op_client_correction_entitlements')&&
+  entitlement.includes('if v_used>=1 then raise exception')&&
+  !entitlement.includes("from public.op_qa_client_correction_classifications\n   where project_id=p_project_id")],
  ['partner defect classification requires a corrective instruction',
   migration.includes("'partner_defect'")&&
   migration.includes("length(btrim(coalesce(p_partner_instruction,'')))<25")],
@@ -44,13 +46,14 @@ const cases=[
   migration.includes("c.classification in ('included_correction','partner_defect')")&&
   migration.includes("p_evidence_reference='QA-PORTAL/'||d.id::text")&&
   migration.includes("Current protected review requires an actual authenticated client decision")],
- ['existing canonical stage machine opens the new execution cycle',
-  migration.includes('public.op_record_client_review_outcome_core(')&&
-  migration.includes("if v_result->>'projectStage'<>'partner_correction'")&&
-  migration.includes("'newExecutionCycle',v_cycle+1")],
- ['classification and rework decision share an atomic database transaction',
+ ['existing canonical classified review and stage machine reopen one governed cycle',
+  entitlement.includes('public.op_record_classified_client_review(')&&
+  entitlement.includes("'in_scope_correction',p_classification='partner_defect'")&&
+  entitlement.includes("if v_result->>'projectStage'<>'partner_correction'")&&
+  entitlement.includes("'newExecutionCycle',v_cycle+1")],
+ ['scope classification and canonical entitlement/partner rework share one transaction',
   migration.includes('insert into public.op_qa_client_correction_classifications')&&
-  migration.includes("v_result:=public.op_record_client_review_outcome_core")],
+  entitlement.includes("v_result:=public.op_record_classified_client_review")],
  ['Project 360 includes explicit operator classification and authorisation',
   operator.includes('classifyClientFeedbackAction')&&
   operator.includes('classification_authorised')&&
