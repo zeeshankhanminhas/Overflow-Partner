@@ -11,7 +11,7 @@ import {retryGovernedWorkOrderAction} from './work-order/action';
 import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction,issueProtectedClientReviewAction,reconcileProtectedClientReviewAction} from './qa-actions';
 import css from '../../opos.module.css';
 import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
-import {inviteNorthfieldClientQaAction} from './qa-client-invite-action';
+import QaManualClientAccess from './QaManualClientAccess';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
 type Readiness={ready:boolean;reasons:string[];activityOpen?:number;approvedDocuments?:number;issuedDocuments?:number};
@@ -158,12 +158,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const displayNext=stage==='ready_for_client_issue'&&qaWritable&&
    ['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready
     ?{...operatorNext,
-       title:clientInvitePending?'Await independent QA Client sign-in':'Invite a separate QA Client account',
-       description:clientInvitePending
-        ?'The Northfield Client recipient is invited but its email sign-in is not verified. Do not issue R01 until the account confirms access.'
-        :'Northfield has no independently verified Client identity. Invite a separate QA email before releasing R01.',
-       action:clientInvitePending?'View client setup status':'Set up independent Client access',
-       anchor:'#release-authorisation',waiting:clientInvitePending}
+       title:'Activate a separate QA Client account',
+       description:'Resend is not required for the isolated test. Generate a single-use Supabase Auth link for a separate QA identity, then open it in an incognito session. Email delivery remains untested.',
+       action:'Generate secure QA Client access link',
+       anchor:'#release-authorisation',waiting:false}
     :operatorNext;
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
@@ -307,34 +305,21 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          {qaGate?.release_authorised?<div style={{display:'grid',gap:12}}>
              <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
              <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
-             {qaWritable&&['owner','admin'].includes(String(profile.role))&&
-               (!qaRecipient?.ready&&!clientInvitePending)?
-               <div style={{display:'grid',gap:13,maxWidth:650,marginTop:14,
-                 padding:20,border:'1px solid #9b6861',borderRadius:8,background:'#211b1d'}}>
-                <strong role="alert">QA client identity must be separated before issue</strong>
-                <p className={css.meta}>Northfield currently has an OP staff login linked to the Client Workspace, or an unverified client recipient. That cannot establish independent acceptance. Invite a separate email account controlled by your QA client tester before issuing R01.</p>
-                {recipientResult?.error?<p role="alert">Recipient verification failed; external release is blocked until it succeeds.</p>:null}
-                <form action={inviteNorthfieldClientQaAction} style={{display:'grid',gap:12}}>
-                 <input type="hidden" name="project_id" value={id}/>
-                 <label style={{display:'grid',gap:7}}>Separate QA client email
-                  <input type="email" name="email" required placeholder="your-separate-qa-client@example.com"
-                   style={{padding:12,background:'#151619',color:'#fff',border:'1px solid #5d636a',borderRadius:8}}/>
-                 </label>
-                 <label className={css.qaChecklistRow}>
-                  <input type="checkbox" name="confirm_separate_login" value="yes" required/>
-                  <span>I control this separate QA inbox and authorise one test invitation. It must not be the OP operator's login.</span>
-                 </label>
-                 <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
-                  Send separate QA Client Portal invitation →
-                 </button>
-                </form>
-                <p className={css.meta}>After the invited account confirms its email, this screen will enable the actual controlled R01 issue. No invitation is sent until you submit the form.</p>
+             {qaWritable&&['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready?
+               <div style={{display:'grid',gap:12,marginTop:14,maxWidth:700}}>
+                 <strong role="status">{clientInvitePending?'Separate QA client activation is pending':'An independent QA Client identity is required'}</strong>
+                 <p className={css.meta}>
+                   Northfield cannot use the active OP operator login as the client.
+                   For isolated QA, generate a single-use Supabase Auth link instead of
+                   sending an email via Resend. This creates a distinct test session
+                   and does not verify mailbox ownership or email delivery.
+                 </p>
+                 {recipientResult?.error?<p role="alert" className={css.meta}>
+                   Client recipient verification failed. Review issuance remains blocked.
+                 </p>:null}
+                 <QaManualClientAccess projectId={id}/>
                </div>:null}
-             {clientInvitePending?<div style={{display:'grid',gap:9,marginTop:12}}>
-               <p role="status" className={css.meta}><strong>Invitation pending confirmation.</strong> The separate QA client is assigned, but must sign in through its own email link. Do not send duplicate invitations.</p>
-               <Link className={css.action} href="/login?next=%2Fportal%2Fclient">Open separate QA Client sign-in →</Link>
-             </div>:null}
-             {qaRecipient?.ready?<p role="status" className={css.meta}>Verified: one independent, email-confirmed QA Client recipient is linked to Northfield.</p>:null}
+             {qaRecipient?.ready?<p role="status" className={css.meta}>Separate QA client account activated. This confirms an independent test login, not external email delivery or mailbox ownership.</p>:null}
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued&&qaRecipient?.ready?
                <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
                 padding:18,border:'1px solid #454951',borderRadius:8}}>
