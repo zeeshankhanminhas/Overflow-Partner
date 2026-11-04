@@ -15,4 +15,16 @@ const oldCreation=readFileSync('supabase/migrations/20261104095000_qa_stop_dupli
 assert.ok(historicActions.includes("['technical-review','document-register'].includes(document.document_type)"),'Old project-document approval path must be disabled');
 assert.ok(historicRoute.includes('historicOperationalRecord'),'Historical document must route to Project 360');
 assert.ok(oldCreation.includes("v_begin:=strpos"),'Do not auto-create duplicate documents for future submissions');
+const globalFields=readFileSync('app/globals.css','utf8');
+const qaStyles=readFileSync('app/opos-next/opos.module.css','utf8');
+assert.ok(globalFields.includes('input:not([type="checkbox"]):not([type="radio"]), select, textarea { width: 100%; }'),
+ 'Shared full-width field sizing must exempt checkbox and radio controls');
+assert.ok(page.includes('<fieldset className={css.qaChecklist}>')&&
+ page.includes('className={css.qaChecklistRow}')&&page.includes('<span>{label}</span>'),
+ 'Engineering QA checklist must keep each checkbox adjacent to readable label text');
+assert.ok(page.includes('<input type="checkbox" required name="confirmed" value="true"/><span>'),
+ 'Manifest checkbox and its attestation must stay within one aligned label');
+assert.ok(qaStyles.includes('grid-template-columns: 18px minmax(0, 1fr)')&&
+ qaStyles.includes('.qaChecklistRow input[type="checkbox"]')&&qaStyles.includes('width: 18px;'),
+ 'QA checkbox control width must remain intrinsic at desktop and mobile sizes');
 console.log('Engineering acceptance, manifest, release and legacy-route QA contracts: PASS (static). Authenticated browser review remains to be tested.');
