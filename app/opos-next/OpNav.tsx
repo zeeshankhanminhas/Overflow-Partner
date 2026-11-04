@@ -22,7 +22,7 @@ export default function OpNav() {
         </Link>
       </div>;
     })}
-    <details className={css.navMore} defaultOpen={secondary.some(item=>isNextActive(pathname,item.href))}>
+    <details className={css.navMore} open={secondary.some(item=>isNextActive(pathname,item.href))}>
       <summary>More</summary>
       {secondary.map(item=>{
         const active=isNextActive(pathname,item.href);
