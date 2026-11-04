@@ -9,7 +9,7 @@ import {recordClientReviewOutcomeAction} from '@/app/workspace/projects/[id]/cli
 import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
 import {retryGovernedWorkOrderAction} from './work-order/action';
-import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction} from './qa-actions';
+import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction,issueProtectedClientReviewAction,reconcileProtectedClientReviewAction} from './qa-actions';
 import css from '../../opos.module.css';
 import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 
@@ -74,6 +74,13 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const qaGate=(qaGateResult?.data||null) as QaGate|null;
  const internalQaEvidenceUnavailable=['internal_review','ready_for_client_issue'].includes(stage)
    &&(Boolean(qaGateResult?.error)||!qaGate);
+ type StaffReview={issued:boolean;issueId:string|null;revision:string|null;decisionId:string|null;decision:string|null;
+  decisionComments:string|null;decidedAt:string|null;clientAttestationPending:boolean;opReconciliationRequired:boolean};
+ const staffReviewResult=['ready_for_client_issue','issued_to_client','client_review'].includes(stage)
+   ?await supabase.rpc('op_qa_staff_client_review_state',{p_project_id:id}):null;
+ const staffReview=(!staffReviewResult?.error?staffReviewResult?.data:null) as StaffReview|null;
+ const staffReviewEvidenceUnavailable=Boolean(staffReviewResult?.error)||
+   (['issued_to_client','client_review'].includes(stage)&&!staffReview);
  const meta=projectStageMeta[stage];
  const readiness=(readinessResult.error?{ready:false,reasons:['Stage readiness could not be verified.']}:readinessResult.data||{ready:false,reasons:['Stage readiness is not available.']}) as Readiness;
  const financial=resolveFinancialGate(financialResult.error?null:financialResult.data);
@@ -128,10 +135,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    releaseAuthorised:Boolean(qaGate?.release_authorised),mayAdvance,
    canApproveFinalRelease:stage==='completion'&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
    canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
-   canRecordClientOutcome:stage==='client_review'&&!latestClientReview,
+   canRecordClientOutcome:stage==='client_review'&&!latestClientReview&&Boolean(staffReview?.decisionId),
    partnerSubmitted:assignment?.execution_state==='delivery_submitted',
    // A client transmittal alone cannot prove protected browser review.
-   protectedReviewIssued:false,
+   protectedReviewIssued:Boolean(staffReview?.issued),
    clientAccepted:Boolean(finalStatus?.clientAccepted),
    finalPaid:Boolean(finalStatus?.finalPaid),
    finalReleaseApproved:Boolean(finalStatus?.ownerApproved),
@@ -279,6 +286,25 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          {qaGate?.release_authorised?<div style={{display:'grid',gap:12}}>
              <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
              <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
+             {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued?
+               <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
+                padding:18,border:'1px solid #454951',borderRadius:8}}>
+                 <strong>Issue R01 to the verified Client Portal account</strong>
+                 <p className={css.meta}>The server checks the project's true company and exactly one active, authenticated Client Workspace recipient. This is an in-app issue; no email is sent.</p>
+                 <input type="hidden" name="project_id" value={id}/>
+                 <label className={css.qaChecklistRow}>
+                  <input type="checkbox" name="preview_confirmed" value="yes" required/>
+                  <span>I inspected the watermarked R01 review PDF and confirmed it matches the current accepted engineering submission.</span>
+                 </label>
+                 <label style={{display:'grid',gap:7}}>Release and programme rationale
+                  <textarea name="note" required minLength={18} rows={3}
+                   placeholder="Confirm the approved revision, recipient authority and mitigation of the recorded delivery forecast variance."
+                   style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
+                 </label>
+                 <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
+                  Issue protected R01 review in Client Portal →
+                 </button>
+               </form>:null}
            </div>
            :qaGate?.engineering_accepted&&qaGate?.manifest_verified&&qaWritable&&['owner','admin'].includes(String(profile.role))?
            <form action={authoriseClientReviewReleaseAction} style={{display:'grid',gap:12,maxWidth:650}}>
