@@ -102,6 +102,15 @@ export type OperatorPosition={
 export type OperatorNextStep=NextStep & {anchor:string};
 export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
  const make=(title:string,description:string,action:string|null,anchor:string,waiting=false):OperatorNextStep=>({title,description,action,anchor,waiting});
+ const situation=canonicalProjectDecision({
+   stage:p.stage,workOrderIssued:!p.needsWorkOrder,
+   workOrderAccepted:p.workOrderAccepted,partnerSubmitted:p.partnerSubmitted,
+   qaAvailable:p.qaAvailable,hasSubmission:p.hasSubmission,storageComplete:p.storageComplete,
+   engineeringAccepted:p.engineeringAccepted,manifestVerified:p.manifestVerified,
+   releaseAuthorised:p.releaseAuthorised,protectedReviewIssued:p.protectedReviewIssued,
+   clientAccepted:p.clientAccepted,finalPaid:p.finalPaid,
+   finalReleaseApproved:p.finalReleaseApproved,partnerPaid:p.partnerPaid,
+ });
  if(p.completed)return make('Project closed','There is no outstanding project decision. The controlled history remains available.',null,'#project-controls',true);
  if(!p.canWrite)return make('Await an authorised OP operator','Your role or the isolated QA write gate does not permit the next transaction.',null,'#project-controls',true);
  if(p.stage==='mobilisation'){
@@ -115,11 +124,11 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
  if(p.stage==='in_progress')return make('Await Partner engineering submission','The partner must report progress and submit genuine drawings before OP can inspect them.',null,'#partner-delivery-evidence',true);
  if(p.stage==='partner_correction')return make('Await revised Partner submission','Partner correction requires new files and a fresh engineering review of the new revision.',null,'#partner-delivery-evidence',true);
  if(p.stage==='internal_review'){
-  if(!p.qaAvailable||!p.hasSubmission||!p.storageComplete)return make('Partner delivery evidence is incomplete','No technical decision can be signed without a complete current submission and real files in secure storage.',null,'#engineering-review',true);
-  if(!p.engineeringAccepted)return p.canReviewEngineering?
+  if(situation.key==='evidence_unavailable')return make('Partner delivery evidence is incomplete','No technical decision can be signed without a complete current submission and real files in secure storage.',null,'#engineering-review',true);
+  if(situation.key==='engineering_review')return p.canReviewEngineering?
     make('Inspect drawings and decide technical acceptance','Open the current engineering files and record an evidenced acceptance, correction or rejection against this exact revision.','Inspect files and record decision','#engineering-review'):
     make('Await engineering reviewer','An authorised engineering reviewer or owner must inspect the files and record a technical decision.',null,'#engineering-review',true);
-  if(!p.manifestVerified)return p.canVerifyManifest?
+  if(situation.key==='verify_manifest')return p.canVerifyManifest?
     make('Verify the accepted file manifest','Compare the accepted drawings, revision, filenames and storage identities. This is separate from engineering approval.','Verify delivery manifest','#manifest-verification'):
     make('Await document-control verification','An authorised OP reviewer must confirm the accepted file manifest.',null,'#manifest-verification',true);
   return p.mayAdvance?
@@ -127,14 +136,16 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
     make('Internal QA complete; stage gate pending','Resolve any remaining governed readiness reasons before advancing.',null,'#project-controls',true);
  }
  if(p.stage==='ready_for_client_issue'){
-  if(!p.qaAvailable||!p.engineeringAccepted||!p.manifestVerified)return make('Release evidence is not ready','Release requires current-cycle engineering acceptance and verified document manifest.',null,'#release-authorisation',true);
-  if(p.releaseAuthorised)return make('Await secure client review package','Preparation was authorised, but external issue is blocked until the watermarked view-only client reviewer is implemented and tested.',null,'#release-authorisation',true);
+  if(situation.key==='evidence_unavailable')return make('Release evidence is not ready','Release requires current-cycle engineering acceptance and verified document manifest.',null,'#release-authorisation',true);
+  if(situation.key==='secure_review_blocked')return make('Await secure client review package','Preparation was authorised, but external issue is blocked until the watermarked view-only client reviewer is implemented and tested.',null,'#release-authorisation',true);
   return p.canAuthoriseRelease?
    make('Authorise preparation of client review','Approve this exact revision for package preparation. This action must NOT issue or unlock client files.','Review release authority','#release-authorisation'):
    make('Await authorised release owner','Only an OP owner or administrator can authorise client-review preparation.',null,'#release-authorisation',true);
  }
- if(p.stage==='issued_to_client')return make('Await client review start','Only an authorised, secured client-review issue can begin client review. Check the evidence before proceeding.',null,'#project-controls',true);
- if(p.stage==='client_review')return p.canRecordClientOutcome?
+ if(p.stage==='issued_to_client')return make('Await protected review evidence',
+  'External issue or review access cannot be presumed from the stage. A real protected, attributable client review invitation must exist.',
+  null,'#project-controls',true);
+ if(p.stage==='client_review')return situation.key==='client_review_decision'&&p.canRecordClientOutcome?
     make('Record an evidenced client outcome','Record the actual authorised review result and reference to its written evidence; never infer acceptance from silence.','Review client decision','#client-review-outcome'):
     make('Await client review evidence','The client has not supplied an attributable technical decision, or one is already recorded.',null,'#client-review-outcome',true);
  if(p.stage==='completion'){
