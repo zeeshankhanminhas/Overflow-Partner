@@ -165,6 +165,34 @@ const checks = [
     casePage.includes('WorkRecordV2') && projectPage.includes('WorkRecordV2') &&
     v2WorkRecord.includes('className={css.decision}') && v2WorkRecord.includes('className={css.timeline}') &&
     v2WorkRecord.includes('className={css.section+\' \'+css.grid}')],
+  ['Project 360 uses original decision-first layout with compact progress',
+    projectPage.includes('nextDescription={displayNext.description} compact') &&
+    v2WorkRecord.includes('className={css.decision}') &&
+    v2WorkRecord.includes('className={css.timeline}') &&
+    v2WorkRecord.includes('compact?<details className={css.compactDetails}>') &&
+    workRecordCss.includes('.compactDetails') &&
+    workRecordCss.includes('.compact .timeline')],
+  ['Project supporting evidence is collapsed without losing source records',
+    projectPage.includes('Partner history &amp; QA evidence') &&
+    projectPage.includes('Read-only supporting information.') &&
+    projectPage.includes("from('partner_delivery_submissions')") &&
+    projectPage.includes("from('project_delivery_items')") &&
+    projectPage.includes("from('project_client_transmittals')")],
+  ['Project primary operator decision remains directly linked to governed actions',
+    projectPage.includes("governedHref={'/opos-next/projects/'+id+displayNext.anchor}") &&
+    projectPage.includes('Current action &amp; approval') &&
+    projectPage.includes('id="release-authorisation"') &&
+    projectPage.includes('id="client-review-outcome"') &&
+    projectPage.includes('id="final-release"') &&
+    !projectPage.includes('Stage-readiness service reports no outstanding reasons.')],
+  ['Simplification never bypasses QA, issue, payment, settlement or correction gates',
+    ['recordEngineeringDecisionAction','verifyDeliveryManifestAction',
+     'issueProtectedClientReviewAction','reconcileProtectedClientReviewAction',
+     'classifyClientFeedbackAction','approveFinalEngineeringReleaseAction']
+      .every(action => projectPage.includes(action)) &&
+    projectPage.includes('financial.authorised') &&
+    projectPage.includes('finalStatus.finalPaid') &&
+    projectPage.includes('qaRecipient?.ready')],
   ['Mobile header matches approved compact OPOS visual grammar',
     mobileNav.includes('css.mobilePreview') && mobileNav.includes('css.mobileAvatar') &&
     styles.includes('.shell .mobileHeader {height:61px')],
