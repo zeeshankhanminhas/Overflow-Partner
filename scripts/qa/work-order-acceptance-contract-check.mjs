@@ -15,6 +15,7 @@ const auto=src('lib/execution/autoWorkOrder.ts');
 const stage=src('app/workspace/projects/[id]/actions.ts');
 const manual=src('app/workspace/projects/[id]/execution/actions.ts');
 const project=src('app/opos-next/projects/[id]/page.tsx');
+const nextActions=src('lib/presentation/threePortalNextAction.ts');
 const readiness=src('app/opos-next/projects/[id]/work-order/page.tsx');
 const action=src('app/opos-next/projects/[id]/work-order/action.ts');
 const stageMeta=src('lib/projects/stages.ts');
@@ -50,8 +51,10 @@ const tests=[
     project.includes("workOrderAccepted?2:1")],
   ['Ready-for-execution UI accurately distinguishes pending commencement',
     stageMeta.includes("completion: 'The partner commencement declaration is required before execution begins.'")&&
-    project.includes('Partner to confirm commencement')&&
-    project.includes('OPOS moves to In Progress only after that declaration is recorded.')],
+    project.includes('operatorProjectNextStep({')&&
+    nextActions.includes("if(p.stage==='ready_for_execution')return make('Await Partner commencement'")&&
+    nextActions.includes('The accepted Work Order is not a start declaration.')&&
+    nextActions.includes('The partner must confirm inputs, capacity and planned start.')],
   ['Partner confirmation still requires the authenticated session and governed RPC',
     partnerStageRpc.includes("if(payload.action==='commencement')")&&
     partnerStageRpc.includes("supabase.rpc('op_record_partner_commencement'")],
