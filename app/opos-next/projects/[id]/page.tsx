@@ -11,6 +11,7 @@ import WorkRecordV2 from '../../WorkRecordV2';
 import {retryGovernedWorkOrderAction} from './work-order/action';
 import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction} from './qa-actions';
 import css from '../../opos.module.css';
+import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
 type Readiness={ready:boolean;reasons:string[];activityOpen?:number;approvedDocuments?:number;issuedDocuments?:number};
@@ -111,17 +112,35 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const agreedDue=String(data.due_date||'').slice(0,10);
  const partnerForecast=String(partnerProgress?.forecast_delivery_date||partnerCommencement?.forecast_delivery_date||'').slice(0,10);
  const scheduleVariance=Boolean(agreedDue&&partnerForecast&&partnerForecast>agreedDue);
+ // QA-only display routing: database gates are still authoritative.
+ const role=String(profile.role||'');
+ const operatorNext=operatorProjectNextStep({
+   stage,completed,canWrite,
+   canReviewEngineering:['owner','admin','engineering'].includes(role),
+   canVerifyManifest:['owner','admin','operator','engineering'].includes(role),
+   canAuthoriseRelease:['owner','admin'].includes(role),
+   needsWorkOrder,workOrderCanIssue,workOrderAccepted,waitingForEngineering,
+   qaAvailable:!internalQaEvidenceUnavailable,
+   hasSubmission:Boolean(qaGate?.submission_id&&Number(qaGate.file_count)>0),
+   storageComplete:Boolean(qaGate?.storage_complete),
+   engineeringAccepted:Boolean(qaGate?.engineering_accepted),
+   manifestVerified:Boolean(qaGate?.manifest_verified),
+   releaseAuthorised:Boolean(qaGate?.release_authorised),mayAdvance,
+   canApproveFinalRelease:stage==='completion'&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
+   canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
+   canRecordClientOutcome:stage==='client_review'&&!latestClientReview,
+ });
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
      title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
      state={meta.label} owner="Overflow Partner / assigned delivery team"
-     nextTitle={completed?'Project completion recorded':needsWorkOrder?'Issue the Execution Partner Work Order':waitingForPartnerStart?'Partner to confirm commencement':waitingForEngineering?'Await engineering progress and delivery':meta.action}
-     nextDescription={completed?'The project is closed. Its history remains accessible.':needsWorkOrder?'Issue the governed Work Order against the approved scope and verified advance. Mobilisation completion is a later, separate step.':waitingForPartnerStart?'The Work Order has been formally accepted. The Execution Partner must confirm scope, inputs, capacity and planned start in their existing secure Partner Portal. OPOS then advances to In Progress automatically.':waitingForEngineering?'Partner execution has commenced. Await the engineering progress report and a controlled delivery submission from the existing Partner Portal. OP technical quality review is a separate next-stage decision.':meta.objective+' '+(blockedReasons.length?'Resolve the recorded readiness dependencies before advancing.':'Review the current stage controls below.')}
+     nextTitle={operatorNext.title}
+     nextDescription={operatorNext.description}
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
-     stageIndex={stageIndex} waiting={completed}
+     stageIndex={stageIndex} waiting={operatorNext.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={'/opos-next/projects/'+id+(needsWorkOrder?'#work-order-issue':'#project-controls')} previous="/opos-next/projects"/>
+     governedHref={'/opos-next/projects/'+id+operatorNext.anchor} previous="/opos-next/projects" actionLabel={operatorNext.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
@@ -181,7 +200,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <p className={css.meta}>Evidence fingerprint: <code>{qaGate.manifest_hash}</code>. This fingerprint ties each decision to the exact submitted revision, files, sizes and storage paths.</p>
          </div>:null}
          <div style={{display:'grid',gap:12}}>
-           <strong>2. Engineering review and decision</strong>
+           <strong id="engineering-review" style={{scrollMarginTop:24}}>2. Engineering review and decision</strong>
            {qaGate?.engineering_accepted?<p role="status" className={css.meta}>Engineering accepted for this exact submission, with signed reviewer evidence recorded.</p>
              :qaWritable&&['owner','admin','engineering'].includes(String(profile.role))&&qaGate?.submission_id&&qaGate.storage_complete?
              <form action={recordEngineeringDecisionAction} style={{display:'grid',gap:12,maxWidth:650}}>
@@ -211,7 +230,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              </form>:<p className={css.meta}>Engineering decision pending or inaccessible to your current role.</p>}
          </div>
          <div style={{display:'grid',gap:12}}>
-           <strong>3. Document-control verification</strong>
+           <strong id="manifest-verification" style={{scrollMarginTop:24}}>3. Document-control verification</strong>
            {qaGate?.manifest_verified?<p role="status" className={css.meta}>Current revision and file manifest verified. No duplicate document-signature workflow is required.</p>
              :qaGate?.engineering_accepted&&qaWritable&&['owner','admin','operator','engineering'].includes(String(profile.role))?
              <form action={verifyDeliveryManifestAction} style={{display:'grid',gap:12,maxWidth:650}}>
@@ -224,7 +243,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          {qaGate?.engineering_accepted&&qaGate?.manifest_verified?<p role="status" className={css.meta}><strong>Ready for package preparation.</strong> Use the project-stage action below. This does not send files or authorise client access.</p>:null}
        </section>:null}
        {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This page retains the current governed controls while testing is isolated.</p>:null}
-       {stage==='mobilisation'&&canWrite?<details style={{marginTop:22}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
+       {stage==='mobilisation'&&canWrite?<details id="mobilisation-controls" style={{marginTop:22,scrollMarginTop:24}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
          <summary style={{cursor:'pointer',fontWeight:600}}>Set mobilisation owner and programme</summary>
          <form action={updateProjectMobilisationAction} style={{display:'grid',gap:15,marginTop:18,maxWidth:600}}>
            <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
@@ -235,14 +254,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          </form>
        </details>:null}
        {stage==='mobilisation'&&!mayAdvance?<p className={css.meta} style={{marginTop:16}}>Stage advancement is intentionally separate from Work Order issuance. It becomes available only after the approved project Statement of Work, partner assignment and remaining mobilisation evidence are complete.</p>:null}
-       {!completed&&stageHasStandardAction&&canWrite?<form action={advanceProjectStageAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:25}}>
+       {!completed&&stageHasStandardAction&&canWrite?<form id="stage-advance" action={advanceProjectStageAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:25,scrollMarginTop:24}}>
          <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
          <input type="hidden" name="target_stage" value={meta.next||''}/>
          <label style={{display:'grid',gap:7}}>Decision note (optional)<textarea name="note" rows={3} style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}><button type="submit" disabled={!mayAdvance} className={css.action} style={{border:0,cursor:mayAdvance?'pointer':'not-allowed',opacity:mayAdvance?1:.45,marginTop:0}}>{stage==='mobilisation'?'Complete mobilisation & advance':meta.action} →</button>
 </div>
        </form>:null}
-       {stage==='ready_for_client_issue'?<section style={{display:'grid',gap:12,marginTop:24}} aria-label="Client review release authority">
+       {stage==='ready_for_client_issue'?<section id="release-authorisation" style={{display:'grid',gap:12,marginTop:24}} aria-label="Client review release authority">
          <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · release authority</h3>
          <p className={css.meta}>Technical acceptance and manifest verification establish readiness. Owner release authorisation is a separate approval and does not send the package to a client.</p>
          {internalQaEvidenceUnavailable?<p role="alert">Release evidence unavailable; release remains blocked.</p>:null}
@@ -257,7 +276,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
          <p className={css.meta}>External issue remains securely blocked until the watermarked, view-only browser review package is implemented and tested. Native files remain reserved for verified final payment and final handover.</p>
        </section>:null}
-       {stage==='client_review'&&canWrite&&!latestClientReview?<section style={{marginTop:24}}>
+       {stage==='client_review'&&canWrite&&!latestClientReview?<section id="client-review-outcome" style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
          <p className={css.meta}>Record actual written evidence only. Do not invent approval or treat silence as acceptance.</p>
          <form action={recordClientReviewOutcomeAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:18}}>
@@ -272,7 +291,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          </form>
        </section>:null}
        {stage==='client_review'&&latestClientReview?<p className={css.meta} style={{marginTop:20}}>Latest client review recorded: {String(latestClientReview.outcome).replaceAll('_',' ')}. Further action follows the controlled stage gate.</p>:null}
-       {stage==='completion'?<section style={{marginTop:24}}>
+       {stage==='completion'?<section id="final-release" style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Final release and settlement</h3>
          <p className={css.meta}>No native files are released without verified final payment, accepted client review, current approved technical submission and a separate authorised owner decision.</p>
          {finalStatus?<div className={css.factRow} style={{marginTop:16}}>
@@ -286,7 +305,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <label style={{display:'grid',gap:7}}>Release approval note<textarea name="approval_note" rows={3} placeholder="Reference the approved engineering submission and final settlement evidence" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Approve controlled final release →</button>
          </form>:null}
-         {finalStatus?.readyForManualClosure&&canWrite?<form action={advanceProjectStageAction} style={{marginTop:22}}>
+         {finalStatus?.readyForManualClosure&&canWrite?<form id="project-closure" action={advanceProjectStageAction} style={{marginTop:22}}>
            <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/><input type="hidden" name="target_stage" value="closed"/>
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Close governed project →</button>
          </form>:null}
@@ -294,7 +313,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      </div>
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
    </section>
-   <section className={css.section} aria-label="Execution partner and delivery evidence">
+   <section id="partner-delivery-evidence" className={css.section} aria-label="Execution partner and delivery evidence" style={{scrollMarginTop:24}}>
      <div className={css.sectionHeading}><h2>Execution partner &amp; QA evidence</h2></div>
      <div className={css.card}>
        <span className={css.overline}>CONTROLLED DELIVERY POSITION</span>
