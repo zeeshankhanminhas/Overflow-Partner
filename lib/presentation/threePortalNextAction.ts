@@ -98,6 +98,8 @@ export type OperatorPosition={
  needsWorkOrder:boolean;workOrderCanIssue:boolean;workOrderAccepted:boolean;waitingForEngineering:boolean;
  qaAvailable:boolean;hasSubmission:boolean;storageComplete:boolean;engineeringAccepted:boolean;manifestVerified:boolean;releaseAuthorised:boolean;
  mayAdvance:boolean;canApproveFinalRelease:boolean;canClose:boolean;canRecordClientOutcome:boolean;
+ partnerSubmitted?:boolean;protectedReviewIssued?:boolean;
+ clientAccepted?:boolean;finalPaid?:boolean;finalReleaseApproved?:boolean;partnerPaid?:boolean;
 };
 export type OperatorNextStep=NextStep & {anchor:string};
 export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
