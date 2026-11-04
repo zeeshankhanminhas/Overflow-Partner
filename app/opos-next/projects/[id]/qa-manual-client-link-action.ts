@@ -1,7 +1,6 @@
 'use server';
 
 import {createClient as createAdminClient} from '@supabase/supabase-js';
-import {revalidatePath} from 'next/cache';
 import {requireUserContext,assertRole} from '@/lib/auth/context';
 import {assertIsolatedQaBackend} from '@/lib/qa/isolation';
 
@@ -62,7 +61,8 @@ export async function createNorthfieldManualQaClientLink(
   });
   if(assignError)return fail('QA link creation succeeded, but recipient authorisation failed: '+assignError.message);
 
-  revalidatePath('/opos-next/projects/'+NORTHFIELD);
+  // Preserve the one-use link in the owner's current form response.
+  // Refresh Project 360 only after the separate QA login has been activated.
   // Present to the authorising QA owner only. Do not save tokens in database,
   // logs, URL search parameters, email drafts or analytics.
   const link=QA_ORIGIN+'/auth/callback?token_hash='+
