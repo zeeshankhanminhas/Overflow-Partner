@@ -3,6 +3,7 @@ import {notFound} from 'next/navigation';
 import {requireUserContext,assertRole} from '@/lib/auth/context';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import css from '../../../opos.module.css';
+import WatermarkedPdfViewer from './WatermarkedPdfViewer';
 
 export const dynamic='force-dynamic';
 export const metadata={title:'QA client review preview | Overflow Partner',robots:{index:false,follow:false}};
@@ -47,9 +48,7 @@ export default async function QAWatermarkedReviewPreview({params}:{params:Promis
      <div><p className={css.overline}>WATERMARKED QA VIEWER</p><h2 style={{fontSize:18,margin:'8px 0 4px'}}>{file.filename}</h2><p className={css.meta}>{Math.ceil(Number(file.size||0)/1024)} KB · PDF · Current accepted revision</p></div>
      <span className={css.overline}>NOT CLIENT ISSUED</span>
     </div>
-    <iframe title={'Watermarked QA preview of '+file.filename}
-      src={'/opos-next/projects/'+id+'/review-preview/'+file.id+'#toolbar=0&navpanes=0'}
-      style={{border:'1px solid #42464b',borderRadius:8,width:'100%',height:'min(84vh,850px)',background:'#24272b'}}/>
+    <WatermarkedPdfViewer projectId={id} fileId={file.id} filename={file.filename}/>
     <p className={css.meta}>The watermark is applied to the served PDF bytes. The embedded browser PDF viewer has no OPOS download control; a determined viewer may still save or capture rendered content. This is not sufficient for external client release certification.</p>
    </section>):ready?<div className={css.card}><p role="alert">The current submission contains no PDF previewable engineering file. A controlled technical preview is required before client issue.</p></div>:null}
   <p className={css.meta}>Next implementation gate: authenticated, recipient-scoped Client Review Portal access and an attributable client review outcome. This internal QA preview does not bypass it.</p>
