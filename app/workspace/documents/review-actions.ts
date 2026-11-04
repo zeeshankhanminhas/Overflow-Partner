@@ -47,6 +47,9 @@ async function assertDocumentEvidenceReady(supabase: Awaited<ReturnType<typeof r
 }
 
 function assertDocumentActive(document: ControlledDocument) {
+  if (document.project_id && ['technical-review','document-register'].includes(document.document_type)) {
+    throw new Error('This historical document is not engineering acceptance. Open Project 360 for current-submission QA, manifest verification and release decisions.');
+  }
   if (isDormantWorkspaceDocument(document.document_type)) {
     throw new Error('This document is dormant. Its existing record remains available as historical evidence, and no further approval or issue action is available.');
   }
