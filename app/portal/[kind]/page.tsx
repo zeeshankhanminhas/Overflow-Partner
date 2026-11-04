@@ -37,7 +37,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
  const primary=liveClientReview?{label:'Review your engineering drawings',detail:'Your approved drawing revision is ready for a secure client decision.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your issued quotation',detail:'Check the approved offer, then accept, request time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id+'/open',action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
- const active=projects.filter(p=>!['closed','completion'].includes(p.project_stage)).length;
+ const active=projects.filter(p=>p.project_stage!=='closed').length;
  const actionable=new Set(projects.filter(p=>!portalProjectNextStep(kind,p).waiting).map(p=>p.project_id));
  if(liveClientReview)actionable.add(liveClientReview.project.project_id);
  const needsAttention=actionable.size+(outstandingQuote?1:0);
@@ -63,7 +63,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
     <div><strong>{projects.length}</strong><span>All projects</span></div>
    </section>
 
-   <section className={css.section+' '+css.dashboardSection} aria-label="Your engineering projects" id="projects">
+   <section className={css.section+' '+css.dashboardSection} aria-label="Your project register" id="projects">
     <div className={css.sectionHead}><div><p className={css.eyebrow}>YOUR WORK</p><h2>Projects</h2></div></div>
     {previewProjects.length?<div className={css.dashboardList}>
       {previewProjects.map(p=>{
