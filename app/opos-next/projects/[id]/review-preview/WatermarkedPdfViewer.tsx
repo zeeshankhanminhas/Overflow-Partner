@@ -52,7 +52,7 @@ export default function WatermarkedPdfViewer({projectId,fileId,filename,sourceUr
    }
   })();
   return ()=>{active=false;controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};
- },[projectId,fileId,sourceUrl,attempt]);
+ },[projectId,fileId,sourceUrl,audience,attempt]);
  const retry=()=>{setPreview(start);setAttempt(v=>v+1);};
  return <div style={{display:'grid',gap:12}}>
   {preview.status==='loading'?<div role="status" aria-live="polite"
