@@ -12,7 +12,44 @@ const clientHome=read('app/portal/[kind]/page.tsx');
 const operator=read('app/opos-next/projects/[id]/page.tsx');
 const operatorActions=read('app/opos-next/projects/[id]/qa-actions.ts');
 const viewer=read('app/opos-next/projects/[id]/review-preview/WatermarkedPdfViewer.tsx');
+const separation=read('supabase/migrations/20261104182500_qa_external_client_identity_separation.sql');
+const recipientMigration=read('supabase/migrations/20261104183000_qa_northfield_client_recipient_invitation.sql');
+const inviteAction=read('app/opos-next/projects/[id]/qa-client-invite-action.ts');
+const qaCallback=read('app/auth/callback/QaClientAuthCallback.tsx');
+const loginActions=read('app/login/actions.ts');
+const loginPage=read('app/login/page.tsx');
+const canonicalGuard=read('supabase/migrations/20261104180000_qa_protected_review_canonical_outcome_guard.sql');
+
 const cases=[
+ ['client and OP staff must be distinct identities even if both have legacy memberships',
+   separation.includes('Client review requires a separate verified external QA login')&&
+   separation.includes('OP staff login cannot act as an independent Client Review account')&&
+   separation.includes('OP staff account cannot submit a protected client review decision')],
+ ['current verified Northfield recipient is assessed as a real independent account',
+   recipientMigration.includes('v_count=1 and v_staff=0 and v_confirmed=1')&&
+   recipientMigration.includes("p_project_id<>'b447f586-bf79-4839-be5e-1af607d9ca43'")],
+ ['client onboarding needs authenticated owner, exact company, consent and explicit invitation',
+   recipientMigration.includes("v_role not in ('owner','admin')")&&
+   recipientMigration.includes('lower(v_email)<>lower(btrim')&&
+   recipientMigration.includes('m.company_id=v_company')&&
+   inviteAction.includes("form.get('confirm_separate_login')")&&
+   inviteAction.includes('admin.auth.admin.inviteUserByEmail')&&
+   inviteAction.includes("assertRole(profile.role,['owner','admin'])")],
+ ['a verified client must use their own invitation or passwordless session',
+   qaCallback.includes("supabase.auth.exchangeCodeForSession(code)")&&
+   qaCallback.includes("supabase.auth.verifyOtp")&&
+   qaCallback.includes("supabase.auth.setSession")&&
+   qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
+   loginActions.includes('shouldCreateUser:false')&&
+   loginPage.includes('Email my secure client sign-in link')],
+ ['operator displays client-identity onboarding instead of silently issuing under own login',
+   operator.includes("inviteNorthfieldClientQaAction")&&
+   operator.includes("!qaRecipient?.ready")&&
+   operator.includes("qaRecipient?.ready")&&
+   operator.includes('Invite a separate QA Client account')],
+ ['protected client acceptance cannot be inserted without exact client-attested evidence',
+   canonicalGuard.includes('protected review requires an actual authenticated client decision'.replace('protected review','protected review'))||
+   (canonicalGuard.includes('p_evidence_reference=')&&canonicalGuard.includes('op_qa_client_review_decisions'))],
  ['issue/decision have separate immutable, private RLS evidence tables',
   database.includes('create table if not exists public.op_qa_client_review_issues(')&&
   database.includes('create table if not exists public.op_qa_client_review_decisions(')&&
