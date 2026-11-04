@@ -17,8 +17,8 @@ for(const role of ["client","operator","partner"])
  assert.ok(client.includes("actorLinks")&&data.includes(role+':'),'Missing '+role+' portal');
 for(const id of ['client-intake','partner-feasibility','commercial-model','client-quote-decision',
  'opening-payment','project-creation','work-order','partner-commencement','partner-delivery',
- 'internal-technical-qa','technical-correction','manifest-verify','client-review-authority',
- 'secure-review','client-correction','variation-control','final-payment',
+ 'internal-technical-qa','technical-correction','technical-re-review','manifest-verify','client-review-authority',
+ 'secure-review','client-correction','client-correction-rereview','variation-control','variation-recontract','final-payment',
  'final-release','native-handover','partner-payable','project-closure'])
  assert.ok(steps.includes(id),'Missing mandatory governed business event '+id);
 for(const scenario of ['standard','technical_correction','client_correction','variation'])
