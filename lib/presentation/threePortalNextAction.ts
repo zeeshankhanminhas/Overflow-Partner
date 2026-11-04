@@ -100,6 +100,9 @@ export type OperatorPosition={
  mayAdvance:boolean;canApproveFinalRelease:boolean;canClose:boolean;canRecordClientOutcome:boolean;
  partnerSubmitted?:boolean;protectedReviewIssued?:boolean;
  clientAccepted?:boolean;finalPaid?:boolean;finalReleaseApproved?:boolean;partnerPaid?:boolean;
+ externalClientDecision?:string|null;externalFeedbackClassification?:string|null;
+ clientReviewReconciled?:boolean;clientReviewEvidenceAvailable?:boolean;
+ canClassifyClientFeedback?:boolean;
 };
 export type OperatorNextStep=NextStep & {anchor:string};
 export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
@@ -149,9 +152,36 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
  if(p.stage==='issued_to_client')return make('Await protected review evidence',
   'External issue or review access cannot be presumed from the stage. A real protected, attributable client review invitation must exist.',
   null,'#project-controls',true);
- if(p.stage==='client_review')return situation.key==='client_review_decision'&&p.canRecordClientOutcome?
-    make('Record an evidenced client outcome','Record the actual authorised review result and reference to its written evidence; never infer acceptance from silence.','Review client decision','#client-review-outcome'):
-    make('Await client review evidence','The client has not supplied an attributable technical decision, or one is already recorded.',null,'#client-review-outcome',true);
+ if(p.stage==='client_review'){
+   if(!p.clientReviewEvidenceAvailable)return make('Client review evidence unavailable',
+     'Do not infer acceptance, correction or release when authenticated client records cannot be verified.',null,'#client-review-outcome',true);
+   if(p.clientReviewReconciled)return p.mayAdvance?
+     make('Advance accepted review to completion',
+       'A current-cycle client acceptance is recorded. Advance through the independently verified completion gate; final payment and native handover remain separate.',
+       'Review completion transition','#client-review-outcome'):
+     make('Resolve final review readiness blockers',
+       'The client's acceptance is recorded, but other delivery controls still prevent transition to completion.',
+       null,'#client-review-outcome',true);
+   if(['changes_requested','rejected'].includes(String(p.externalClientDecision||''))){
+     if(p.externalFeedbackClassification==='variation')return make('Await commercial variation approval',
+       'Client feedback was classified as additional scope. An unpriced change proposal exists; do not issue partner work or alter the agreed date.',
+       null,'#client-review-outcome',true);
+     return p.canClassifyClientFeedback?
+       make('Classify the client correction against the approved scope',
+         'Choose one included correction, partner defect, or proposed variation. Only approved in-scope corrective instructions may reopen partner execution.',
+         'Classify client feedback','#client-review-outcome'):
+       make('Await owner scope classification',
+         'An OP owner must classify the actual client feedback before any partner instruction.',
+         null,'#client-review-outcome',true);
+   }
+   if(['accepted','accepted_with_comments'].includes(String(p.externalClientDecision||'')))
+     return make('Reconcile authenticated client acceptance',
+       'The actual client has responded. Record that exact outcome in the governed project review before progressing.',
+       'Reconcile verified client decision','#client-review-outcome');
+   return make('Await an actual client review decision',
+     'The protected review has been issued, but no attributable client acceptance or correction is recorded yet.',
+     null,'#client-review-outcome',true);
+ }
  if(p.stage==='completion'){
   if(p.canApproveFinalRelease)return make('Approve controlled final handover','A verified final payment and accepted client review permit the owner to inspect and authorise the exact final submission.','Review final release','#final-release');
   if(p.canClose)return make('Close the governed project','Final settlement, partner payable and completion checks are satisfied.','Review closure decision','#project-closure');
