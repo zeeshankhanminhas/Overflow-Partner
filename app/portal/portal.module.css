@@ -56,3 +56,9 @@
 .nextAction .action,.nextDetail .action{justify-self:start;display:inline-flex;margin-top:4px}
 .nextDetail{margin:20px 0 25px;padding:22px 24px;border:1px solid #d1dcd0;background:#f0f5ef;border-radius:10px;display:grid;gap:12px}
 @media(max-width:750px){.nextAction{padding:22px 20px}.nextDetail{padding:20px 18px}.nextAction .action,.nextDetail .action{width:100%;justify-content:center}}
+
+/* Action first for clients and partners; supporting facts are optional. */
+.compactDisclosure{margin:17px 0 26px;border-top:1px solid #dfe3dc;padding-top:12px}
+.compactDisclosure>summary{cursor:pointer;list-style-position:inside;font-size:13px;font-weight:650;color:#5b685f;min-height:42px;display:flex;align-items:center;gap:8px}
+.compactDisclosure>summary:focus-visible{outline:2px solid #26362a;outline-offset:3px}
+.compactDisclosure>.grid,.compactDisclosure>.card{margin-top:15px}

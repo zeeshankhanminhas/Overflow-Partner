@@ -23,7 +23,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
  const primary=liveClientReview?{label:'Review your engineering drawings',detail:'An approved, watermarked engineering revision is waiting for your own authenticated review decision.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open controlled client review',waiting:false}:outstandingQuote?{label:'Review your issued quotation',detail:'Check your current offer and respond using the authorised secure quotation page.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open secure quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id+'/open',action:chosenAction.action||'View secure status',waiting:chosenAction.waiting}:null;
- const title=isClient?'Your engineering work.':'Your execution workspace.';
+ const title=isClient?'Client Workspace':'Partner Workspace';
  const active=projects.filter(p=>['mobilisation','ready_for_execution','in_progress','partner_correction','internal_review','client_review'].includes(p.project_stage)).length;
  const needsAttention=projects.filter(p=>!portalProjectNextStep(kind,p).waiting).length+(outstandingQuote?1:0)+reviewChecks.filter(Boolean).length;
  return <>
@@ -31,8 +31,8 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
    <p className={css.eyebrow}>OVERFLOW PARTNER / {isClient?'CLIENT':'EXECUTION PARTNER'} WORKSPACE</p>
    <h1 className={css.title}>{title}</h1>
    <p className={css.subtitle}>{isClient?
-    'A permanent place for your quotations, projects, payment position and controlled engineering reviews.':
-    'All your authorised Work Orders, progress and technical submissions—across your assigned projects.'}</p>
+    'Quotations, projects and decisions.':
+    'Work Orders, progress and submissions.'}</p>
   </div>
   {isKnownIsolatedQaBackend()?<div className={css.notice}>Isolated QA rehearsal · fictional companies and transactions. Permanent account access is being tested here; this is not a live customer or partner environment.</div>:null}
   {permitted?<section className={css.nextAction} aria-label="Your one next action">
@@ -42,11 +42,14 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
     {primary?<Link className={primary.waiting?css.secondaryAction:css.action} href={primary.href}>{primary.action} →</Link>:null}
    </section>:null}
   {!permitted?<div className={css.empty}>This sign-in does not have access to a {isClient?'Client':'Partner'} Workspace. An Overflow Partner administrator must grant access to your verified organisation account. <Link href="/portal" className={css.crumb}>View available workspaces</Link></div>:<>
-   <div className={css.grid}>
+   <details className={css.compactDisclosure}>
+    <summary>Account overview</summary>
+    <div className={css.grid}>
     <div className={css.summary}><p className={css.eyebrow}>YOUR ACCOUNTS</p><strong>{mine.length}</strong><p>{mine.map(x=>x.account_name).join(' · ')}</p></div>
     <div className={css.summary}><p className={css.eyebrow}>ACTIVE PROJECTS</p><strong>{active}</strong><p>Linked only to your authorised {isClient?'client organisation':'execution assignments'}.</p></div>
     <div className={css.summary}><p className={css.eyebrow}>NEXT DECISIONS</p><strong>{needsAttention}</strong><p>{isClient?'Project reviews that need your response.':'Work assignments ready to start or requiring corrections.'}</p></div>
-   </div>
+    </div>
+   </details>
    <section className={css.section} aria-label="Your engineering projects">
     <div className={css.sectionHead}><div><p className={css.eyebrow}>PROJECTS</p><h2>Your project register</h2></div><p>{projects.length} records</p></div>
     {projects.length?<div className={css.list}>{projects.map(p=><Link className={css.project} key={p.account_id+'-'+p.project_id} href={'/portal/'+kind+'/projects/'+p.project_id}>

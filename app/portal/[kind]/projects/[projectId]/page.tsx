@@ -31,7 +31,7 @@ export default async function AccountProject({params,searchParams}:{
   <div className={css.hero}>
    <p className={css.eyebrow}>{p.account_name} / {p.project_number}</p>
    <h1 className={css.title}>{p.project_title}</h1>
-   <p className={css.subtitle}>Your controlled engineering project. The real contractual, technical and payment decisions remain in their authorised secure workflows.</p>
+   <p className={css.subtitle}>{stageLabel(p.project_stage,kind)} · {p.project_number}</p>
   </div>
   {notice?<p role="alert" className={css.notice}>Secure action unavailable: {notice}</p>:null}
   <section className={css.nextAction} aria-label="Current next step">
@@ -41,7 +41,9 @@ export default async function AccountProject({params,searchParams}:{
    {secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open controlled drawing review':'View your review record'} →</Link>:
      next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
   </section>
-  <div className={css.card}>
+  <details className={css.compactDisclosure}>
+   <summary>Project details and records</summary>
+   <div className={css.card}>
    <span className={css.tag}>{stageLabel(p.project_stage,kind)}</span>
    <h2 style={{marginTop:16,fontSize:20}}>Project reference and controlled position</h2>
    <dl className={css.facts}>
@@ -57,9 +59,10 @@ export default async function AccountProject({params,searchParams}:{
     <Link className={css.secondaryAction} href={secure}>{client?'View governed commercial status':'View authorised Partner Work'}</Link>
     <Link className={css.secondaryAction} href={'/portal/'+kind}>Back to your projects</Link>
    </div>
-  </div>
-  <div className={css.notice}>{client?
+   <div className={css.notice}>{client?
    'The secure quotation page continues to handle accepted terms, payment and eventual final handover. A project status cannot unlock files.':
    'The existing Partner Work screen governs formal acceptance, commencement, progress and delivery. This account view cannot bypass any obligation.'}</div>
+   </div>
+  </details>
  </>;
 }

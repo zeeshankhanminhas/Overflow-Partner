@@ -290,3 +290,10 @@
 @media (max-width: 700px) {
   .shell .qaChecklistRow { padding: 12px 10px; column-gap: 11px; font-size: 13px; }
 }
+
+/* Six primary destinations; existing secondary routes remain in a native disclosure. */
+.navMore{margin-top:18px;border-top:1px solid var(--border);padding-top:12px;display:grid;gap:4px}
+.navMore summary{cursor:pointer;min-height:40px;display:flex;align-items:center;padding:9px 12px;color:var(--subtle);font-size:12px;font-weight:600;list-style-position:inside}
+.navMore[open] summary{margin-bottom:6px}
+.navMore a{display:flex;align-items:center}
+@media(max-width:850px){.mobileMore{border-top:1px solid var(--border);padding-top:8px;margin-top:8px}.mobileMore summary{cursor:pointer;color:var(--subtle);min-height:48px;display:flex;align-items:center;padding:12px;font-size:14px;font-weight:600}.mobileMore[open] summary{margin-bottom:5px}.mobileMore a{display:flex}}

@@ -4,14 +4,14 @@ import css from './work-record.module.css';
 type Stage = {name:string;detail:string};
 type Fact={label:string;value:string};
 export default function WorkRecordV2({
-  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,compact=false,actionLabel='Review current controls',
+  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,compact=true,actionLabel='Review current controls',
 }:{
   eyebrow:string;title:string;subtitle:string;state:string;owner:string;
   nextTitle:string;nextDescription:string;stages:Stage[];stageIndex:number;
   evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;compact?:boolean;actionLabel?:string;
 }){
-  // Preserve one canonical evidence view, but disclose it only on request in
-  // Project 360. Other record types keep their existing presentation.
+  // Use one decision-first layout by default across record types.
+  // Supporting evidence remains available on demand.
   const detailContent=<section className={css.section+' '+css.grid} aria-label="Evidence and controls">
       <div className={css.panel}><h3>Controlled evidence</h3>
         {evidence.map((fact,i)=><div key={i} className={css.evidence}>

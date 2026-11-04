@@ -15,8 +15,7 @@ export default function ExternalPortalLayout({children}:{children:React.ReactNod
      <span className={css.mark}>OP</span><span>OVERFLOW PARTNER</span>
     </Link>
     <nav className={css.navigation} aria-label="External portal navigation">
-     <Link href="/portal/client">Client Workspace</Link>
-     <Link href="/portal/partner">Partner Workspace</Link>
+     <Link href="/portal">My workspaces</Link>
      <form action={signOut}><button type="submit">Sign out</button></form>
     </nav>
    </div>

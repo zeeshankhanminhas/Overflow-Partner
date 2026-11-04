@@ -6,10 +6,15 @@ import { useState } from 'react';
 import { nextNavigation, isNextActive } from './navigation';
 import css from './opos.module.css';
 
+const primaryLabels = new Set(['Mission Control','Opportunities','Projects','Tasks','Finance','Documents']);
+const secondaryLabels = new Set(['Outreach','Cases','Accounts','Partners']);
+
 export default function OpMobileNav({ statusLabel }: { statusLabel: string }) {
   const pathname=usePathname();
   const [expandedFor,setExpandedFor]=useState<string|null>(null);
   const open=expandedFor===pathname;
+  const primary=nextNavigation.filter(item=>primaryLabels.has(item.label));
+  const secondary=nextNavigation.filter(item=>secondaryLabels.has(item.label));
 
   return <div className={css.mobileShell}>
     <div className={css.mobileHeader}>
@@ -25,18 +30,23 @@ export default function OpMobileNav({ statusLabel }: { statusLabel: string }) {
       <span className={css.mobileAvatar} aria-label="Overflow Partner workspace">OP</span>
     </div>
     <nav id="opos-next-mobile-menu" className={css.mobileMenu} hidden={!open} aria-label="Mobile workspace navigation">
-      {nextNavigation.map((destination,index)=>{
+      {primary.map(destination=>{
         const active=isNextActive(pathname,destination.href);
-        const newGroup=index===0||destination.group!==nextNavigation[index-1].group;
-        return <div key={destination.href}>
-          {newGroup?<span className={css.navEyebrow}>{destination.group}</span>:null}
-          <Link href={destination.href} aria-current={active?'page':undefined}
-            onClick={()=>setExpandedFor(null)} className={active?css.mobileMenuActive:css.mobileMenuLink}>
-            <span>{destination.label}</span>
-            <span aria-hidden="true">↗</span>
-          </Link>
-        </div>;
+        return <Link key={destination.href} href={destination.href} aria-current={active?'page':undefined}
+          onClick={()=>setExpandedFor(null)} className={active?css.mobileMenuActive:css.mobileMenuLink}>
+          <span>{destination.label}</span><span aria-hidden="true">↗</span>
+        </Link>;
       })}
+      <details className={css.mobileMore} defaultOpen={secondary.some(item=>isNextActive(pathname,item.href))}>
+        <summary>More</summary>
+        {secondary.map(destination=>{
+          const active=isNextActive(pathname,destination.href);
+          return <Link key={destination.href} href={destination.href} aria-current={active?'page':undefined}
+            onClick={()=>setExpandedFor(null)} className={active?css.mobileMenuActive:css.mobileMenuLink}>
+            <span>{destination.label}</span><span aria-hidden="true">↗</span>
+          </Link>;
+        })}
+      </details>
     </nav>
   </div>;
 }
