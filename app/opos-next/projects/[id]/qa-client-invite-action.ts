@@ -43,20 +43,34 @@ export async function inviteNorthfieldClientQaAction(form:FormData){
   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   if(!url||!key)throw new Error('Isolated QA Auth invitation service is not configured.');
   const admin=createAdminClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-  // The email is actually sent only by an explicit OP owner form submission.
-  const {data,error:invitationError}=await admin.auth.admin.inviteUserByEmail(email,{
-    redirectTo:QA_ORIGIN+'/auth/callback?next=%2Fportal%2Fclient',
-  });
-  if(invitationError||!data.user?.id)
-   throw new Error(invitationError?.message||'The QA Auth invitation could not be issued.');
+  // An earlier QA invite may have created the Auth identity before a DB
+  // membership assignment failed. Reuse the exact explicitly selected address;
+  // never issue duplicate invitations or guess another user.
+  const {data:existing,error:existingError}=await admin.auth.admin.listUsers({page:1,perPage:1000});
+  if(existingError)throw new Error('Unable to check existing QA invitation accounts.');
+  const prior=existing.users.find(item=>String(item.email||'').toLowerCase()===email);
+  let recipientId=prior?.id||'';
+  let invitationSent=false;
+  if(!recipientId){
+   // Email leaves the system only after this explicit owner action.
+   const {data,error:invitationError}=await admin.auth.admin.inviteUserByEmail(email,{
+     redirectTo:QA_ORIGIN+'/auth/callback?next=%2Fportal%2Fclient',
+   });
+   if(invitationError||!data.user?.id)
+    throw new Error(invitationError?.message||'The QA Auth invitation could not be issued.');
+   recipientId=data.user.id;
+   invitationSent=true;
+  }
   const {error:assignError}=await supabase.rpc('op_qa_assign_northfield_client_invite',{
     p_project_id:NORTHFIELD,
-    p_auth_user_id:data.user.id,
+    p_auth_user_id:recipientId,
     p_expected_email:email,
   });
   if(assignError)throw new Error('Invite sent but client membership was not activated: '+assignError.message);
   revalidatePath('/opos-next/projects/'+NORTHFIELD);
-  redirect(messageUrl('updated','QA client invitation was sent. Recipient membership now uses a separate account; confirm the email invitation before issuing R01.'));
+  redirect(messageUrl('updated',invitationSent?
+   'QA client invitation sent and independent Client membership assigned. Confirm the email link before issuing R01.':
+   'Existing separate QA client account assigned. Use its own login or request a fresh email sign-in link, then issue R01.'));
  }catch(error){
   if(isRedirect(error))throw error;
   err=error instanceof Error?error.message:err;
