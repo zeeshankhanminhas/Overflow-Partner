@@ -393,7 +393,7 @@ begin
     'executionCycle',v_execution_cycle,'partnerCommencement',v_partner_commenced,
     'currentPartnerSubmissionId',v_current_submission_id,'currentPartnerSubmissionReview',v_current_submission_review
   );
-end $function$
+end $function$;
 
 
 revoke all on function public.op_qa_issue_protected_client_review(uuid,text) from public,anon;
