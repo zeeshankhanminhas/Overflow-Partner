@@ -139,7 +139,9 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
  }
  if(p.stage==='ready_for_client_issue'){
   if(situation.key==='evidence_unavailable')return make('Release evidence is not ready','Release requires current-cycle engineering acceptance and verified document manifest.',null,'#release-authorisation',true);
-  if(situation.key==='secure_review_blocked')return make('Await secure client review package','Preparation was authorised, but external issue is blocked until the watermarked view-only client reviewer is implemented and tested.',null,'#release-authorisation',true);
+  if(situation.key==='secure_review_blocked')return make('Inspect watermarked QA review preview',
+   'Preparation is authorised. Inspect the watermarked R01 PDF in the private operator-only preview. External client issue stays blocked until recipient-scoped review access is implemented and verified.',
+   'Open watermarked QA preview','/review-preview');
   return p.canAuthoriseRelease?
    make('Authorise preparation of client review','Approve this exact revision for package preparation. This action must NOT issue or unlock client files.','Review release authority','#release-authorisation'):
    make('Await authorised release owner','Only an OP owner or administrator can authorise client-review preparation.',null,'#release-authorisation',true);
