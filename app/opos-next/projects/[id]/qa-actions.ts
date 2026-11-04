@@ -75,6 +75,7 @@ export async function issueProtectedClientReviewAction(form:FormData){
  const id=value(form,'project_id');let message='Protected client-review issue was not recorded.';
  try{
   assertIsolatedQaBackend();
+  if(form.get('preview_confirmed')!=='yes')throw new Error('Confirm that you inspected the actual watermarked R01 PDF.');
   const {supabase,profile,organisationId}=await requireUserContext();
   assertRole(profile.role,['owner','admin']);
   const {data:project,error:projectError}=await supabase.from('projects').select('id,project_stage')
