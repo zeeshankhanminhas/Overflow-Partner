@@ -180,6 +180,18 @@ export const steps:JourneyStep[]=[
  status:'configured',portal:{client:'/portal/client',operator:'/opos-next/accounts'}
 },
 {
+ id:'client-contracts',phase:'Contractual Commitment',owner:'operator',title:'Confirm Master Services Agreement and project SOW',
+ why:'Quotation acceptance does not by itself eliminate the contractual need to define rights, liability, scope and IP.',
+ client:'Reviews the Client MSA (if applicable) and project-specific Statement of Work through the approved signing process; confirms deliverables, acceptance criteria and contractual authority.',
+ operator:'Confirms approved contract family, execution evidence, statement-of-work baseline, client existing IP and new deliverable ownership/licence timing.',
+ partner:'Does not sign the Client MSA and must not receive client-confidential terms beyond approved disclosure.',
+ system:'Preserves executed client contract and scope baseline as distinct records; any signature capability still requires real authenticated or external evidence.',
+ evidence:['Client MSA or agreed master terms','Project SOW','Authorised signatures','IP/licensing terms','Delivery and acceptance criteria'],
+ gate:'Do not issue a Partner WO against unapproved client contractual scope. Legal templates remain subject to professional review.',
+ failure:'Missing contractual authority or IP conflict → resolve terms; no fictitious signatures or retroactive approvals.',
+ status:'policy',portal:{operator:caseRegister,client:'/portal/client'}
+},
+{
  id:'opening-payment',phase:'Contractual Commitment',owner:'client',title:'Pay opening amount or provide bank-transfer evidence',
  why:'No mobilised project or partner order before verified opening money.',
  client:'Uses Stripe Checkout in authorised test mode or receives bank instructions. Opening payment is normally 30%; 25% only by agreed exception.',
@@ -203,6 +215,18 @@ export const steps:JourneyStep[]=[
  gate:'Project must not exist on quote acceptance alone; no synthetic payment receipt is permitted.',
  failure:'Missing financial authority or conflicting lineage → stay in commercial commitment.',
  status:'configured',portal:{operator:projectRegister,client:'/portal/client'}
+},
+{
+ id:'execution-partner-agreement',phase:'Mobilisation',owner:'operator',title:'Confirm Execution Partner Agreement and back-to-back obligations',
+ why:'The partner contract must protect the client’s confidentiality, IP, quality and delivery rights without conflating it with the client MSA.',
+ client:'Continues to contract with Overflow Partner, not directly with the Execution Partner.',
+ operator:'Checks Execution Partner Agreement, executed NDA, back-to-back IP/confidentiality terms, permitted subcontracting, quality/revision rules and approved commercial partner.',
+ partner:'Signs genuine contractual terms and accepts its legal responsibilities independently from each new Work Order.',
+ system:'Records partner governance and signed agreement evidence separately from the later individual WO acceptance.',
+ evidence:['Execution Partner Agreement','NDA record','Approved partner identity','IP/confidentiality obligations','Signature and approval evidence'],
+ gate:'Only verified eligible partner with required executed contractual evidence may receive the controlled Work Order.',
+ failure:'Partner refuses or agreement missing → retain blocked; do not manufacture signatures.',
+ status:'policy',portal:{operator:partners,partner:'/portal/partner'}
 },
 {
  id:'work-order',phase:'Mobilisation',owner:'operator',title:'Issue controlled Execution Partner Work Order',
