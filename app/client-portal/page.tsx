@@ -1,3 +1,4 @@
+import {secureClientNextStep} from '@/lib/presentation/threePortalNextAction';
 import Link from 'next/link';
 import styles from './clientPortal.module.css';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
@@ -134,27 +135,13 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
     ['completion','closed'].includes(projectStage)?'Delivery and closeout':'Project opened';
   const status = project ? clientStage : paid ? 'Opening payment confirmed' : stripePaymentPending ? 'Payment under verification' : stripe_return==='success' ? 'Checkout completed · verification pending' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   // Display-only guidance; payments, signing and file access are still governed.
-  const clientNext=finalReleaseApproved
-    ? {title:'Your approved engineering files are available',detail:'Final payment and the separate release approval have been verified.',href:finalFilesHref,action:'Open final engineering handover'}
-    : finalReviewAccepted&&!finalSettlementVerified
-    ? {title:'Settle your final engineering balance',detail:'Client review has been accepted. Files remain locked until independent settlement and owner release.',href:finalBalanceHref,action:'Review final balance'}
-    : project
-    ? ['ready_for_client_issue','issued_to_client','client_review'].includes(projectStage)
-      ? {title:'Await your secure engineering review invitation',detail:'A protected, view-only review must be approved and issued. Draft or native downloads remain unavailable.',href:null,action:null}
-      : projectStage==='closed'
-        ? {title:'Your project is complete',detail:'Your controlled delivery history remains available.',href:null,action:null}
-        : projectStage==='internal_review'
-        ? {title:'Overflow Partner is inspecting your drawings',detail:'Our engineering reviewer is checking the submitted files. You do not need to act now.',href:null,action:null}
-        : {title:'Your project is being managed by Overflow Partner',detail:'We will request an action only when your technical or payment decision is required.',href:null,action:null}
-    : stripePaymentPending||stripe_return==='success'
-      ? {title:'Your opening payment is being verified',detail:'Please do not pay again. Project setup awaits independent confirmation.',href:null,action:null}
-    : canDecide
-      ? {title:'Review and respond to your quotation',detail:'Read the controlled offer, scope and validity. Respond using an authorised signatory.',href:'#quote-acceptance',action:'Review quotation'}
-    : accepted&&canPay
-      ? {title:'Complete your authorised opening payment',detail:'Project setup is blocked until the payment is independently verified.',href:'#opening-payment',action:'Go to secure payment'}
-    : accepted
-      ? {title:'Awaiting verified commercial release',detail:'Overflow Partner is checking the release conditions. No additional payment is requested here.',href:null,action:null}
-    : {title:'Awaiting an authorised quotation decision',detail:'Request additional time or contact Overflow Partner if the offer has expired.',href:null,action:null};
+  const clientNext=secureClientNextStep({
+    projectStage:project?.id?projectStage:null,
+    canDecide,accepted,canPay,
+    paymentVerificationPending:stripePaymentPending||stripe_return==='success',
+    finalReviewAccepted,finalSettlementVerified,finalReleaseApproved,
+    finalFilesHref,finalBalanceHref,
+  });
   const daysRemaining=dueDate>0?Math.max(0,Math.ceil((dueDate-Date.now())/86400000)):0;
   const expiryText=quote.valid_until?new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(quote.valid_until+'T12:00:00Z')):'Not specified';
   return <main className={styles.page}>
@@ -169,7 +156,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <section className={styles.nextStep} aria-label="Your one next step">
            <span className={styles.eyebrow}>{clientNext.action?'YOUR NEXT STEP':'CURRENT DEPENDENCY · NO ACTION REQUIRED'}</span>
            <h3>{clientNext.title}</h3>
-           <p>{clientNext.detail}</p>
+           <p>{clientNext.description}</p>
            {clientNext.href&&clientNext.action?<Link className={styles.action+' '+styles.primary} href={clientNext.href}>{clientNext.action} →</Link>:null}
          </section>
          <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':stripePaymentPending?'Stripe verified · release pending':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
