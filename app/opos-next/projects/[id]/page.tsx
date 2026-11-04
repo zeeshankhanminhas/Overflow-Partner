@@ -129,6 +129,13 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    canApproveFinalRelease:stage==='completion'&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
    canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
    canRecordClientOutcome:stage==='client_review'&&!latestClientReview,
+   partnerSubmitted:assignment?.execution_state==='delivery_submitted',
+   // A client transmittal alone cannot prove protected browser review.
+   protectedReviewIssued:false,
+   clientAccepted:Boolean(finalStatus?.clientAccepted),
+   finalPaid:Boolean(finalStatus?.finalPaid),
+   finalReleaseApproved:Boolean(finalStatus?.ownerApproved),
+   partnerPaid:Boolean(finalStatus?.partnerPaid),
  });
  return <>
    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
@@ -276,7 +283,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
          <p className={css.meta}>External issue remains securely blocked until the watermarked, view-only browser review package is implemented and tested. Native files remain reserved for verified final payment and final handover.</p>
        </section>:null}
-       {stage==='client_review'&&canWrite&&!latestClientReview?<section id="client-review-outcome" style={{marginTop:24}}>
+       {stage==='client_review'&&canWrite&&!latestClientReview&&Boolean(operatorNext.action)?<section id="client-review-outcome" style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Record authorised client review</h3>
          <p className={css.meta}>Record actual written evidence only. Do not invent approval or treat silence as acceptance.</p>
          <form action={recordClientReviewOutcomeAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:18}}>
@@ -290,7 +297,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Record evidenced client outcome →</button>
          </form>
        </section>:null}
-       {stage==='client_review'&&latestClientReview?<p className={css.meta} style={{marginTop:20}}>Latest client review recorded: {String(latestClientReview.outcome).replaceAll('_',' ')}. Further action follows the controlled stage gate.</p>:null}
+       {stage==='client_review'&&!operatorNext.action&&!latestClientReview?<p role="status" className={css.meta} style={{marginTop:18}}>
+          Client decision recording is blocked until a protected review has genuinely been issued and its evidence can be verified.
+        </p>:null}
+        {stage==='client_review'&&latestClientReview?<p className={css.meta} style={{marginTop:20}}>Latest client review recorded: {String(latestClientReview.outcome).replaceAll('_',' ')}. Further action follows the controlled stage gate.</p>:null}
        {stage==='completion'?<section id="final-release" style={{marginTop:24}}>
          <h3 style={{fontSize:17,marginBottom:8}}>Final release and settlement</h3>
          <p className={css.meta}>No native files are released without verified final payment, accepted client review, current approved technical submission and a separate authorised owner decision.</p>
