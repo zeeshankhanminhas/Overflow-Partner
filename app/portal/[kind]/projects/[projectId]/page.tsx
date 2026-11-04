@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
-import {formatAmount,isPortalKind,nextAction,portalContext,stageLabel} from '@/lib/portals/account';
+import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
+import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import css from '../../../portal.module.css';
 export const dynamic='force-dynamic';
 export default async function AccountProject({params}:{params:Promise<{kind:string;projectId:string}>}){
@@ -9,7 +10,7 @@ export default async function AccountProject({params}:{params:Promise<{kind:stri
  const p=permitted?projects.find(x=>x.project_id===projectId):null;
  if(!p)notFound(); // Never reveal existence across accounts or portal kinds.
  const client=kind==='client';
- const action=client?'Review secure quotation & payment':'Open your governed Partner Work Order';
+ const next=portalProjectNextStep(kind,p);
  return <>
   <Link className={css.crumb} href={'/portal/'+kind}>← Back to {client?'Client':'Partner'} Workspace</Link>
   <div className={css.hero}><p className={css.eyebrow}>{p.account_name} / {p.project_number}</p>
