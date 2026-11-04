@@ -23,7 +23,8 @@ assert.ok(logic.includes("situation.key==='secure_review_blocked'")&&logic.inclu
 assert.ok(operator.includes('operatorProjectNextStep({')&&
  operator.includes('const displayNext=stage===')&&
  operator.includes("qaRecipient?.ready")&&
- operator.includes("'Generate secure QA Client access link'")&&
+ operator.includes("title:'Activate a separate QA Client account'")&&
+ operator.includes("anchor:'#release-authorisation'")&&
  operator.includes('waiting={displayNext.waiting}')&&
  operator.includes('actionLabel={displayNext.action')&&
  operator.includes('displayNext.anchor'),
