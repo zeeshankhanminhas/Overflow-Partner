@@ -20,9 +20,14 @@ assert.ok(logic.includes('canReviewEngineering')&&logic.includes('canAuthoriseRe
  'Owner/reviewer permissions must be considered before presenting actions');
 assert.ok(logic.includes("situation.key==='secure_review_blocked'")&&logic.includes('Inspect watermarked QA review preview'),
  'Client issue must remain blocked while operator can inspect watermarked internal preparation');
-assert.ok(operator.includes('operatorProjectNextStep({')&&operator.includes('waiting={operatorNext.waiting}')&&
- operator.includes('actionLabel={operatorNext.action')&&operator.includes('operatorNext.anchor'),
- 'Project 360 must use the current stage-specific action and waiting status');
+assert.ok(operator.includes('operatorProjectNextStep({')&&
+ operator.includes('const displayNext=stage===')&&
+ operator.includes("qaRecipient?.ready")&&
+ operator.includes("action:'Set up independent Client access'")&&
+ operator.includes('waiting={displayNext.waiting}')&&
+ operator.includes('actionLabel={displayNext.action')&&
+ operator.includes('displayNext.anchor'),
+ 'Project 360 must use canonical stage actions, except the evidence-gated independent-client onboarding prerequisite');
 for(const anchor of ['engineering-review','manifest-verification','release-authorisation','stage-advance',
  'client-review-outcome','final-release','project-closure','work-order-issue'])
  assert.ok(operator.includes('id="'+anchor+'"'),'Operator link target missing: '+anchor);
