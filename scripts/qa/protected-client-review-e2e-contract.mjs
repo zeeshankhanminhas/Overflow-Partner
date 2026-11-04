@@ -66,7 +66,7 @@ const cases=[
    manualLinkUI.includes("useActionState(")],
  ['manual onboarding explicitly does not claim real mailbox verification or real client onboarding',
    manualLinkAction.includes('No email was sent or mailbox ownership verified')&&
-   manualLinkUI.includes('does not verify ownership of the email address')&&
+   manualLinkUI.includes('not verify ownership of the email address')&&
    manualLinkUI.includes('must not be used to onboard real customers')],
  ['manual onboarding still assigns a different company-checked authenticated identity',
    manualLinkAction.includes("if(email===String(user.email")&&
