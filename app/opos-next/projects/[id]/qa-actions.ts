@@ -116,3 +116,42 @@ export async function reconcileProtectedClientReviewAction(form:FormData){
  }
  redirect(projectUrl(id,{error:message}));
 }
+
+/** Classify a *real* externally attested correction or rejection before any
+ * OP partner rework. A variation is recorded as proposed only, never issued. */
+export async function classifyClientFeedbackAction(form:FormData){
+ const id=value(form,'project_id');let message='Client feedback classification was not recorded.';
+ try{
+  assertIsolatedQaBackend();
+  const {supabase,profile,organisationId}=await requireUserContext();
+  assertRole(profile.role,['owner','admin']);
+  const {data:project,error:projectError}=await supabase.from('projects')
+   .select('id,project_stage').eq('organisation_id',organisationId)
+   .eq('id',id).maybeSingle();
+  if(projectError||!project||project.project_stage!=='client_review')
+   throw new Error('Current governed Client Review is required for feedback classification.');
+  const classification=value(form,'classification');
+  if(!['included_correction','partner_defect','variation'].includes(classification))
+   throw new Error('Select an explicit technical/commercial classification.');
+  const rationale=value(form,'rationale');
+  const partnerInstruction=value(form,'partner_instruction');
+  if(rationale.length<25||(['included_correction','partner_defect'].includes(classification)&&partnerInstruction.length<25))
+   throw new Error('Document the scope reason and the specific partner correction (25 characters minimum).');
+  if(form.get('classification_authorised')!=='yes')
+   throw new Error('Confirm the classification and separate commercial-variation boundary.');
+  const {data,error}=await supabase.rpc('op_qa_classify_and_resolve_client_feedback',{
+   p_project_id:id,p_classification:classification,p_rationale:rationale,p_partner_instruction:partnerInstruction,
+  });
+  if(error)throw new Error(error.message);
+  if(!data||!['partner_correction','client_review'].includes(String(data.projectStage)))
+   throw new Error('The governed classification did not confirm its resulting project stage.');
+  refresh(id);
+  redirect(projectUrl(id,{updated:classification==='variation'?
+   'Proposed variation recorded for commercial approval. No partner rework was authorised.':
+   'Client feedback classified and approved instruction recorded. Partner correction is open in a fresh execution cycle.'}));
+ }catch(error){
+  if(error&&typeof error==='object'&&'digest' in error&&String((error as {digest?:string}).digest||'').startsWith('NEXT_REDIRECT'))throw error;
+  message=error instanceof Error?error.message:message;
+ }
+ redirect(projectUrl(id,{error:message}));
+}
