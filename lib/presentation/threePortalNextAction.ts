@@ -160,7 +160,7 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
        'A current-cycle client acceptance is recorded. Advance through the independently verified completion gate; final payment and native handover remain separate.',
        'Review completion transition','#client-review-outcome'):
      make('Resolve final review readiness blockers',
-       'The client's acceptance is recorded, but other delivery controls still prevent transition to completion.',
+       'An authenticated client acceptance is recorded, but delivery controls still prevent transition to completion.',
        null,'#client-review-outcome',true);
    if(['changes_requested','rejected'].includes(String(p.externalClientDecision||''))){
      if(p.externalFeedbackClassification==='variation')return make('Await commercial variation approval',
