@@ -8,7 +8,7 @@ import {updateProjectMobilisationAction,advanceProjectStageAction} from '@/app/w
 import {approveFinalEngineeringReleaseAction} from '@/app/workspace/projects/[id]/final-release-action';
 import WorkRecordV2 from '../../WorkRecordV2';
 import {retryGovernedWorkOrderAction} from './work-order/action';
-import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction,issueProtectedClientReviewAction,reconcileProtectedClientReviewAction} from './qa-actions';
+import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseClientReviewReleaseAction,issueProtectedClientReviewAction,reconcileProtectedClientReviewAction,classifyClientFeedbackAction} from './qa-actions';
 import css from '../../opos.module.css';
 import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import QaManualClientAccess from './QaManualClientAccess';
@@ -75,7 +75,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
  const internalQaEvidenceUnavailable=['internal_review','ready_for_client_issue'].includes(stage)
    &&(Boolean(qaGateResult?.error)||!qaGate);
  type StaffReview={issued:boolean;issueId:string|null;revision:string|null;decisionId:string|null;decision:string|null;
-  decisionComments:string|null;decidedAt:string|null;clientAttestationPending:boolean;opReconciliationRequired:boolean};
+  decisionComments:string|null;decidedAt:string|null;clientAttestationPending:boolean;opReconciliationRequired:boolean;
+   feedbackClassification:string|null;variationChangeRequestId:string|null;approvedPartnerInstruction:string|null};
  const staffReviewResult=['ready_for_client_issue','issued_to_client','client_review'].includes(stage)
    ?await supabase.rpc('op_qa_staff_client_review_state',{p_project_id:id}):null;
  const staffReview=(!staffReviewResult?.error?staffReviewResult?.data:null) as StaffReview|null;
@@ -365,7 +366,45 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
                  <input type="hidden" name="project_id" value={id}/>
                  <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>Reconcile verified client acceptance →</button>
                </form>:
-               <p className={css.meta}>The client's correction/rejection is preserved. Partner rework is explicitly blocked until OP classifies the request as an included correction, partner defect or a separately authorised commercial variation.</p>
+               staffReview.feedbackClassification?
+                 <div style={{display:'grid',gap:9}}>
+                  <p role="status" className={css.meta}>Classification recorded: <strong>{staffReview.feedbackClassification.replaceAll('_',' ')}</strong>.</p>
+                  {staffReview.feedbackClassification==='variation'?
+                   <p className={css.meta}>Commercial variation proposed. Scope, price and dates remain unchanged; no partner rework can start without a separately approved variation.</p>:null}
+                 </div>:
+                 ['owner','admin'].includes(String(profile.role))?
+                 <form action={classifyClientFeedbackAction} style={{display:'grid',gap:14,
+                   padding:18,marginTop:12,border:'1px solid #484e51',borderRadius:8}}>
+                  <p className={css.meta}>Classify the <strong>client's actual recorded feedback</strong>. Included corrections and partner defects open a new revision; variations create a proposal only. This does not change price, programme or the Work Order.</p>
+                  <input type="hidden" name="project_id" value={id}/>
+                  <label style={{display:'grid',gap:6}}>Technical / contractual classification
+                   <select name="classification" required defaultValue="" style={{padding:11,
+                     background:'#151619',border:'1px solid #555d61',borderRadius:7,color:'#f2f2f2'}}>
+                    <option value="" disabled>Select after reviewing the client feedback</option>
+                    <option value="included_correction">Single included in-scope correction</option>
+                    <option value="partner_defect">Partner defect against agreed scope</option>
+                    <option value="variation">Out-of-scope work — propose variation only</option>
+                   </select>
+                  </label>
+                  <label style={{display:'grid',gap:6}}>Scope classification rationale
+                   <textarea name="rationale" required minLength={25} rows={3}
+                    placeholder="Reference the agreed SOW, client feedback and reason for this classification."
+                    style={{padding:11,background:'#151619',color:'#f2f2f2',border:'1px solid #555d61',borderRadius:7}}/>
+                  </label>
+                  <label style={{display:'grid',gap:6}}>Partner corrective instruction (required for correction or defect)
+                   <textarea name="partner_instruction" rows={4}
+                    placeholder="For corrections, state the specific drawing, revision and technical action required. Leave blank for a proposed variation."
+                    style={{padding:11,background:'#151619',color:'#f2f2f2',border:'1px solid #555d61',borderRadius:7}}/>
+                  </label>
+                  <label className={css.qaChecklistRow}>
+                   <input type="checkbox" name="classification_authorised" value="yes" required/>
+                   <span>I have checked the client's decision and approved SOW. This does not authorise any unapproved new scope, price or date change.</span>
+                  </label>
+                  <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
+                   Record governed classification →
+                  </button>
+                 </form>:
+                 <p className={css.meta}>Await OP owner scope classification before any new partner work.</p>
              :null}
           </div>:null}
           {latestClientReview?<p role="status" className={css.meta}>Governed current-cycle outcome: {String(latestClientReview.outcome).replaceAll('_',' ')}. Every subsequent transition is independently gated.</p>:null}
