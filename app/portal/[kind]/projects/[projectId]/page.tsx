@@ -11,11 +11,19 @@ export default async function AccountProject({params,searchParams}:{
 }){
  const {kind,projectId}=await params;
  if(!isPortalKind(kind))notFound();
- const {permitted,projects}=await portalContext(kind);
+ const {permitted,projects,supabase}=await portalContext(kind);
  const p=permitted?projects.find(x=>x.project_id===projectId):null;
  if(!p)notFound(); // Never disclose a project across organisations or portal kinds.
  const client=kind==='client';
  const next=portalProjectNextStep(kind,p);
+ // Only the current explicitly entitled Client Portal user may discover an issued
+ // protected review; the RPC also verifies project, company, cycle and membership.
+ const reviewResult=kind==='client'&&['issued_to_client','client_review','completion','closed'].includes(p.project_stage)
+  ?await supabase.rpc('op_qa_client_review_position',{p_project_id:p.project_id}):null;
+ const review=(reviewResult&&!reviewResult.error&&reviewResult.data&&
+  (reviewResult.data as {projectId?:string;issueId?:string}).projectId===p.project_id
+  ?reviewResult.data as {issueId:string;decision:string|null;canRespond:boolean;revision:string}:null);
+ const secureReview=review?'/portal/client/projects/'+p.project_id+'/review':null;
  const notice=String((await searchParams)?.notice||'').slice(0,280);
  const secure='/portal/'+kind+'/projects/'+p.project_id+'/open';
  return <>
@@ -27,10 +35,11 @@ export default async function AccountProject({params,searchParams}:{
   </div>
   {notice?<p role="alert" className={css.notice}>Secure action unavailable: {notice}</p>:null}
   <section className={css.nextAction} aria-label="Current next step">
-   <span className={css.eyebrow}>{next.waiting?'CURRENT DEPENDENCY':'YOUR NEXT ACTION'}</span>
-   <h2>{next.title}</h2>
-   <p>{next.description}</p>
-   {next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
+   <span className={css.eyebrow}>{secureReview&&review?.canRespond?'YOUR NEXT DECISION':next.waiting?'CURRENT DEPENDENCY':'YOUR NEXT ACTION'}</span>
+   <h2>{secureReview?(review?.canRespond?'Review the approved engineering drawings':'Your protected client review is recorded'):next.title}</h2>
+   <p>{secureReview?(review?.canRespond?'Inspect the watermarked current revision and record an attributable acceptance or correction request.':'View the issued engineering revision and any submitted decision. This is not final native file handover.'):next.description}</p>
+   {secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open controlled drawing review':'View your review record'} →</Link>:
+     next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
   </section>
   <div className={css.card}>
    <span className={css.tag}>{stageLabel(p.project_stage,kind)}</span>
