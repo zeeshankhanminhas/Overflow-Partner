@@ -227,3 +227,66 @@
 .shell .factRow{gap:12px 22px;line-height:1.6}
 .shell .factRow span{overflow-wrap:anywhere}
 @media(max-width:700px){.detailPage{gap:19px}.detailTitle{font-size:29px}.detailPanel{padding:21px 19px}.detailFacts{grid-template-columns:1fr}.shell .main{padding:30px 18px 70px}}
+
+
+/* Engineering QA checklist: native toggles must not inherit full-width text-field sizing. */
+.qaChecklist {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.qaChecklistLegend {
+  padding: 0;
+  margin-bottom: 11px;
+  color: var(--subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+.shell .qaChecklistRow {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 12px;
+  min-width: 0;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #343840;
+  border-radius: 8px;
+  background: #181a1e;
+  color: #eceef1;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.55;
+  cursor: pointer;
+}
+.shell .qaChecklistRow:hover {
+  border-color: #555b63;
+  background: #1f2226;
+}
+.shell .qaChecklistRow:focus-within {
+  outline: 2px solid #c5e6d4;
+  outline-offset: 2px;
+}
+.shell .qaChecklistRow input[type="checkbox"] {
+  appearance: auto;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #92d9b3;
+  box-shadow: none;
+  cursor: pointer;
+}
+.shell .qaChecklistRow span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .shell .qaChecklistRow { padding: 12px 10px; column-gap: 11px; font-size: 13px; }
+}
