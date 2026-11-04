@@ -4,19 +4,34 @@ import css from './work-record.module.css';
 type Stage = {name:string;detail:string};
 type Fact={label:string;value:string};
 export default function WorkRecordV2({
-  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,actionLabel='Review current controls',
+  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,compact=false,actionLabel='Review current controls',
 }:{
   eyebrow:string;title:string;subtitle:string;state:string;owner:string;
   nextTitle:string;nextDescription:string;stages:Stage[];stageIndex:number;
-  evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;actionLabel?:string;
+  evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;compact?:boolean;actionLabel?:string;
 }){
-  return <article className={css.page}>
+  // Preserve one canonical evidence view, but disclose it only on request in
+  // Project 360. Other record types keep their existing presentation.
+  const detailContent=<section className={css.section+' '+css.grid} aria-label="Evidence and controls">
+      <div className={css.panel}><h3>Controlled evidence</h3>
+        {evidence.map((fact,i)=><div key={i} className={css.evidence}>
+          <div><strong className={css.evidenceTitle}>{fact.label}</strong><span className={css.evidenceDetail}>{fact.value}</span></div>
+        </div>)}
+      </div>
+      <div className={css.panel}><h3>Operating context</h3>
+        {facts.map((fact,i)=><div key={i} className={css.fact}>
+          <small>{fact.label}</small><strong>{fact.value}</strong>
+        </div>)}
+        <Link href={previous} className={css.secondary}>← Back to register</Link>
+      </div>
+    </section>;
+  return <article className={compact?css.page+' '+css.compact:css.page}>
     <p className={css.eyebrow}>{eyebrow}</p>
     <h1 className={css.title}>{title}</h1>
     <p className={css.caption}>{subtitle}</p>
     <div className={css.statebar}>
       <span className={css.pill}><span className={css.dot}/>{state}</span>
-      <span className={css.smallMeta}>Owner: {owner}</span>
+      {!compact?<span className={css.smallMeta}>Owner: {owner}</span>:null}
     </div>
     <section className={css.decision} aria-label={waiting?'Current waiting position':'Current decision'}>
       <p className={css.decisionKicker}>{waiting?'CURRENT DEPENDENCY':'NEXT OPERATOR DECISION'}</p>
@@ -36,19 +51,11 @@ export default function WorkRecordV2({
         </div>)}
       </div>
     </section>
-    <section className={css.section+' '+css.grid} aria-label="Evidence and controls">
-      <div className={css.panel}><h3>Controlled evidence</h3>
-        {evidence.map((fact,i)=><div key={i} className={css.evidence}>
-          <div><strong className={css.evidenceTitle}>{fact.label}</strong><span className={css.evidenceDetail}>{fact.value}</span></div>
-        </div>)}
-      </div>
-      <div className={css.panel}><h3>Operating context</h3>
-        {facts.map((fact,i)=><div key={i} className={css.fact}>
-          <small>{fact.label}</small><strong>{fact.value}</strong>
-        </div>)}
-        <Link href={previous} className={css.secondary}>← Back to register</Link>
-      </div>
-    </section>
-    <p className={css.footer}>Live organisation-scoped record · Actions are shown only where the relevant governed controls are available.</p>
+    {compact?<details className={css.compactDetails}>
+      <summary>Project details &amp; governed evidence</summary>
+      {detailContent}
+    </details>:detailContent}
+    {compact?<p className={css.compactBack}><Link href={previous} className={css.secondary}>← Back to projects</Link></p>:
+      <p className={css.footer}>Live organisation-scoped record · Actions are shown only where the relevant governed controls are available.</p>}
   </article>;
 }
