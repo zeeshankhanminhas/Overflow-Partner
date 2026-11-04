@@ -18,8 +18,8 @@ assert.ok(logic.includes('engineeringAccepted')&&logic.includes('manifestVerifie
  'Operator decision must respect independent revision-specific QA gates');
 assert.ok(logic.includes('canReviewEngineering')&&logic.includes('canAuthoriseRelease')&&logic.includes('canWrite'),
  'Owner/reviewer permissions must be considered before presenting actions');
-assert.ok(logic.includes('await secure client review')||logic.includes('Await secure client review package'),
- 'Blocked protected client review must be shown as waiting');
+assert.ok(logic.includes("situation.key==='secure_review_blocked'")&&logic.includes('Inspect watermarked QA review preview'),
+ 'Client issue must remain blocked while operator can inspect watermarked internal preparation');
 assert.ok(operator.includes('operatorProjectNextStep({')&&operator.includes('waiting={operatorNext.waiting}')&&
  operator.includes('actionLabel={operatorNext.action')&&operator.includes('operatorNext.anchor'),
  'Project 360 must use the current stage-specific action and waiting status');
