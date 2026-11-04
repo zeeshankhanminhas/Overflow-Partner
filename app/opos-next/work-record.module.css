@@ -15,3 +15,19 @@
 .primary{font-size:13px;min-height:44px}
 @media(max-width:850px){.grid{grid-template-columns:1fr}}
 @media(max-width:700px){.decision{padding:22px 20px}.panel{padding:22px 19px}.title{font-size:29px}.stepDetail{font-size:12px}}
+
+/* Original Visual Review v2 rhythm: Project 360 opts in; Case and Work Order remain unchanged. */
+.compact .statebar{margin:15px 0 21px}
+.compact .decision{padding:27px 30px}
+.compact .section{margin-top:30px}
+.compact .timeline{gap:9px}
+.compact .step{padding:12px 1px 4px;min-height:68px}
+.compact .stepCode{margin-bottom:6px}
+.compact .stepDetail{line-height:1.35}
+.compactDetails{margin-top:24px;border-top:1px solid #303238;padding-top:18px}
+.compactDetails summary{cursor:pointer;color:#b8bac0;font-size:12px;font-weight:600;list-style-position:inside;min-height:34px}
+.compactDetails summary:hover{color:#f4f4f5}
+.compactDetails summary:focus-visible{outline:2px solid #e8e8eb;outline-offset:4px;border-radius:3px}
+.compactDetails .section{margin-top:14px}
+.compactBack{margin:18px 0 0;font-size:12px}
+@media(max-width:700px){.compact .decision{padding:22px 20px}.compact .section{margin-top:25px}.compact .step{min-height:62px}.compact .stepDetail{font-size:11px}}
