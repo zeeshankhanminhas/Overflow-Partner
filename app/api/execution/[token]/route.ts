@@ -51,7 +51,29 @@ export async function GET(_:Request,context:{params:Promise<{token:string}>}){
       supabase.from('partner_work_orders').select('reference,partner_price,currency,lead_time_days,delivery_commitment,payment_terms,commercial_assumptions,exclusions,issued_at,scope_reference').eq('organisation_id',assignment.organisation_id).eq('assignment_id',assignment.id).maybeSingle(),
     ]);
     for(const result of [projectResult,partnerResult,scopeResult,commencementResult,progressResult,exceptionsResult,submissionsResult,workOrderAcceptanceResult,workOrderResult])if(result.error)throw result.error;
-    return NextResponse.json({execution:{assignment_id:assignment.id,execution_state:assignment.execution_state,execution_cycle:assignment.execution_cycle||1,release_reference:assignment.release_reference,planned_start_date:assignment.planned_start_date,committed_due_date:assignment.committed_due_date,reporting_cadence:assignment.reporting_cadence,release_notes:assignment.release_notes,released_at:assignment.released_at},project:projectResult.data,partner:partnerResult.data,controlled_scope:scopeResult.data,work_order_acceptance:workOrderAcceptanceResult.data,work_order:workOrderResult.data,commencement:commencementResult.data,progress_updates:progressResult.data||[],exceptions:exceptionsResult.data||[],delivery_submissions:submissionsResult.data||[]});
+    // The already-authorised Partner token is linked to one execution assignment.
+    // Only the OP-approved corrective instruction (not client identity or private
+    // review data) is disclosed for the current correction cycle.
+    const correctionResult=projectResult.data?.project_stage==='partner_correction'&&
+     Number(assignment.execution_cycle||0)>1?
+      await supabase.from('op_qa_client_correction_classifications')
+       .select('classification,partner_instruction,classified_at,execution_cycle')
+       .eq('organisation_id',assignment.organisation_id)
+       .eq('project_id',assignment.project_id)
+       .eq('execution_cycle',Number(assignment.execution_cycle)-1)
+       .in('classification',['included_correction','partner_defect'])
+       .order('classified_at',{ascending:false}).limit(1).maybeSingle():
+      {data:null,error:null};
+    if(correctionResult.error)throw correctionResult.error;
+
+    return NextResponse.json({execution:{assignment_id:assignment.id,execution_state:assignment.execution_state,execution_cycle:assignment.execution_cycle||1,release_reference:assignment.release_reference,planned_start_date:assignment.planned_start_date,committed_due_date:assignment.committed_due_date,reporting_cadence:assignment.reporting_cadence,release_notes:assignment.release_notes,released_at:assignment.released_at},project:projectResult.data,partner:partnerResult.data,controlled_scope:scopeResult.data,work_order_acceptance:workOrderAcceptanceResult.data,work_order:workOrderResult.data,commencement:commencementResult.data,progress_updates:progressResult.data||[],exceptions:exceptionsResult.data||[],delivery_submissions:submissionsResult.data||[],
+      correction_instruction:correctionResult.data?.partner_instruction?{
+       classification:correctionResult.data.classification,
+       instruction:correctionResult.data.partner_instruction,
+       classified_at:correctionResult.data.classified_at,
+       original_cycle:correctionResult.data.execution_cycle,
+       current_cycle:assignment.execution_cycle
+      }:null});
   }catch(error){console.error('Partner execution load failed',error);return NextResponse.json({message:'Unable to load the Partner Execution workspace.'},{status:500});}
 }
 
