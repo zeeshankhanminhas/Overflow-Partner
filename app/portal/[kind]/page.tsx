@@ -8,17 +8,24 @@ export const dynamic='force-dynamic';
 export default async function AccountWorkspace({params}:{params:Promise<{kind:string}>}){
  const {kind}=await params;
  if(!isPortalKind(kind))notFound();
- const {accounts,permitted,projects,quotes}=await portalContext(kind);
+ const {accounts,permitted,projects,quotes,supabase}=await portalContext(kind);
  const mine=accounts.filter(a=>a.portal_kind===kind);
  const isClient=kind==='client';
+ const reviewCandidates=isClient?projects.filter(p=>p.project_stage==='client_review').slice(0,8):[];
+ const reviewChecks=await Promise.all(reviewCandidates.map(async p=>{
+  const {data,error}=await supabase.rpc('op_qa_client_review_position',{p_project_id:p.project_id});
+  const review=data as {projectId?:string;canRespond?:boolean;revision?:string}|null;
+  return !error&&review?.projectId===p.project_id&&review.canRespond?{project:p,review}:null;
+ }));
+ const liveClientReview=reviewChecks.find((r):r is {project:typeof projects[number];review:{projectId?:string;canRespond?:boolean;revision?:string}}=>Boolean(r))||null;
  const outstandingQuote=isClient?quotes.find(q=>!q.project_id&&['','awaiting_response','pending'].includes(String(q.client_response||'').trim())):null;
  const chosenProject=projects.find(p=>!portalProjectNextStep(kind,p).waiting)||projects[0]||null;
  const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
- const primary=outstandingQuote?{label:'Review your issued quotation',detail:'Check your current offer and respond using the authorised secure quotation page.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open secure quotation',waiting:false}:
+ const primary=liveClientReview?{label:'Review your engineering drawings',detail:'An approved, watermarked engineering revision is waiting for your own authenticated review decision.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open controlled client review',waiting:false}:outstandingQuote?{label:'Review your issued quotation',detail:'Check your current offer and respond using the authorised secure quotation page.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open secure quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id+'/open',action:chosenAction.action||'View secure status',waiting:chosenAction.waiting}:null;
  const title=isClient?'Your engineering work.':'Your execution workspace.';
  const active=projects.filter(p=>['mobilisation','ready_for_execution','in_progress','partner_correction','internal_review','client_review'].includes(p.project_stage)).length;
- const needsAttention=projects.filter(p=>!portalProjectNextStep(kind,p).waiting).length+(outstandingQuote?1:0);
+ const needsAttention=projects.filter(p=>!portalProjectNextStep(kind,p).waiting).length+(outstandingQuote?1:0)+reviewChecks.filter(Boolean).length;
  return <>
   <div className={css.hero}>
    <p className={css.eyebrow}>OVERFLOW PARTNER / {isClient?'CLIENT':'EXECUTION PARTNER'} WORKSPACE</p>
