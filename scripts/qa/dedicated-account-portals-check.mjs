@@ -51,6 +51,12 @@ const tests=[
    quotation.includes("db.rpc('portal_my_quotations')") &&
    quotation.includes("if(!q)return new NextResponse") &&
    quotation.includes('createClientPortalToken(q.quote_id,q.quote_revision)')],
+ ['Lightweight Client and Partner dashboard resists context spill',
+   dash.includes("orderedProjects.slice(0,3)") &&
+   dash.includes("dashboardSnapshot") &&
+   dash.includes("YOUR NEXT STEP") &&
+   dash.includes("<details") &&
+   dash.includes("QA environment information")],
  ['No duplicated payment, delivery, or partner workflow business logic',
    handoff.includes("new URL('/client-portal'") &&
    handoff.includes("new URL('/execution/'") &&
