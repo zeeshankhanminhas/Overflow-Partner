@@ -21,15 +21,18 @@ const denied=(status:number)=>new NextResponse('This preview is not available fo
  * sent only after staff/organisation/current-cycle release checks.
  */
 export async function GET(_request:Request,{params}:{params:Promise<{id:string;fileId:string}>}){
+ let phase='qa-isolation';
  try{
   assertIsolatedQaBackend();
   const {id,fileId}=await params;
   if(!/^[0-9a-f-]{36}$/i.test(id)||!/^[0-9a-f-]{36}$/i.test(fileId))return denied(404);
+  phase='internal-operator-auth';
   const {supabase,organisationId,profile,user}=await requireUserContext();
   assertRole(profile.role,['owner','admin','operator','engineering']);
   const {data:project,error:projectError}=await supabase.from('projects')
     .select('id,project_number,project_stage').eq('organisation_id',organisationId).eq('id',id).maybeSingle();
   if(projectError||!project||project.project_stage!=='ready_for_client_issue')return denied(404);
+  phase='current-submission-gate';
   const {data,error}=await supabase.rpc('op_qa_delivery_gate',{p_project_id:id});
   const gate=data as Gate|null;
   if(error||!gate||gate.project_stage!=='ready_for_client_issue'||!gate.submission_id||
@@ -43,14 +46,17 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string;f
   if(!url||!key)return denied(503);
   // A service connection is used only after authenticated organisational and
   // authoritative current-manifest checks; its credentials never leave server.
+  phase='private-storage-download';
   const storage=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:blob,error:downloadError}=await storage.storage.from(item.bucket).download(item.path);
   if(downloadError||!blob||blob.size>15*1024*1024)return denied(404);
   const raw=new Uint8Array(await blob.arrayBuffer());
   if(raw.length<8||new TextDecoder().decode(raw.subarray(0,5))!=='%PDF-')return denied(415);
+  phase='pdf-parse';
   const doc=await PDFDocument.load(raw,{updateMetadata:false});
   if(doc.isEncrypted)return denied(415);
   if(doc.getPageCount()>80)return denied(413);
+  phase='pdf-watermark';
   const watermarkFont=await doc.embedFont(StandardFonts.HelveticaBold);
   const now=new Date().toISOString().replace('T',' ').slice(0,16)+' UTC';
   const ref=String(project.project_number||'QA PROJECT').replace(/[^a-zA-Z0-9-]/g,'').slice(0,48);
@@ -67,14 +73,25 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string;f
     {x:18,y:15,size:Math.min(9,Math.max(6,width/70)),font:watermarkFont,color:rgb(.24,.20,.20),opacity:.80});
   }
   doc.setTitle(ref+' - internal QA review preparation (not issued)');
-  const output=await doc.save({useObjectStreams:true});
-  return new NextResponse(new Blob([Uint8Array.from(output)],{type:'application/pdf'}),{status:200,headers:{
+  phase='pdf-serialisation';
+  // Avoid compressed object streams for compatibility with the Edge/Chromium PDF viewer.
+  const output=await doc.save({useObjectStreams:false});
+  const payload=Uint8Array.from(output);
+  const beginning=new TextDecoder().decode(payload.subarray(0,5));
+  const ending=new TextDecoder().decode(payload.subarray(Math.max(0,payload.length-2048)));
+  if(beginning!=='%PDF-'||!ending.includes('%%EOF'))throw new Error('Watermarked PDF serialization validation failed');
+  return new NextResponse(new Blob([payload],{type:'application/pdf'}),{status:200,headers:{
    'Content-Type':'application/pdf','Content-Disposition':'inline; filename="OPOS-QA-Review-Preview.pdf"',
+   'Content-Length':String(payload.length),
    'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','X-Content-Type-Options':'nosniff',
    'X-Robots-Tag':'noindex, nofollow, noarchive','Referrer-Policy':'no-referrer',
    'Cross-Origin-Resource-Policy':'same-origin'
   }});
- }catch{
-  return denied(403);
+ }catch(error){
+  // Logs contain only a controlled stage and error category; never tokens, paths or PDF contents.
+  console.error('OPOS QA watermarked preview failed',{
+    phase,kind:error instanceof Error?error.name:'UnknownFailure',
+  });
+  return denied(500);
  }
 }
