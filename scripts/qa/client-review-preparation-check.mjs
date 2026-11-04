@@ -4,10 +4,24 @@ const read=p=>readFileSync(p,'utf8');
 const metadata=read('lib/projects/stages.ts');
 const operator=read('app/opos-next/projects/[id]/page.tsx');
 const preview=read('app/opos-next/projects/[id]/review-preview/page.tsx');
+const viewer=read('app/opos-next/projects/[id]/review-preview/WatermarkedPdfViewer.tsx');
 const pdf=read('app/opos-next/projects/[id]/review-preview/[fileId]/route.ts');
 const baseline=read('app/workspace/projects/[id]/client-actions.ts');
 const decision=read('lib/presentation/threePortalNextAction.ts');
 const cases=[
+ ['client first verifies the secure PDF before invoking the PDF plugin',
+   preview.includes('<WatermarkedPdfViewer')&&viewer.includes("credentials:'same-origin'")&&
+   viewer.includes("response.headers.get('content-type')")&&
+   viewer.includes("header!=='%PDF-'")&&viewer.includes("!tail.includes('%%EOF')")],
+ ['preview error must be readable rather than an opaque PDF plugin failure',
+   viewer.includes("role=\"alert\"")&&viewer.includes('Retry secure PDF preview')&&
+   viewer.includes('Open in a separate PDF tab')],
+ ['server PDF serialization is compatible with older browser PDF engines',
+   pdf.includes('doc.save({useObjectStreams:false})')&&pdf.includes("'Content-Type':'application/pdf'")&&
+   pdf.includes("'Content-Length':String(payload.length)")],
+ ['private PDF service failures are logged without file contents or storage paths',
+   pdf.includes("console.error('OPOS QA watermarked preview failed'")&&
+   pdf.includes('kind:error instanceof Error?error.name')&&pdf.includes('return denied(500)')],
  ['project stage is preparation, not transmission',
   metadata.includes("label: 'Review package preparation'")&&
   metadata.includes("completion: 'Client issue is still pending.")&&
