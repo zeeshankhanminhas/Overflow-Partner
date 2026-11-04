@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && npm run stripe-live:check && npm run visual-lock:check && npm run qa-backend:check && npm run qa-origin:check && npm run qa-workorder:check && npm run qa-unified-portal:check && npm run qa-preproject:check && npm run qa-partner-governance:check && npm run qa-engineering:check && npm run qa-triple-portal:check && next build",
+    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && npm run stripe-live:check && npm run visual-lock:check && npm run qa-backend:check && npm run qa-origin:check && npm run qa-workorder:check && npm run qa-unified-portal:check && npm run qa-preproject:check && npm run qa-partner-governance:check && npm run qa-engineering:check && npm run qa-triple-portal:check && npm run qa-three-portal-next:check && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -27,7 +27,8 @@
     "qa-preproject:check": "node scripts/qa/preproject-lineage-contract-check.mjs",
     "qa-partner-governance:check": "node scripts/qa/partner-governance-check.mjs",
     "qa-engineering:check": "node scripts/qa/engineering-review-approval-contract.mjs",
-    "qa-triple-portal:check": "node scripts/qa/triple-portal-walkthrough-check.mjs"
+    "qa-triple-portal:check": "node scripts/qa/triple-portal-walkthrough-check.mjs",
+    "qa-three-portal-next:check": "node scripts/qa/three-portal-next-action-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
