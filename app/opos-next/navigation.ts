@@ -12,6 +12,7 @@ export const nextNavigation = [
   {label:'Documents',href:'/opos-next/documents',group:'OPERATIONS'},
   {label:'Client Workspace',href:'/portal/client',group:'PORTAL PREVIEW'},
   {label:'Partner Workspace',href:'/portal/partner',group:'PORTAL PREVIEW'},
+  {label:'E2E Walkthrough',href:'/opos-next/qa/walkthrough',group:'QA TRAINING'},
 ] as const;
 
 export function isNextActive(pathname:string,href:string) {
