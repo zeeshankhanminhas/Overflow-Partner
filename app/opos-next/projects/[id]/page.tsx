@@ -147,6 +147,11 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    canApproveFinalRelease:stage==='completion'&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
    canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
    canRecordClientOutcome:stage==='client_review'&&!latestClientReview&&Boolean(staffReview?.decisionId),
+   externalClientDecision:staffReview?.decision||null,
+   externalFeedbackClassification:staffReview?.feedbackClassification||null,
+   clientReviewReconciled:Boolean(latestClientReview),
+   clientReviewEvidenceAvailable:!staffReviewEvidenceUnavailable&&Boolean(staffReview?.issued),
+   canClassifyClientFeedback:['owner','admin'].includes(role),
    partnerSubmitted:assignment?.execution_state==='delivery_submitted',
    // A client transmittal alone cannot prove protected browser review.
    protectedReviewIssued:Boolean(staffReview?.issued),
