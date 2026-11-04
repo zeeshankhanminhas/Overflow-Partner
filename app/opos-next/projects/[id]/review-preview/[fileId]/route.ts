@@ -68,7 +68,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string;f
   }
   doc.setTitle(ref+' - internal QA review preparation (not issued)');
   const output=await doc.save({useObjectStreams:true});
-  return new NextResponse(Buffer.from(output),{status:200,headers:{
+  return new NextResponse(new Blob([Uint8Array.from(output)],{type:'application/pdf'}),{status:200,headers:{
    'Content-Type':'application/pdf','Content-Disposition':'inline; filename="OPOS-QA-Review-Preview.pdf"',
    'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','X-Content-Type-Options':'nosniff',
    'X-Robots-Tag':'noindex, nofollow, noarchive','Referrer-Policy':'no-referrer',
