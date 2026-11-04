@@ -109,18 +109,25 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   let finalSettlementVerified=false;
   let finalReleaseApproved=false;
   if(project?.id && process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'){
+    // Only the current partner cycle can ground a client acceptance or release.
+    const cycleResult=await db.from('project_execution_assignments')
+      .select('execution_cycle').eq('organisation_id',issue.organisation_id)
+      .eq('project_id',project.id).order('created_at',{ascending:false})
+      .limit(1).maybeSingle();
+    const currentCycle=!cycleResult.error?Number(cycleResult.data?.execution_cycle||0):0;
     const [review,settled,releaseApproval]=await Promise.all([
       db.from('project_client_reviews').select('outcome')
         .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
+        .eq('execution_cycle',currentCycle>0?currentCycle:-1)
         .order('recorded_at',{ascending:false}).limit(1).maybeSingle(),
       db.from('op_project_final_settlements').select('project_id,verified_at')
         .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle(),
       db.from('op_project_final_release_approvals').select('project_id,approved_at')
         .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle(),
     ]);
-    finalReviewAccepted=!review.error && ['accepted','accepted_with_comments'].includes(String(review.data?.outcome));
+    finalReviewAccepted=currentCycle>0&&!review.error && ['accepted','accepted_with_comments'].includes(String(review.data?.outcome));
     finalSettlementVerified=!settled.error && Boolean(settled.data?.verified_at);
-    finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data?.approved_at) && finalSettlementVerified;
+    finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data?.approved_at) && finalSettlementVerified && finalReviewAccepted;
   }
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
@@ -131,7 +138,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const clientStage=projectStage==='ready_for_execution'?'Preparing to start':
     projectActive?'Engineering in progress':
     projectStage==='internal_review'?'Internal quality review':
-    ['ready_for_client_issue','issued_to_client','client_review'].includes(projectStage)?'Engineering delivery in review':
+    ['ready_for_client_issue','issued_to_client','client_review'].includes(projectStage)?'Controlled review preparation':
     ['completion','closed'].includes(projectStage)?'Delivery and closeout':'Project opened';
   const status = project ? clientStage : paid ? 'Opening payment confirmed' : stripePaymentPending ? 'Payment under verification' : stripe_return==='success' ? 'Checkout completed · verification pending' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   // Display-only guidance; payments, signing and file access are still governed.
