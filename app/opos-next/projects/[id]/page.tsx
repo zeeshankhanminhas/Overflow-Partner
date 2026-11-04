@@ -165,8 +165,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    ['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready
     ?{...operatorNext,
        title:'Activate a separate QA Client account',
-       description:'Resend is not required for the isolated test. Generate a single-use Supabase Auth link for a separate QA identity, then open it in an incognito session. Email delivery remains untested.',
-       action:'Generate secure QA Client access link',
+       description:'An independent Client account is required before R01 can be issued. Set it up using the isolated QA control below.',
+       action:'Set up QA Client access',
        anchor:'#release-authorisation',waiting:false}
     :operatorNext;
  return <>
@@ -174,7 +174,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
      state={meta.label} owner="Overflow Partner / assigned delivery team"
      nextTitle={displayNext.title}
-     nextDescription={displayNext.description}
+     nextDescription={displayNext.description} compact
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={displayNext.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:stage==='ready_for_client_issue'?'Protected client issue not recorded':readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
@@ -216,14 +216,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      </div>
    </section>:null}
    <section id="project-controls" className={css.section} aria-label="Governed project controls">
-     <div className={css.sectionHeading}><h2>Project stage controls</h2></div>
+     <div className={css.sectionHeading}><h2>Current action &amp; approval</h2></div>
      {feedback.error?<p role="alert" className={css.empty}>Action blocked: {String(feedback.error).slice(0,450)}</p>:null}
      {feedback.updated||feedback.advanced?<p role="status" className={css.empty}>{String(feedback.updated||'Project stage updated to '+feedback.advanced).slice(0,450)}</p>:null}
      <div className={css.card}>
-       <span className={css.overline}>CURRENT RELEASE GATE</span><h2 className={css.cardTitle}>{meta.label}</h2>
+       
        <p className={css.cardDescription}>{meta.completion}</p>
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
-       {blockedReasons.length?<div style={{marginTop:20}}><strong>Evidence required for the next stage</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:<p className={css.meta} style={{marginTop:18}}>Stage-readiness service reports no outstanding reasons.</p>}
+       {blockedReasons.length?<div style={{marginTop:20}}><strong>Required before continuing</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:null}
        {stage==='internal_review'?<section aria-label="Engineering acceptance and document control" style={{display:'grid',gap:18,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
          <h3 style={{fontSize:19,margin:0}}>Engineering QA · {qaGate?.revision||'Current submission'}</h3>
          <p className={css.meta}>The partner submission must be inspected and technically accepted before its document manifest can be verified. These are two different decisions; neither requires approving a generic document template.</p>
@@ -451,8 +451,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
    </section>
    <section id="partner-delivery-evidence" className={css.section} aria-label="Execution partner and delivery evidence" style={{scrollMarginTop:24}}>
-     <div className={css.sectionHeading}><h2>Execution partner &amp; QA evidence</h2></div>
-     <div className={css.card}>
+     <details className={css.card} style={{padding:'20px 24px'}}>
+       <summary style={{cursor:'pointer',fontSize:14,fontWeight:600,minHeight:30}}>Partner history &amp; QA evidence</summary>
        <span className={css.overline}>CONTROLLED DELIVERY POSITION</span>
        <p className={css.meta} style={{marginTop:12}}>Work Order is issued only to the commercially selected, NDA-ready Execution Partner against the current approved Statement of Work. Formal acceptance precedes commencement.</p>
        <Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/work-order'}>Review Work Order readiness and acceptance →</Link>
@@ -480,8 +480,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          </li>)}</ul>
        </div>:null}
        {transmittal?<p className={css.meta} style={{marginTop:20}}>Last client transmittal: {transmittal.transmittal_reference||'Reference not recorded'} · {date(transmittal.issued_at)} · {transmittal.recipient_name||'Recipient not recorded'}.</p>:null}
-       <p className={css.meta} style={{marginTop:22}}>This panel displays existing evidence only. Partner acceptance, technical QA approval, client review and settlement remain separate governed decisions; this screen does not issue or download controlled files.</p>
-     </div>
+       <p className={css.meta} style={{marginTop:22}}>Read-only supporting information. All partner acceptance, engineering approval and settlement controls remain governed.</p>
+     </details>
    </section>
  </>;
 }
