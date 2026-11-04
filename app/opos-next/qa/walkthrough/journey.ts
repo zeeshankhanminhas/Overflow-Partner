@@ -327,6 +327,18 @@ export const steps:JourneyStep[]=[
  scenarios:['technical_correction']
 },
 {
+ id:'technical-re-review',phase:'Quality Assurance',owner:'operator',title:'Reinspect and accept R02 as new engineering evidence',
+ why:'The old R01 approval cannot certify new or replaced drawing files.',
+ client:'Continues waiting for OP internal acceptance, with updated target communicated if necessary.',
+ operator:'Opens each revised R02 file and compares corrections against the original findings and approved scope. Records a new review decision against R02.',
+ partner:'Responds to outstanding findings; remains blocked from releasing work directly.',
+ system:'Creates new engineering QA evidence tied to the new cycle and file manifest; original R01 remains historical and invalid for release.',
+ evidence:['R02 file identities','R01 defect resolution','New reviewer checklist','New acceptance timestamp'],
+ gate:'Only accepted R02 may continue to R02-specific manifest verification and release authority.',
+ failure:'Any unresolved issue → another explicit correction decision; no stage shortcut.',
+ status:'needs_test',portal:{operator:projectRegister,partner:'/portal/partner'},scenarios:['technical_correction']
+},
+{
  id:'manifest-verify',phase:'Quality Assurance',owner:'operator',title:'Verify deliverable manifest separately',
  why:'Document control proves the exact accepted files are the files that will be prepared for review.',
  client:'Does not receive anything simply because engineering was accepted.',
@@ -400,6 +412,30 @@ export const steps:JourneyStep[]=[
  failure:'Unapproved variation → retain baseline; no partner instruction to perform it.',
  status:'configured',portal:{operator:projectRegister,client:'/portal/client',partner:'/portal/partner'},
  scenarios:['variation']
+},
+{
+ id:'client-correction-rereview',phase:'Delivery',owner:'operator',title:'Reissue corrected engineering package for fresh client review',
+ why:'A client correction changes the reviewed files and requires a new governed QA and issue cycle.',
+ client:'Waits for a new secure view-only review issue and checks the corrected drawing references.',
+ operator:'Re-runs OP engineering acceptance, manifest verification, release authority and protected issue for the revised package.',
+ partner:'Resubmits corrected files through governed Partner Work and does not bypass OP review.',
+ system:'New cycle is linked to the client’s consolidated included-correction record; prior client decision is not reused as acceptance.',
+ evidence:['Corrected submission','New engineering acceptance','New manifest verification','New client-review issue'],
+ gate:'No acceptance of the corrected package without the repeat QA and client review decisions.',
+ failure:'Unapproved reissue or unchanged old links → block release and investigate.',
+ status:'blocked',portal:{operator:projectRegister,client:'/portal/client',partner:'/portal/partner'},scenarios:['client_correction']
+},
+{
+ id:'variation-recontract',phase:'Delivery',owner:'client',title:'Approve variation commercially before partner starts changed scope',
+ why:'A technical estimate is not authority to perform unpaid extra engineering.',
+ client:'Reviews revised price, schedule, SOW or change order, and provides authorised acceptance.',
+ operator:'Confirms new client commitment, partner Work Order adjustment, payment terms and revised scope; only then authorises execution.',
+ partner:'Accepts revised WO obligation and receives revised approved drawings and schedule.',
+ system:'Stores variation acceptance and additional commercial authority separately from original scope and payment lineage.',
+ evidence:['Change order','Client variation sign-off','Partner WO amendment','Price and schedule impact'],
+ gate:'Variation without accepted price and affected payment authority remains blocked.',
+ failure:'Client declines the variation → retain original contracted scope, no new execution.',
+ status:'policy',portal:{operator:projectRegister,client:'/portal/client',partner:'/portal/partner'},scenarios:['variation']
 },
 {
  id:'client-review-outcome',phase:'Delivery',owner:'client',title:'Client accepts the reviewed revision',
