@@ -7,6 +7,7 @@ import { executionSessionIdFromToken } from '@/lib/execution/sessionToken';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { queueOperationsAlert } from '@/lib/notifications/internal';
 import { qaPublicOrigin } from '@/lib/qa/publicOrigin';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 
 const workOrderAcceptanceSchema=z.object({action:z.literal('accept_work_order'),accepted_by_name:z.string().trim().min(2).max(200),accepted_by_role:z.string().trim().min(2).max(200),acceptance_confirmed:z.literal(true)});
 const commencementSchema=z.object({action:z.literal('commencement'),execution_lead_name:z.string().trim().min(2).max(200),execution_lead_role:z.string().trim().max(200).optional().default(''),planned_commencement_date:z.string().trim().min(8),forecast_delivery_date:z.string().trim().min(8),scope_reviewed:z.literal(true),inputs_received:z.literal(true),capacity_confirmed:z.literal(true),no_unresolved_blocker:z.literal(true),assumptions:z.string().trim().max(5000).optional().default(''),declaration_checked:z.literal(true),submitted_by_name:z.string().trim().min(2).max(200),submitted_by_role:z.string().trim().max(200).optional().default('')});
@@ -54,7 +55,7 @@ export async function GET(_:Request,context:{params:Promise<{token:string}>}){
     // The already-authorised Partner token is linked to one execution assignment.
     // Only the OP-approved corrective instruction (not client identity or private
     // review data) is disclosed for the current correction cycle.
-    const correctionResult=projectResult.data?.project_stage==='partner_correction'&&
+    const correctionResult=isKnownIsolatedQaBackend()&&projectResult.data?.project_stage==='partner_correction'&&
      Number(assignment.execution_cycle||0)>1?
       await supabase.from('op_qa_client_correction_classifications')
        .select('classification,partner_instruction,classified_at,execution_cycle')
