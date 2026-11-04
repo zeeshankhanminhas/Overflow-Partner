@@ -28,7 +28,7 @@ for(const anchor of ['engineering-review','manifest-verification','release-autho
  assert.ok(operator.includes('id="'+anchor+'"'),'Operator link target missing: '+anchor);
 assert.ok(clientHome.includes('portalProjectNextStep(kind,p)')&&clientHome.includes('YOUR NEXT STEP')&&
  clientHome.includes('/portal/client/quotes/'),'Account home must highlight exactly one current action');
-assert.ok(accountDetail.includes('portalProjectNextStep(kind,p)')&&accountDetail.includes('ONE NEXT ACTION'),
+assert.ok(accountDetail.includes('portalProjectNextStep(kind,p)')&&accountDetail.includes('YOUR NEXT ACTION'),
  'External project view must direct to a real governed action');
 assert.ok(clientSecure.includes('clientNext')&&clientSecure.includes('YOUR NEXT STEP')&&
  clientSecure.includes('independently verified')&&clientSecure.includes('id="quote-acceptance"')&&
