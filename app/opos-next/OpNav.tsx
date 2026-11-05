@@ -6,8 +6,8 @@ import { nextNavigation, isNextActive } from './navigation';
 import css from './opos.module.css';
 
 // Retain every route, but give only everyday work primary navigation space.
-const primaryLabels = new Set(['Mission Control','Opportunities','Projects','Tasks','Finance','Documents']);
-const secondaryLabels = new Set(['Outreach','Cases','Accounts','Partners']);
+const primaryLabels = new Set(['Mission Control','Outreach','Opportunities','Cases','Projects']);
+const secondaryLabels = new Set(['Tasks','Accounts','Partners','Finance','Documents']);
 
 export default function OpNav() {
   const pathname = usePathname();
