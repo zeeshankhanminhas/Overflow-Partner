@@ -31,7 +31,7 @@ export default async function AccountProject({params,searchParams}:{
   <div className={css.hero}>
    <p className={css.eyebrow}>{p.account_name} / {p.project_number}</p>
    <h1 className={css.title}>{p.project_title}</h1>
-   <p className={css.subtitle}>{stageLabel(p.project_stage,kind)} · {p.project_number}</p>
+   <p className={css.subtitle}>{stageLabel(p.project_stage,kind)}</p>
   </div>
   {notice?<p role="alert" className={css.notice}>Secure action unavailable: {notice}</p>:null}
   <section className={css.nextAction} aria-label="Current next step">
@@ -44,8 +44,7 @@ export default async function AccountProject({params,searchParams}:{
   <details className={css.compactDisclosure}>
    <summary>Project details and records</summary>
    <div className={css.card}>
-   <span className={css.tag}>{stageLabel(p.project_stage,kind)}</span>
-   <h2 style={{marginTop:16,fontSize:20}}>Project reference and controlled position</h2>
+   <h2 style={{marginTop:16,fontSize:20}}>Project details</h2>
    <dl className={css.facts}>
     <div><dt>Project</dt><dd>{p.project_number}</dd></div>
     <div><dt>Account</dt><dd>{p.account_name}</dd></div>
@@ -57,7 +56,6 @@ export default async function AccountProject({params,searchParams}:{
    </dl>
    <div className={css.actions}>
     <Link className={css.secondaryAction} href={secure}>{client?'View governed commercial status':'View authorised Partner Work'}</Link>
-    <Link className={css.secondaryAction} href={'/portal/'+kind}>Back to your projects</Link>
    </div>
    <div className={css.notice}>{client?
    'The secure quotation page continues to handle accepted terms, payment and eventual final handover. A project status cannot unlock files.':
