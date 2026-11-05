@@ -7,6 +7,7 @@ const mission = read('app/opos-next/page.tsx');
 const register = read('app/opos-next/opportunities/page.tsx');
 const record = read('app/opos-next/opportunities/[id]/page.tsx');
 const mobileNav = read('app/opos-next/OpMobileNav.tsx');
+const desktopNav = read('app/opos-next/OpNav.tsx');
 const navigation = read('app/opos-next/navigation.ts');
 const login = read('app/login/actions.ts');
 const legacyHome = read('app/workspace/page.tsx');
@@ -145,11 +146,14 @@ const checks = [
   ['Waiting record is not presented as requiring a primary operator decision',
     record.includes('No operator action is required') && !record.includes('Inspect existing governed record') &&
     v2WorkRecord.includes('!waiting?<div className={css.decisionActions}')],
-  ['Mobile and desktop share the same Workspace 2.0 navigation contract',
-    navigation.includes("label:'Outreach'") && navigation.includes("label:'Accounts'") && navigation.includes("label:'Cases'") &&
-    navigation.includes("label:'Projects'") && navigation.includes("label:'Partners'") &&
-    navigation.includes("label:'Finance'") && navigation.includes("label:'Documents'") &&
-    mobileNav.includes("import { nextNavigation, isNextActive }")],
+  ['Mobile and desktop share the same simplified Workspace 2.0 navigation contract',
+    ["'Mission Control'","'Opportunities'","'Projects'","'Tasks'","'Finance'","'Documents'"].every(label=>
+      navigation.includes(label)) &&
+    ["'Outreach'","'Cases'","'Accounts'","'Partners'"].every(label=>navigation.includes(label)) &&
+    navigation.includes('export const nextPrimaryNavigation') &&
+    navigation.includes('export const nextMoreNavigation') &&
+    desktopNav.includes('nextPrimaryNavigation') && desktopNav.includes('nextMoreNavigation') &&
+    mobileNav.includes('nextPrimaryNavigation') && mobileNav.includes('nextMoreNavigation')],
   ['New records cover Outreach, Cases, Projects, Partners, Finance and Documents',
     ['outreach','cases','projects','partners','finance','documents'].every(name =>
       fs.existsSync('app/opos-next/' + name + '/page.tsx') && fs.existsSync('app/opos-next/' + name + '/[id]/page.tsx'))],
