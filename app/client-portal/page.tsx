@@ -166,7 +166,9 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
            <p>{clientNext.description}</p>
            {clientNext.href&&clientNext.action?<Link className={styles.action+' '+styles.primary} href={clientNext.href}>{clientNext.action} →</Link>:null}
          </section>
-         <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':stripePaymentPending?'Stripe verified · release pending':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
+         <details className={styles.historyDisclosure} open={!project}>
+          <summary>Quotation and project details</summary>
+          <div className={styles.metrics}><div className={styles.metric}><span className={styles.eyebrow}>QUOTATION TOTAL</span><strong>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div><div className={styles.metric}><span className={styles.eyebrow}>COMMERCIAL POSITION</span><strong className={styles.small}>{paid?'Payment confirmed':stripePaymentPending?'Stripe verified · release pending':released?'Release confirmed':accepted?'Awaiting release verification':'Not yet accepted'}</strong></div></div>
         {project?<div className={styles.projectSummary}><div><span className={styles.eyebrow}>PROJECT STATUS</span><h3>{clientStage}</h3><p>Project {project.project_number} · Controlled engineering delivery</p></div><div><span className={styles.eyebrow}>NEXT MILESTONE</span><p>{projectActive?'Engineering submission and internal OP quality review':projectStage==='ready_for_execution'?'Partner commencement confirmation':'Controlled delivery and review update'}</p></div></div>:null}
         {contractResult.data?.release_basis==='purchase_order'?<p className={styles.note}>Agreed release condition: authorised purchase order, subject to verification.</p>:null}
         {contractResult.data?.release_basis==='no_advance_payment'?<p className={styles.note}>Agreed release condition: no advance payment due, subject to authorisation.</p>:null}
@@ -176,6 +178,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
           {Number.isFinite(openingAmount)&&openingAmount>0?<p className={styles.note}><strong>Opening payment: {displayMoney(openingAmount,String(quote.currency||'GBP'))}</strong>. Remaining balance: {displayMoney(Number(quote.total)-openingAmount,String(quote.currency||'GBP'))}.</p>:null}
           <p className={styles.note}>Review the scope, assumptions, exclusions and full contractual terms in the approved PDF attached to your quotation email before accepting.</p>
         </div>
+        </details>
         {notice==='acceptance_unavailable'?<p className={styles.note} role="alert">The quotation could not be accepted. Please verify the authorised signatory and current terms. No payment was requested.</p>:null}
         {canDecide?<div id="quote-acceptance" className={styles.section}><p className={styles.eyebrow}>STEP 1 · ACCEPT QUOTATION</p><h3>Authorised client acceptance</h3>
           <form action={acceptClientQuotationInPortal} className={styles.acceptanceForm}>
