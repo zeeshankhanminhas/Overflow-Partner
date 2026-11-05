@@ -43,7 +43,9 @@ const cases=[
    qaCallback.includes("supabase.auth.setSession")&&
    qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
    loginActions.includes('shouldCreateUser:false')&&
-   loginPage.includes('Email my secure client sign-in link')],
+   loginPage.includes('next === "/portal/client" && isKnownIsolatedQaBackend()')&&
+   loginPage.includes('form action={emailQaClientLoginLink}')&&
+   loginPage.includes('Email sign-in link')],
  ['operator displays the owner-controlled SMTP-free QA activation instead of silently issuing',
    operator.includes('QaManualClientAccess')&&operator.includes('!qaRecipient?.ready')&&
    operator.includes('qaRecipient?.ready')&&
