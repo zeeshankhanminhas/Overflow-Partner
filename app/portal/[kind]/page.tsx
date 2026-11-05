@@ -97,14 +97,10 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
     </section>
    </details>:null}
 
-   <details className={css.dashboardMore+' '+css.dashboardRegister}>
-    <summary>Account &amp; records</summary>
-    <div className={css.grid}>
-     <div className={css.summary}><p className={css.eyebrow}>YOUR ACCOUNTS</p><strong>{mine.length}</strong><p>{mine.map(x=>x.account_name).join(' · ')}</p></div>
-     <div className={css.summary}><p className={css.eyebrow}>YOUR WORK</p><strong>{projects.length}</strong><p>Records remain available under your authorised account.</p></div>
-    </div>
-    <p className={css.subtitle}>{isClient?'Secure quotation, payment, review and handover decisions are opened only when authorised.':'Work Order acceptance, commencement, delivery and corrections remain inside the secure Partner Work flow.'}</p>
-   </details>
+   {mine.length>1?<details className={css.dashboardMore+' '+css.dashboardRegister}>
+    <summary>Linked accounts ({mine.length})</summary>
+    <div className={css.summary}><p>{mine.map(x=>x.account_name).join(' · ')}</p></div>
+   </details>:null}
    {isKnownIsolatedQaBackend()?<details className={css.dashboardMore+' '+css.dashboardRegister}>
     <summary>QA environment information</summary>
     <p className={css.notice}>Isolated QA rehearsal with fictional companies and transactions. This is not a live customer or partner environment.</p>
