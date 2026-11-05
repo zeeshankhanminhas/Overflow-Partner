@@ -1,13 +1,14 @@
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
+import css from '@/app/client-portal/clientPortal.module.css';
 
 export const dynamic='force-dynamic';
 export const metadata={title:'Final engineering files | Overflow Partner',robots:{index:false,follow:false}};
 
-const denied=(message:string)=><main style={{maxWidth:720,margin:'3rem auto',padding:24}}>
-  <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Final files not available</h1><p>{message}</p>
-</main>;
+const denied=(message:string)=><main className={css.page}><div className={css.shell}><p className={css.brand}><span>◈</span> OVERFLOW PARTNER</p><section className={css.panel}>
+  <p className={css.eyebrow}>SECURE CLIENT PORTAL</p><h1 className={css.title}>Final files not available</h1><p className={css.intro}>{message}</p>
+</section></div></main>;
 
 /** Signed URLs are minted ONLY after the verified final settlement AND a distinct
  * authenticated OPOS owner approval. Do not pre-sign links in review emails.
@@ -38,7 +39,7 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
     db.from('op_project_final_release_approvals').select('project_id,approved_at,submission_id')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
   ]);
-  if(payment.error||approval.error||!payment.data||!approval.data)
+  if(payment.error||approval.error||!payment.data?.verified_at||!approval.data?.approved_at)
     return denied('Final cleared payment and the last OPOS owner release approval are both required.');
   const {data:assignment}=await db.from('project_execution_assignments')
     .select('id,execution_cycle').eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle();
@@ -60,12 +61,17 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
     if(signError||!signed?.signedUrl)return denied('A secure file link could not be created. Please try again.');
     links.push({id:file.id,name:file.original_filename,url:signed.signedUrl});
   }
-  return <main style={{maxWidth:740,margin:'3rem auto',padding:24}}>
-    <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
-    <h1>Final engineering package</h1>
-    <p>Project {project.project_number} · Quotation {quote.quote_number}</p>
-    <p>Final settlement verified. Overflow Partner has approved release of this specific engineering revision.</p>
-    <ul>{links.map(file=><li key={file.id}><a href={file.url} rel="nofollow noopener noreferrer">{file.name}</a></li>)}</ul>
-    <p>Links expire after five minutes. Refresh this private page for fresh links. Please keep the package confidential.</p>
-  </main>;
+  return <main className={css.page}><div className={css.shell}>
+    <p className={css.brand}><span>◈</span> OVERFLOW PARTNER</p>
+    <p className={css.eyebrow}>SECURE CLIENT PORTAL / FINAL HANDOVER</p>
+    <h1 className={css.title}>Final engineering package</h1>
+    <p className={css.intro}>Project {project.project_number} · Quotation {quote.quote_number}</p>
+    <section className={css.panel}>
+      <div className={css.status}><h2>Approved for controlled release</h2><p>Final settlement verified. Overflow Partner approved this specific engineering revision.</p></div>
+      <div className={css.section}><h3>Engineering deliverables</h3>
+        <ul>{links.map(file=><li key={file.id} style={{marginBottom:14}}><a className={css.action} href={file.url} rel="nofollow noopener noreferrer">{file.name} ↗</a></li>)}</ul>
+      </div>
+      <p className={css.note}>Links expire after five minutes. Refresh this private page for fresh links. Please keep the package confidential.</p>
+    </section>
+  </div></main>;
 }

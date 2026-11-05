@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 import { requireUserContext } from '@/lib/auth/context';
 import { getProjectById } from '@/lib/repositories/workflow';
 import { isRecordNotFoundError } from '@/lib/repositories/errors';
@@ -28,7 +29,13 @@ function stateLabel(input:unknown){return String(input||'not_released').replaceA
 type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number;activityOpen:number;approvedDocuments?:number;issuedDocuments?:number;executionMode?:string;partnerCommencement?:boolean;deliveryItems?:number;deliveryWorkOpen?:number;deliveryCloseOpen?:number;openPartnerExceptions?:number;executionCycle?:number;clientTransmittals?:number;clientOutcome?:string|null};
 
 export default async function ProjectWorkspacePage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|undefined>>}){
-  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
+  const {id}=await params;
+  // The tested Northfield QA project has one canonical Workspace 2.0 view.
+  // Historical API/server actions remain available; legacy rendering must not
+  // reappear after returning from the client or partner journey.
+  if(isKnownIsolatedQaBackend()&&id==='b447f586-bf79-4839-be5e-1af607d9ca43')
+    redirect('/opos-next/projects/'+id);
+  const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
   let project;try{project=await getProjectById(supabase,organisationId,id)}catch(error){if(isRecordNotFoundError(error))notFound();throw error;}
 
   const [tasksResult,documentsResult,activityResult,membersResult,readinessResult,financialGateResult,executionAssignmentResult]=await Promise.all([

@@ -23,9 +23,18 @@ check('Governance uses delivery risk, safety and complexity', ['technicalComplex
 check('Formal partner evidence is required before Commercial Review',invariants.includes('partner_review_request_id') && invariants.includes('formalReview.status'));
 check('Preliminary consultation cannot authorise quotation',contract.includes("purpose === 'formal_assessment' && approved"));
 check('Quotation revision and expiration guarded for manual release',actions.includes("quote_revision") && actions.includes("currentQuote.valid_until"));
-check('Portal remains persistent and can return to payment',portal.includes('createClientPortalToken')&&portal.includes('Continue to payment'));
+check('Portal remains persistent and completes opening payment directly',portal.includes('createClientPortalToken')&&portal.includes('action={createStripeCheckout}')&&portal.includes('STEP 2 · OPENING PAYMENT'));
 check('Payment portal shows contractual opening amount instead of quote total',payment.includes('openingAmount = Number(contract.opening_amount)')&&payment.includes('formatAmount(openingAmount)'));
 check('Staged deposit cannot show a full-amount Stripe Checkout action',payment.includes('hasStagedPayment')&&payment.includes('stripeAvailable ?'));
+check('Paid Stripe event prevents duplicate client portal payment',portal.includes('stripePaymentPending')&&portal.includes('!stripePaymentPending')&&portal.includes("from('quote_stripe_payment_events')"));
+check('Payment return never offers Checkout while settlement is pending',payment.includes('settlementPending || stripeReturnPending')&&payment.includes("from('quote_stripe_payment_events')")&&payment.includes('Do not attempt another payment'));
+check('Server checkout rejects already verified Stripe event',checkout.includes('stripeEvidenceResult.error')&&checkout.includes('stripeEvidenceResult.data')&&checkout.includes("from('quote_stripe_payment_events')"));
+check('Client payment success requires verified ledger or provider evidence',payment.includes('verifiedStripeEvent')&&payment.includes("stripe_return === 'success'")&&payment.includes('Stripe payment evidence received'));
+check('QA preflight validates signatory against frozen approved contact before checkout',read('app/opos-next/qa-readiness/page.tsx').includes('signatoryMatches')&&read('app/opos-next/qa-readiness/page.tsx').includes('authorised_contact_name')&&read('app/opos-next/qa-readiness/page.tsx').includes('stripeEvent.data?.stripe_session_id'));
+check('QA webhook refuses to acknowledge verified payments when finalizer is disabled',webhook.includes("mode==='qa' && process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED!=='true'")&&webhook.includes("return new Response('Verified payment stored; project release requires retry',{status:503})"));
+check('Payment finalizer failures report retryable error without exposing tokens',webhook.includes('Governed opening finalization failed')&&webhook.includes("reason: String(reconcileError.message||'unknown').slice(0,220)"));
+
+
 
 check('Acceptance bound to current portal token revision',response.includes('verifyClientResponseToken')&&response.includes('p_quote_revision'));
 check('Checkout separates test keys from gated live Stripe environment',checkout.includes('stripeRuntimeMode()')&&checkout.includes("mode==='live'?'sk_live_':'sk_test_'")&&checkout.includes('checkoutOrigin(mode)'));
@@ -64,8 +73,9 @@ check('Opening Stripe checkout uses the contract amount, never total by assumpti
 check('Stripe webhook validates opening deposit and signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes('openingPayment(Number(quote.total))')&&webhook.includes("metadata?.payment_stage"));
 check('Payment never redirects QA Stripe Sandbox to production fallback',
   checkout.includes('checkoutOrigin(mode)') &&
-  read('lib/payments/stripeEnvironment.ts').includes("const host=process.env.VERCEL_URL") &&
-  read('lib/payments/stripeEnvironment.ts').includes("return 'https://'+host;") &&
+  read('lib/payments/stripeEnvironment.ts').includes('return qaPublicOrigin();') &&
+  read('lib/qa/publicOrigin.ts').includes("process.env.VERCEL_ENV !== 'preview'") &&
+  read('lib/qa/publicOrigin.ts').includes('process.env.VERCEL_BRANCH_URL') &&
   !checkout.includes("NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
 check('Quote expiry remains valid until end of date',actions.includes('T23:59:59.999Z')&&checkout.includes('T23:59:59.999Z'));
 
@@ -209,16 +219,25 @@ const projectStageActions=read('app/workspace/projects/[id]/actions.ts');
 const uniqueWorkOrderSessions=read('supabase/migrations/20261021082000_unique_partner_execution_session.sql');
 check('Work order partner is inherited from accepted quote commercial assessment',
   autoWorkOrder.includes("from('commercial_reviews')")&&autoWorkOrder.includes("from('partner_quotes')"));
-check('Automatic execution partner assignment requires existing current approved SOW',
-  autoWorkOrder.includes("document_type!=='statement-of-work'")&&autoWorkOrder.includes("is_current_revision"));
-check('Approved SOW creates controlled partner assignment only when release flag enabled',
-  documentReviewActions.includes("OP_AUTO_PARTNER_RELEASE_ENABLED==='true'")&&documentReviewActions.includes('ensureApprovedPartnerAssignment'));
-check('Work order only queued after governed ready-for-execution stage and confirmed funds',
-  autoWorkOrder.includes("project_stage!=='ready_for_execution'")&&autoWorkOrder.includes("finance?.authorised!==true"));
-check('Project stage advancement triggers partner work-order issuance',
-  projectStageActions.includes('releaseApprovedPartnerWorkOrder(supabase'));
-check('Work order email never includes client company or quote margin',
-  !autoWorkOrder.includes("project:project.title")&&autoWorkOrder.includes("project:'Controlled engineering work order'"));
+const paymentWorkOrderHandoff=read('lib/execution/paymentWorkOrderHandoff.ts');
+const stripeOpeningWebhook=read('app/api/stripe/webhook/route.ts');
+check('Automatic Work Order assignment requires current approved pre-quote technical scope',
+  autoWorkOrder.includes("'scope-of-work'")&&autoWorkOrder.includes("is_current_revision")&&
+  paymentWorkOrderHandoff.includes("doc.document_type==='scope-of-work'"));
+check('Mobilisation SOW approval never selects or reassigns the already approved partner',
+  !documentReviewActions.includes('ensureApprovedPartnerAssignment')&&
+  !documentReviewActions.includes('releaseApprovedPartnerWorkOrder'));
+check('Work Order issued at verified opening-payment Project creation, never before confirmed funds',
+  stripeOpeningWebhook.includes('issueWorkOrderAfterVerifiedOpeningPayment')&&
+  paymentWorkOrderHandoff.includes('ensureApprovedPartnerAssignment')&&
+  autoWorkOrder.includes("finance?.authorised!==true")&&autoWorkOrder.includes("finance?.basis!=='deposit'"));
+check('Project stage advancement only retries an existing governed payment handoff',
+  projectStageActions.includes('issueWorkOrderAfterVerifiedOpeningPayment')&&
+  !projectStageActions.includes('releaseApprovedPartnerWorkOrder(supabase'));
+check('Work Order email includes only partner-facing project reference and cost, not client identity or sale price',
+  !autoWorkOrder.includes("project:project.title")&&
+  autoWorkOrder.includes("project:'Controlled engineering Work Order'")&&
+  autoWorkOrder.includes('partnerPrice:Number(partnerQuote.price)'));
 check('Concurrent partner execution sessions are unique by active assignment',
   uniqueWorkOrderSessions.includes('ux_op_one_live_partner_execution_session'));
 check('No partner work-order email in non-isolated Preview',

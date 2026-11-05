@@ -77,6 +77,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
   const projectId = String(formData.get('project_id') || '') || null;
   const quoteId = String(formData.get('quote_id') || '') || null;
   const returnTo = String(formData.get('return_to') || '/workspace/documents');
+  const viewerBase = returnTo.startsWith('/opos-next/') ? '/opos-next/documents/templates' : '/workspace/documents/templates';
   const definition = getWorkspaceDocument(slug);
 
   if (!definition || (!leadId && !projectId && !quoteId)) {
@@ -134,7 +135,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (existingProjectDocumentError) throw new Error(existingProjectDocumentError.message);
 
       if (existingProjectDocument) {
-        destination = `/workspace/documents/templates/${slug}?project=${projectId}&document_record=${existingProjectDocument.id}`;
+        destination = `${viewerBase}/${slug}?project=${projectId}&document_record=${existingProjectDocument.id}`;
         redirect(destination);
       }
 
@@ -175,7 +176,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
 
           revalidatePath(returnTo);
           revalidatePath('/workspace/documents');
-          destination = `/workspace/documents/templates/${slug}?project=${projectId}&document_record=${adopted.id}`;
+          destination = `${viewerBase}/${slug}?project=${projectId}&document_record=${adopted.id}`;
           redirect(destination);
         }
       }
@@ -217,7 +218,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
       if (existingCaseDocumentError) throw new Error(existingCaseDocumentError.message);
       if (existingCaseDocument) {
         const context = resolvedQuoteId && ['client-quote','quote','invoice'].includes(slug) ? `quote=${resolvedQuoteId}` : `case=${workflow.lead.id}`;
-        redirect(`/workspace/documents/templates/${slug}?${context}&document_record=${existingCaseDocument.id}`);
+        redirect(`${viewerBase}/${slug}?${context}&document_record=${existingCaseDocument.id}`);
       }
     }
 
@@ -255,7 +256,7 @@ export async function generateControlledDocumentAction(formData: FormData) {
     revalidatePath(returnTo);
     revalidatePath('/workspace/documents');
     const context = projectId ? `project=${projectId}` : resolvedQuoteId && ['client-quote','quote','invoice'].includes(slug) ? `quote=${resolvedQuoteId}` : `case=${resolvedLeadId}`;
-    destination = `/workspace/documents/templates/${slug}?${context}&document_record=${record.id}&generated=${encodeURIComponent(reference)}`;
+    destination = `${viewerBase}/${slug}?${context}&document_record=${record.id}&generated=${encodeURIComponent(reference)}`;
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     const message = error instanceof Error ? error.message : 'Document could not be generated.';

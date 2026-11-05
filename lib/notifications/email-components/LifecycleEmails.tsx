@@ -125,8 +125,7 @@ function LifecycleEmailShell({ config, props }: { config: FamilyConfig; props: L
             </Section>
             <Section style={{ padding: '22px 32px 34px' }}>
               {props.actions?.length ? props.actions.map((action) => <Button key={action.url} href={action.url} style={{ display: 'block', width: 'fit-content', marginBottom: '10px', backgroundColor: config.actionBackground, color: '#ffffff', textDecoration: 'none', padding: '13px 20px', fontSize: '14px', lineHeight: '18px', fontWeight: 700 }}>{action.label}</Button>) : <Button href={props.actionUrl} style={{ backgroundColor: config.actionBackground, color: '#ffffff', textDecoration: 'none', padding: '13px 20px', fontSize: '14px', lineHeight: '18px', fontWeight: 700 }}>{props.actionLabel}</Button>}
-              <Text style={{ margin: '16px 0 0', color: palette.muted, fontSize: '12px', lineHeight: '19px' }}>{props.actions?.length ? 'If a button does not open, copy its link into your browser:' : 'If the button does not open, copy this link into your browser:'}</Text>
-              {props.actions?.length ? props.actions.map((action) => <Text key={action.url} style={{ margin: '6px 0', fontSize: '12px', lineHeight: '19px' }}><Link href={action.url} style={{ color: palette.ink, wordBreak: 'break-all' }}>{action.label}: {action.url}</Link></Text>) : <Link href={props.actionUrl} style={{ color: palette.ink, fontSize: '12px', lineHeight: '19px', wordBreak: 'break-all' }}>{props.actionUrl}</Link>}
+
             </Section>
             <Hr style={{ margin: 0, borderColor: palette.line }} />
             <Section style={{ padding: '18px 32px 24px' }}>

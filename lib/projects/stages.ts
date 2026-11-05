@@ -13,9 +13,9 @@ export const projectStageMeta: Record<ProjectStage, { label: string; objective: 
     action: 'Release to Execution Partner',
   },
   ready_for_execution: {
-    label: 'Ready to release',
-    objective: 'The approved delivery basis is ready with the Execution Partner.',
-    completion: 'Partner commencement received.',
+    label: 'Ready for execution',
+    objective: 'The approved project and accepted Work Order are ready; the Execution Partner must confirm commencement.',
+    completion: 'The partner commencement declaration is required before execution begins.',
     next: 'in_progress',
     action: 'Await Partner start',
   },
@@ -41,11 +41,11 @@ export const projectStageMeta: Record<ProjectStage, { label: string; objective: 
     action: 'Review revised Partner delivery',
   },
   ready_for_client_issue: {
-    label: 'Ready to send',
-    objective: 'The approved controlled delivery is ready to send to the client.',
-    completion: 'Client transmittal is recorded.',
+    label: 'Review package preparation',
+    objective: 'Internal engineering acceptance, manifest verification and owner authority are recorded. Secure external client issue is a separate controlled action.',
+    completion: 'Client issue is still pending. The protected, watermarked client review package must be prepared, access-checked and separately issued.',
     next: 'issued_to_client',
-    action: 'Send approved delivery to client',
+    action: 'Prepare protected client review',
   },
   issued_to_client: {
     label: 'Sent to client',

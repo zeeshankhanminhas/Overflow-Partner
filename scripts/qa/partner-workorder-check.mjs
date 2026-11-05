@@ -18,6 +18,63 @@ const check=(predicate,description)=>{
   checks++;
   console.log('PASS '+description);
 };
+// Regression for the actual Northfield failure: the authenticated browser
+// Supabase client is SELECT-only for privileged Work Order and handoff tables.
+// Privileged writes must use a separate server-side client AFTER user checks.
+const operatorAction=readFileSync(resolve(root,'app/opos-next/projects/[id]/work-order/action.ts'),'utf8');
+const qaCheck=operatorAction.indexOf('assertIsolatedQaBackend()');
+const userCheck=operatorAction.indexOf('requireUserContext()');
+const roleCheck=operatorAction.indexOf("assertRole(profile.role,['owner','admin'])");
+const scopedProject=operatorAction.indexOf("eq('organisation_id',organisationId)");
+const serverClient=operatorAction.indexOf('createPrivilegedClient(apiUrl,serviceKey');
+const releaseCall=operatorAction.indexOf('issueWorkOrderAfterVerifiedOpeningPayment(serviceDb,organisationId,projectId)');
+check(qaCheck>=0&&userCheck>qaCheck&&roleCheck>userCheck&&
+  scopedProject>roleCheck&&serverClient>scopedProject&&releaseCall>serverClient,
+  'QA operator, active owner/admin and organisation project verified BEFORE privileged Work Order writer');
+check(operatorAction.includes('SUPABASE_SERVICE_ROLE_KEY')&&
+  operatorAction.includes('persistSession:false')&&
+  !operatorAction.includes('issueWorkOrderAfterVerifiedOpeningPayment(supabase,'),
+  'Handoff uses a separate server-only administrative client, never browser JWT or public key');
+check(operatorAction.includes("event_type:'qa.partner_work_order_operator_requested'")&&
+  operatorAction.includes('user_id:user.id'),
+  'Work Order operator action records the signed-in actor in audit evidence');
+
+// Validate that the same authorised operator action completes the QA email
+// handoff without a preview-only cron or a second user workflow.
+const qaMailer=readFileSync(resolve(root,'lib/notifications/qaWorkOrderDelivery.ts'),'utf8');
+const transportGuard=readFileSync(resolve(root,'lib/qa/email-guard.ts'),'utf8');
+const operatorPage=readFileSync(resolve(root,'app/opos-next/projects/[id]/work-order/page.tsx'),'utf8');
+const standardMailer=readFileSync(resolve(root,'app/api/notifications/process/route.ts'),'utf8');
+const sharedProvider=readFileSync(resolve(root,'lib/notifications/emailProvider.ts'),'utf8');
+const queuedIndex=operatorAction.indexOf('issueWorkOrderAfterVerifiedOpeningPayment(serviceDb,organisationId,projectId)');
+const emailIndex=operatorAction.indexOf('deliverNorthfieldQaPartnerInvitation(serviceDb,organisationId,projectId)');
+check(queuedIndex>=0&&emailIndex>queuedIndex,
+  'Partner email attempts only after the governed Work Order was issued');
+check(qaMailer.includes("projectId!=='b447f586-bf79-4839-be5e-1af607d9ca43'")&&
+  qaMailer.includes("event_key','partner_work.released'")&&
+  qaMailer.includes("'auto:work-order:'")&&qaMailer.includes("eq('attempts',row.attempts)")&&
+  qaMailer.includes("is('locked_at',null)"),
+  'Immediate delivery is bound to exact Northfield project, issued assignment and atomic outbox claim');
+check(qaMailer.includes("OP_QA_EMAIL_SENDING_ENABLED")&&
+  qaMailer.includes("op_complete_notification")&&qaMailer.includes("op_fail_notification")&&
+  standardMailer.includes('await deliverNotificationEmail(row)')&&
+  qaMailer.includes('await deliverNotificationEmail(claimed as OutboxRow)')&&
+  sharedProvider.includes("Idempotency-Key"),
+  'Preview dispatch and ordinary worker share provider idempotency and outbox evidence');
+check(sharedProvider.includes('qaDeliveryEnvelopeRecipient(row.recipient_email)')&&
+      sharedProvider.includes('to: [envelopeRecipient]')&&
+      transportGuard.includes("if(process.env.VERCEL_ENV!=='preview') return email;")&&
+      transportGuard.includes('qaAllowedRecipientAddresses().has(base)'),
+  'Resend preview transport routes only approved QA aliases to verified primary inbox; production unchanged');
+check(operatorAction.includes('retryNorthfieldQaInvitationAction')&&
+      operatorAction.includes('You can only send testing emails to your own email address')&&
+      operatorAction.includes('deliverNorthfieldQaPartnerInvitation(db,organisationId,projectId)')&&
+      !operatorAction.includes('issueWorkOrderAfterVerifiedOpeningPayment(db,organisationId,projectId)'),
+  'Existing issued Work Order is never reissued just to retry its provider-rejected invitation');
+check(operatorPage.includes('op_list_notification_delivery')&&
+      operatorPage.includes('Deliver existing QA partner invitation')&&
+      !operatorPage.includes("supabase.from('notification_outbox')"),
+  'Work Order UI reads real organisation-scoped outbox state and shows a separate existing-invitation action');
 const ids={
   org:'10000000-0000-4000-8000-000000000001',
   actor:'10000000-0000-4000-8000-000000000002',
@@ -29,22 +86,30 @@ const ids={
   sow:'10000000-0000-4000-8000-000000000008',
   assignment:'10000000-0000-4000-8000-000000000009',
   session:'10000000-0000-4000-8000-000000000010',
+  workOrder:'10000000-0000-4000-8000-000000000012',
 };
 const tables={
   projects:[{id:ids.project,organisation_id:ids.org,quote_id:ids.quote,project_number:'OP-QA-WO-1',
-    project_stage:'mobilisation',start_date:'2026-10-24',due_date:'2026-11-07'}],
+    project_stage:'mobilisation',start_date:'2026-10-24',due_date:null,created_by:ids.actor}],
   quotes:[{id:ids.quote,organisation_id:ids.org,commercial_review_id:ids.commercial}],
-  commercial_reviews:[{id:ids.commercial,organisation_id:ids.org,partner_quote_id:ids.partnerQuote}],
-  partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner}],
+  commercial_reviews:[{id:ids.commercial,organisation_id:ids.org,partner_quote_id:ids.partnerQuote,status:'approved',approved_at:'2026-10-20T00:00:00Z'}],
+  partner_quotes:[{id:ids.partnerQuote,organisation_id:ids.org,partner_id:ids.partner,price:180,currency:'GBP',status:'received',lead_time_days:12,delivery_commitment:'12 business days',commercial_assumptions:'Client input on time',exclusions:'Unapproved redesign'}],
   partners:[{id:ids.partner,organisation_id:ids.org,company_name:'OP QA Technical Partner',
     contact_name:'QA Engineer',email:'partner@example.invalid',status:'approved',nda_signed:true}],
+  partner_execution_agreement_evidence:[{id:'10000000-0000-4000-8000-000000000011',organisation_id:ids.org,partner_id:ids.partner,is_current:true,signed_at:'2026-10-01T00:00:00.000Z',verified_at:'2026-10-02T00:00:00.000Z'}],
   documents:[{id:ids.sow,organisation_id:ids.org,project_id:ids.project,
-    document_type:'statement-of-work',status:'draft',is_current_revision:true}],
+    document_type:'scope-of-work',reference:'OP-SCOPE-QA-1',revision_code:'A',status:'draft',is_current_revision:true},
+    {id:'10000000-0000-4000-8000-000000000013',organisation_id:ids.org,project_id:ids.project,
+      document_type:'statement-of-work',reference:'OP-DRAFT-SOW',status:'draft',is_current_revision:true}],
   project_execution_assignments:[],
   partner_execution_sessions:[],
+  partner_work_orders:[],
+  partner_work_order_acceptances:[],
+  project_work_order_handoffs:[],
+  activity_events:[],
 };
 let gate={authorised:true,basis:'deposit',required:300,received:300};
-const uuidFor=(table)=>table==='partner_execution_sessions'?ids.session:ids.assignment;
+const uuidFor=(table)=>table==='partner_execution_sessions'?ids.session:table==='partner_work_orders'?ids.workOrder:ids.assignment;
 class Builder {
   constructor(table,op='read',value=null){
     this.table=table;this.op=op;this.value=value;this.conditions=[];this.sorted=false;this.first=Infinity;
@@ -65,7 +130,7 @@ class Builder {
     if(this.op==='insert'){
       const input=Array.isArray(this.value)?this.value:[this.value];
       const added=input.map((row,i)=>({...row,id:row.id||uuidFor(this.table),created_at:new Date().toISOString(),
-        execution_cycle:row.execution_cycle||1}));
+        execution_cycle:row.execution_cycle||1,...(this.table==='partner_work_orders'?{status:'issued'}:{})}));
       tables[this.table].push(...added);
       return added;
     }
@@ -83,7 +148,11 @@ class Builder {
 const db={
   from(table){if(!Object.hasOwn(tables,table))throw new Error('Undeclared QA table '+table);
     return {select:()=>new Builder(table),insert:value=>new Builder(table,'insert',value),
-      update:value=>new Builder(table,'update',value)};},
+      update:value=>new Builder(table,'update',value),
+      upsert:async(value)=>{const index=tables[table].findIndex(row=>row.project_id===value.project_id);
+        if(index>=0)Object.assign(tables[table][index],value);
+        else tables[table].push({...value});
+        return {data:value,error:null};}};},
   rpc:async(name)=>{
     assert.equal(name,'op_project_financial_gate','Only governed finance gate may authorise work');
     return {data:gate,error:null};
@@ -109,22 +178,26 @@ process.env.NEXT_PUBLIC_SITE_URL='https://qa.example.invalid';
 try {
   const {ensureApprovedPartnerAssignment,releaseApprovedPartnerWorkOrder}=
     require(resolve(root,'lib/execution/autoWorkOrder.ts'));
+  const {issueWorkOrderAfterVerifiedOpeningPayment}=
+    require(resolve(root,'lib/execution/paymentWorkOrderHandoff.ts'));
   async function blocked(action,substring,description){
     await assert.rejects(action(),error=>error instanceof Error && error.message.includes(substring),description);
     check(true,description);
   }
   await blocked(()=>ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow),
-    'approved Statement of Work','Unapproved SOW cannot create assignment');
-  check(tables.project_execution_assignments.length===0,'No assignment before SOW approval');
+    'approved technical scope','Unapproved technical scope cannot create assignment');
+  check(tables.project_execution_assignments.length===0,'No assignment before technical scope approval');
   tables.documents[0].status='approved';
+  const agreementEvidence=tables.partner_execution_agreement_evidence.shift();
+  await blocked(()=>ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow),
+    'Execution Partner Agreement','Unsigned Execution Partner Agreement cannot release');
+  tables.partner_execution_agreement_evidence.push(agreementEvidence);
   const assigned=await ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow);
   check(assigned.partner_id===ids.partner,'Approved scope inherits commercially selected partner');
-  check(assigned.scope_document_id===ids.sow,'Assignment inherits the exact approved SOW');
+  check(assigned.scope_document_id===ids.sow,'Assignment inherits the pre-quotation approved execution scope');
   await ensureApprovedPartnerAssignment(db,ids.org,ids.actor,ids.project,ids.sow);
   check(tables.project_execution_assignments.length===1,'Assignment is idempotent');
-  await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
-    'Mobilisation must complete','No work order before governed mobilisation');
-  tables.projects[0].project_stage='ready_for_execution';
+  check(tables.projects[0].project_stage==='mobilisation','Project remains in mobilisation while Work Order is issued');
   for(const basis of ['po','credit','manual','none']){
     gate={authorised:true,basis,required:300,received:300};
     await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
@@ -136,14 +209,18 @@ try {
   gate={authorised:true,basis:'deposit',required:300,received:300};
   tables.documents[0].is_current_revision=false;
   await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
-    'Current controlled SOW','Outdated SOW cannot release work');
+    'Current controlled technical scope','Outdated technical scope cannot issue Work Order');
   tables.documents[0].is_current_revision=true;
   tables.partners[0].nda_signed=false;
   await blocked(()=>releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project),
     'NDA-signed','No NDA means no partner work order');
   tables.partners[0].nda_signed=true;
   const released=await releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project);
-  check(released.assignmentId===ids.assignment,'Correct commercial assignment is released');
+  check(released.assignmentId===ids.assignment,'Correct commercial assignment is released during mobilisation');
+  check(tables.partner_work_orders.length===1,'Exactly one immutable priced Work Order issued after paid deposit');
+  check(Number(tables.partner_work_orders[0].partner_price)===180,'Partner cost inherited from selected quote, never client sale price');
+  check(tables.partner_work_orders[0].scope_document_id===ids.sow,'Work Order binds originally approved technical scope');
+  check(tables.project_execution_assignments[0].release_reference==='OP-QA-WO-1/WO-01','Work Order reference is deterministic');
   check(tables.partner_execution_sessions.length===1,'One secure execution session created');
   check(emails.length===1,'Exactly one queued fake partner work-order notification');
   check(emails[0].recipientEmail==='partner@example.invalid','Only governed partner receives invitation');
@@ -154,7 +231,26 @@ try {
   const repeated=await releaseApprovedPartnerWorkOrder(db,ids.org,ids.actor,ids.project);
   check(repeated.sessionId===released.sessionId,'Retry reuses same execution token session');
   check(tables.partner_execution_sessions.length===1,'Retry creates no second execution portal');
+  check(tables.partner_work_orders.length===1,'Retry never creates a second Work Order or partner price');
   check(emails[1].idempotencyKey===emails[0].idempotencyKey,'Retry uses stable outbox idempotency key');
+  const handoff=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
+  check(handoff.status==='queued','Verified opening payment handoff issues the existing priced order');
+  check(tables.project_work_order_handoffs.length===1&&tables.project_work_order_handoffs[0].status==='queued',
+    'Handoff persists one queued record in Project 360');
+  check(tables.partner_work_orders.length===1,'Webhook replay does not issue another Work Order');
+  check(tables.partner_execution_sessions.length===1,'Webhook replay does not create another partner portal');
+  tables.projects[0].project_stage='in_progress';
+  const afterExecutionReplay=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
+  check(afterExecutionReplay.status==='queued','Late signed Stripe retry preserves issued WO after project enters execution');
+  check(tables.partner_work_orders.length===1&&tables.project_work_order_handoffs[0].status==='queued',
+    'Late webhook retry cannot downgrade issued, accepted execution work');
+  tables.projects[0].project_stage='mobilisation';
+  tables.project_work_order_handoffs.length=0;
+  tables.quotes[0].commercial_review_id=null;
+  const blockedHandoff=await issueWorkOrderAfterVerifiedOpeningPayment(db,ids.org,ids.project);
+  check(blockedHandoff.status==='awaiting_evidence','Missing earlier commercial selection leaves controlled pending evidence');
+  check(tables.partner_work_orders.length===1,'No reassignment or price change when original commercial selection disappears');
+  check(tables.project_work_order_handoffs[0].status==='awaiting_evidence','Project 360 displays a durable automatic handoff blocker');
   console.log('OPOS partner-workorder QA passed: '+checks+' checks, fake email only, no network.');
 }finally {
   Module._load=originalLoad;

@@ -10,16 +10,21 @@ import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
 import { createControlledPdf, pdfEmailAttachment } from '@/lib/notifications/controlledPdf';
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 
+function modernProjectReturn(form:FormData,destination:string){return form.get('opos_next')==='1'?destination.replace(/^\/workspace\/projects\//,'/opos-next/projects/'):destination;}
+function assertModernProjectQa(form:FormData){if(form.get('opos_next')==='1')assertIsolatedQaBackend();}
 const roles=['owner','admin','operator','engineering','commercial'] as const;
 function required(formData:FormData,key:string){const value=String(formData.get(key)||'').trim();if(!value)throw new Error(`${key.replaceAll('_',' ')} is required.`);return value;}
 function projectUrl(projectId:string,params:Record<string,string>){return `/workspace/projects/${projectId}?${new URLSearchParams(params).toString()}`;}
-function refresh(projectId:string){revalidatePath(`/workspace/projects/${projectId}`);revalidatePath(`/workspace/projects/${projectId}/execution`);revalidatePath(`/workspace/projects/${projectId}/delivery`);revalidatePath('/workspace/projects');revalidatePath('/workspace/documents');}
+function refresh(projectId:string){revalidatePath('/opos-next/projects/'+projectId);revalidatePath('/opos-next/projects');revalidatePath(`/workspace/projects/${projectId}`);revalidatePath(`/workspace/projects/${projectId}/execution`);revalidatePath(`/workspace/projects/${projectId}/delivery`);revalidatePath('/workspace/projects');revalidatePath('/workspace/documents');}
 function appUrl(){return (process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');}
 
 export async function recordClientTransmittalAction(formData:FormData){
   const projectId=required(formData,'project_id');let destination=`/workspace/projects/${projectId}`;
   try{
+    if(process.env.VERCEL_ENV==='preview')throw new Error('Client Review Package issue is blocked in QA until a secure view-only, watermarked browser review replaces the downloadable PDF attachment.');
+    assertModernProjectQa(formData);
     const recipientName=required(formData,'recipient_name');const recipientEmail=required(formData,'recipient_email').toLowerCase();const deliveryMethod=required(formData,'delivery_method');const note=String(formData.get('note')||'').trim();
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
     const {data:project}=await supabase.from('projects').select('project_number,title,due_date,lead_id,quote_id,project_stage').eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
@@ -52,12 +57,13 @@ export async function recordClientTransmittalAction(formData:FormData){
     refresh(projectId);
     destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client review-only email queued with the controlled PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client delivery could not be recorded.',focus:'record-next-action'});}
-  redirect(destination);
+  redirect(modernProjectReturn(formData,destination));
 }
 
 export async function recordClientReviewOutcomeAction(formData:FormData){
   const projectId=required(formData,'project_id');let destination=`/workspace/projects/${projectId}`;
   try{
+    assertModernProjectQa(formData);
     const outcome=required(formData,'outcome');const evidenceBasis=required(formData,'evidence_basis');const evidenceReference=required(formData,'evidence_reference');const comments=String(formData.get('comments')||'').trim();
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...roles]);
     const changesRequested=['changes_requested','rejected','changes_needed'].includes(outcome);
@@ -126,5 +132,5 @@ export async function recordClientReviewOutcomeAction(formData:FormData){
     refresh(projectId);const projectStage=String(data?.projectStage||'client_review');destination=projectUrl(projectId,{updated:`Client outcome recorded: ${outcome.replaceAll('_',' ')}.`,...(projectStage==='partner_correction'?{advanced:'partner_correction'}:{}),focus:'record-next-action'});
     }
   }catch(error){destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Client outcome could not be recorded.',focus:'record-next-action'});}
-  redirect(destination);
+  redirect(modernProjectReturn(formData,destination));
 }

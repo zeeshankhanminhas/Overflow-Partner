@@ -62,5 +62,8 @@ jobs:
       - name: Production Stripe release-mode readiness (offline)
         run: npm run stripe-live:check
 
+      - name: Payment-triggered partner Work Order and acceptance contracts
+        run: npm run qa-workorder:check
+
       - name: Production build
         run: npx next build

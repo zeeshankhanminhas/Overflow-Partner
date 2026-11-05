@@ -13,6 +13,7 @@ export type AcquisitionActionKey =
   | 'wait_customer'
   | 'request_partner'
   | 'wait_partner'
+  | 'issue_partner_review'
   | 'review_partner_response'
   | 'resolve_clarification'
   | 'create_case'
@@ -106,7 +107,16 @@ export function resolveAcquisitionState(input: AcquisitionStateInput): Acquisiti
     actionKey = 'request_partner';
   }
 
-  if (input.hasPartnerRequest && ['draft','invited','opened','in_progress'].includes(partnerStatus) && !converted) {
+  if (input.hasPartnerRequest && partnerStatus === 'draft' && !converted) {
+    stageIndex = 3;
+    currentState = 'Partner assessment draft ready';
+    nextAction = 'Issue secure partner assessment';
+    nextReason = 'An assessment draft exists, but it has not yet been issued. An authorised operator must issue the controlled review link.';
+    actionKey = 'issue_partner_review';
+    waitingExternally = false;
+  }
+
+  if (input.hasPartnerRequest && ['invited','opened','in_progress'].includes(partnerStatus) && !converted) {
     stageIndex = 3;
     currentState = partnerStatus === 'opened' || partnerStatus === 'in_progress' ? 'Partner is assessing' : 'Waiting for Partner';
     nextAction = 'Wait for Partner';

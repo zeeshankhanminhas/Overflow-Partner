@@ -1,7 +1,5 @@
 'use server';
 
-import { ensureApprovedPartnerAssignment } from '@/lib/execution/autoWorkOrder';
-
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
@@ -49,6 +47,9 @@ async function assertDocumentEvidenceReady(supabase: Awaited<ReturnType<typeof r
 }
 
 function assertDocumentActive(document: ControlledDocument) {
+  if (document.project_id && ['technical-review','document-register'].includes(document.document_type)) {
+    throw new Error('This historical document is not engineering acceptance. Open Project 360 for current-submission QA, manifest verification and release decisions.');
+  }
   if (isDormantWorkspaceDocument(document.document_type)) {
     throw new Error('This document is dormant. Its existing record remains available as historical evidence, and no further approval or issue action is available.');
   }
@@ -73,7 +74,9 @@ function revalidateDocumentOwners(document: ControlledDocument) {
   revalidatePath('/workspace/documents');
   revalidatePath(`/workspace/documents/${document.id}`);
   if (document.lead_id) revalidatePath(`/workspace/leads/${document.lead_id}`);
+  if (document.lead_id) revalidatePath(`/opos-next/cases/${document.lead_id}`);
   if (document.project_id) revalidatePath(`/workspace/projects/${document.project_id}`);
+  if (document.project_id) revalidatePath(`/opos-next/projects/${document.project_id}`);
 }
 
 async function persistDocumentStatus({
@@ -212,18 +215,8 @@ export async function approveControlledDocumentAction(documentId: string): Promi
       combined_owner_authority: combinedAuthority,
       declaration: 'I approve this document revision for controlled issue under owner-operated governance.',
     }});
-    let assignmentMessage='';
-    if(process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true' &&
-      document.document_type==='statement-of-work' && document.project_id){
-      try{
-        await ensureApprovedPartnerAssignment(supabase,organisationId,user.id,document.project_id,documentId);
-        assignmentMessage=' Controlled Partner assignment prepared; completing mobilisation will automatically issue the work order.';
-      }catch(err){
-        assignmentMessage=' Partner assignment requires attention: '+(err instanceof Error?err.message:'Unknown issue');
-      }
-    }
     revalidateDocumentOwners(document);
-    return { ok: true, message: (combinedAuthority ? 'Approved using combined owner authority; the separate decision is recorded.' : 'Document approved by owner authority.')+assignmentMessage, status: 'approved' };
+    return { ok: true, message: (combinedAuthority ? 'Approved using combined owner authority; the separate decision is recorded.' : 'Document approved by owner authority.'), status: 'approved' };
   } catch (error) { return { ok: false, message: error instanceof Error ? error.message : 'Document approval failed.' }; }
 }
 

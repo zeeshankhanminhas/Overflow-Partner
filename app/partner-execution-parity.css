@@ -1,51 +1,27 @@
-/* External Partner Execution parity layer. Scoped to the controlled execution
-   page so the public marketing site remains untouched. */
-
-main.min-h-screen.bg-\[\#f5f4ef\]{
-  --pe-ink:#151515;
-  --pe-paper:#f3f2ed;
-  --pe-surface:#f8f7f3;
-  --pe-line:rgba(21,21,21,.14);
-  --pe-muted:#66645f;
-  --pe-accent:#d9572f;
-  background:var(--pe-paper)!important;
-}
-main.min-h-screen.bg-\[\#f5f4ef\]>.mx-auto{max-width:1180px!important}
-main.min-h-screen.bg-\[\#f5f4ef\] header{padding-top:24px!important;border-top:2px solid var(--pe-ink)!important}
-main.min-h-screen.bg-\[\#f5f4ef\] header h1{max-width:760px;font-weight:600!important;letter-spacing:-.045em!important}
-main.min-h-screen.bg-\[\#f5f4ef\] header>div:last-child{border-left-color:var(--pe-line)!important}
-main.min-h-screen.bg-\[\#f5f4ef\] header+section{gap:0!important;border-color:var(--pe-line)!important}
-main.min-h-screen.bg-\[\#f5f4ef\] header+section>div{min-height:78px;padding:15px 18px;border-right:1px solid var(--pe-line)}
-main.min-h-screen.bg-\[\#f5f4ef\] header+section>div:last-child{border-right:0}
-main.min-h-screen.bg-\[\#f5f4ef\] header+section p:first-child{font-size:9px!important;letter-spacing:.1em!important}
-main.min-h-screen.bg-\[\#f5f4ef\] header+section p:last-child{font-size:14px}
-main.min-h-screen.bg-\[\#f5f4ef\] button,
-main.min-h-screen.bg-\[\#f5f4ef\] label:has(input[type='file']){border-radius:0!important;box-shadow:none!important;transform:none!important;transition:background-color .16s ease,color .16s ease,border-color .16s ease}
-main.min-h-screen.bg-\[\#f5f4ef\] button:hover{transform:none!important;box-shadow:none!important}
-main.min-h-screen.bg-\[\#f5f4ef\] input:not([type='checkbox']):not([type='radio']),
-main.min-h-screen.bg-\[\#f5f4ef\] select,
-main.min-h-screen.bg-\[\#f5f4ef\] textarea{border-radius:0!important;box-shadow:none!important}
-main.min-h-screen.bg-\[\#f5f4ef\] input:focus,
-main.min-h-screen.bg-\[\#f5f4ef\] select:focus,
-main.min-h-screen.bg-\[\#f5f4ef\] textarea:focus{box-shadow:0 1px 0 var(--pe-ink)!important}
-main.min-h-screen.bg-\[\#f5f4ef\] aside{padding-right:12px}
-main.min-h-screen.bg-\[\#f5f4ef\] aside>section{background:transparent}
-main.min-h-screen.bg-\[\#f5f4ef\] aside button{min-height:44px}
-main.min-h-screen.bg-\[\#f5f4ef\] form>section{border-top-color:var(--pe-line)!important}
-main.min-h-screen.bg-\[\#f5f4ef\] form>section>div:first-child h2{max-width:680px}
-main.min-h-screen.bg-\[\#f5f4ef\] form button[type='submit']{min-height:48px;letter-spacing:.06em}
-main.min-h-screen.bg-\[\#f5f4ef\] [role='status']{border-left-color:var(--pe-accent)!important;background:rgba(217,87,47,.045)!important}
-
-@media(max-width:1023px){
-  main.min-h-screen.bg-\[\#f5f4ef\] header>div:last-child{border-left:0!important;border-top:1px solid var(--pe-line);padding-top:20px}
-  main.min-h-screen.bg-\[\#f5f4ef\] aside{padding-right:0}
-}
-@media(max-width:767px){
-  main.min-h-screen.bg-\[\#f5f4ef\]{padding:28px 18px 56px!important}
-  main.min-h-screen.bg-\[\#f5f4ef\] header{padding-top:18px!important}
-  main.min-h-screen.bg-\[\#f5f4ef\] header h1{font-size:36px!important;line-height:1!important}
-  main.min-h-screen.bg-\[\#f5f4ef\] header+section{grid-template-columns:1fr 1fr!important}
-  main.min-h-screen.bg-\[\#f5f4ef\] header+section>div{min-height:70px;border-bottom:1px solid var(--pe-line)}
-  main.min-h-screen.bg-\[\#f5f4ef\] header+section>div:nth-child(2n){border-right:0}
-  main.min-h-screen.bg-\[\#f5f4ef\] header+section>div:nth-last-child(-n+2){border-bottom:0}
-}
+/* OPOS Workspace 2.0 brand parity for the external Partner Portal.
+   Deliberately light for external partners; no legacy global main selector. */
+.op-partner-portal{--op-ink:#171a19;--op-line:#d9dbd5;--op-subtle:#606760;--op-surface:#fff;min-height:100dvh;background:#f4f3ef!important;color:var(--op-ink);font:400 14px/1.6 var(--font-inter),Inter,ui-sans-serif,system-ui,sans-serif}
+.op-partner-portal *{box-sizing:border-box}
+.op-partner-portal>.mx-auto{max-width:1090px!important;padding:41px 24px 90px}
+.op-partner-portal header{padding-top:18px;border-top:2px solid var(--op-ink)!important;padding-bottom:27px!important}
+.op-partner-portal header h1{max-width:740px;font-size:clamp(29px,3.9vw,46px);font-weight:650!important;line-height:1.16!important;letter-spacing:-.045em!important;overflow-wrap:anywhere}
+.op-partner-portal header p{overflow-wrap:anywhere}
+.op-partner-portal header>div:last-child{border-left-color:var(--op-line)!important;min-width:205px}
+.op-partner-portal :is(section,aside){min-width:0}
+.op-partner-portal section.border.border-black\/10{border:1px solid var(--op-line);border-radius:12px;background:var(--op-surface)}
+.op-partner-portal section h2{letter-spacing:-.03em;line-height:1.25}
+.op-partner-portal section p{line-height:1.7}
+.op-partner-portal button{min-height:44px;border-radius:8px;transition:background-color .15s ease,color .15s ease;transform:none!important}
+.op-partner-portal button:hover{transform:none!important;box-shadow:none!important}
+.op-partner-portal :is(input:not([type=checkbox]),select,textarea){min-width:0;border-radius:8px!important;font:inherit;font-size:14px}
+.op-partner-portal input[type=checkbox]{accent-color:#171a19;min-width:18px;min-height:18px}
+.op-partner-portal :is(button,input,select,textarea):focus-visible{outline:2px solid var(--op-ink);outline-offset:3px}
+.op-partner-portal [role=status]{border-left:3px solid #4d7965!important;background:#f2f5f0!important;border-radius:0 10px 10px 0}
+.op-partner-portal [role=dialog]{z-index:60}
+.op-partner-portal [role=dialog] aside{max-width:550px;padding:26px 31px;background:#f4f3ef}
+.op-partner-portal [role=dialog] label{line-height:1.6}
+.op-partner-portal [role=dialog] form button[type=submit]{min-height:48px}
+.op-partner-portal .grid.content-start>section{scroll-margin-top:22px}
+@media(max-width:1023px){.op-partner-portal header>div:last-child{border-left:0!important;border-top:1px solid var(--op-line);padding:16px 0 0!important}.op-partner-portal>.mx-auto{padding:28px 20px 72px}}
+@media(max-width:700px){.op-partner-portal>.mx-auto{padding:25px 16px 70px}.op-partner-portal header h1{font-size:32px!important;line-height:1.18!important}.op-partner-portal [role=dialog] aside{max-width:100%;padding:20px 19px}.op-partner-portal :is(input:not([type=checkbox]),select,textarea){font-size:16px!important}.op-partner-portal .grid.content-start>section{padding:22px 19px}}
+@media(prefers-reduced-motion:reduce){.op-partner-portal button{transition:none}}

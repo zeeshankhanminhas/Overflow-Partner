@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveCaseOwnership, resolveProspectOwnership, resolveLifecycleOwnership } from '@/lib/lifecycle/ownership';
+import { assertQaRecipientAllowed } from '@/lib/qa/email-guard';
 
 export type NotificationCategory = 'transactional' | 'reminder' | 'nurture' | 'system';
 
@@ -46,6 +47,7 @@ async function stillOwnsScheduledCommunication(supabase:SupabaseClient,input:Que
 }
 
 export async function queueNotification(supabase: SupabaseClient, input: QueueNotificationInput) {
+  assertQaRecipientAllowed(input.recipientEmail);
   if(!(await stillOwnsScheduledCommunication(supabase,input))) return null;
   const { data, error } = await supabase.rpc('op_enqueue_notification', {
     p_organisation_id: input.organisationId,

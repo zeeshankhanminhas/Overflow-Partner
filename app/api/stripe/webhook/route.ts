@@ -3,6 +3,7 @@ import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 import { validStripeSignature } from '@/lib/payments/stripeSignature';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { openingPayment } from '@/lib/lifecycle/voiceAgreedContract';
+import { issueWorkOrderAfterVerifiedOpeningPayment } from '@/lib/execution/paymentWorkOrderHandoff';
 
 export const runtime = 'nodejs';
 
@@ -41,8 +42,24 @@ export async function POST(request: Request) {
   const {data:quote,error}=await db.from('quotes').select('id,lead_id,organisation_id,revision,total,currency').eq('id',quoteId).eq('organisation_id',organisationId).eq('revision',revision).maybeSingle();
   if (error || !quote) return new Response('Quote cannot be verified',{status:422});
   if(mode==='qa'){
-    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle();
-    if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) return new Response('Sandbox evidence restricted to QA cases',{status:422});
+    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name,reference').eq('organisation_id',organisationId).eq('id',quote.lead_id).maybeSingle();
+    const northfield=qaLead?.reference==='OP-LEAD-2026-0001' &&
+      qaLead.company_name==='QA - Northfield Demonstration Engineering' &&
+      quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99' &&
+      organisationId==='717262cb-68da-4e7b-a9fa-238dc6c5d16b';
+    if (qaError || !(qaLead?.company_name?.startsWith('OP QA TEST')||northfield))
+      return new Response('Sandbox evidence restricted to explicitly authorised QA cases',{status:422});
+    if (northfield){
+      const [replay,acknowledgement]=await Promise.all([
+        db.from('op_qa_northfield_replay').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',organisationId)
+          .gt('expires_at',new Date().toISOString()).maybeSingle(),
+        db.from('op_qa_northfield_addendum_acceptances').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',organisationId).maybeSingle(),
+      ]);
+      if(replay.error||acknowledgement.error||!replay.data||!acknowledgement.data)
+        return new Response('Northfield sandbox correction acknowledgement not verified',{status:422});
+    }
     const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
       .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',organisationId)
       .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
@@ -124,9 +141,37 @@ export async function POST(request: Request) {
     return Response.json({received:true,stage:'final'});
   }
   // Opening settlement can create the Project only through the governed DB finalizer.
+  // Fail with a retryable status when isolated QA auto-release is unexpectedly disabled.
+  if(mode==='qa' && process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED!=='true') {
+    console.error('[opos-qa] Signed opening payment stored but automatic release switch is disabled');
+    return new Response('Verified payment stored; project release requires retry',{status:503});
+  }
+  let reconciledProjectId='';
   if (process.env.OP_PACKAGE01_AUTO_RELEASE_ENABLED === 'true') {
-    const {error:reconcileError}=await db.rpc(mode==='live'?'op_finalize_live_stripe_quote_payment':'op_finalize_verified_stripe_quote_payment',{p_session_id:String(session.id)});
-    if (reconcileError) return new Response('Settlement stored but project release needs retry',{status:503});
+    const {data:reconciled,error:reconcileError}=await db.rpc(mode==='live'?'op_finalize_live_stripe_quote_payment':'op_finalize_verified_stripe_quote_payment',{p_session_id:String(session.id)});
+    if (reconcileError){
+      // Avoid emitting customer data, Stripe tokens or credentials in runtime logs.
+      console.error('[opos-stripe] Governed opening finalization failed',{
+        code: String(reconcileError.code||'unknown').slice(0,20),
+        reason: String(reconcileError.message||'unknown').slice(0,220),
+      });
+      return new Response('Settlement stored but project release needs retry',{status:503});
+    }
+    reconciledProjectId=String(reconciled?.id||'');
+    if(!reconciledProjectId)return new Response('Project release requires verified project identity',{status:503});
+  }
+  // Work Order issuance belongs to verified opening payment, NOT the later
+  // transition from Mobilisation to Ready for execution. Only isolated QA is
+  // enabled during this branch test. A missing approved partner/scope is a
+  // durable blocker, not an excuse to fabricate approval or reject a paid client.
+  if(mode==='qa' && process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'){
+    if(!reconciledProjectId)return new Response('Cannot issue partner Work Order without Project 360',{status:503});
+    try{
+      const result=await issueWorkOrderAfterVerifiedOpeningPayment(db,organisationId,reconciledProjectId);
+      return Response.json({received:true,stage:'opening',projectCreated:true,workOrder:result.status});
+    }catch{
+      return new Response('Opening payment verified, but Work Order status requires retry',{status:503});
+    }
   }
   return Response.json({received:true});
 }

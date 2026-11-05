@@ -3,7 +3,7 @@ import type { WorkspaceDocumentSlug } from './documentRegistry';
 export type DocumentEvidenceKey =
   | 'clientIdentity' | 'technicalIntake' | 'partnerAssessment' | 'partnerQuote'
   | 'commercialApproval' | 'clientQuote' | 'acceptedQuote' | 'project'
-  | 'deliveryEvidence' | 'documentControl' | 'invoice';
+  | 'deliveryEvidence' | 'partnerSubmission' | 'documentControl' | 'invoice';
 
 export type DocumentDataContract = {
   canonical: boolean;
@@ -31,7 +31,7 @@ export const documentDataContracts: Record<WorkspaceDocumentSlug, DocumentDataCo
   'invoice': contract('finance', ['clientIdentity', 'project', 'invoice']),
   'document-register': contract('internal', ['documentControl']),
   'requirement-sheet': contract('internal', ['technicalIntake'], false),
-  'technical-review': contract('internal', ['partnerAssessment'], false),
+  'technical-review': contract('internal', ['project', 'partnerSubmission']),
   'quote': contract('client', ['clientQuote'], false),
   'email-templates': contract('internal', []),
 };
@@ -46,6 +46,7 @@ export const evidenceLabels: Record<DocumentEvidenceKey, string> = {
   acceptedQuote: 'accepted client quotation',
   project: 'delivery project and ownership',
   deliveryEvidence: 'delivery submissions or client transmittals',
+  partnerSubmission: 'current-cycle Partner engineering submission with at least one attached file',
   documentControl: 'controlled document records',
   invoice: 'invoice record with issue and due dates',
 };

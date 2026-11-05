@@ -1,0 +1,196 @@
+import {notFound} from 'next/navigation';
+import Link from 'next/link';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import styles from './caseDocuments.module.css';
+import {requireUserContext} from '@/lib/auth/context';
+import {resolveCaseQueuePresentation} from '@/lib/presentation/queueState';
+import WorkRecordV2 from '../../WorkRecordV2';
+import {getWorkflowCase} from '@/lib/orchestration/service';
+import {getCaseDocumentRequirements} from '@/lib/cases/documentRequirements';
+import DocumentGenerationPanel from '@/components/workspace/documents/DocumentGenerationPanel';
+import {sendFreshPortalLink} from './portal-link-action';
+import {approveIntakeAction,createCommercialReviewAction,approveCommercialAction,issueQuoteAction,resendClientQuoteAction} from '@/app/workspace/orchestration/actions';
+import MarginSimulator from '@/app/workspace/leads/[id]/MarginSimulator';
+import QuoteIssueContractFields from '@/app/workspace/leads/[id]/QuoteIssueContractFields';
+
+export default async function CasePage({params,searchParams}:{params:Promise<{id:string}>,searchParams:Promise<{error?:string,success?:string}>}){
+  const {id}=await params;
+  const feedback=await searchParams;
+  const {supabase,organisationId,profile}=await requireUserContext();
+  const [leadResult,queueResult,documentsResult]=await Promise.all([
+    supabase.from('leads').select('id,title,company_name,status,reference,created_at')
+      .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
+    supabase.rpc('op_case_queue',{p_organisation_id:organisationId,p_view:'all',p_limit:200,p_offset:0}),
+    supabase.from('documents').select('id,title,document_type,status,reference').eq('organisation_id',organisationId).eq('lead_id',id).order('created_at',{ascending:false}),
+  ]);
+  if(leadResult.error)throw new Error('Case record could not be loaded.');
+  const lead=leadResult.data;if(!lead)notFound();
+  const queueRecord=queueResult.error?null:(queueResult.data||[]).find((item:{id:string})=>item.id===id);
+  const documents=documentsResult.data||[];
+  const workflow=await getWorkflowCase(supabase,organisationId,id);
+  const {data:partnerReviews}=await supabase.from('partner_review_requests').select('id,status').eq('organisation_id',organisationId).eq('lead_id',id).limit(1);
+  if(!workflow)notFound();
+  // Case 360 is a historical commercial record after verified project release.
+  // Never keep the legacy "awaiting payment" decision once its Project 360 exists.
+  const {data:linkedProject}=workflow.clientQuote?.id?await supabase.from('projects')
+    .select('id,project_number,project_stage').eq('organisation_id',organisationId)
+    .eq('quote_id',workflow.clientQuote.id).maybeSingle():{data:null};
+  // QA operator warning: do not change or reissue an accepted quotation in place.
+  const inspectTaxTerms=isKnownIsolatedQaBackend() &&
+    ['owner','admin'].includes(profile.role) &&
+    workflow.clientQuote?.status==='issued' &&
+    Number(workflow.clientQuote.vat)>0 &&
+    Boolean(workflow.partnerQuote?.id);
+  const {data:terms,error:termsError}=inspectTaxTerms
+    ? await supabase.from('partner_quotes').select('exclusions')
+      .eq('organisation_id',organisationId).eq('id',workflow.partnerQuote!.id).maybeSingle()
+    : {data:null,error:null};
+  const historicalVatDiscrepancy=inspectTaxTerms && !termsError &&
+    /\b(?:VAT|value[\s-]*added[\s-]*tax)\b/i.test(String(terms?.exclusions||''));
+  // Preserve the historical record, but do not present an already released
+  // QA project as newly blocked on its original immutable quote wording.
+  const taxConflict=historicalVatDiscrepancy&&!linkedProject?.id;
+  const taxCheckFailed=inspectTaxTerms && Boolean(termsError) && !linkedProject?.id;
+  const scopeApproved=workflow.technicalIntake?.status==='approved';
+  const {data:quoteIssue}=workflow.clientQuote?.status==='issued' ? await supabase.from('quote_issue_records').select('recipient_name,recipient_email,client_response,quote_revision').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).maybeSingle() : {data:null};
+  const clientAccepted=quoteIssue?.client_response==='accepted';
+  const {data:releaseContract}=clientAccepted&&workflow.clientQuote ? await supabase.from('quote_release_contracts').select('release_basis,opening_amount').eq('organisation_id',organisationId).eq('quote_id',workflow.clientQuote.id).eq('quote_revision',workflow.clientQuote.revision).maybeSingle() : {data:null};
+  const openingAmount=Number(releaseContract?.opening_amount);
+  const awaitingAdvance=clientAccepted&&['payment','deposit'].includes(String(releaseContract?.release_basis));
+  const caseDocuments=getCaseDocumentRequirements({hasIntake:Boolean(workflow.technicalIntake),scopeApproved,hasReview:Boolean(partnerReviews?.length),partnerResponseReady:Boolean(partnerReviews?.some(r=>['approved','approved_with_conditions'].includes(r.status))),commercialApproved:workflow.commercialReview?.status==='approved',quoteStatus:workflow.clientQuote?.status});
+  const clientRequirements=documents.find(d=>d.document_type==='client-requirements');
+  const partnerAssessment=documents.find(d=>/partner.*assessment|technical.*assessment/i.test(d.document_type||''));
+  const quoteDocument=documents.find(d=>d.document_type==='client-quote' && d.status==='approved');
+  const stage=String(queueRecord?.workflow_stage||'assessment');
+  const view=resolveCaseQueuePresentation(stage);
+  const normalised=stage.toLowerCase().replaceAll('_','-');
+  const stageIndex=normalised.includes('project')?3:normalised.includes('commercial')||normalised.includes('quote')?2:normalised.includes('partner')?1:0;
+  const nextDecisionTitle=linkedProject?'Project opened · follow execution in Project 360':taxConflict?'Resolve inconsistent VAT in issued client quotation':clientAccepted?(awaitingAdvance?'Verify pre-project approvals and opening payment':'Awaiting contractual release verification'):view.nextAction.label;
+  const nextDecisionDescription=linkedProject?'The existing quotation, client acceptance and verified opening payment led to '+linkedProject.project_number+'. Continue in its current Project 360; do not request the opening payment or create another project.':taxConflict?'The accepted quotation charges VAT while the exclusions also say VAT is excluded. Keep the existing revision unchanged, stop payment and request a controlled correction with renewed client approval.':clientAccepted?(awaitingAdvance?(Number.isFinite(openingAmount)&&openingAmount>0?`Client response recorded. Verify the technical and approved Execution Partner lineage before requesting the £${openingAmount.toFixed(2)} advance. Project 360 requires independent payment verification.`:'Client response recorded. Complete technical, partner and opening-payment approvals before Project 360.'):'Client response recorded. Verify the agreed release condition before Project 360 can be created.'):view.summary;
+  const waiting=view.nextAction.kind==='wait'&&!view.approval?.required;
+  return <><WorkRecordV2 eyebrow={'WORK / CASE 360 / '+(lead.reference||id.slice(0,8))}
+    title={lead.title||lead.company_name}
+    subtitle={lead.company_name+' · Controlled pre-project commercial record'}
+    state={linkedProject?'Project opened':clientAccepted?'Client response accepted · release pending':view.state} owner="Overflow Partner"
+    nextTitle={nextDecisionTitle}
+    nextDescription={nextDecisionDescription}
+    stages={[
+      {name:'Requirements',detail:'Governed scope'},
+      {name:'Feasibility',detail:'Partner technical assessment'},
+      {name:'Commercial offer',detail:'Price and quote decisions'},
+      {name:'Commitment',detail:'Client decision and advance'},
+    ]}
+    stageIndex={clientAccepted?3:stageIndex} waiting={linkedProject?false:taxConflict?false:clientAccepted||waiting}
+    evidence={[
+      {label:'Case record',value:lead.reference||id.slice(0,8)},
+      ...(linkedProject?[{label:'Linked Project 360',value:linkedProject.project_number}]:[]),
+      {label:'Governed workflow position',value:linkedProject?'Committed · project released':clientAccepted?'Client response recorded — formal release pending':queueResult.error?'Unavailable — verify in controlled record':view.state},
+      {label:'Client Requirements Record',value:clientRequirements?`${clientRequirements.reference||'Document'} · ${clientRequirements.status}`:'Missing'},
+      {label:'Partner Technical Assessment Report',value:partnerAssessment?`${partnerAssessment.reference||'Document'} · ${partnerAssessment.status}`:'Not generated'},
+    ]}
+    facts={[
+      {label:'Company',value:lead.company_name},
+      {label:'Record status',value:linkedProject?'Project opened · historical case retained':clientAccepted?'Client responded: accepted — project not released':String(lead.status||'Not recorded').replaceAll('_',' ')},
+      {label:'Current stage',value:linkedProject?'Project '+String(linkedProject.project_stage).replaceAll('_',' '):clientAccepted?'Commitment — release pending':stage.replaceAll('_',' ')},
+    ]}
+    governedHref={linkedProject?'/opos-next/projects/'+linkedProject.id:taxConflict?'#quote-tax-control':'/opos-next/cases/'+id+'#case-decision'}
+    previous="/opos-next/cases" actionLabel={linkedProject?'Open Project 360':'Review current controls'}/>
+    {linkedProject&&historicalVatDiscrepancy?<section className={styles.panel} aria-label="Historical QA quotation wording"><details className={styles.historyNote}><summary>Historical QA quotation wording · preserved in the audit record</summary><p>The original accepted R01 wording contains a VAT inconsistency. The isolated Northfield QA correction and acknowledgement are historical test evidence, not a newly executed legal contract or a reason to request a second advance. The accepted quotation record remains unchanged.</p></details></section>:null}
+    {clientAccepted&&!linkedProject&&!taxConflict&&!taxCheckFailed&&workflow.clientQuote&&isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<section className={styles.panel} aria-label="Isolated QA pre-project readiness">
+      <div className={styles.eyebrow}>ISOLATED QA · PRE-PROJECT READINESS</div>
+      <h2>Check approval evidence before requesting payment</h2>
+      <p>A recorded client response is not proof of verified partner approval, confidentiality, or opening payment. The client portal deliberately withholds payment while any gate fails.</p>
+      <p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>Review the exact readiness checks and partner register →</Link></p>
+    </section>:null}
+    {taxConflict?<section id="quote-tax-control" className={styles.panel} role="alert" aria-label="Client quotation VAT conflict">
+      <div className={styles.eyebrow}>QA DEFECT · CLIENT QUOTATION</div>
+      <h2>Conflicting VAT terms — payment blocked</h2>
+      <p>This issued client quotation charges VAT but also states that VAT is excluded. Preserve the existing accepted revision and audit trail. No opening payment should be requested.</p>
+      <p><strong>Next owner: OP commercial reviewer.</strong> Resolve the client-facing exclusions and prepare a version-preserving quotation correction. The currently accepted quotation must remain in the audit trail; a corrected version requires fresh client approval.</p>
+      <p><Link href="#case-evidence">Review existing controlled documents →</Link> · <Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote?.id}`}>View payment readiness checks →</Link></p>
+    </section>:null}
+    {taxCheckFailed?<section className={styles.panel} role="alert">
+      <h2>Quotation terms could not be checked</h2>
+      <p>The commercial reviewer must verify the client-facing exclusions before any payment request.</p>
+    </section>:null}
+    <section id="case-decision" className={styles.panel}>
+      {feedback.error?<div role="alert" className={styles.errorNotice}><strong>Action could not be completed</strong><p>{feedback.error}</p><p>No successful issue confirmation has been recorded. Resolve this error before trying again.</p></div>:null}
+      {feedback.success?<div role="status" className={styles.successNotice}><strong>Action completed</strong><p>{feedback.success}</p></div>:null}
+      {workflow.clientQuote?.status==='issued'&&quoteIssue&&!quoteIssue.client_response&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
+        <div className={styles.eyebrow}>CLIENT QUOTATION · ISSUED</div>
+        <h2>Resend issued quotation</h2>
+        <p>Resend the current approved revision to its original authorised recipient. This preserves the quotation and issuance audit history.</p>
+        <p><strong>Recipient:</strong> {quoteIssue.recipient_name||'Client'} · {quoteIssue.recipient_email}</p>
+        <form action={resendClientQuoteAction}>
+          <input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+          <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
+          <button type="submit" className={styles.submit}>Resend Client Quote email</button>
+        </form>
+      </div>:null}
+      {workflow.clientQuote&&quoteIssue?.client_response==='accepted'&&quoteIssue.recipient_email&&Number(quoteIssue.quote_revision)===Number(workflow.clientQuote.revision)?<div className={styles.actionCard}>
+        <div className={styles.eyebrow}>CLIENT PORTAL · ACCESS RECOVERY</div>
+        <h2>{taxConflict||taxCheckFailed?'Portal link resending is paused':'Send fresh client portal link'}</h2>
+        {isKnownIsolatedQaBackend()&&['owner','admin'].includes(profile.role)?<p><Link href={`/opos-next/qa-readiness?quote=${workflow.clientQuote.id}`}>View QA delivery and payment readiness</Link></p>:null}
+        <p>{taxConflict||taxCheckFailed?'Do not re-invite the client to a quotation with unresolved commercial terms. The original accepted record remains unchanged.':'Send secure access to the original authorised recipient without changing the accepted quotation or payment status.'}</p>
+        <p><strong>Recipient:</strong> {quoteIssue.recipient_email}</p>
+        {taxConflict||taxCheckFailed
+          ? <p role="status" className={styles.pausedNotice}><strong>Resend paused for this quotation.</strong> The accepted client quotation needs its VAT wording checked and corrected before another portal invitation is sent. Previously sent links remain available for status viewing.</p>
+          : <form action={sendFreshPortalLink}>
+            <input type="hidden" name="lead_id" value={id}/>
+            <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+            <input type="hidden" name="request_id" value={crypto.randomUUID()}/>
+            <button type="submit" className={styles.submit}>Send fresh client portal link</button>
+          </form>}
+      </div>:null}
+      {scopeApproved&&workflow.partnerQuote&&!workflow.commercialReview?<div className={styles.actionCard}>
+        <h2>Set commercial position</h2>
+        <p>Use the approved partner price to calculate the client price and margin.</p>
+        <form action={createCommercialReviewAction}><input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="partner_quote_id" value={workflow.partnerQuote.id}/>
+          <MarginSimulator cost={Number(workflow.partnerQuote.price||0)} currency={workflow.partnerQuote.currency||'GBP'}/>
+          <label className={styles.note}>Optional commercial note<textarea name="commercial_note" rows={3}/></label>
+          <button type="submit" className={styles.submit}>Set commercial position</button>
+        </form>
+      </div>:null}
+      {workflow.commercialReview&&!workflow.clientQuote?<div className={styles.actionCard}>
+        <h2>Approve commercial position</h2>
+        <p>Confirm the recorded position and generate the Client Quote through the governed action.</p>
+        <form action={approveCommercialAction}><input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="commercial_review_id" value={workflow.commercialReview.id}/>
+          <button type="submit" className={styles.submit}>Approve position and generate Client Quote</button>
+        </form>
+      </div>:null}
+      {workflow.clientQuote&&quoteDocument&&['draft','internal_review'].includes(workflow.clientQuote.status)?<div className={styles.actionCard}>
+        <div className={styles.eyebrow}>COMMERCIAL OFFER · READY FOR ISSUE</div>
+        <h2>Send the client quotation</h2>
+        <p className={styles.intro}>The approved technical scope, delivery proposal and commercial terms are ready to be formally presented to the client.</p>
+        <div className={styles.offerSummary}>
+          <div><span>Quotation value</span><strong>{new Intl.NumberFormat('en-GB',{style:'currency',currency:String(workflow.clientQuote.currency||'GBP')}).format(Number(workflow.clientQuote.total||0))}</strong><small>Including applicable tax, where charged</small></div>
+          <div><span>Opening payment</span><strong>30% advance</strong><small>Due after client acceptance</small></div>
+        </div>
+        <form action={issueQuoteAction}>
+          <input type="hidden" name="return_to" value={`/opos-next/cases/${id}`}/>
+          <input type="hidden" name="lead_id" value={id}/>
+          <input type="hidden" name="quote_id" value={workflow.clientQuote.id}/>
+          <div className={styles.formSection}><h3>Confirm the authorised recipient</h3>
+            <div className={styles.fieldGrid}>
+              <label className={styles.note}>Recipient name<input name="recipient_name" required defaultValue={workflow.lead.contact_name||''}/></label>
+              <label className={styles.note}>Recipient email<input name="recipient_email" type="email" required defaultValue={workflow.lead.contact_email||''}/></label>
+            </div>
+          </div>
+          <div className={styles.formSection}><h3>Payment and commercial terms</h3><QuoteIssueContractFields total={Number(workflow.clientQuote.total||0)} currency={String(workflow.clientQuote.currency||'GBP')}/></div>
+          <label className={styles.note}>Optional message to accompany the quotation<textarea name="issue_note" rows={3} placeholder="Add a short personal note, if needed."/></label>
+          <div className={styles.nextStep}><strong>What happens next</strong><p>The client receives the controlled quotation and secure response options. OPOS records issuance evidence and tracks the client decision. No project begins until acceptance and advance payment verification.</p></div>
+          <button type="submit" className={styles.submit}>Send approved quotation by email</button>
+        </form>
+      </div>:null}
+    </section>
+    <section id="case-evidence" className={styles.panel}>
+      <DocumentGenerationPanel context="case" recordId={id} quoteId={workflow.clientQuote?.id} returnTo={`/opos-next/cases/${id}`} stageLabel={caseDocuments.stageLabel} items={caseDocuments.items}/>
+      {workflow.technicalIntake&&!scopeApproved?<form action={approveIntakeAction} style={{marginTop:24}}><input type="hidden" name="lead_id" value={id}/><input type="hidden" name="intake_id" value={workflow.technicalIntake.id}/><button className="button" type="submit">Approve technical scope after document approval</button></form>:null}
+    </section></>;
+}

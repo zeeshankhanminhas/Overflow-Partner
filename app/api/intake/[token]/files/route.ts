@@ -1,3 +1,5 @@
+import {isKnownIsolatedQaBackend,isKnownIsolatedQaStep2Backend} from '@/lib/qa/isolation';
+import {qaAllowedRecipientAddresses} from '@/lib/qa/email-guard';
 import { createHash, randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -41,11 +43,21 @@ async function sessionForToken(token: string) {
   const supabase = admin();
   const { data, error } = await supabase
     .from('intake_sessions')
-    .select('id,organisation_id,prospect_id,status,expires_at')
+    .select('id,organisation_id,prospect_id,status,expires_at,recipient_email,prospects(company_name,email)')
     .eq('token_hash', hashToken(token))
     .single();
 
   if (error || !data) return { supabase, session: null };
+  const relation = data.prospects as unknown as {company_name?:string} | {company_name?:string}[] | null;
+  const companyName = Array.isArray(relation) ? relation[0]?.company_name : relation?.company_name;
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()){
+    const qaClient=[...qaAllowedRecipientAddresses()].find(x=>x.endsWith('+client@gmail.com'));
+    if(!isKnownIsolatedQaStep2Backend() ||
+      data.organisation_id!=='717262cb-68da-4e7b-a9fa-238dc6c5d16b' ||
+      !String(companyName||'').startsWith('QA - ') ||
+      String(data.recipient_email||'').toLowerCase()!==qaClient)
+      return {supabase,session:null};
+  }
   if (new Date(data.expires_at).getTime() < Date.now() && !['submitted','converted'].includes(data.status)) {
     await supabase.from('intake_sessions').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', data.id);
     return { supabase, session: null };
@@ -63,6 +75,7 @@ function validateDescriptor(filename: string, size: number) {
 }
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend() && !isKnownIsolatedQaStep2Backend()) return NextResponse.json({message:'QA technical files are locked.'},{status:503});
   try {
     const { token } = await context.params;
     const { supabase, session } = await sessionForToken(token);
@@ -163,6 +176,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ token: string }> }) {
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend() && !isKnownIsolatedQaStep2Backend()) return NextResponse.json({message:'QA technical files are locked.'},{status:503});
   try {
     const { token } = await context.params;
     const { supabase, session } = await sessionForToken(token);

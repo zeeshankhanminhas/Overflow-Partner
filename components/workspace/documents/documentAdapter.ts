@@ -72,8 +72,35 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     ? [{ title: 'Prepared for', facts: [fact('Client', lead.company_name), fact('Contact', lead.contact_name)] }]
     : [{ title: 'Record identity', facts: common }];
 
+  // Post-delivery QA is distinct from the pre-sales Partner Technical Assessment.
+  // Only a submitted current-cycle engineering package with attached files can
+  // satisfy the internal Technical Review evidence contract.
+  let qaSubmission: Row | null = null;
+  let qaFiles: Row[] = [];
+  if (slug === 'technical-review' && projectId) {
+    const assignment = await maybeOne(supabase, 'project_execution_assignments', input.organisationId, { project_id: projectId });
+    const currentCycle = Number(assignment?.execution_cycle ?? 0);
+    qaSubmission = currentCycle > 0
+      ? submissions.filter(row => Number(row.execution_cycle ?? 0) === currentCycle &&
+        Boolean(row.submitted_at) && !['rejected','withdrawn'].includes(String(row.review_status || ''))).at(-1) || null
+      : null;
+    if (qaSubmission?.id) qaFiles = await many(supabase, 'partner_delivery_submission_files', input.organisationId, { submission_id: String(qaSubmission.id) });
+    sections.push({ title: 'Partner delivery awaiting internal technical QA', facts: [
+      fact('Project number', project?.project_number),
+      fact('Execution cycle', currentCycle || null),
+      fact('Submitted revision', qaSubmission?.revision),
+      fact('Partner submission identifier', qaSubmission?.id),
+      fact('Submitted at', date(qaSubmission?.submitted_at)),
+      fact('Submission review status', status(qaSubmission?.review_status)),
+      fact('Partner delivery summary', qaSubmission?.delivery_summary),
+      fact('Files submitted', qaFiles.length),
+      fact('Attachment register', qaFiles.map(row => text(row.original_filename)).join('\\n') || 'No current-cycle delivery files recorded'),
+      fact('Review boundary', 'Internal QA only. Verify the actual attached files against the approved Statement of Work before signing.'),
+    ] });
+  }
+
   if (['client-requirements','requirement-sheet','scope-of-work','statement-of-work','proposal'].includes(slug)) sections.push({ title: 'Agreed technical basis', facts: scope });
-  if (['partner-technical-assessment-report','technical-review','commercial-qualification-record','commercial-approval'].includes(slug)) sections.push({ title: 'Technical assessment', facts: [fact('Feasibility', response?.feasibility), fact('Confidence', response?.confidence_percent !== undefined ? `${response.confidence_percent}%` : null), fact('Capability', response?.capability_status), fact('Capacity', response?.capacity_status), fact('Earliest start', date(response?.earliest_start_date)), fact('Estimated hours', response?.estimated_engineering_hours), fact('Lead time', response?.estimated_lead_time_days !== undefined ? `${response.estimated_lead_time_days} days` : null), fact('Assumptions', response?.assumptions), fact('Technical risks', response?.technical_risks), fact('Missing information', response?.missing_information), fact('Exclusions', response?.exclusions)] });
+  if (['partner-technical-assessment-report','commercial-qualification-record','commercial-approval'].includes(slug)) sections.push({ title: 'Technical assessment', facts: [fact('Feasibility', response?.feasibility), fact('Confidence', response?.confidence_percent !== undefined ? `${response.confidence_percent}%` : null), fact('Capability', response?.capability_status), fact('Capacity', response?.capacity_status), fact('Earliest start', date(response?.earliest_start_date)), fact('Estimated hours', response?.estimated_engineering_hours), fact('Lead time', response?.estimated_lead_time_days !== undefined ? `${response.estimated_lead_time_days} days` : null), fact('Assumptions', response?.assumptions), fact('Technical risks', response?.technical_risks), fact('Missing information', response?.missing_information), fact('Exclusions', response?.exclusions)] });
   if (['rfq-response','commercial-approval','commercial-qualification-record'].includes(slug)) sections.push({ title: 'Commercial evidence', facts: [fact('Partner quote reference', partnerQuote?.quote_reference), fact('Partner price', money(partnerQuote?.price, partnerQuote?.currency || quote?.currency)), fact('Partner lead time', partnerQuote?.lead_time_days !== undefined ? `${partnerQuote.lead_time_days} days` : null), fact('Partner quote validity', date(partnerQuote?.valid_until)), fact('Payment terms', partnerQuote?.payment_terms), fact('Commercial assumptions', partnerQuote?.commercial_assumptions), fact('Commercial exclusions', partnerQuote?.commercial_exclusions)] });
   if (['commercial-approval','commercial-qualification-record'].includes(slug)) sections.push({ title: 'Approved pricing', facts: [fact('Partner cost', money(commercial?.cost_price, quote?.currency)), fact('Client price', money(commercial?.client_price, quote?.currency)), fact('Margin amount', money(commercial?.margin_amount, quote?.currency)), fact('Margin', commercial?.margin_percent !== undefined ? `${number(commercial.margin_percent).toFixed(1)}%` : null), fact('Approval state', status(commercial?.status)), fact('Approved at', date(commercial?.approved_at))] });
   if (slug === 'client-quote') {
@@ -99,12 +126,12 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
   const evidence: Record<DocumentEvidenceKey, boolean> = {
     clientIdentity: recorded(lead, 'company_name', 'contact_name'), technicalIntake: recorded(intake, 'description', 'deliverables'), partnerAssessment: recorded(response, 'feasibility'), partnerQuote: recorded(partnerQuote, 'price', 'currency'),
     commercialApproval: Boolean(commercial && commercial.status === 'approved' && !absent(commercial.client_price)), clientQuote: recorded(quote, 'quote_number', 'total', 'currency', 'valid_until'), acceptedQuote: Boolean((quote && ['accepted','paid'].includes(String(quote.status))) || quote?.accepted_at),
-    project: recorded(project, 'project_number'), deliveryEvidence: deliverables.length > 0 && (submissions.length > 0 || transmittals.length > 0), documentControl: documents.length > 0,
+    project: recorded(project, 'project_number'), deliveryEvidence: deliverables.length > 0 && (submissions.length > 0 || transmittals.length > 0), partnerSubmission: Boolean(qaSubmission?.id && qaSubmission.submitted_at && qaFiles.length > 0), documentControl: documents.length > 0,
     invoice: recorded(invoice, 'invoice_number', 'due_date') && !absent(invoice?.total || invoice?.amount_due),
   };
   const contract = documentDataContracts[slug];
   const warnings = contract.required.filter(key => !evidence[key]).map(key => `Missing required evidence: ${evidenceLabels[key]}.`);
   if (!contract.canonical) warnings.unshift('Legacy template: create the corresponding canonical document instead of issuing this version.');
   const issueReady = contract.canonical && warnings.length === 0;
-  return { connected: true, sourceLabel: project ? 'Live project evidence' : quote ? 'Live quotation evidence' : 'Live case evidence', reference: invoice?.invoice_number && slug === 'invoice' ? String(invoice.invoice_number) : `OP-${slug.replaceAll('-', '/').toUpperCase()}-${referenceBase}`, revision: text(quote?.revision, 'A'), issueState: issueReady ? 'Evidence complete / Approval required' : 'Draft / Missing evidence', subject: text(lead.title || lead.project_type || lead.company_name), facts: sections.flatMap(section => section.facts), sections, warnings, issueReady };
+  return { connected: true, sourceLabel: project ? 'Live project evidence' : quote ? 'Live quotation evidence' : 'Live case evidence', reference: invoice?.invoice_number && slug === 'invoice' ? String(invoice.invoice_number) : `OP-${slug.replaceAll('-', '/').toUpperCase()}-${referenceBase}`, revision: slug === 'technical-review' ? text(qaSubmission?.revision, 'A') : text(quote?.revision, 'A'), issueState: issueReady ? 'Evidence complete / Approval required' : 'Draft / Missing evidence', subject: text(lead.title || lead.project_type || lead.company_name), facts: sections.flatMap(section => section.facts), sections, warnings, issueReady };
 }

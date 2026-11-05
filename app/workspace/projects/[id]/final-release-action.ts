@@ -54,5 +54,7 @@ export async function approveFinalEngineeringReleaseAction(formData:FormData) {
   } catch(error) {
     destination+='?error='+encodeURIComponent(error instanceof Error?error.message:'Final release could not be completed.')+'&focus=record-next-action';
   }
+  if(formData.get('opos_next')==='1')destination=destination.replace(/^\/workspace\/projects\//,'/opos-next/projects/');
+  revalidatePath('/opos-next/projects/'+projectId);
   redirect(destination);
 }

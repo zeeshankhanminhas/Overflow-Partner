@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
 import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 import { resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/attention';
@@ -12,6 +13,10 @@ function actionLabel(kind:'issue'|'approval'|'dependency') {
 /** One priority and a short queue, without hiding the existing operating alerts
  * or changing their precedence and business interpretation. */
 export default async function WorkspacePage(){
+  // This branch's preview enters the new OS. Production and other branches retain their governed legacy home.
+  if (process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_GIT_COMMIT_REF === 'design/opos-decision-first-ia') {
+    redirect('/opos-next');
+  }
   const {supabase,organisationId}=await requireUserContext();
   const [dashboard,pendingPartnerResult,companyReviewResult,chrome]=await Promise.all([
     getDashboardSnapshot(supabase,organisationId),

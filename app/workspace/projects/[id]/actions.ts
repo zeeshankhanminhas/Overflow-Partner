@@ -2,11 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { releaseApprovedPartnerWorkOrder } from '@/lib/execution/autoWorkOrder';
+import { issueWorkOrderAfterVerifiedOpeningPayment } from '@/lib/execution/paymentWorkOrderHandoff';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { projectStages, type ProjectStage } from '@/lib/projects/stages';
 import { assertCanAdvanceProjectStage } from '@/lib/business/invariants';
+import { assertIsolatedQaBackend } from '@/lib/qa/isolation';
 
+function modernProjectReturn(form:FormData,destination:string){return form.get('opos_next')==='1'?destination.replace(/^\/workspace\/projects\//,'/opos-next/projects/'):destination;}
+function assertModernProjectQa(form:FormData){if(form.get('opos_next')==='1')assertIsolatedQaBackend();}
 const roles = ['owner','admin','operator','engineering','commercial'] as const;
 
 function required(formData: FormData, key: string) {
@@ -16,6 +19,7 @@ function required(formData: FormData, key: string) {
 }
 function projectUrl(projectId: string, params: Record<string,string>) { return `/workspace/projects/${projectId}?${new URLSearchParams(params).toString()}`; }
 function refreshProject(projectId: string) {
+  revalidatePath(`/opos-next/projects/${projectId}`);revalidatePath('/opos-next/projects');
   revalidatePath(`/workspace/projects/${projectId}`); revalidatePath('/workspace/projects'); revalidatePath('/workspace/leads'); revalidatePath('/workspace');
   revalidatePath('/workspace/commercial-control'); revalidatePath('/workspace/payments'); revalidatePath('/workspace/intelligence');
 }
@@ -24,6 +28,7 @@ async function audit(supabase:any,organisationId:string,userId:string,projectId:
 export async function updateProjectMobilisationAction(formData: FormData) {
   const projectId = required(formData,'project_id'); let destination = `/workspace/projects/${projectId}`;
   try {
+    assertModernProjectQa(formData);
     const managerId = required(formData,'project_manager_id'); const startDate = required(formData,'start_date'); const dueDate = required(formData,'due_date');
     const { supabase,user,profile,organisationId } = await requireUserContext(); assertRole(profile.role,[...roles]);
     const { data: project, error: projectError } = await supabase.from('projects').select('id,project_stage,status').eq('organisation_id',organisationId).eq('id',projectId).single();
@@ -33,7 +38,7 @@ export async function updateProjectMobilisationAction(formData: FormData) {
     const { error } = await supabase.rpc('op_update_project_mobilisation',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_project_manager_id:managerId,p_start_date:startDate,p_due_date:dueDate});
     if(error) throw new Error(error.message); refreshProject(projectId); destination=projectUrl(projectId,{updated:'Mobilisation controls saved.',focus:'record-readiness'});
   } catch(error) { destination=projectUrl(projectId,{error:error instanceof Error?error.message:'Project setup could not be saved.',focus:'record-readiness'}); }
-  redirect(destination);
+  redirect(modernProjectReturn(formData,destination));
 }
 
 export async function createProjectActivityAction(formData: FormData) {
@@ -89,22 +94,22 @@ export async function updateProjectDeliveryItemAction(formData:FormData){
 
 export async function advanceProjectStageAction(formData: FormData) {
   const projectId = String(formData.get('project_id') || ''); const submittedStages = formData.getAll('target_stage').map(String); const targetStage = String(submittedStages.at(-1) || '') as ProjectStage; const note = String(formData.get('note') || '').trim(); let destination = `/workspace/projects/${projectId}`;
-  if (!projectId || !projectStages.includes(targetStage)) redirect(`${destination}?error=${encodeURIComponent('Invalid project stage request.')}&focus=record-next-action`);
+  if (!projectId || !projectStages.includes(targetStage)) redirect(modernProjectReturn(formData,`${destination}?error=${encodeURIComponent('Invalid project stage request.')}&focus=record-next-action`));
   try {
+    assertModernProjectQa(formData);
     const { supabase, user, profile, organisationId } = await requireUserContext(); assertRole(profile.role, [...roles]);
     await assertCanAdvanceProjectStage(supabase, organisationId, projectId, targetStage);
     const { error } = await supabase.rpc('op_advance_project_stage', { p_project_id:projectId,p_target_stage:targetStage,p_actor_id:user.id,p_note:note||null }); if (error) throw new Error(error.message);
     let workOrderIssue='';
+    // Primary Work Order issue happens at verified opening-payment reconciliation.
+    // This is only automatic recovery if evidence was genuinely unavailable then.
+    // It never creates a new partner selection or discretionary approval step.
     if(targetStage==='ready_for_execution' && process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'){
       try{
-        await releaseApprovedPartnerWorkOrder(supabase,organisationId,user.id,projectId);
-      }catch(workOrderError){
-        workOrderIssue=workOrderError instanceof Error?workOrderError.message:'Partner work order could not be queued.';
-        await supabase.from('activity_events').insert({
-          organisation_id:organisationId,entity_type:'project',entity_id:projectId,
-          user_id:user.id,event_type:'partner_work_order_action_required',
-          event_data:{message:workOrderIssue,retryRequired:true},
-        });
+        const outcome=await issueWorkOrderAfterVerifiedOpeningPayment(supabase,organisationId,projectId);
+        if(outcome.status!=='queued')workOrderIssue=outcome.reason||'Work Order evidence remains incomplete.';
+      }catch(error){
+        workOrderIssue=error instanceof Error?error.message:'Work Order recovery needs verification.';
       }
     }
     if(targetStage==='closed'){
@@ -120,7 +125,7 @@ export async function advanceProjectStageAction(formData: FormData) {
         }
       }
     }
-    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced but automatic partner work order needs attention: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'?'Partner work order queued for the approved execution partner.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
+    refreshProject(projectId); destination = projectUrl(projectId,{advanced:targetStage,...(workOrderIssue?{error:'Stage advanced; the prior Work Order handoff still needs evidence: '+workOrderIssue}:{updated:targetStage==='ready_for_execution'&&process.env.OP_AUTO_PARTNER_RELEASE_ENABLED==='true'&&!workOrderIssue?'Governed partner Work Order handoff checked; review delivery and acceptance evidence.':''}),focus:targetStage==='closed'?'record-summary':'record-next-action'});
   } catch (error) { destination = projectUrl(projectId,{error:error instanceof Error ? error.message : 'Project stage could not be advanced.',focus:'record-next-action'}); }
-  redirect(destination);
+  redirect(modernProjectReturn(formData,destination));
 }

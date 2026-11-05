@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
+import { isKnownIsolatedQaFixtureBackend } from '@/lib/qa/isolation';
 
 /** Preserve relevant raw LinkedIn/Sales Navigator text in Outreach, never CRM.
  * Pasting does not send messages or infer prospect interest. */
@@ -11,6 +12,7 @@ export async function addOutreachNoteAction(form:FormData) {
  const source=String(form.get('source')||'');
  let destination='/outreach';
  try {
+  if(form.get('opos_next')==='1'&&!isKnownIsolatedQaFixtureBackend())throw new Error('Isolated QA outreach writes are not enabled.');
   const {supabase,user,organisationId,profile}=await requireUserContext();
   assertRole(profile.role,['owner','admin','business_development','operator']);
   if(!['linkedin','sales_navigator','note'].includes(source))throw new Error('Choose a valid source.');
@@ -25,5 +27,8 @@ export async function addOutreachNoteAction(form:FormData) {
   revalidatePath('/outreach/'+id);revalidatePath('/outreach');
   destination='/outreach/'+id+'?updated='+encodeURIComponent('Conversation saved. CRM remains unchanged.');
  }catch(e){destination='/outreach/'+encodeURIComponent(id)+'?error='+encodeURIComponent(e instanceof Error?e.message:'Could not save note.');}
+ revalidatePath('/opos-next/outreach');
+ if(/^[0-9a-f-]{36}$/i.test(id))revalidatePath('/opos-next/outreach/'+id);
+ if(form.get('opos_next')==='1' && (destination==='/outreach'||destination.startsWith('/outreach/')))destination='/opos-next'+destination;
  redirect(destination);
 }

@@ -27,8 +27,11 @@ export async function createStripeCheckout(formData: FormData) {
   const {data:quote,error:quoteError}=await db.from('quotes').select('id,lead_id,quote_number,revision,status,total,currency,valid_until').eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
   if (quoteError || !quote || !['issued','accepted'].includes(quote.status)) throw new Error('Current quotation unavailable.');
   if(mode==='qa'){
-    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
-    if (qaError || !qaLead?.company_name?.startsWith('OP QA TEST')) throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
+    const {data:qaLead,error:qaError}=await db.from('leads').select('company_name,reference').eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
+    const isNorthfield=qaLead?.reference==='OP-LEAD-2026-0001' &&
+      qaLead.company_name==='QA - Northfield Demonstration Engineering';
+    if (qaError || !(qaLead?.company_name?.startsWith('OP QA TEST')||isNorthfield))
+      throw new Error('Sandbox Checkout is restricted to explicitly labelled QA cases.');
     const {data:authorisation,error:authorisationError}=await db.from('op_sandbox_payment_authorisations')
       .select('quote_id').eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
       .eq('quote_revision',quote.revision).gt('expires_at',new Date().toISOString()).maybeSingle();
@@ -42,6 +45,14 @@ export async function createStripeCheckout(formData: FormData) {
      String(contract.currency).toUpperCase()!==String(quote.currency).toUpperCase()){
     throw new Error('Stripe Checkout requires frozen payment terms matching the accepted quotation.');
   }
+  // A client must never be charged for a quotation that cannot create a
+  // governed Project 360. This is a service-role-only, read-only preflight.
+  const {data:lineage,error:lineageError}=await db.rpc('op_preproject_lineage_readiness',{
+    p_organisation_id:issue.organisation_id,p_quote_id:quote.id,
+  });
+  if(lineageError || lineage?.ready!==true)
+    throw new Error('Opening payment is unavailable until the technical and commercial approval chain has been verified. Contact Overflow Partner; do not pay again.');
+
   const quotedTotal = Number(quote.total);
   const openingAmount = Number(contract.opening_amount);
   const expectedOpening = contract.release_basis === 'deposit' ? openingPayment(quotedTotal) : quotedTotal;
@@ -52,9 +63,16 @@ export async function createStripeCheckout(formData: FormData) {
     .select('quote_id').eq('organisation_id',issue.organisation_id)
     .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
   if(signatoryError || !signatory)throw new Error('Named client acceptance must be completed before Checkout.');
-  const {data:paid,error:paidError}=await db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
-  const {data:released,error:releaseError}=await db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
-  if (paidError || releaseError || paid || released) throw new Error('Payment is already recorded or the quote is released. Contact OP before attempting another payment.');
+  // Recheck all release gates on the server immediately before creating Checkout.
+  // A stale client page or direct form POST must not charge an already-open Project.
+  const [paidResult,releasedResult,projectResult,stripeEvidenceResult]=await Promise.all([
+    db.from('quote_payment_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_release_confirmations').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('projects').select('id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle(),
+    db.from('quote_stripe_payment_events').select('stripe_session_id').eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).eq('quote_revision',quote.revision).eq('stripe_payment_status','paid').limit(1).maybeSingle(),
+  ]);
+  if (paidResult.error || releasedResult.error || projectResult.error || stripeEvidenceResult.error || paidResult.data || releasedResult.data || projectResult.data || stripeEvidenceResult.data)
+    throw new Error('Opening payment is already recorded, awaiting reconciliation, or its ledger is unavailable. Do not attempt another payment. Contact Overflow Partner.');
   const currency=String(quote.currency||'GBP').trim().toLowerCase();
   const pennies=Math.round(openingAmount*100);
   if (currency !== 'gbp' || !Number.isSafeInteger(pennies) || pennies < 50) throw new Error('Unsupported quote amount or currency.');
@@ -73,8 +91,8 @@ export async function createStripeCheckout(formData: FormData) {
   params.set('metadata[quote_revision]',String(quote.revision));
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('metadata[payment_stage]','opening');
-  params.set('success_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
-  params.set('cancel_url',`${site}/quote-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
+  params.set('success_url',`${site}/client-portal?token=${encodeURIComponent(token)}&stripe_return=success`);
+  params.set('cancel_url',`${site}/client-portal?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`op-${mode}-opening-${quote.id}-r${quote.revision}-${pennies}`},body:params.toString(),cache:'no-store'});
   const session=await response.json();
   if (!response.ok || !session.url || !session.id) throw new Error('Stripe Checkout is temporarily unavailable.');

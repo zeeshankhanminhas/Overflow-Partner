@@ -2,10 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {assertIsolatedQaBackend} from "@/lib/qa/isolation";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const next = String(formData.get("next") ?? "");
+  const redesignPreview = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "design/opos-decision-first-ia";
+  // Only pre-approved internal destinations are accepted. Never redirect to
+  // arbitrary paths from a login form or cross-organisation portal URLs.
+  const externalKind=next==='/portal/client'?'client':next==='/portal/partner'?'partner':null;
+  const safeNext = externalKind?next:next === "/opos-next" ? next : (redesignPreview ? "/opos-next" : "/workspace");
 
   if (!email || !password) {
     redirect("/login?error=Email%20and%20password%20are%20required.");
@@ -16,6 +23,18 @@ export async function signIn(formData: FormData) {
 
   if (error || !data.user) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
+  }
+
+  if(externalKind){
+    // External users are not required to have an employee profile, and a
+    // Supabase Auth session alone does not grant any project access.
+    const {data:accounts,error:membershipError}=await supabase.rpc('portal_my_workspaces');
+    if(membershipError||!(accounts||[]).some((account:{portal_kind:string})=>account.portal_kind===externalKind)){
+      await supabase.auth.signOut();
+      redirect('/login?next='+encodeURIComponent(safeNext)+'&error='+
+        encodeURIComponent('This sign-in is not authorised for the selected client or partner account.'));
+    }
+    redirect(safeNext);
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -44,11 +63,31 @@ export async function signIn(formData: FormData) {
     );
   }
 
-  redirect("/workspace");
+  redirect(safeNext);
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+
+/** Explicit one-time email sign-in for already-invited QA client accounts only.
+ * Never creates an unsolicited user or grants access by email resemblance.
+ */
+export async function emailQaClientLoginLink(formData:FormData){
+ assertIsolatedQaBackend();
+ const email=String(formData.get('email')||'').trim().toLowerCase();
+ if(email.length>254||!(/^[^@\s]+@[^@\s]+\.[^@\s]+$/).test(email))
+  redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent('Enter a valid QA client email.'));
+ const supabase=await createClient();
+ const origin='https://overflow-partner-git-design-o-9eda95-zeeshankhanminhas-projects.vercel.app';
+ const {error}=await supabase.auth.signInWithOtp({
+   email,
+   options:{shouldCreateUser:false,emailRedirectTo:origin+'/auth/callback'},
+ });
+ if(error)redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent(error.message));
+ redirect('/login?next=%2Fportal%2Fclient&updated='+encodeURIComponent(
+   'If your account is invited, a secure one-time sign-in link has been sent to that email address.'));
 }
