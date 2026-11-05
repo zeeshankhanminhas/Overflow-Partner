@@ -37,10 +37,6 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
  const primary=liveClientReview?{label:'Review your engineering drawings',detail:'Your approved drawing revision is ready for a secure client decision.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your issued quotation',detail:'Check the approved offer, then accept, request time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id+'/open',action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
- const active=projects.filter(p=>p.project_stage!=='closed').length;
- const actionable=new Set(projects.filter(p=>!portalProjectNextStep(kind,p).waiting).map(p=>p.project_id));
- if(liveClientReview)actionable.add(liveClientReview.project.project_id);
- const needsAttention=actionable.size+(outstandingQuote?1:0);
  const previewProjects=orderedProjects.slice(0,3);
  const title=isClient?'Your engineering projects':'Your engineering work';
  return <>
@@ -55,12 +51,6 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
     <h2>{primary?primary.label:'Nothing needs your action'}</h2>
     <p>{primary?primary.detail:'Your next authorised decision will appear here when it is ready.'}</p>
     {primary&&!primary.waiting?<Link className={css.action} href={primary.href}>{primary.action} →</Link>:null}
-   </section>
-
-   <section className={css.dashboardSnapshot} aria-label="At a glance">
-    <div><strong>{needsAttention}</strong><span>Need your action</span></div>
-    <div><strong>{active}</strong><span>Open projects</span></div>
-    <div><strong>{projects.length}</strong><span>All projects</span></div>
    </section>
 
    <section className={css.section+' '+css.dashboardSection} aria-label="Your project register" id="projects">
