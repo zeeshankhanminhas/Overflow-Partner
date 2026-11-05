@@ -18,3 +18,10 @@ export const nextNavigation = [
 export function isNextActive(pathname:string,href:string) {
   return href==='/opos-next' ? pathname===href : pathname===href||pathname.startsWith(href+'/');
 }
+
+// Single navigation grouping shared by desktop and mobile.
+// Keep the complete route inventory above; QA/portal-preview routes are not daily navigation.
+const primaryLabels = new Set(['Mission Control','Opportunities','Projects','Tasks','Finance','Documents']);
+const moreLabels = new Set(['Outreach','Cases','Accounts','Partners']);
+export const nextPrimaryNavigation = nextNavigation.filter(item => primaryLabels.has(item.label));
+export const nextMoreNavigation = nextNavigation.filter(item => moreLabels.has(item.label));
