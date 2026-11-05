@@ -25,6 +25,15 @@ export default function WorkRecordV2({
         <Link href={previous} className={css.secondary}>← Back to register</Link>
       </div>
     </section>;
+  const lifecycleContent=<section className={css.section} aria-label="Lifecycle position">
+      <p className={css.sectionKicker}>{eyebrow.includes('PROJECT')?'DELIVERY POSITION':'COMMITMENT READINESS'}</p>
+      <div className={css.timeline}>
+        {stages.map((s,i)=><div key={s.name} className={css.step+' '+(i<stageIndex?css.done:i===stageIndex?css.current:'')}>
+          <span className={css.stepCode}>{String(i+1).padStart(2,'0')} · {i<stageIndex?'Complete':i===stageIndex?'Current':'Upcoming'}</span>
+          <strong className={css.stepTitle}>{s.name}</strong><span className={css.stepDetail}>{s.detail}</span>
+        </div>)}
+      </div>
+    </section>;
   return <article className={compact?css.page+' '+css.compact:css.page}>
     <p className={css.eyebrow}>{eyebrow}</p>
     <h1 className={css.title}>{title}</h1>
@@ -42,15 +51,10 @@ export default function WorkRecordV2({
         <Link className={css.primary} href={governedHref}>{actionLabel} ↗</Link>
       </div>:null}
     </section>
-    <section className={css.section} aria-label="Lifecycle position">
-      <p className={css.sectionKicker}>{eyebrow.includes('PROJECT')?'DELIVERY POSITION':'COMMITMENT READINESS'}</p>
-      <div className={css.timeline}>
-        {stages.map((s,i)=><div key={s.name} className={css.step+' '+(i<stageIndex?css.done:i===stageIndex?css.current:'')}>
-          <span className={css.stepCode}>{String(i+1).padStart(2,'0')} · {i<stageIndex?'Complete':i===stageIndex?'Current':'Upcoming'}</span>
-          <strong className={css.stepTitle}>{s.name}</strong><span className={css.stepDetail}>{s.detail}</span>
-        </div>)}
-      </div>
-    </section>
+    {compact?<details className={css.compactDetails}>
+      <summary>Journey progress</summary>
+      {lifecycleContent}
+    </details>:lifecycleContent}
     {compact?<details className={css.compactDetails}>
       <summary>Project details &amp; governed evidence</summary>
       {detailContent}
