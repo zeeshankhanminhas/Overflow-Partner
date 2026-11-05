@@ -188,7 +188,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        {partnerProgress?<p className={css.meta} style={{marginTop:12}}>Latest partner-reported delivery health: <strong>{String(partnerProgress.progress_state||'Not provided').replaceAll('_',' ')}</strong>.</p>:null}
      </div>
    </section>:null}
-   {stage==='mobilisation'?<section id="work-order-issue" className={css.section} aria-label="Execution Partner Work Order" style={{scrollMarginTop:24}}>
+   {stage==='mobilisation'&&!issuedWorkOrder?.id?<section id="work-order-issue" className={css.section} aria-label="Execution Partner Work Order" style={{scrollMarginTop:24}}>
      <div className={css.sectionHeading}><h2>Execution Partner Work Order</h2></div>
      <div className={css.card}>
        <span className={css.overline}>NEXT OPERATIONAL STEP · SEPARATE FROM STAGE ADVANCEMENT</span>
@@ -221,7 +221,6 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      {feedback.updated||feedback.advanced?<p role="status" className={css.empty}>{String(feedback.updated||'Project stage updated to '+feedback.advanced).slice(0,450)}</p>:null}
      <div className={css.card}>
        
-       <p className={css.cardDescription}>{meta.completion}</p>
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
        {blockedReasons.length?<div style={{marginTop:20}}><strong>Required before continuing</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:null}
        {stage==='internal_review'?<section aria-label="Engineering acceptance and document control" style={{display:'grid',gap:18,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
@@ -236,7 +235,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              {' · '+Math.ceil(Number(file.size||0)/1024)+' KB'}
            </p>)}
            {!qaGate.storage_complete?<p role="alert">The current files are missing from private storage or their manifest is incomplete. Stop review.</p>:null}
-           <p className={css.meta}>Evidence fingerprint: <code>{qaGate.manifest_hash}</code>. This fingerprint ties each decision to the exact submitted revision, files, sizes and storage paths.</p>
+           <details className={css.details}>
+             <summary>Revision audit fingerprint</summary>
+             <p className={css.meta}><code>{qaGate.manifest_hash}</code> · Binds this decision to the submitted revision and file manifest.</p>
+           </details>
          </div>:null}
          <div style={{display:'grid',gap:12}}>
            <strong id="engineering-review" style={{scrollMarginTop:24}}>2. Engineering review and decision</strong>
