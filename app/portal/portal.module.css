@@ -64,16 +64,11 @@
 .compactDisclosure>.grid,.compactDisclosure>.card{margin-top:15px}
 
 
-/* Account dashboards: one action, a three-number snapshot and short project list.
+/* Account dashboards: one action and short project list.
    Full registers, commercial detail and QA information require deliberate disclosure. */
 .dashboardHero{margin-bottom:20px;gap:2px}
 .dashboardHero .title{margin:8px 0 5px;max-width:none;font-size:clamp(26px,3.4vw,38px)}
 .dashboardHero .subtitle{font-size:13px}
-.dashboardSnapshot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid #e1e3df;background:#fff;border-radius:11px;margin:0 0 24px;overflow:hidden}
-.dashboardSnapshot>div{padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0}
-.dashboardSnapshot>div+div{border-left:1px solid #e1e3df}
-.dashboardSnapshot strong{font-size:23px;letter-spacing:-.04em;line-height:1.2}
-.dashboardSnapshot span{font-size:11px;line-height:1.4;color:#647069}
 .dashboardSection{margin-top:26px}
 .dashboardSection .sectionHead{margin-bottom:12px}
 .dashboardSection .sectionHead h2{font-size:20px}
@@ -96,9 +91,6 @@
 .dashboardRegister .summary strong{font-size:20px}
 .dashboardRegister .notice{margin:12px 0}
 @media(max-width:750px){
- .dashboardSnapshot>div{padding:12px 9px}
- .dashboardSnapshot strong{font-size:19px}
- .dashboardSnapshot span{font-size:10px}
  .dashboardProject{padding:14px;align-items:flex-start;gap:10px;flex-direction:column}
  .dashboardStage{justify-content:space-between;width:100%}
  .dashboardRegister .grid{grid-template-columns:1fr}
