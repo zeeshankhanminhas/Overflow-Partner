@@ -3,18 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { nextNavigation, isNextActive } from './navigation';
+import { nextPrimaryNavigation, nextMoreNavigation, isNextActive } from './navigation';
 import css from './opos.module.css';
-
-const primaryLabels = new Set(['Mission Control','Outreach','Opportunities','Cases','Projects']);
-const secondaryLabels = new Set(['Tasks','Accounts','Partners','Finance','Documents']);
 
 export default function OpMobileNav({ statusLabel }: { statusLabel: string }) {
   const pathname=usePathname();
   const [expandedFor,setExpandedFor]=useState<string|null>(null);
   const open=expandedFor===pathname;
-  const primary=nextNavigation.filter(item=>primaryLabels.has(item.label));
-  const secondary=nextNavigation.filter(item=>secondaryLabels.has(item.label));
+  const primary=nextPrimaryNavigation;
+  const secondary=nextMoreNavigation;
 
   return <div className={css.mobileShell}>
     <div className={css.mobileHeader}>
