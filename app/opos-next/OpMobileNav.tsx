@@ -6,8 +6,8 @@ import { useState } from 'react';
 import { nextNavigation, isNextActive } from './navigation';
 import css from './opos.module.css';
 
-const primaryLabels = new Set(['Mission Control','Opportunities','Projects','Tasks','Finance','Documents']);
-const secondaryLabels = new Set(['Outreach','Cases','Accounts','Partners']);
+const primaryLabels = new Set(['Mission Control','Outreach','Opportunities','Cases','Projects']);
+const secondaryLabels = new Set(['Tasks','Accounts','Partners','Finance','Documents']);
 
 export default function OpMobileNav({ statusLabel }: { statusLabel: string }) {
   const pathname=usePathname();
