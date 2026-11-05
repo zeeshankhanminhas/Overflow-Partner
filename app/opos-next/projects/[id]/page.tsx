@@ -314,7 +314,9 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
              <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready?
-               <div style={{display:'grid',gap:12,marginTop:14,maxWidth:700}}>
+               <details className={css.details} style={{marginTop:14,maxWidth:700}}>
+                 <summary>QA-only client activation tools</summary>
+                 <div style={{display:'grid',gap:12,marginTop:12}}>
                  <strong role="status">{clientInvitePending?'Separate QA client activation is pending':'An independent QA Client identity is required'}</strong>
                  <p className={css.meta}>
                    Northfield cannot use the active OP operator login as the client.
@@ -326,7 +328,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
                    Client recipient verification failed. Review issuance remains blocked.
                  </p>:null}
                  <QaManualClientAccess projectId={id}/>
-               </div>:null}
+                 </div>
+               </details>:null}
              {qaRecipient?.ready?<p role="status" className={css.meta}>Separate QA client account activated. This confirms an independent test login, not external email delivery or mailbox ownership.</p>:null}
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued&&qaRecipient?.ready?
                <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
