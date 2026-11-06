@@ -5,9 +5,17 @@
  */
 const qaRef = String(process.env.OP_QA_SUPABASE_PROJECT_REF || '').trim().toLowerCase();
 const branch = process.env.VERCEL_GIT_COMMIT_REF || '';
+// Verify the server credential on every authorised QA branch whenever any
+// QA write gate is enabled. A READY build must not silently skip this check
+// on the recovery branch (which owns the unified client review UI).
+const allowedQaBranches = new Set([
+  'design/opos-decision-first-ia',
+  'qa/recovery-ui-client-gate-20261105',
+]);
+const writesEnabled = process.env.OP_QA_FIXTURE_WRITES_ENABLED === 'true' ||
+  process.env.OP_ISOLATED_QA_BACKEND === 'true';
 const isQaBuild = process.env.VERCEL_ENV === 'preview' &&
-  branch === 'design/opos-decision-first-ia' &&
-  process.env.OP_QA_FIXTURE_WRITES_ENABLED === 'true';
+  allowedQaBranches.has(branch) && writesEnabled;
 
 if (!isQaBuild) {
   console.log('Isolated QA service credential smoke: skipped (non-QA build)');
