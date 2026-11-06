@@ -59,8 +59,11 @@ const checks = [
   ['Scoped legacy record pages send the tested Northfield QA record to the modern UI',
     legacyProjectPage.includes("redirect('/opos-next/projects/'+id)") &&
     legacyCasePage.includes("redirect('/opos-next/cases/'+id)") &&
-    legacyProjectPage.includes('isKnownIsolatedQaBackend()') &&
-    legacyCasePage.includes('isKnownIsolatedQaBackend()')],
+    legacyProjectPage.includes('isKnownIsolatedQaPresentationPreview()') &&
+    legacyCasePage.includes('isKnownIsolatedQaPresentationPreview()') &&
+    qaIsolation.includes('export function isKnownIsolatedQaPresentationPreview()') &&
+    qaIsolation.includes("qaRef==='ukcamenuxhdznxaxpyis'") &&
+    qaIsolation.includes("process.env.VERCEL_ENV==='preview'")],
   ['Customer Portal shows project context after quote has converted, preserving payment record',
     clientPortalPage.includes("select('id,project_number,project_stage')") &&
     clientPortalPage.includes("project?'Your engineering project.'") &&
