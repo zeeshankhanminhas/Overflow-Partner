@@ -125,7 +125,7 @@ const checks = [
     !/\.shell\s+a\s*\{[^}]*color\s*:\s*inherit/.test(styles) &&
     styles.includes('.shell a:not([class]) { color: inherit; }')],
   ['QA preview displays truthful locked vs writable status',
-    shell.includes('QA · Actions locked') && shell.includes('QA · Actions enabled') &&
+    shell.includes('Test · View only') && shell.includes('Test · Actions available') &&
     shell.includes('isKnownIsolatedQaBackend()') &&
     mobileNav.includes('{statusLabel}')],
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
