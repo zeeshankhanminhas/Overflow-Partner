@@ -4,7 +4,8 @@ const read=p=>readFileSync(p,'utf8');
 const database=read('supabase/migrations/20261104153000_qa_protected_client_review_exchange.sql');
 const externalAttestationFix=read('supabase/migrations/20261104153100_qa_external_attestation_activity_fix.sql');
 const correction=read('supabase/migrations/20261104154700_qa_block_unclassified_client_correction.sql');
-const client=read('app/portal/client/projects/[projectId]/review/page.tsx');
+const client=read('app/portal/client/projects/[projectId]/review/ClientDrawingReview.tsx');
+const legacyReview=read('app/portal/client/projects/[projectId]/review/page.tsx');
 const clientDecision=read('app/portal/client/projects/[projectId]/review/review-actions.ts');
 const clientPdf=read('app/portal/client/projects/[projectId]/review/[fileId]/route.ts');
 const clientProject=read('app/portal/[kind]/projects/[projectId]/page.tsx');
@@ -112,9 +113,15 @@ const cases=[
  ['unclassified correction cannot automatically dispatch new partner work',
   correction.includes("if v_decision.outcome in ('changes_requested','rejected') then")&&
   correction.includes('scope classification before partner work')],
- ['client review page verifies membership and renders one controlled response',
-  client.includes("portalContext('client')")&&client.includes("portal_my_projects")===false&&
-  client.includes("op_qa_client_review_position")&&client.includes('<WatermarkedPdfViewer')&&
+ ['client review is embedded in the entitled Client Portal project, not a separate workflow',
+  legacyReview.includes("portalContext('client')")&&
+  legacyReview.includes("op_qa_client_review_position")&&
+  legacyReview.includes("redirect('/portal/client/projects/'")&&
+  !legacyReview.includes('<WatermarkedPdfViewer')&&
+  clientProject.includes('<ClientDrawingReview')&&
+  clientProject.includes("isKnownIsolatedQaBackend()")&&
+  clientProject.includes("const secureReview=review?'#drawing-review'")&&
+  client.includes('id="drawing-review"')&&client.includes('<WatermarkedPdfViewer')&&
   client.includes('recordProtectedClientDecisionAction')],
  ['client decision server action calls the existing explicit auth user and guarded RPC',
   clientDecision.includes('supabase.auth.getUser()')&&
@@ -130,10 +137,11 @@ const cases=[
  ['PDF server watermarks bytes, does not cache, or put service key in browser',
   clientPdf.includes('PDFDocument.load')&&clientPdf.includes("doc.save({useObjectStreams:false})")&&
   clientPdf.includes("'Cache-Control':'private, no-store, max-age=0'")],
- ['permanent client workspace directs to real controlled review',
-  clientProject.includes('const secureReview=review?')&&
+ ['client workspace links to an embedded governed review without a separate portal',
+  clientProject.includes("const secureReview=review?'#drawing-review'")&&
   clientHome.includes('const liveClientReview=')&&
-  clientHome.includes('/review')],
+  clientHome.includes("+'#drawing-review'")&&
+  clientDecision.includes("+'#drawing-review'")],
  ['operator issue requires manual preview acknowledgement and server role check',
   operator.includes('preview_confirmed')&&
   operator.includes('issueProtectedClientReviewAction')&&
