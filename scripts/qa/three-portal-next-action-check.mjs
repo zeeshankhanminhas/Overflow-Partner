@@ -43,6 +43,8 @@ assert.ok(clientHome.includes('portalProjectNextStep(kind,p)')&&clientHome.inclu
  clientHome.includes('/portal/client/quotes/'),'Account home must highlight exactly one current action');
 assert.ok(accountDetail.includes('portalProjectNextStep(kind,p)')&&accountDetail.includes('NEXT STEP')&&
  accountDetail.includes('!next.waiting&&next.action')&&
+ accountDetail.includes('<ClientDrawingReview')&&
+ accountDetail.includes("const secureReview=review?'#drawing-review'")&&
  accountDetail.includes('Review your drawings'),
  'External project view must direct to a real governed action');
 assert.ok(clientSecure.includes('clientNext')&&clientSecure.includes('YOUR NEXT STEP')&&
