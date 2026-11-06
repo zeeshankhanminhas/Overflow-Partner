@@ -28,7 +28,7 @@ export default async function AccountProject({params,searchParams}:{
    reviewData.issueId.length>0&&Array.isArray(reviewData.files)
    ?reviewData as ClientReview:null;
  const secureReview=review?'#drawing-review':null;
- const query=searchParams?await searchParams:{};
+ const query:{notice?:string;error?:string;updated?:string}=searchParams?await searchParams:{};
  const notice=String(query.notice||'').slice(0,280);
  const feedback={error:String(query.error||'').slice(0,280),updated:String(query.updated||'').slice(0,260)};
  const secure='/portal/'+kind+'/projects/'+p.project_id+'/open';
