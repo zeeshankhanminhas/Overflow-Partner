@@ -28,13 +28,13 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
   switch(stage){
    case 'closed':return view('Your project is complete','Your controlled project history and any authorised final files remain available through secure access.','View project status',true);
    case 'completion':return view('Final settlement and handover','Open the secure record to see verified final balances and release status. The project stage alone is not proof of payment.','Open secure final status',true);
-   case 'internal_review':return view('Your engineering work is with OP quality control','Overflow Partner is inspecting the submitted engineering evidence. No response is required from you.','View project status',true);
-   case 'partner_correction':return view('Technical corrections are underway','The Execution Partner is preparing revised work. OP must approve the new revision before client review.','View project status',true);
-   case 'in_progress':return view('Engineering work is in progress','OP is supervising engineering work and will contact you when an authorised decision is required.','View project status',true);
-   case 'ready_for_client_issue':return view('Overflow Partner is preparing your review','Internal quality, file verification and release authority must finish before secure client access.','View project status',true);
+   case 'internal_review':return view('We’re checking your drawings','Overflow Partner is reviewing the engineering work. You do not need to do anything yet.','View project status',true);
+   case 'partner_correction':return view('We’re making the requested changes','The drawings are being updated. We’ll share the revised version once it has been checked.','View project status',true);
+   case 'in_progress':return view('Your drawings are in progress','Our engineering team is working on your project. We’ll contact you when your review is ready.','View project status',true);
+   case 'ready_for_client_issue':return view('We’re preparing your drawings for review','The drawings are being checked before they are shared with you. No action is needed yet.','View project status',true);
    case 'issued_to_client':
-   case 'client_review':return view('Your controlled review is being prepared',
-    'Review access cannot be inferred from the project stage. A genuinely issued protected review invitation is required.','View review status',true);
+   case 'client_review':return view('We’re checking your review access',
+    'If your drawings have been shared, they will appear in your secure account. We’ll let you know if anything needs your attention.','View review status',true);
    default:return view('Overflow Partner is preparing your project','Your accepted quotation and project status remain in the secure account.','View project status',true);
   }
  }
