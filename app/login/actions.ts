@@ -18,6 +18,23 @@ export async function signIn(formData: FormData) {
     redirect("/login?error=Email%20and%20password%20are%20required.");
   }
 
+  // QA preview safety: a new Git branch does not inherit another branch's
+  // Vercel-scoped environment variables. Never send operator QA credentials
+  // to the production Supabase Auth instance from either QA review branch.
+  const qaPreviewBranch = process.env.VERCEL_ENV === "preview" &&
+    ["design/opos-decision-first-ia", "qa/recovery-ui-client-gate-20261105"]
+      .includes(process.env.VERCEL_GIT_COMMIT_REF || "");
+  if (qaPreviewBranch) {
+    const qaRef = String(process.env.OP_QA_SUPABASE_PROJECT_REF || "").trim().toLowerCase();
+    const authUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    if (!/^[a-z0-9]{12,32}$/.test(qaRef) ||
+        qaRef === "klricctsxiifuduxpmzd" ||
+        authUrl !== `https://${qaRef}.supabase.co`) {
+      redirect("/login?next=%2Fopos-next&error=" +
+        encodeURIComponent("This preview is not connected to isolated QA. Sign-in is disabled until its environment is corrected."));
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
