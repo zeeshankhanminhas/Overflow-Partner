@@ -12,14 +12,18 @@ import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Client Portal | Overflow Partner', robots: { index: false, follow: false } };
-const container = { maxWidth: 760, margin: '48px auto', padding: 28, background: '#fff', border: '1px solid #e2dfd8', borderRadius: 12 } as const;
-const caption = { color: '#68665f', fontSize: 14 } as const;
 function displayMoney(amount: number, currency: string) {
   try { return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(amount); }
   catch { return amount.toFixed(2) + ' ' + currency; }
 }
 function unavailable() {
-  return <main style={{ minHeight: '100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#1e2926' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
+ return <main className={styles.page}><div className={styles.shell}>
+  <p className={styles.brand}><span>OP</span> OVERFLOW PARTNER</p>
+  <section className={styles.panel}><p className={styles.eyebrow}>SECURE CLIENT WORKSPACE</p>
+   <h1 className={styles.title}>Link unavailable</h1>
+   <p className={styles.intro}>This private link may have expired or been replaced. Reply to your original quotation email for a fresh link.</p>
+  </section>
+ </div></main>;
 }
 export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string;stripe_return?:string;notice?:string}>}) {
   const { token = '',stripe_return='',notice='' } = await searchParams;

@@ -5,6 +5,7 @@ import { getDashboardSnapshot } from '@/lib/repositories/dashboard';
 import { resolveBusinessAttention, type AttentionSource } from '@/lib/dashboard/attention';
 import { buildMissionPriorityQueue } from '@/lib/dashboard/priorityQueue';
 import { getWorkspaceChromeData } from '@/lib/workspace/request-data';
+import { isKnownIsolatedQaPresentationPreview } from '@/lib/qa/isolation';
 
 function actionLabel(kind:'issue'|'approval'|'dependency') {
   return kind==='issue'?'Resolve issue':kind==='approval'?'Review decision':'Open next action';
@@ -14,7 +15,7 @@ function actionLabel(kind:'issue'|'approval'|'dependency') {
  * or changing their precedence and business interpretation. */
 export default async function WorkspacePage(){
   // This branch's preview enters the new OS. Production and other branches retain their governed legacy home.
-  if (process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_GIT_COMMIT_REF === 'design/opos-decision-first-ia') {
+  if (isKnownIsolatedQaPresentationPreview()) {
     redirect('/opos-next');
   }
   const {supabase,organisationId}=await requireUserContext();

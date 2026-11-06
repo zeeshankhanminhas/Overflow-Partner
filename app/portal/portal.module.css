@@ -95,3 +95,26 @@
  .dashboardStage{justify-content:space-between;width:100%}
  .dashboardRegister .grid{grid-template-columns:1fr}
 }
+
+/* Isolated QA Workspace 2.0: client and partner account experiences. */
+.qaV2{background:#090a0b;color:#f4f4f5;color-scheme:dark}
+.qaV2 .header{background:#0c0d0e;border-color:#303238}
+.qaV2 .brand,.qaV2 .title,.qaV2 .sectionHead h2,.qaV2 .project h3,.qaV2 .dashboardProject h3,.qaV2 .card h2{color:#f4f4f5}
+.qaV2 .navigation :is(a,button){color:#b8bac0}
+.qaV2 .navigation :is(a,button):hover{background:#23252a;color:#f4f4f5}
+.qaV2 .foot{border-color:#303238;color:#9497a0}
+.qaV2 :is(.eyebrow,.crumb,.subtitle,.summary p,.sectionHead p,.project p,.projectMeta span,.dashboardProject p,.dashboardMore>summary,.compactDisclosure>summary){color:#b8bac0}
+.qaV2 .dashboardStage,.qaV2 .tag{color:#c3e1cc}
+.qaV2 :is(.summary,.project,.dashboardProject,.card,.empty){background:#101113;border-color:#303238;color:#f4f4f5}
+.qaV2 .dashboardProject:hover,.qaV2 .project:hover{background:#151619;border-color:#484b52}
+.qaV2 :is(.projectMeta,.facts>div,.dashboardMore,.compactDisclosure){border-color:#303238}
+.qaV2 .tag{background:#203028;border-color:#345748}
+.qaV2 :is(.nextAction,.nextDetail){background:#151a19;border-color:#484b52}
+.qaV2 :is(.nextAction h2,.nextDetail h2){color:#f4f4f5}
+.qaV2 :is(.nextAction p,.nextDetail p,.facts dt,.notice,.card p){color:#b8bac0}
+.qaV2 .action{background:#f4f4f5;color:#101114;border-color:#f4f4f5}
+.qaV2 .action:hover{background:#d9dade}
+.qaV2 .secondaryAction{background:#151619;color:#f4f4f5;border-color:#484b52}
+.qaV2 .secondaryAction:hover{background:#23252a}
+.qaV2 .notice{background:#18251e;border-color:#345748;color:#d1e4d6}
+.qaV2 :is(a,button,summary,input):focus-visible{outline:2px solid #f4f4f5;outline-offset:3px}

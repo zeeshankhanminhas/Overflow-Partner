@@ -43,3 +43,21 @@
 .historyDisclosure>summary:focus-visible{outline:2px solid #26362a;outline-offset:3px}
 .historyDisclosure[open]>summary{margin-bottom:12px}
 .historyDisclosure .section{margin-top:17px}
+
+/* Scoped to QA preview only via server-rendered token layout. */
+:global(.qa-v2-token) .page{background:#090a0b;color:#f4f4f5;color-scheme:dark}
+:global(.qa-v2-token) :is(.brand,.title,.reference,.section h3,.status h2,.projectSummary h3,.nextStep h3){color:#f4f4f5}
+:global(.qa-v2-token) .brand span{border-color:#f4f4f5}
+:global(.qa-v2-token) :is(.panel,.metric,.projectSummary){background:#101113;border-color:#303238;box-shadow:none}
+:global(.qa-v2-token) :is(.status,.nextStep){background:#151a19;border-color:#484b52}
+:global(.qa-v2-token) :is(.eyebrow,.intro,.note,.expiry,.status p,.nextStep p,.projectSummary p,.metric .small){color:#b8bac0}
+:global(.qa-v2-token) :is(.topline,.section,.historyDisclosure){border-color:#303238}
+:global(.qa-v2-token) .historyDisclosure>summary{color:#b8bac0}
+:global(.qa-v2-token) .action{background:#151619;color:#f4f4f5;border-color:#484b52}
+:global(.qa-v2-token) .action:hover{background:#23252a}
+:global(.qa-v2-token) .action.primary{background:#f4f4f5;color:#101114;border-color:#f4f4f5}
+:global(.qa-v2-token) .action.primary:hover{background:#d9dade}
+:global(.qa-v2-token) .acceptanceForm>label{color:#d6d7db}
+:global(.qa-v2-token) .acceptanceForm input:not([type="checkbox"]){background:#1b1d21;color:#f4f4f5;border-color:#484b52}
+:global(.qa-v2-token) .footer{color:#9497a0}
+:global(.qa-v2-token) :is(a,button,input,summary):focus-visible{outline:2px solid #f4f4f5;outline-offset:3px}
