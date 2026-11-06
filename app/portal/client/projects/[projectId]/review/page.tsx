@@ -20,7 +20,7 @@ export default async function ClientReviewDeepLink({params,searchParams}:{
  const {data,error}=await supabase.rpc('op_qa_client_review_position',{p_project_id:projectId});
  const current=data as {projectId?:string;issueId?:string}|null;
  if(error||current?.projectId!==projectId||!current.issueId)notFound();
- const feedback=searchParams?await searchParams:{};
+ const feedback:{error?:string;updated?:string}=searchParams?await searchParams:{};
  const query=new URLSearchParams();
  if(feedback.error)query.set('error',String(feedback.error).slice(0,260));
  if(feedback.updated)query.set('updated',String(feedback.updated).slice(0,260));
