@@ -38,6 +38,10 @@ const cases=[
    inviteAction.includes("form.get('confirm_separate_login')")&&
    inviteAction.includes('admin.auth.admin.inviteUserByEmail')&&
    inviteAction.includes("assertRole(profile.role,['owner','admin'])")],
+ ['both QA design and recovery Operator logins return to the modern workspace, never the legacy one',
+   loginActions.includes('["design/opos-decision-first-ia", "qa/recovery-ui-client-gate-20261105"]')&&
+   loginActions.includes('redesignPreview ? "/opos-next" : "/workspace"')&&
+   loginActions.includes('const qaPreviewBranch = process.env.VERCEL_ENV === "preview"')],
  ['a verified client must use their own invitation or passwordless session',
    qaCallback.includes("supabase.auth.exchangeCodeForSession(code)")&&
    qaCallback.includes("supabase.auth.verifyOtp")&&
