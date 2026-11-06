@@ -13,12 +13,12 @@ export default function WorkRecordV2({
   // Use one decision-first layout by default across record types.
   // Supporting evidence remains available on demand.
   const detailContent=<section className={css.section+' '+css.grid} aria-label="Evidence and controls">
-      <div className={css.panel}><h3>Controlled evidence</h3>
+      <div className={css.panel}><h3>Documents and checks</h3>
         {evidence.map((fact,i)=><div key={i} className={css.evidence}>
           <div><strong className={css.evidenceTitle}>{fact.label}</strong><span className={css.evidenceDetail}>{fact.value}</span></div>
         </div>)}
       </div>
-      <div className={css.panel}><h3>Operating context</h3>
+      <div className={css.panel}><h3>Other information</h3>
         {facts.map((fact,i)=><div key={i} className={css.fact}>
           <small>{fact.label}</small><strong>{fact.value}</strong>
         </div>)}
@@ -43,22 +43,18 @@ export default function WorkRecordV2({
       {!compact?<span className={css.smallMeta}>Owner: {owner}</span>:null}
     </div>
     <section className={css.decision} aria-label={waiting?'Current waiting position':'Current decision'}>
-      <p className={css.decisionKicker}>{waiting?'CURRENT DEPENDENCY':'NEXT OPERATOR DECISION'}</p>
+      <p className={css.decisionKicker}>NEXT STEP</p>
       <h2>{nextTitle}</h2>
       <p>{nextDescription}</p>
-      {waiting?<p style={{marginTop:16,fontSize:12}}>No decision is assumed until the outstanding evidence arrives.</p>:null}
       {!waiting?<div className={css.decisionActions}>
         <Link className={css.primary} href={governedHref}>{actionLabel} ↗</Link>
       </div>:null}
     </section>
     {compact?<details className={css.compactDetails}>
-      <summary>Journey progress</summary>
+      <summary>{eyebrow.includes('CASE')?'Case details':'Project details'}</summary>
       {lifecycleContent}
-    </details>:lifecycleContent}
-    {compact?<details className={css.compactDetails}>
-      <summary>Project details &amp; governed evidence</summary>
       {detailContent}
-    </details>:detailContent}
+    </details>:<>{lifecycleContent}{detailContent}</>}
     {compact?<p className={css.compactBack}><Link href={previous} className={css.secondary}>← Back to projects</Link></p>:
       <p className={css.footer}>Live organisation-scoped record · Actions are shown only where the relevant governed controls are available.</p>}
   </article>;
