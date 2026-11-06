@@ -33,18 +33,17 @@ export default async function AccountProject({params,searchParams}:{
    <h1 className={css.title}>{p.project_title}</h1>
    <p className={css.subtitle}>{stageLabel(p.project_stage,kind)}</p>
   </div>
-  {notice?<p role="alert" className={css.notice}>Secure action unavailable: {notice}</p>:null}
+  {notice?<p role="alert" className={css.notice}>We couldn’t open that page. Please return to your project and try again. If the problem continues, ask Overflow Partner for a fresh link.</p>:null}
   <section className={css.nextAction} aria-label="Current next step">
-   <span className={css.eyebrow}>{secureReview&&review?.canRespond?'YOUR NEXT DECISION':next.waiting?'CURRENT DEPENDENCY':'YOUR NEXT ACTION'}</span>
-   <h2>{secureReview?(review?.canRespond?'Review the approved engineering drawings':'Your protected client review is recorded'):next.title}</h2>
-   <p>{secureReview?(review?.canRespond?'Inspect the watermarked current revision and record an attributable acceptance or correction request.':'View the issued engineering revision and any submitted decision. This is not final native file handover.'):next.description}</p>
-   {secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open controlled drawing review':'View your review record'} →</Link>:
-     next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
+   <span className={css.eyebrow}>NEXT STEP</span>
+   <h2>{secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
+   <p>{secureReview?(review?.canRespond?'Check the approved drawings. You can accept them or request changes.':'You can view the drawings and any response you have already submitted. Final editable files are provided separately after handover approval.'):next.description}</p>
+   {secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
+     !next.waiting&&next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
   </section>
   <details className={css.compactDisclosure}>
-   <summary>Project details and records</summary>
+   <summary>Project information</summary>
    <div className={css.card}>
-   <h2 style={{marginTop:16,fontSize:20}}>Project details</h2>
    <dl className={css.facts}>
     <div><dt>Project</dt><dd>{p.project_number}</dd></div>
     <div><dt>Account</dt><dd>{p.account_name}</dd></div>
@@ -55,11 +54,11 @@ export default async function AccountProject({params,searchParams}:{
     {!client?<><div><dt>Work Order acceptance</dt><dd>{p.work_order_accepted?'Formally accepted':'Not yet accepted'}</dd></div><div><dt>Execution state</dt><dd>{String(p.partner_execution_state||'Not released').replaceAll('_',' ')}</dd></div></>:null}
    </dl>
    <div className={css.actions}>
-    <Link className={css.secondaryAction} href={secure}>{client?'View governed commercial status':'View authorised Partner Work'}</Link>
+    <Link className={css.secondaryAction} href={secure}>{client?'View quotations and payments':'Open Partner Work'}</Link>
    </div>
    <div className={css.notice}>{client?
-   'The secure quotation page continues to handle accepted terms, payment and eventual final handover. A project status cannot unlock files.':
-   'The existing Partner Work screen governs formal acceptance, commencement, progress and delivery. This account view cannot bypass any obligation.'}</div>
+   'Quotations, payments and final files are handled securely. Your project status alone does not mean payment is complete or final files are available.':
+   'Use Partner Work to accept the Work Order, confirm your start, share progress and submit completed drawings.'}</div>
    </div>
   </details>
  </>;
