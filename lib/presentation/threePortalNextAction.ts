@@ -42,20 +42,20 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
   case 'accept_work_order':
    return project.reference&&project.partner_execution_state==='awaiting_acknowledgement'?
     view('Review and accept your Work Order','Check scope, price and delivery obligations. Acceptance is separate from commencement.','Open Work Order acceptance',false):
-    view('Await authorised Work Order access','The secure invitation or accepted Work Order evidence must be available before acting.','View Work Order status',true);
+    view('Waiting for your Work Order','Overflow Partner will share the Work Order when it is ready for your review.','View Work Order status',true);
   case 'confirm_commencement':
-   return view('Confirm you are ready to start','Confirm scope, inputs, capacity and planned start using your secure Partner Work session.','Confirm commencement',false);
+   return view('Confirm your start date','Check the scope, materials and planned start date in Partner Work before confirming.','Confirm start',false);
   case 'perform_execution':
-   return view('Continue your engineering work','Report progress and issues, and submit completed deliverables when ready.','Open engineering work',false);
+   return view('Continue your engineering work','Share progress, raise any problems and submit your completed drawings.','Open engineering work',false);
   case 'correct_execution':
    return view('Submit the requested correction','Review OP findings, prepare a fresh revision and submit new file evidence.','Open revised delivery',false);
   case 'await_partner_submission':
-   return view('Await Overflow Partner quality review','Your submitted work is under OP review. No further submission is due unless corrections are requested.','View submitted work',true);
+   return view('Your submitted drawings are being checked','Overflow Partner is reviewing your work. We’ll contact you if changes are needed.','View submitted work',true);
   case 'complete_mobilisation':
-   return view('Await OP mobilisation authority','Even an accepted Work Order does not permit the partner to start before formal commencement.','View Work Order status',true);
+   return view('Waiting for approval to start','Your accepted Work Order does not start the project. Confirm your planned start when Overflow Partner makes that step available.','View Work Order status',true);
   default:
-   return view(stage==='closed'?'This Work Order is closed':'Await the next authorised decision',
-    'Overflow Partner controls technical acceptance, client review, settlement and closeout.','View Work Order status',true);
+   return view(stage==='closed'?'This Work Order is closed':'Waiting for Overflow Partner',
+    'We’ll let you know when there is something you need to do.','View Work Order status',true);
  }
 }
 
