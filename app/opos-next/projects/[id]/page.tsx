@@ -235,9 +235,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          <strong>{drawingsApproved?'R01 drawings are approved for review.':'Drawing checks are still in progress.'}</strong>
          {' '}{staffReview?.issued||transmittal?'Northfield can view the issued review in its client workspace.':'Northfield has not received the drawings yet.'}
        </p>
-       {qaGate?.submission_id&&qaGate.storage_complete?
-         <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:18}}>View R01 drawings →</Link>:
-         <p className={css.meta}>The drawing preview will be available once the files are ready.</p>}
+       <p className={css.meta} style={{marginTop:14}}>This view cannot open or send drawings.</p>
        <details className={css.details} style={{marginTop:22}}>
          <summary>Review status</summary>
          <dl className={css.detailFacts} style={{marginTop:12}}>
