@@ -117,7 +117,7 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
    finalReleaseApproved:p.finalReleaseApproved,partnerPaid:p.partnerPaid,
  });
  if(p.completed)return make('Project closed','There is no outstanding project decision. The controlled history remains available.',null,'#project-controls',true);
- if(!p.canWrite)return make('Await an authorised OP operator','Your role or the isolated QA write gate does not permit the next transaction.',null,'#project-controls',true);
+ if(!p.canWrite)return make('View the current project','Changes are not available from this view. The project history is available below.',null,'#project-controls',true);
  if(p.stage==='mobilisation'){
   if(p.needsWorkOrder)return p.workOrderCanIssue?
    make('Issue the approved Partner Work Order','The existing action checks the verified opening payment and approved scope. It will not start execution.','Review and issue Work Order','#work-order-issue'):
