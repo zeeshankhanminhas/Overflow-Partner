@@ -2,12 +2,14 @@ import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import ClientDrawingReview,{type ClientReview} from '@/app/portal/client/projects/[projectId]/review/ClientDrawingReview';
 import css from '../../../portal.module.css';
 
 export const dynamic='force-dynamic';
 export default async function AccountProject({params,searchParams}:{
  params:Promise<{kind:string;projectId:string}>;
- searchParams?:Promise<{notice?:string}>;
+ searchParams?:Promise<{notice?:string;error?:string;updated?:string}>;
 }){
  const {kind,projectId}=await params;
  if(!isPortalKind(kind))notFound();
@@ -18,13 +20,17 @@ export default async function AccountProject({params,searchParams}:{
  const next=portalProjectNextStep(kind,p);
  // Only the current explicitly entitled Client Portal user may discover an issued
  // protected review; the RPC also verifies project, company, cycle and membership.
- const reviewResult=kind==='client'&&['issued_to_client','client_review','completion','closed'].includes(p.project_stage)
+ const reviewResult=client&&isKnownIsolatedQaBackend()&&['issued_to_client','client_review','completion','closed'].includes(p.project_stage)
   ?await supabase.rpc('op_qa_client_review_position',{p_project_id:p.project_id}):null;
- const review=(reviewResult&&!reviewResult.error&&reviewResult.data&&
-  (reviewResult.data as {projectId?:string;issueId?:string}).projectId===p.project_id
-  ?reviewResult.data as {issueId:string;decision:string|null;canRespond:boolean;revision:string}:null);
- const secureReview=review?'/portal/client/projects/'+p.project_id+'/review':null;
- const notice=String((await searchParams)?.notice||'').slice(0,280);
+ const reviewData=reviewResult?.data as Partial<ClientReview>|null|undefined;
+ const review:ClientReview|null=reviewResult&&!reviewResult.error&&reviewData&&
+   reviewData.projectId===p.project_id&&typeof reviewData.issueId==='string'&&
+   reviewData.issueId.length>0&&Array.isArray(reviewData.files)
+   ?reviewData as ClientReview:null;
+ const secureReview=review?'#drawing-review':null;
+ const query=searchParams?await searchParams:{};
+ const notice=String(query.notice||'').slice(0,280);
+ const feedback={error:String(query.error||'').slice(0,280),updated:String(query.updated||'').slice(0,260)};
  const secure='/portal/'+kind+'/projects/'+p.project_id+'/open';
  return <>
   <Link className={css.crumb} href={'/portal/'+kind}>← Back to {client?'Client':'Partner'} Workspace</Link>
@@ -41,6 +47,7 @@ export default async function AccountProject({params,searchParams}:{
    {secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
      !next.waiting&&next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
   </section>
+  {client&&review?<ClientDrawingReview projectId={p.project_id} review={review} feedback={feedback}/>:null}
   <details className={css.compactDisclosure}>
    <summary>Project information</summary>
    <div className={css.card}>
