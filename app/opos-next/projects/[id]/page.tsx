@@ -160,25 +160,37 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    finalReleaseApproved:Boolean(finalStatus?.ownerApproved),
    partnerPaid:Boolean(finalStatus?.partnerPaid),
  });
- // An independent Client login is a prerequisite, not an optional polish task.
- const displayNext=stage==='ready_for_client_issue'&&qaWritable&&
-   ['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready
+ // Show the actual business step, not the underlying permissions or database state.
+ // Display-only messaging: the current server-side approvals remain mandatory.
+ const awaitingClientReview=stage==='ready_for_client_issue'&&!staffReview?.issued;
+ const drawingsApproved=Boolean(qaGate?.engineering_accepted&&
+   qaGate.manifest_verified&&qaGate.release_authorised);
+ const canManageClientAccess=['owner','admin'].includes(role);
+ const displayNext=awaitingClientReview&&!qaWritable
+   ?{...operatorNext,
+      title:drawingsApproved?'Confirm Northfield’s client access':'Check the drawing approvals',
+      description:drawingsApproved
+        ?'The drawings are approved, but have not been sent. Confirm the client can sign in securely before sending them for review. This test version is view-only.'
+        :'The review cannot be sent until the drawings are approved. This test version is view-only.',
+      action:null,anchor:'#release-authorisation',waiting:true}
+   :awaitingClientReview&&canManageClientAccess&&!qaRecipient?.ready
     ?{...operatorNext,
-       title:'Activate a separate QA Client account',
-       description:'An independent Client account is required before R01 can be issued. Set it up using the isolated QA control below.',
-       action:'Set up QA Client access',
+       title:'Confirm Northfield’s client access',
+       description:'The drawings have not been sent. Set up the client’s secure sign-in before sharing the review.',
+       action:'Set up client access',
        anchor:'#release-authorisation',waiting:false}
     :operatorNext;
  return <>
-   <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
-     title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
-     state={meta.label} owner="Overflow Partner / assigned delivery team"
+   <WorkRecordV2 eyebrow={'PROJECT / '+(data.project_number||id.slice(0,8))}
+     title={data.project_number==='OP-PRJ-2026-0002'?'Northfield · Manufacturing drawings':data.title||data.project_number}
+     subtitle={'Delivery due '+date(data.due_date)}
+     state={stage==='ready_for_client_issue'?'Ready to send':meta.label} owner="Overflow Partner / assigned delivery team"
      nextTitle={displayNext.title}
      nextDescription={displayNext.description} compact
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={displayNext.waiting}
-     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:stage==='ready_for_client_issue'?'Protected client issue not recorded':readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
-     facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
+     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
+     facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
      governedHref={'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
