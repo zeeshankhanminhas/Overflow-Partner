@@ -35,7 +35,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  });
  const chosenProject=orderedProjects[0]||null;
  const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
- const primary=liveClientReview?{label:'Review your engineering drawings',detail:'Your approved drawing revision is ready for a secure client decision.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your issued quotation',detail:'Check the approved offer, then accept, request time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open quotation',waiting:false}:
+ const primary=liveClientReview?{label:'Review your drawings',detail:'Your drawings are ready. Please check them and accept or request changes.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the price and scope, then accept, request more time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id+'/open',action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
  const previewProjects=orderedProjects.slice(0,3);
  const title=isClient?'Your engineering projects':'Your engineering work';
@@ -49,7 +49,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
    <section className={css.nextAction} aria-label="Your one next action">
     <span className={css.eyebrow}>{primary?(primary.waiting?'WAITING ON OTHERS':'YOUR NEXT STEP'):'ALL UP TO DATE'}</span>
     <h2>{primary?primary.label:'Nothing needs your action'}</h2>
-    <p>{primary?primary.detail:'Your next authorised decision will appear here when it is ready.'}</p>
+    <p>{primary?primary.detail:'We’ll let you know when there is something to do.'}</p>
     {primary&&!primary.waiting?<Link className={css.action} href={primary.href}>{primary.action} →</Link>:null}
    </section>
 
