@@ -18,5 +18,9 @@ for(const route of ['client-portal','quote-payment','client-final-files'])assert
 const client=read('app/client-portal/page.tsx');
 assert.ok(client.includes('className={styles.page}')&&client.includes('createStripeCheckout'));
 assert.ok(read('app/client-portal/clientPortal.module.css').includes(':global(.qa-v2-token) .page'));
-assert.ok(read('app/portal/[kind]/projects/[projectId]/page.tsx').includes('<ClientDrawingReview'));
+const projectPage=read('app/portal/[kind]/projects/[projectId]/page.tsx');
+assert.ok(projectPage.includes('<ClientDrawingReview'));
+assert.ok(projectPage.includes('if(!permitted&&isKnownIsolatedQaPresentationPreview())'), 'Wrong portal identity must be offered kind-specific sign-in on QA');
+assert.ok(projectPage.includes('if(!p)notFound()'), 'Unknown / other-organisation project must remain inaccessible');
+assert.ok(projectPage.includes("encodeURIComponent('/portal/'+kind)"), 'Sign-in must preserve the requested portal kind');
 console.log('PASS Workspace 2.0: '+mapped.length+' redirects, '+untouched.length+' protected boundaries, account and transactional QA theme.');

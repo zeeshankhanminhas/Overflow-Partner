@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import {notFound} from 'next/navigation';
+import {notFound,redirect} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
-import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import {isKnownIsolatedQaBackend,isKnownIsolatedQaPresentationPreview} from '@/lib/qa/isolation';
 import ClientDrawingReview,{type ClientReview} from '@/app/portal/client/projects/[projectId]/review/ClientDrawingReview';
 import css from '../../../portal.module.css';
 
@@ -14,6 +14,13 @@ export default async function AccountProject({params,searchParams}:{
  const {kind,projectId}=await params;
  if(!isPortalKind(kind))notFound();
  const {permitted,projects,supabase}=await portalContext(kind);
+ // A Partner session (or other wrong portal kind) must not strand an invited
+ // QA Client on a generic 404. Redirect to the correct sign-in while leaving
+ // project-specific entitlement checks and non-QA routes untouched.
+ if(!permitted&&isKnownIsolatedQaPresentationPreview()){
+  redirect('/login?next='+encodeURIComponent('/portal/'+kind)+'&error='+
+   encodeURIComponent('You are signed in to a different workspace. Sign in with your '+(kind==='client'?'Client':'Partner')+' account to continue.'));
+ }
  const p=permitted?projects.find(x=>x.project_id===projectId):null;
  if(!p)notFound(); // Never disclose a project across organisations or portal kinds.
  const client=kind==='client';
