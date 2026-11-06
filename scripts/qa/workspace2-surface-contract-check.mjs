@@ -8,7 +8,10 @@ const untouched=['/workspace/projects/123/delivery','/workspace/projects/123/exe
 for(const path of untouched)assert.equal(canonicalQaWorkspace2Path(path),null,'Protected/unmapped route '+path);
 const proxy=read('proxy.ts'),isolation=read('lib/qa/isolation.ts');
 assert.ok(proxy.includes("request.method!=='GET'")&&proxy.includes("request.method!=='HEAD'"));
-assert.ok(proxy.includes('isKnownIsolatedQaPresentationPreview()')&&proxy.includes("matcher:['/workspace/:path*']"));
+assert.ok(proxy.includes('isKnownIsolatedQaPresentationPreview()')&&proxy.includes('"/workspace/:path*"'));
+assert.ok(proxy.includes('"/outreach/:path*"')&&proxy.includes('"/opos-next/:path*"'), 'Session refresh matcher must cover original authenticated routes');
+assert.ok(proxy.includes('await supabase.auth.getUser()')&&proxy.includes('response.cookies.getAll()'), 'Workspace redirect must preserve Supabase auth refresh');
+assert.ok(proxy.includes('isKnownIsolatedQaBackend()')&&proxy.includes('status: 423'), 'QA preview write gate must remain fail-closed');
 assert.ok(isolation.includes("process.env.VERCEL_ENV==='preview'")&&isolation.includes("qaRef==='ukcamenuxhdznxaxpyis'"));
 assert.ok(read('app/portal/layout.tsx').includes('css.qaV2')&&read('app/portal/portal.module.css').includes('.qaV2 .header'));
 for(const route of ['client-portal','quote-payment','client-final-files'])assert.ok(read('app/'+route+'/layout.tsx').includes('qa-v2-token'));
