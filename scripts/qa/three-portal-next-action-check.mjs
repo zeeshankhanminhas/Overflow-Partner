@@ -20,15 +20,22 @@ assert.ok(logic.includes('canReviewEngineering')&&logic.includes('canAuthoriseRe
  'Owner/reviewer permissions must be considered before presenting actions');
 assert.ok(logic.includes("situation.key==='secure_review_blocked'")&&logic.includes('Inspect watermarked QA review preview'),
  'Client issue must remain blocked while operator can inspect watermarked internal preparation');
-assert.ok(operator.includes('operatorProjectNextStep({')&&
- operator.includes('const displayNext=stage===')&&
- operator.includes("qaRecipient?.ready")&&
- operator.includes("title:'Activate a separate QA Client account'")&&
- operator.includes("anchor:'#release-authorisation'")&&
- operator.includes('waiting={displayNext.waiting}')&&
- operator.includes('actionLabel={displayNext.action')&&
+assert.ok(operator.includes('operatorProjectNextStep({') &&
+ operator.includes('awaitingClientReview&&!qaWritable') &&
+ operator.includes('drawingsApproved') &&
+ operator.includes('awaitingClientReview&&canManageClientAccess&&!qaRecipient?.ready') &&
+ operator.includes("action:null,anchor:'#release-authorisation',waiting:true") &&
+ operator.includes("action:'Set up client access'") &&
+ operator.includes("anchor:'#release-authorisation'") &&
+ operator.includes('waiting={displayNext.waiting}') &&
+ operator.includes('actionLabel={displayNext.action') &&
  operator.includes('displayNext.anchor'),
- 'Project 360 must use canonical stage actions, except the evidence-gated independent-client onboarding prerequisite');
+ 'Project 360 must use canonical actions while refusing client issue from a read-only preview or unverified independent client account');
+assert.ok(operator.includes('The drawings are approved, but have not been sent') &&
+ workRecord.includes('<p className={css.decisionKicker}>NEXT STEP</p>') &&
+ !workRecord.includes('No decision is assumed until the outstanding evidence arrives') &&
+ !operator.includes('Your role or the isolated QA write gate'),
+ 'The Operator screen must describe the business situation, not database or authorisation machinery');
 for(const anchor of ['engineering-review','manifest-verification','release-authorisation','stage-advance',
  'client-review-outcome','final-release','project-closure','work-order-issue'])
  assert.ok(operator.includes('id="'+anchor+'"'),'Operator link target missing: '+anchor);
