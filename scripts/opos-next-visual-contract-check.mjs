@@ -184,7 +184,10 @@ const checks = [
     projectPage.includes("from('project_client_transmittals')")],
   ['Project primary operator decision remains directly linked to governed actions',
     projectPage.includes("governedHref={'/opos-next/projects/'+id+displayNext.anchor}") &&
-    projectPage.includes('Current action &amp; approval') &&
+    projectPage.includes('Review drawings') &&
+     projectPage.includes("stage==='ready_for_client_issue'&&!qaWritable?") &&
+     projectPage.includes('This view cannot open or send drawings.') &&
+     projectPage.includes('<summary>Checks still needed</summary>') &&
     projectPage.includes('id="release-authorisation"') &&
     projectPage.includes('id="client-review-outcome"') &&
     projectPage.includes('id="final-release"') &&
