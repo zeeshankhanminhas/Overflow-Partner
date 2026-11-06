@@ -227,14 +227,36 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        </p>
      </div>
    </section>:null}
-   <section id="project-controls" className={css.section} aria-label="Governed project controls">
-     <div className={css.sectionHeading}><h2>Current action &amp; approval</h2></div>
+   {stage==='ready_for_client_issue'&&!qaWritable?
+   <section id="project-controls" className={css.section} aria-label="Review drawings">
+     <div className={css.sectionHeading}><h2>Review drawings</h2></div>
+     <div className={css.card}>
+       <p role="status" className={css.cardDescription}>
+         <strong>{drawingsApproved?'R01 drawings are approved for review.':'Drawing checks are still in progress.'}</strong>
+         {' '}{staffReview?.issued||transmittal?'Northfield can view the issued review in its client workspace.':'Northfield has not received the drawings yet.'}
+       </p>
+       {qaGate?.submission_id&&qaGate.storage_complete?
+         <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:18}}>View R01 drawings →</Link>:
+         <p className={css.meta}>The drawing preview will be available once the files are ready.</p>}
+       <details className={css.details} style={{marginTop:22}}>
+         <summary>Review status</summary>
+         <dl className={css.detailFacts} style={{marginTop:12}}>
+           <div><dt>Engineering review</dt><dd>{qaGate?.engineering_accepted?'Approved':'Pending'}</dd></div>
+           <div><dt>Drawing files</dt><dd>{qaGate?.manifest_verified?'Checked':'Pending'}</dd></div>
+           <div><dt>Approval to share</dt><dd>{qaGate?.release_authorised?'Approved':'Pending'}</dd></div>
+           <div><dt>Northfield review</dt><dd>{staffReview?.issued||transmittal?'Issued':'Not sent'}</dd></div>
+         </dl>
+       </details>
+     </div>
+   </section>:
+   <section id="project-controls" className={css.section} aria-label="Project actions">
+     <div className={css.sectionHeading}><h2>Project actions</h2></div>
      {feedback.error?<p role="alert" className={css.empty}>Action blocked: {String(feedback.error).slice(0,450)}</p>:null}
      {feedback.updated||feedback.advanced?<p role="status" className={css.empty}>{String(feedback.updated||'Project stage updated to '+feedback.advanced).slice(0,450)}</p>:null}
      <div className={css.card}>
        
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
-       {blockedReasons.length?<div style={{marginTop:20}}><strong>Required before continuing</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:null}
+       {blockedReasons.length?<details className={css.details} style={{marginTop:18}}><summary>Checks still needed</summary><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></details>:null}
        {stage==='internal_review'?<section aria-label="Engineering acceptance and document control" style={{display:'grid',gap:18,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
          <h3 style={{fontSize:19,margin:0}}>Engineering QA · {qaGate?.revision||'Current submission'}</h3>
          <p className={css.meta}>The partner submission must be inspected and technically accepted before its document manifest can be verified. These are two different decisions; neither requires approving a generic document template.</p>
@@ -299,7 +321,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          </div>
          {qaGate?.engineering_accepted&&qaGate?.manifest_verified?<p role="status" className={css.meta}><strong>Ready for package preparation.</strong> Use the project-stage action below. This does not send files or authorise client access.</p>:null}
        </section>:null}
-       {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This page retains the current governed controls while testing is isolated.</p>:null}
+       {!qaWritable?<p className={css.meta} style={{marginTop:18}}>This test version is view-only.</p>:null}
        {stage==='mobilisation'&&canWrite?<details id="mobilisation-controls" style={{marginTop:22,scrollMarginTop:24}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
          <summary style={{cursor:'pointer',fontWeight:600}}>Set mobilisation owner and programme</summary>
          <form action={updateProjectMobilisationAction} style={{display:'grid',gap:15,marginTop:18,maxWidth:600}}>
@@ -319,15 +341,15 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
 </div>
        </form>:null}
        {stage==='ready_for_client_issue'?<section id="release-authorisation" style={{display:'grid',gap:12,marginTop:24}} aria-label="Client review release authority">
-         <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · release authority</h3>
-         <p className={css.meta}>Technical acceptance and manifest verification establish readiness. Owner release authorisation is a separate approval and does not send the package to a client.</p>
+         <h3 style={{fontSize:17,marginBottom:8}}>Send drawings for client review</h3>
+         <p className={css.meta}>The drawings must be checked and approved before Northfield can review them.</p>
          {internalQaEvidenceUnavailable?<p role="alert">Release evidence unavailable; release remains blocked.</p>:null}
          {qaGate?.release_authorised?<div style={{display:'grid',gap:12}}>
-             <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
-             <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
+             <p role="status">R01 drawings are approved for review. They have not been sent to Northfield.</p>
+             <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>View R01 drawings →</Link>
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready?
                <details className={css.details} style={{marginTop:14,maxWidth:700}}>
-                 <summary>QA-only client activation tools</summary>
+                 <summary>Test client sign-in</summary>
                  <div style={{display:'grid',gap:12,marginTop:12}}>
                  <strong role="status">{clientInvitePending?'Separate QA client activation is pending':'An independent QA Client identity is required'}</strong>
                  <p className={css.meta}>
@@ -346,8 +368,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued&&qaRecipient?.ready?
                <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
                 padding:18,border:'1px solid #454951',borderRadius:8}}>
-                 <strong>Issue R01 to the verified Client Portal account</strong>
-                 <p className={css.meta}>The server checks the project's true company and exactly one active, authenticated Client Workspace recipient. This is an in-app issue; no email is sent.</p>
+                 <strong>Share R01 with Northfield for review</strong>
+                 <p className={css.meta}>Northfield will be able to review the drawings in its secure account. No email is sent by this action.</p>
                  <input type="hidden" name="project_id" value={id}/>
                  <label className={css.qaChecklistRow}>
                   <input type="checkbox" name="preview_confirmed" value="yes" required/>
@@ -359,7 +381,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
                    style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
                  </label>
                  <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
-                  Issue protected R01 review in Client Portal →
+                  Send R01 for client review →
                  </button>
                </form>:null}
            </div>
@@ -371,7 +393,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              </label>
              <button className={css.action} style={{border:0}} type="submit">Authorise client-review preparation →</button>
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
-         <p className={css.meta}>This internal QA preview is not client issue. The separate Client Portal login, current engineering revision and recipient-specific permissions must be verified before authorised in-app release. Native files remain reserved for verified final payment and owner-approved final handover.</p>
+         <details className={css.details}><summary>About secure sharing</summary><p className={css.meta}>Review access requires Northfield's own sign-in and the approved R01 drawings. Original files remain unavailable until final payment and handover approval.</p></details>
        </section>:null}
        {stage==='client_review'?<section id="client-review-outcome" aria-label="Governed client review" style={{display:'grid',gap:13,marginTop:24}}>
           <h3 style={{fontSize:17}}>Authenticated client review decision</h3>
@@ -466,7 +488,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        </section>:null}
      </div>
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
-   </section>
+   </section>}
    <section id="partner-delivery-evidence" className={css.section} aria-label="Execution partner and delivery evidence" style={{scrollMarginTop:24}}>
      <details className={css.card} style={{padding:'20px 24px'}}>
        <summary style={{cursor:'pointer',fontSize:14,fontWeight:600,minHeight:30}}>Partner history &amp; QA evidence</summary>
