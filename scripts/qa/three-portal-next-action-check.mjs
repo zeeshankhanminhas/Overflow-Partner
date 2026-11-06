@@ -41,7 +41,9 @@ for(const anchor of ['engineering-review','manifest-verification','release-autho
  assert.ok(operator.includes('id="'+anchor+'"'),'Operator link target missing: '+anchor);
 assert.ok(clientHome.includes('portalProjectNextStep(kind,p)')&&clientHome.includes('YOUR NEXT STEP')&&
  clientHome.includes('/portal/client/quotes/'),'Account home must highlight exactly one current action');
-assert.ok(accountDetail.includes('portalProjectNextStep(kind,p)')&&accountDetail.includes('YOUR NEXT ACTION'),
+assert.ok(accountDetail.includes('portalProjectNextStep(kind,p)')&&accountDetail.includes('NEXT STEP')&&
+ accountDetail.includes('!next.waiting&&next.action')&&
+ accountDetail.includes('Review your drawings'),
  'External project view must direct to a real governed action');
 assert.ok(clientSecure.includes('clientNext')&&clientSecure.includes('YOUR NEXT STEP')&&
  clientSecure.includes('independently verified')&&clientSecure.includes('id="quote-acceptance"')&&
@@ -54,4 +56,7 @@ assert.ok(route.includes("portal_my_projects")&&route.includes("project.account_
  route.includes('token_hash'),'Secure account handoff must remain entitlement scoped');
 assert.ok(doc.includes('.nextAction')&&workRecord.includes('waiting?'),'Action-first portals must render waiting without a fake transaction');
 assert.ok(!/\.(insert|update|delete|upsert)\s*\(/.test(logic),'Read-only decision helper must not mutate data');
+assert.ok(logic.includes('We’re preparing your drawings for review') &&
+ !logic.includes('A genuinely issued protected review invitation is required.'),
+ 'Client account copy must explain the business situation without database terminology');
 console.log('Three-portal next-action contract: Operator, Client and Partner; all guarded original actions preserved. PASS (static).');
