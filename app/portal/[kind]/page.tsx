@@ -35,7 +35,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  });
  const chosenProject=orderedProjects[0]||null;
  const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
- const primary=liveClientReview?{label:'Review your drawings',detail:'Your drawings are ready. Please check them and accept or request changes.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'/review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the price and scope, then accept, request more time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open quotation',waiting:false}:
+ const primary=liveClientReview?{label:'Review your drawings',detail:'Your drawings are ready. Please check them and accept or request changes.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'#drawing-review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the price and scope, then accept, request more time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id+'/open',action:'Open quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id+'/open',action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
  const previewProjects=orderedProjects.slice(0,3);
  const title=isClient?'Your engineering projects':'Your engineering work';
