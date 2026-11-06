@@ -23,7 +23,7 @@ export default async function DecisionFirstLayout({ children }: { children: Reac
   const qaFixtureWritable = isKnownIsolatedQaFixtureBackend();
   const qaStep2Writable = isKnownIsolatedQaStep2Backend();
   const workspaceStatus = qaConfigured
-    ? (qaWritable ? 'QA · Actions enabled' : qaStep2Writable ? 'QA · Client intake testing' : qaFixtureWritable ? 'QA · Test records only' : 'QA · Actions locked')
+    ? (qaWritable ? 'Test · Actions available' : qaStep2Writable ? 'Test · Client intake' : qaFixtureWritable ? 'Test · Records only' : 'Test · View only')
     : 'Redesign · Under review';
   return (
     <div className={css.shell}>
@@ -36,8 +36,8 @@ export default async function DecisionFirstLayout({ children }: { children: Reac
         </Link>
         <OpNav />
         <div className={css.sidebarFooter}>
-          <small>{qaConfigured ? 'ISOLATED QA WORKSPACE' : 'REDESIGN IN REVIEW'}</small>
-          <span>{qaConfigured ? (qaWritable ? 'Test actions are enabled' : qaStep2Writable ? 'Fictional client intake is active · Other writes locked' : qaFixtureWritable ? 'Synthetic CRM record actions only' : 'Writes remain locked for safety') : 'Not yet released to production'}</span>
+          <small>{qaConfigured ? 'TEST WORKSPACE' : 'REDESIGN IN REVIEW'}</small>
+          <span>{qaConfigured ? (qaWritable ? 'Test actions are enabled' : qaStep2Writable ? 'Fictional client intake is active · Other writes locked' : qaFixtureWritable ? 'Synthetic CRM record actions only' : 'This version is view-only') : 'Not yet released to production'}</span>
         </div>
       </aside>
       <div className={css.workArea}>
