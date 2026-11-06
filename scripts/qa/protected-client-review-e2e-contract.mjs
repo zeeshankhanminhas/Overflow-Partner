@@ -46,10 +46,12 @@ const cases=[
    loginPage.includes('next === "/portal/client" && isKnownIsolatedQaBackend()')&&
    loginPage.includes('form action={emailQaClientLoginLink}')&&
    loginPage.includes('Email sign-in link')],
- ['operator displays the owner-controlled SMTP-free QA activation instead of silently issuing',
+ ['operator keeps independent client activation guarded and never offers issue from read-only preview',
    operator.includes('QaManualClientAccess')&&operator.includes('!qaRecipient?.ready')&&
-   operator.includes('qaRecipient?.ready')&&
-   operator.includes('Activate a separate QA Client account')],
+   operator.includes('qaRecipient?.ready')&&operator.includes('canManageClientAccess')&&
+   operator.includes("action:'Set up client access'")&&
+   operator.includes('awaitingClientReview&&!qaWritable')&&
+   operator.includes("action:null,anchor:'#release-authorisation',waiting:true")],
  ['protected client acceptance cannot be inserted without exact client-attested evidence',
    canonicalGuard.includes('protected review requires an actual authenticated client decision'.replace('protected review','protected review'))||
    (canonicalGuard.includes('p_evidence_reference=')&&canonicalGuard.includes('op_qa_client_review_decisions'))],
