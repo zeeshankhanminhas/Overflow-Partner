@@ -12,8 +12,9 @@ function unavailable(title:string,detail='Contact Overflow Partner for assistanc
    <p className={css.eyebrow}>SECURE CLIENT PORTAL</p><h1 className={css.title}>{title}</h1><p className={css.intro}>{detail}</p>
  </section></div></main>;
 }
-export default async function FinalPaymentPage({searchParams}:{searchParams:Promise<{token?:string}>}) {
-  const {token=''}=await searchParams;
+export default async function FinalPaymentPage({searchParams}:{searchParams:Promise<{token?:string;stripe_return?:string}>}) {
+  const {token='',stripe_return=''}=await searchParams;
+  // A Stripe return is a navigation hint, never evidence that payment cleared.
   const access=token?verifyClientPortalToken(token):null;
   if(!access)return unavailable('Secure link unavailable','Contact Overflow Partner for a fresh client portal link.');
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL;
@@ -63,7 +64,8 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
       <div className={css.status}><p className={css.eyebrow}>FINAL BALANCE</p><h2>{money(remaining)}</h2><p>Opening payment: {money(Number(contract.opening_amount))}</p><p>Final invoice: {invoiceMatches?invoice?.invoice_number+' · '+invoice?.status:'Awaiting an issued final invoice from Overflow Partner'}</p></div>
       {finalPaid?<div className={css.section}><h3>Final payment verified</h3><p className={css.note}>{finalReleased?'The engineering package has been approved for controlled release.':'Overflow Partner must complete the separate final handover approval.'}</p></div>
         :remaining>0?<div className={css.section}><h3>Complete final settlement</h3><p className={css.note}>The final balance is due after client review acceptance and before native engineering files can be released. Payment alone never authorises final handover.</p>
-          {!invoiceMatches?<p className={css.note}>Your final invoice must first be issued and matched to the agreed quotation. No payment is requested yet.</p>:
+          {stripe_return==='success'?<p className={css.note} role="status">Your Stripe Checkout has returned. Payment verification is pending until Overflow Partner receives independently verified Stripe webhook evidence. Please do not pay again or assume the final engineering files are released.</p>:
+          !invoiceMatches?<p className={css.note}>Your final invoice must first be issued and matched to the agreed quotation. No payment is requested yet.</p>:
           checkoutAvailable?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Pay final balance securely →</button></form>
             :<p className={css.note}>Online final settlement is not enabled for this account. Contact Overflow Partner to arrange independently verified payment.</p>}
         </div>:<p className={css.note}>No final payment is due under this accepted quotation.</p>}
