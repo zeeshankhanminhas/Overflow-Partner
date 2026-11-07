@@ -1,6 +1,8 @@
 import Link from "next/link";
+import {headers} from "next/headers";
+import {redirect} from "next/navigation";
 import { signIn, emailQaClientLoginLink } from "./actions";
-import { isKnownIsolatedQaBackend } from "@/lib/qa/isolation";
+import { isKnownIsolatedQaPresentationPreview } from "@/lib/qa/isolation";
 import styles from "./login.module.css";
 
 const permittedDestinations = ["/opos-next", "/portal/client", "/portal/partner"];
@@ -31,7 +33,22 @@ export default async function LoginPage({
 }) {
   const { error, updated, next } = await searchParams;
   // Only invited client accounts in an isolated QA environment get email-link login.
-  const qaClientEmailAccess = next === "/portal/client" && isKnownIsolatedQaBackend();
+  const qaClientEmailAccess = next === "/portal/client" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "qa/recovery-ui-client-gate-20261105" &&
+    isKnownIsolatedQaPresentationPreview();
+  // Magic-link PKCE cookies must be created on the SAME host as the callback.
+  // Always enter through this branch's fixed alias, never a rotating deployment URL.
+  if (qaClientEmailAccess) {
+    const qaOrigin = "https://overflow-partner-git-qa-recov-21e6a9-zeeshankhanminhas-projects.vercel.app";
+    const currentHost = (await headers()).get("host") || "";
+    if (currentHost.toLowerCase() !== new URL(qaOrigin).host) {
+      const canonical = new URL("/login", qaOrigin);
+      canonical.searchParams.set("next", "/portal/client");
+      if (error) canonical.searchParams.set("error", error);
+      if (updated) canonical.searchParams.set("updated", updated);
+      redirect(canonical.toString());
+    }
+  }
   const context = next === "/portal/client"
     ? "Client workspace"
     : next === "/portal/partner"
