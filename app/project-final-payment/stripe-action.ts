@@ -102,7 +102,7 @@ export async function createFinalStripeCheckout(formData:FormData) {
   params.set('cancel_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded',
-      'Idempotency-Key':`op-${mode}-final-${project.id}-r${quote.revision}-${remaining}`},
+      'Idempotency-Key':`op-${mode}-final-${project.id}-r${quote.revision}-${remaining}-${invoice.id}`},
     body:params.toString(),cache:'no-store'
   });
   const session=await response.json();
