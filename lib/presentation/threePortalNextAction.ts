@@ -100,6 +100,7 @@ export type OperatorPosition={
  mayAdvance:boolean;canApproveFinalRelease:boolean;canClose:boolean;canRecordClientOutcome:boolean;
  partnerSubmitted?:boolean;protectedReviewIssued?:boolean;
  clientAccepted?:boolean;finalPaid?:boolean;finalReleaseApproved?:boolean;partnerPaid?:boolean;
+ finalReleaseServiceAvailable?:boolean;
  externalClientDecision?:string|null;externalFeedbackClassification?:string|null;
  clientReviewReconciled?:boolean;clientReviewEvidenceAvailable?:boolean;
  canClassifyClientFeedback?:boolean;
@@ -116,7 +117,9 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
    clientAccepted:p.clientAccepted,finalPaid:p.finalPaid,
    finalReleaseApproved:p.finalReleaseApproved,partnerPaid:p.partnerPaid,
  });
- if(p.completed)return make('Project closed','There is no outstanding project decision. The controlled history remains available.',null,'#project-controls',true);
+ // Only the canonical CLOSED stage can be presented as closed. The project
+ // status 'completed' denotes delivery progress and is not a commercial closeout.
+ if(p.stage==='closed')return make('Project closed','All governed closeout gates have been satisfied. The controlled project history remains available.',null,'#project-controls',true);
  if(!p.canWrite)return make('View the current project','Changes are not available from this view. The project history is available below.',null,'#project-controls',true);
  if(p.stage==='mobilisation'){
   if(p.needsWorkOrder)return p.workOrderCanIssue?
@@ -183,9 +186,17 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
      null,'#client-review-outcome',true);
  }
  if(p.stage==='completion'){
-  if(p.canApproveFinalRelease)return make('Approve controlled final handover','A verified final payment and accepted client review permit the owner to inspect and authorise the exact final submission.','Review final release','#final-release');
-  if(p.canClose)return make('Close the governed project','Final settlement, partner payable and completion checks are satisfied.','Review closure decision','#project-closure');
-  return make('Complete final settlement and handover','Verify client settlement, owner release and partner payable evidence before closure.','Review final settlement','#final-release');
+  if(p.clientAccepted!==true)return make('Verify accepted client review','The accepted R01 outcome must be reconciled before final settlement and delivery can continue.',null,'#final-release',true);
+  if(p.finalPaid!==true)return make('Collect and verify the final client balance','Client acceptance is recorded. Final payment is still unverified; issue and reconcile the final commercial balance before releasing editable files.','Review final settlement','#final-release');
+  if(p.finalReleaseApproved!==true){
+    if(!p.finalReleaseServiceAvailable)return make('Await governed final handover availability','Final payment is verified, but the separate owner-authorised final release service is not enabled in this test workspace. Native files remain locked.',null,'#final-release',true);
+    return p.canApproveFinalRelease?
+      make('Approve controlled final handover','Verified final payment and client acceptance permit the owner to check the exact technical submission and separately authorise handover.','Review final release','#final-release'):
+      make('Await owner release approval','Final settlement is verified. An authorised owner must approve the final engineering package before files can be released.',null,'#final-release',true);
+  }
+  if(p.partnerPaid!==true)return make('Complete Execution Partner settlement','Client handover is authorised. Verify the partner payable and cleared partner payment before closing the project.','Review partner settlement','#final-release');
+  if(p.canClose)return make('Close the governed project','Client payment, final engineering release and partner settlement are all verified.','Review closure decision','#project-closure');
+  return make('Verify final closeout evidence','Review the independent completion checks before closing the project.',null,'#final-release',true);
  }
  return make('Review current project evidence','Follow the authorised OP stage controls and required evidence.',null,'#project-controls',true);
 }
