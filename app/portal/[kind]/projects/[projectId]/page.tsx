@@ -34,11 +34,13 @@ export default async function AccountProject({params,searchParams}:{
    reviewData.projectId===p.project_id&&typeof reviewData.issueId==='string'&&
    reviewData.issueId.length>0&&Array.isArray(reviewData.files)
    ?reviewData as ClientReview:null;
- const secureReview=review?'#drawing-review':null;
+ const finalBalanceReady=client&&p.project_stage==='completion'&&['accepted','accepted_with_comments'].includes(String(review?.decision||''));
+ const secureReview=review&&!finalBalanceReady?'#drawing-review':null;
  const query:{notice?:string;error?:string;updated?:string}=searchParams?await searchParams:{};
  const notice=String(query.notice||'').slice(0,280);
  const feedback={error:String(query.error||'').slice(0,280),updated:String(query.updated||'').slice(0,260)};
  const secure='/portal/'+kind+'/projects/'+p.project_id+'/open';
+ const settlementHref=secure+'?flow=final-settlement';
  return <>
   <Link className={css.crumb} href={'/portal/'+kind}>← Back to {client?'Client':'Partner'} Workspace</Link>
   <div className={css.hero}>
@@ -49,9 +51,10 @@ export default async function AccountProject({params,searchParams}:{
   {notice?<p role="alert" className={css.notice}>We couldn’t open that page. Please return to your project and try again. If the problem continues, ask Overflow Partner for a fresh link.</p>:null}
   <section className={css.nextAction} aria-label="Current next step">
    <span className={css.eyebrow}>NEXT STEP</span>
-   <h2>{secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
-   <p>{secureReview?(review?.canRespond?'Check the approved drawings. You can accept them or request changes.':'You can view the drawings and any response you have already submitted. Final editable files are provided separately after handover approval.'):next.description}</p>
-   {secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
+   <h2>{finalBalanceReady?'Final balance and handover':secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
+   <p>{finalBalanceReady?'Your R01 review is accepted. Open the secure final-balance page to see settlement status before controlled final handover.':secureReview?(review?.canRespond?'Check the approved drawings. You can accept them or request changes.':'You can view the drawings and any response you have already submitted. Final editable files are provided separately after handover approval.'):next.description}</p>
+   {finalBalanceReady?<Link className={css.action} href={settlementHref}>View final balance →</Link>:
+   secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
      !next.waiting&&next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
   </section>
   {client&&review?<ClientDrawingReview projectId={p.project_id} review={review} feedback={feedback}/>:null}
