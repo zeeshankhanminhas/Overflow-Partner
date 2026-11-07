@@ -92,3 +92,16 @@ export async function signOut() {
   redirect("/login");
 }
 
+/** QA-only identity switch. Explicit logout is required when the browser is
+ * holding a Client session and the user needs the Operator workspace.
+ * It never changes roles or portal memberships. */
+export async function switchToOperatorQaAccount() {
+  if (!isKnownIsolatedQaPresentationPreview()) {
+    redirect('/login');
+  }
+  const supabase=await createClient();
+  await supabase.auth.signOut();
+  redirect('/login?next=%2Fopos-next&updated='+
+    encodeURIComponent('Client session cleared from this browser. Sign in with your OP Operator account.'));
+}
+
