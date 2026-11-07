@@ -23,6 +23,8 @@ const qaCallback=read('app/auth/callback/QaClientAuthCallback.tsx');
 const loginActions=read('app/login/actions.ts');
 const loginPage=read('app/login/page.tsx');
 const clientEmailSignIn=read('app/login/QaClientEmailSignIn.tsx');
+const passwordSetup=read('app/opos-next/projects/[id]/QaClientPasswordSetup.tsx');
+const passwordAction=read('app/opos-next/projects/[id]/qa-client-password-action.ts');
 const canonicalGuard=read('supabase/migrations/20261104180000_qa_protected_review_canonical_outcome_guard.sql');
 
 const cases=[
@@ -151,6 +153,20 @@ const cases=[
   clientHome.includes('const liveClientReview=')&&
   clientHome.includes("+'#drawing-review'")&&
   clientDecision.includes("+'#drawing-review'")],
+ ['Northfield QA password sign-in is primary, gated and never creates an identity',
+  loginPage.includes('<PasswordSignIn next={next} />')&&
+  loginPage.indexOf('<PasswordSignIn next={next} />',loginPage.indexOf('{qaClientEmailAccess ? ('))<
+  loginPage.indexOf('<QaClientEmailSignIn/>',loginPage.indexOf('{qaClientEmailAccess ? ('))&&
+  operator.includes('<QaClientPasswordSetup projectId={id}/>')&&
+  passwordSetup.includes('setNorthfieldQaClientPassword')&&
+  passwordSetup.includes('confirm_test_password')&&
+  passwordAction.includes('assertIsolatedQaBackend()')&&
+  passwordAction.includes("assertRole(profile.role,['owner','admin'])")&&
+  passwordAction.includes("project.project_stage!=='client_review'")&&
+  passwordAction.includes("EMAIL='midts.systems@gmail.com'")&&
+  passwordAction.includes("admin.auth.admin.getUserById")&&
+  passwordAction.includes("admin.auth.admin.updateUserById")&&
+  !passwordAction.includes('createUser(')&&!passwordAction.includes('inviteUserByEmail(')],
  ['operator PDF preview offers one governed release action with reasoned blocked states',
   releasePreview.includes('issueAllowed?<form action={issueProtectedClientReviewAction}')&&
   releasePreview.includes('recipient?.ready')&&
