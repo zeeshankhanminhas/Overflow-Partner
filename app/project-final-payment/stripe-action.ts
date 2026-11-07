@@ -74,6 +74,14 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!opening || opening.payment_method!=='stripe'||Number(opening.amount)<Number(contract.opening_amount))
     throw new Error('The opening payment has not been reconciled.');
+  const {data:invoice,error:invoiceError}=await db.from('invoices')
+    .select('id,status,total,amount_paid,currency').eq('organisation_id',issue.organisation_id)
+    .eq('project_id',project.id).eq('quote_id',quote.id).eq('invoice_type','final')
+    .neq('status','cancelled').maybeSingle();
+  if(invoiceError||!invoice||invoice.status!=='issued'||Number(invoice.amount_paid)!==0||
+     Math.round(Number(invoice.total)*100)!==remaining||
+     String(invoice.currency).trim().toLowerCase()!=='gbp')
+    throw new Error('The exact final invoice must be issued before Checkout.');
   const {data:paid}=await db.from('op_project_final_settlements').select('project_id')
     .eq('project_id',project.id).maybeSingle();
   if(paid)throw new Error('Final payment is already confirmed. Do not pay twice.');
@@ -88,6 +96,7 @@ export async function createFinalStripeCheckout(formData:FormData) {
   params.set('metadata[quote_revision]',String(quote.revision));
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('metadata[project_id]',project.id);
+  params.set('metadata[invoice_id]',invoice.id);
   params.set('metadata[payment_stage]','final');
   params.set('success_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
   params.set('cancel_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
