@@ -131,7 +131,8 @@ const cases=[
   !legacyReview.includes('<WatermarkedPdfViewer')&&
   clientProject.includes('<ClientDrawingReview')&&
   clientProject.includes("isKnownIsolatedQaBackend()")&&
-  clientProject.includes("const secureReview=review?'#drawing-review'")&&
+  clientProject.includes("const secureReview=review&&!finalBalanceReady?'#drawing-review':null")&&
+  clientProject.includes("href={settlementHref}")&&
   client.includes('id="drawing-review"')&&client.includes('<WatermarkedPdfViewer')&&
   client.includes('recordProtectedClientDecisionAction')],
  ['client decision server action calls the existing explicit auth user and guarded RPC',
