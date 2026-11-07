@@ -28,7 +28,7 @@ for(const outcome of ['accepted','accepted_with_comments','changes_requested','r
 }
 assert.ok(sql.includes('d.decided_by=v_client')&&
   sql.includes('d.comments=v_comments')&&
-  sql.includes("v_pos->>'canRespond'")&&
+  sql.includes("v_position->>'canRespond'")&&
   sql.includes('Duplicate client submission was accepted'),
   'Test attribution, feedback, display state and one-decision constraint');
 assert.ok(sql.includes('op_qa_reconcile_client_review_decision') &&
