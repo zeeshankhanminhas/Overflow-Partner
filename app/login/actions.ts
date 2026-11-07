@@ -92,27 +92,3 @@ export async function signOut() {
   redirect("/login");
 }
 
-
-/** Explicit one-time email sign-in for already-invited QA client accounts only.
- * Never creates an unsolicited user or grants access by email resemblance.
- */
-export async function emailQaClientLoginLink(formData:FormData){
- // Email authentication is QA-only but does not require privileged database writes.
- // The protected Operator R01 release gate remains independently locked.
- if(process.env.VERCEL_GIT_COMMIT_REF!=='qa/recovery-ui-client-gate-20261105' ||
-    !isKnownIsolatedQaPresentationPreview())
-   redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent(
-     'Email sign-in is available only on the isolated Northfield QA recovery preview.'));
- const email=String(formData.get('email')||'').trim().toLowerCase();
- if(email.length>254||!(/^[^@\s]+@[^@\s]+\.[^@\s]+$/).test(email))
-  redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent('Enter a valid QA client email.'));
- const supabase=await createClient();
- const origin='https://overflow-partner-git-qa-recov-21e6a9-zeeshankhanminhas-projects.vercel.app';
- const {error}=await supabase.auth.signInWithOtp({
-   email,
-   options:{shouldCreateUser:false,emailRedirectTo:origin+'/auth/callback'},
- });
- if(error)redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent(error.message));
- redirect('/login?next=%2Fportal%2Fclient&updated='+encodeURIComponent(
-   'If your account is invited, a secure one-time sign-in link has been sent to that email address.'));
-}
