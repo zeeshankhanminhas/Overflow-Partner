@@ -57,6 +57,19 @@ assert.ok(partnerWork.includes("send(e,'accept_work_order')")&&partnerWork.inclu
 assert.ok(route.includes("portal_my_projects")&&route.includes("project.account_id")&&
  route.includes('token_hash'),'Secure account handoff must remain entitlement scoped');
 assert.ok(doc.includes('.nextAction')&&workRecord.includes('waiting?'),'Action-first portals must render waiting without a fake transaction');
+assert.ok(logic.includes("if(p.stage==='closed')return make('Project closed'") &&
+  !logic.includes("if(p.completed)return make('Project closed'") &&
+  logic.includes("if(p.stage==='completion')") &&
+  logic.includes("Collect and verify the final client balance") &&
+  logic.includes("Await governed final handover availability") &&
+  logic.includes("Complete Execution Partner settlement"),
+  'Completed delivery must not falsely close a project before financial, owner release and partner settlement gates');
+assert.ok(operator.includes("const completed=stage==='closed'||String(data.status||'').toLowerCase()==='cancelled'") &&
+  operator.includes("const finalReleaseServiceAvailable=qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'") &&
+  operator.includes("const {data:releaseStatus}=stage==='completion'&&qaWritable") &&
+  operator.includes("finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted") &&
+  operator.includes("Review client financial register"),
+  'Project 360 must show read-only completion settlement, with disabled final-release writes still locked');
 assert.ok(!/\.(insert|update|delete|upsert)\s*\(/.test(logic),'Read-only decision helper must not mutate data');
 assert.ok(logic.includes('We’re preparing your drawings for review') &&
  !logic.includes('A genuinely issued protected review invitation is required.'),
