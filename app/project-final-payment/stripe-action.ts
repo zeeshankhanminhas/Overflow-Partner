@@ -30,9 +30,25 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
   if(!quote)throw new Error('Current accepted quotation not found.');
   if(mode==='qa'){
-    const {data:lead}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id)
-      .eq('id',quote.lead_id).maybeSingle();
-    if(!lead?.company_name?.startsWith('OP QA TEST'))throw new Error('Test Checkout requires a labelled QA customer.');
+    const {data:lead,error:leadError}=await db.from('leads').select('company_name,reference')
+      .eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
+    const northfield=issue.organisation_id==='717262cb-68da-4e7b-a9fa-238dc6c5d16b' &&
+      quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99' &&
+      lead?.reference==='OP-LEAD-2026-0001' &&
+      lead?.company_name==='QA - Northfield Demonstration Engineering';
+    if(leadError || !(lead?.company_name?.startsWith('OP QA TEST')||northfield))
+      throw new Error('Test Checkout requires an explicitly allowlisted fictional QA customer.');
+    if(northfield){
+      const [replay,acknowledgement]=await Promise.all([
+        db.from('op_qa_northfield_replay').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
+          .gt('expires_at',new Date().toISOString()).maybeSingle(),
+        db.from('op_qa_northfield_addendum_acceptances').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id).maybeSingle()
+      ]);
+      if(replay.error||acknowledgement.error||!replay.data||!acknowledgement.data)
+        throw new Error('Northfield QA addendum acknowledgement or authorised test replay is not current.');
+    }
     const {data:authorisation}=await db.from('op_sandbox_payment_authorisations').select('quote_id')
       .eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id).eq('quote_revision',quote.revision)
       .gt('expires_at',new Date().toISOString()).maybeSingle();
