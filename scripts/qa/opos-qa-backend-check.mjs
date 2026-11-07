@@ -28,8 +28,8 @@ if (!isQaBuild) {
       url !== 'https://' + expectedProject + '.supabase.co') {
     throw new Error('Isolated QA service credential check: missing QA-only configuration');
   }
-  const response = await fetch(url + '/rest/v1/organisations?select=id&id=eq.' + expectedOrganisation, {
-    headers: { apikey: secret, Accept: 'application/json' },
+  // Legacy service_role JWTs must be sent as the Authorization bearer token.\n  // Sending only apikey can leave PostgREST operating under anon RLS and\n  // produce an empty 200 response even when the QA organisation exists.\n  const parts = secret.split('.');\n  let role;\n  try {\n    if (parts.length !== 3) throw new Error('Expected legacy service_role JWT');\n    role = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')).role;\n  } catch {\n    throw new Error('Isolated QA service credential check: invalid legacy service-role JWT format');\n  }\n  if (role !== 'service_role') {\n    throw new Error('Isolated QA service credential check: credential is not a service_role JWT');\n  }\n  const response = await fetch(url + '/rest/v1/organisations?select=id&id=eq.' + expectedOrganisation, {
+    headers: { apikey: secret, Authorization: 'Bearer ' + secret, Accept: 'application/json' },
     signal: AbortSignal.timeout(12000),
     cache: 'no-store',
   });
