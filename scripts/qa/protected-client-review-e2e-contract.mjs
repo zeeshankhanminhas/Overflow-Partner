@@ -13,6 +13,7 @@ const clientHome=read('app/portal/[kind]/page.tsx');
 const operator=read('app/opos-next/projects/[id]/page.tsx');
 const operatorActions=read('app/opos-next/projects/[id]/qa-actions.ts');
 const viewer=read('app/opos-next/projects/[id]/review-preview/WatermarkedPdfViewer.tsx');
+const releasePreview=read('app/opos-next/projects/[id]/review-preview/page.tsx');
 const separation=read('supabase/migrations/20261104182500_qa_external_client_identity_separation.sql');
 const recipientMigration=read('supabase/migrations/20261104183000_qa_northfield_client_recipient_invitation.sql');
 const inviteAction=read('app/opos-next/projects/[id]/qa-client-invite-action.ts');
@@ -149,6 +150,17 @@ const cases=[
   clientHome.includes('const liveClientReview=')&&
   clientHome.includes("+'#drawing-review'")&&
   clientDecision.includes("+'#drawing-review'")],
+ ['operator PDF preview offers one governed release action with reasoned blocked states',
+  releasePreview.includes('issueAllowed?<form action={issueProtectedClientReviewAction}')&&
+  releasePreview.includes('recipient?.ready')&&
+  releasePreview.includes('ownerCanIssue')&&
+  releasePreview.includes('staffReviewResult?.error')&&
+  releasePreview.includes('releaseBlocker')&&
+  releasePreview.includes('name="preview_confirmed"')&&
+  releasePreview.includes('name="return_to" value="review_preview"')&&
+  releasePreview.includes('Northfield client access controls')&&
+  operatorActions.includes("value(form,'return_to')==='review_preview'")&&
+  operatorActions.includes("'/review-preview?error='")],
  ['operator issue requires manual preview acknowledgement and server role check',
   operator.includes('preview_confirmed')&&
   operator.includes('issueProtectedClientReviewAction')&&
