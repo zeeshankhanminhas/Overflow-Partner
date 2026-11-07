@@ -1,7 +1,8 @@
 import Link from "next/link";
 import {headers} from "next/headers";
 import {redirect} from "next/navigation";
-import { signIn, emailQaClientLoginLink } from "./actions";
+import { signIn } from "./actions";
+import QaClientEmailSignIn from "./QaClientEmailSignIn";
 import { isKnownIsolatedQaPresentationPreview } from "@/lib/qa/isolation";
 import styles from "./login.module.css";
 
@@ -68,13 +69,7 @@ export default async function LoginPage({
 
         {qaClientEmailAccess ? (
           <>
-            <form action={emailQaClientLoginLink} className={styles.form}>
-              <label className={styles.field}>
-                Email
-                <input className={styles.input} type="email" name="email" required autoComplete="email" />
-              </label>
-              <button className={styles.button} type="submit">Email sign-in link</button>
-            </form>
+            <QaClientEmailSignIn/>
             <details className={styles.alternate}>
               <summary>Use a password instead</summary>
               <PasswordSignIn next={next} />
