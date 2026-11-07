@@ -132,8 +132,8 @@ export async function advanceQaHandoverPack(formData:FormData) {
   const expectedPrefix=BUCKET+':'+d.organisationId+'/'+id+'/'+d.document.id+'/';
   if(!String(d.document.storage_path).startsWith(expectedPrefix))throw new Error('Document is not backed by verified QA private storage.');
   const fileKey=String(d.document.storage_path).slice(BUCKET.length+1);
-  const {data:object}=await d.db.from('storage.objects').select('id').eq('bucket_id',BUCKET).eq('name',fileKey).maybeSingle();
-  if(!object)throw new Error('Controlled PDF evidence is no longer in private storage.');
+  const {error:objectError}=await d.db.storage.from(BUCKET).download(fileKey);
+  if(objectError)throw new Error('Controlled PDF evidence is no longer in private storage.');
   if(step==='approve'&&d.document.independent_review_required&&d.document.signed_by===d.user.id)
     throw new Error('Independent approver must differ from signer.');
   const patch=step==='sign'?{status:'signed',signed_by:d.user.id,signed_at:new Date().toISOString()}:
