@@ -113,4 +113,27 @@ assert.ok(!/\.(insert|update|delete|upsert)\s*\(/.test(logic),'Read-only decisio
 assert.ok(logic.includes('We’re preparing your drawings for review') &&
  !logic.includes('A genuinely issued protected review invitation is required.'),
  'Client account copy must explain the business situation without database terminology');
+
+const qaHandoverPage=read('app/opos-next/projects/[id]/handover/page.tsx');
+const qaHandoverActions=read('app/opos-next/projects/[id]/handover/actions.ts');
+const qaHandoverDownload=read('app/opos-next/projects/[id]/handover/file/route.ts');
+const qaHandoverGuard=read('supabase/migrations/20261107185000_qa_governed_handover_gate.sql');
+assert.ok(qaHandoverPage.includes('prepareQaHandoverPack') &&
+ qaHandoverPage.includes('advanceQaHandoverPack') &&
+ qaHandoverPage.includes('value="reviewed"') &&
+ qaHandoverActions.includes('assertIsolatedQaBackend()') &&
+ qaHandoverActions.includes("assertRole(profile.role,['owner','admin'])") &&
+ qaHandoverActions.includes('upsert:false') &&
+ qaHandoverActions.includes("status:'in_review'") &&
+ qaHandoverActions.includes("step==='sign'?'signed'") &&
+ qaHandoverActions.includes("step==='approve'?'approved'") &&
+ qaHandoverActions.includes("step==='issue'?'issued'") &&
+ !qaHandoverActions.includes('op_approve_project_final_release') &&
+ qaHandoverDownload.includes("assertRole(profile.role,['owner','admin'])") &&
+ qaHandoverDownload.includes("'Cache-Control':'private, no-store, max-age=0'") &&
+ qaHandoverGuard.includes('op_qa_guard_handover_pack') &&
+ qaHandoverGuard.includes('opos-qa-controlled-handover') &&
+ qaHandoverGuard.includes('op_project_final_settlements'),
+ 'QA handover requires stored PDF evidence and explicit owner steps; it cannot auto-release native files');
+
 console.log('Three-portal next-action contract: Operator, Client and Partner; all guarded original actions preserved. PASS (static).');
