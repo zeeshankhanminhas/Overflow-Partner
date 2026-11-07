@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && npm run stripe-live:check && npm run visual-lock:check && npm run qa-backend:check && npm run qa-origin:check && npm run qa-workorder:check && npm run qa-unified-portal:check && npm run qa-preproject:check && npm run qa-partner-governance:check && npm run qa-engineering:check && npm run qa-triple-portal:check && npm run qa-three-portal-next:check && npm run qa-canonical-context:check && npm run qa-review-preparation:check && npm run qa-protected-client-review:check && npm run qa-governed-client-feedback:check && npm run qa-workspace2:check && next build",
+    "build": "npm run lint && npm run typecheck && npm run phase3:check && npm run workspace:check && npm run credibility:check && npm run performance:check && npm run templates:check && npm run lifecycle-integrity:check && npm run acquisition-funnel:check && npm run stripe-security:check && npm run stripe-live:check && npm run visual-lock:check && npm run qa-backend:check && npm run qa-origin:check && npm run qa-workorder:check && npm run qa-unified-portal:check && npm run qa-preproject:check && npm run qa-partner-governance:check && npm run qa-engineering:check && npm run qa-triple-portal:check && npm run qa-three-portal-next:check && npm run qa-canonical-context:check && npm run qa-review-preparation:check && npm run qa-protected-client-review:check && npm run qa-client-outcomes:check && npm run qa-governed-client-feedback:check && npm run qa-workspace2:check && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -33,7 +33,8 @@
     "qa-review-preparation:check": "node scripts/qa/client-review-preparation-check.mjs",
     "qa-protected-client-review:check": "node scripts/qa/protected-client-review-e2e-contract.mjs",
     "qa-governed-client-feedback:check": "node scripts/qa/governed-client-feedback-check.mjs",
-    "qa-workspace2:check": "node --experimental-strip-types scripts/qa/workspace2-surface-contract-check.mjs"
+    "qa-workspace2:check": "node --experimental-strip-types scripts/qa/workspace2-surface-contract-check.mjs",
+    "qa-client-outcomes:check": "node scripts/qa/client-review-outcome-matrix-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
