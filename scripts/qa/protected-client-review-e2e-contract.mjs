@@ -150,7 +150,7 @@ const cases=[
   clientPdf.includes('PDFDocument.load')&&clientPdf.includes("doc.save({useObjectStreams:false})")&&
   clientPdf.includes("'Cache-Control':'private, no-store, max-age=0'")],
  ['client workspace links to an embedded governed review without a separate portal',
-  clientProject.includes("const secureReview=review?'#drawing-review'")&&
+  clientProject.includes("const secureReview=review&&!finalBalanceReady?'#drawing-review':null")&&
   clientHome.includes('const liveClientReview=')&&
   clientHome.includes("+'#drawing-review'")&&
   clientDecision.includes("+'#drawing-review'")],
