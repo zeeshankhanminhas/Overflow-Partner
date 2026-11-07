@@ -22,6 +22,7 @@ const manualLinkUI=read('app/opos-next/projects/[id]/QaManualClientAccess.tsx');
 const qaCallback=read('app/auth/callback/QaClientAuthCallback.tsx');
 const loginActions=read('app/login/actions.ts');
 const loginPage=read('app/login/page.tsx');
+const clientEmailSignIn=read('app/login/QaClientEmailSignIn.tsx');
 const canonicalGuard=read('supabase/migrations/20261104180000_qa_protected_review_canonical_outcome_guard.sql');
 
 const cases=[
@@ -43,18 +44,18 @@ const cases=[
    loginActions.includes('["design/opos-decision-first-ia", "qa/recovery-ui-client-gate-20261105"]')&&
    loginActions.includes('redesignPreview ? "/opos-next" : "/workspace"')&&
    loginActions.includes('const qaPreviewBranch = process.env.VERCEL_ENV === "preview"')],
- ['a verified client must use their own invitation or passwordless session',
+ ['a verified client must use their own invitation or browser-initiated passwordless session',
    qaCallback.includes("supabase.auth.exchangeCodeForSession(code)")&&
    qaCallback.includes("supabase.auth.verifyOtp")&&
    qaCallback.includes("supabase.auth.setSession")&&
    qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
-   loginActions.includes('shouldCreateUser:false')&&
-   loginPage.includes('next === "/portal/client" &&')&&
-   loginPage.includes('isKnownIsolatedQaPresentationPreview()')&&
-   loginActions.includes('isKnownIsolatedQaPresentationPreview()')&&
-   qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
-   loginPage.includes('form action={emailQaClientLoginLink}')&&
-   loginPage.includes('Email sign-in link')],
+   clientEmailSignIn.includes("createClient().auth.signInWithOtp")&&
+   clientEmailSignIn.includes("shouldCreateUser:false")&&
+   clientEmailSignIn.includes("emailRedirectTo:QA_ORIGIN+'/auth/callback'")&&
+   clientEmailSignIn.includes('same browser')&&
+   loginPage.includes('<QaClientEmailSignIn/>')&&
+   !loginActions.includes("export async function emailQaClientLoginLink")&&
+   loginPage.includes('isKnownIsolatedQaPresentationPreview()')],
  ['operator keeps independent client activation guarded and never offers issue from read-only preview',
    operator.includes('QaManualClientAccess')&&operator.includes('!qaRecipient?.ready')&&
    operator.includes('qaRecipient?.ready')&&operator.includes('canManageClientAccess')&&
