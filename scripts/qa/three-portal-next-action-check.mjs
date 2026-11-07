@@ -72,6 +72,8 @@ assert.ok(operator.includes("const completed=stage==='closed'||String(data.statu
   operator.includes("Review client financial register"),
   'Project 360 must show read-only completion settlement, with disabled final-release writes still locked');
 const finalSettlement=read('app/opos-next/projects/[id]/final-settlement/page.tsx');
+const finalInvoiceAction=read('app/opos-next/projects/[id]/final-settlement/issue-invoice-action.ts');
+const finalInvoiceMigration=read('supabase/migrations/20261107170000_qa_final_invoice_linkage.sql');
 const clientProject=read('app/portal/[kind]/projects/[projectId]/page.tsx');
 const clientWorkspace=read('app/portal/[kind]/page.tsx');
 const portalHandoff=read('app/portal/[kind]/projects/[projectId]/open/route.ts');
@@ -82,8 +84,15 @@ assert.ok(finalSettlement.includes("op_project_voice_final_release_status") &&
   finalSettlement.includes("quote_release_contracts") &&
   finalSettlement.includes("quote_payment_confirmations") &&
   finalSettlement.includes("project_client_reviews") &&
-  finalSettlement.includes("No invoice or payment is created by opening this page."),
- 'The final settlement destination must read accepted terms and independently gated evidence without modifying them');
+  finalSettlement.includes("Opening this page never creates an invoice or payment.") &&
+  finalSettlement.includes("issueQaFinalInvoice") &&
+  finalInvoiceAction.includes("assertIsolatedQaBackend()") &&
+  finalInvoiceAction.includes("assertRole(profile.role,['owner','admin','commercial'])") &&
+  finalInvoiceAction.includes("op_qa_issue_final_invoice") &&
+  finalInvoiceMigration.includes("op_qa_guard_final_invoice_settlement") &&
+  finalInvoiceMigration.includes("op_qa_reconcile_paid_final_invoice") &&
+  !finalInvoiceAction.includes("op_record_verified_project_final_settlement"),
+ 'Final settlement remains read-only on GET; only the separately authorised invoice action creates a ledger entry, never payment');
 assert.ok(clientProject.includes("finalBalanceReady?<Link className={css.action} href={settlementHref}") &&
   clientWorkspace.includes("'?flow=final-settlement'") &&
   portalHandoff.includes("request.nextUrl.searchParams.get('flow')==='final-settlement'") &&
