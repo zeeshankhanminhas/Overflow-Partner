@@ -23,4 +23,22 @@ assert.ok(projectPage.includes('<ClientDrawingReview'));
 assert.ok(projectPage.includes('if(!permitted&&isKnownIsolatedQaPresentationPreview())'), 'Wrong portal identity must be offered kind-specific sign-in on QA');
 assert.ok(projectPage.includes('if(!p)notFound()'), 'Unknown / other-organisation project must remain inaccessible');
 assert.ok(projectPage.includes("encodeURIComponent('/portal/'+kind)"), 'Sign-in must preserve the requested portal kind');
+// QA email sign-in must stay on the fixed recovery branch alias and must not
+// require privileged Supabase service-role write access.
+const loginPage=read('app/login/page.tsx');
+const loginAction=read('app/login/actions.ts');
+const callback=read('app/auth/callback/page.tsx');
+const qaOrigin='https://overflow-partner-git-qa-recov-21e6a9-zeeshankhanminhas-projects.vercel.app';
+assert.ok(loginPage.includes(qaOrigin) && loginAction.includes(qaOrigin),
+  'Email entry and callback must use the same recovery branch origin');
+assert.ok(loginPage.includes('redirect(canonical.toString())'),
+  'Magic-link entry must canonicalize to the branch hostname for PKCE');
+assert.ok(loginAction.includes('shouldCreateUser:false'),
+  'Email sign-in cannot create new accounts');
+assert.ok(loginAction.includes('isKnownIsolatedQaPresentationPreview()') &&
+  callback.includes('isKnownIsolatedQaPresentationPreview()'),
+  'QA email auth must be independent of privileged database write enablement');
+assert.ok(!loginAction.includes('overflow-partner-git-design-o-9eda95'),
+  'Email link must not send Northfield to the obsolete design preview');
+console.log('PASS: Northfield client email sign-in recovery origin, QA isolation and PKCE host parity.');
 console.log('PASS Workspace 2.0: '+mapped.length+' redirects, '+untouched.length+' protected boundaries, account and transactional QA theme.');
