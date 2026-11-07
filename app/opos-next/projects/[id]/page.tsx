@@ -196,7 +196,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      stageIndex={stageIndex} waiting={displayNext.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
+     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
