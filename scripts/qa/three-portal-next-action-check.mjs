@@ -70,6 +70,35 @@ assert.ok(operator.includes("const completed=stage==='closed'||String(data.statu
   operator.includes("finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted") &&
   operator.includes("Review client financial register"),
   'Project 360 must show read-only completion settlement, with disabled final-release writes still locked');
+const finalSettlement=read('app/opos-next/projects/[id]/final-settlement/page.tsx');
+const clientProject=read('app/portal/[kind]/projects/[projectId]/page.tsx');
+const clientWorkspace=read('app/portal/[kind]/page.tsx');
+const portalHandoff=read('app/portal/[kind]/projects/[projectId]/open/route.ts');
+const checkout=read('app/project-final-payment/stripe-action.ts');
+assert.ok(operator.includes("stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement'"),
+ 'Final settlement CTA must navigate to a real route, not jump to a same-page anchor');
+assert.ok(finalSettlement.includes("op_project_voice_final_release_status") &&
+  finalSettlement.includes("quote_release_contracts") &&
+  finalSettlement.includes("quote_payment_confirmations") &&
+  finalSettlement.includes("project_client_reviews") &&
+  finalSettlement.includes("No invoice or payment is created by opening this page."),
+ 'The final settlement destination must read accepted terms and independently gated evidence without modifying them');
+assert.ok(clientProject.includes("finalBalanceReady?<Link className={css.action} href={settlementHref}") &&
+  clientWorkspace.includes("'?flow=final-settlement'") &&
+  portalHandoff.includes("request.nextUrl.searchParams.get('flow')==='final-settlement'") &&
+  portalHandoff.includes("acceptedReview") &&
+  portalHandoff.includes("project.organisation_id") &&
+  portalHandoff.includes("new URL('/project-final-payment',request.url)") &&
+  portalHandoff.includes("portal_my_projects"),
+ 'Signed-in and entitled client must have a secure final payment route after actual acceptance');
+assert.ok(checkout.includes("if(mode==='qa')assertIsolatedQaBackend()") &&
+  checkout.includes("quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99'") &&
+  checkout.includes("op_qa_northfield_replay") &&
+  checkout.includes("op_qa_northfield_addendum_acceptances") &&
+  checkout.includes("op_sandbox_payment_authorisations") &&
+  checkout.includes("if(paid)throw new Error('Final payment is already confirmed.") &&
+  checkout.includes("metadata[payment_stage]"),
+ 'Sandbox Checkout must be isolated, exact QA case only, authorized, and duplicate-payment guarded');
 assert.ok(!/\.(insert|update|delete|upsert)\s*\(/.test(logic),'Read-only decision helper must not mutate data');
 assert.ok(logic.includes('We’re preparing your drawings for review') &&
  !logic.includes('A genuinely issued protected review invitation is required.'),
