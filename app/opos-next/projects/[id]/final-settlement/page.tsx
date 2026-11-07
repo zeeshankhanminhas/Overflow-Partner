@@ -124,7 +124,7 @@ export default async function ProjectFinalSettlement({params}:{
     <div><dt>Controlled file</dt><dd>{handover?.storage_path?'Recorded in private storage':'Not attached'}</dd></div>
     <div><dt>Release readiness</dt><dd>{handoverIssued?'Issued evidence recorded':'Blocked: issued approved file required'}</dd></div>
    </dl>
-   {handover?<Link className={css.secondaryLink} href={'/opos-next/documents/'+handover.id}>Review existing Handover Pack record →</Link>:null}
+   {handover?<><Link className={css.secondaryLink} href={base+'/handover'}>Prepare and review controlled Handover Pack →</Link><Link className={css.secondaryLink} href={'/opos-next/documents/'+handover.id}>Open document register entry →</Link></>:null}
    {completedDocs.map(d=><Link key={d.id} className={css.secondaryLink} href={'/opos-next/documents/'+d.id}>{d.title} · {d.status} →</Link>)}
    <Link className={css.secondaryLink} href={base+'#final-release'}>Return to the separate owner release decision →</Link>
   </div>
