@@ -27,6 +27,7 @@ assert.ok(projectPage.includes("encodeURIComponent('/portal/'+kind)"), 'Sign-in 
 // require privileged Supabase service-role write access.
 const loginPage=read('app/login/page.tsx');
 const loginAction=read('app/login/actions.ts');
+const authContext=read('lib/auth/context.ts');
 const clientEmail=read('app/login/QaClientEmailSignIn.tsx');
 const callback=read('app/auth/callback/page.tsx');
 const qaOrigin='https://overflow-partner-git-qa-recov-21e6a9-zeeshankhanminhas-projects.vercel.app';
@@ -45,5 +46,14 @@ assert.ok(loginPage.includes('isKnownIsolatedQaPresentationPreview()') &&
   'QA email auth must be independent of privileged database write enablement');
 assert.ok(!clientEmail.includes('overflow-partner-git-design-o-9eda95'),
   'Email link must not send Northfield to obsolete design preview');
+assert.ok(authContext.includes('if (isKnownIsolatedQaPresentationPreview())') &&
+  authContext.includes('Switch to your Operator account') &&
+  authContext.includes("throw new Error('Your account is not connected"),
+  'QA Client sessions must redirect without gaining Operator access; non-QA behavior stays guarded');
+assert.ok(loginPage.includes('action={switchToOperatorQaAccount}') &&
+  loginAction.includes('export async function switchToOperatorQaAccount()') &&
+  loginAction.includes('await supabase.auth.signOut()') &&
+  loginAction.includes("redirect('/login?next=%2Fopos-next&updated='"),
+  'QA wrong-workspace session switch must explicitly sign out before Operator login');
 console.log('PASS: Northfield client email sign-in recovery origin, QA isolation and PKCE host parity.');
 console.log('PASS Workspace 2.0: '+mapped.length+' redirects, '+untouched.length+' protected boundaries, account and transactional QA theme.');
