@@ -20,8 +20,8 @@ export default async function ProjectFinalSettlement({params}:{
  const {supabase,user,profile,organisationId}=await requireUserContext('/opos-next');
  assertRole(profile.role,['owner','admin','operator','engineering','commercial']);
  const base='/opos-next/projects/'+id;
- // The screen is a read-only readiness surface. It NEVER creates an invoice,
- // records a payment, marks evidence verified or mints final-file links.
+ // Reading this screen never mutates commercial or payment data.
+ // A separate authenticated server action may issue only the governed final invoice.
  const {data:project,error:projectError}=await supabase.from('projects')
   .select('id,project_number,title,project_stage,quote_id')
   .eq('organisation_id',organisationId).eq('id',id).maybeSingle();
@@ -66,7 +66,6 @@ export default async function ProjectFinalSettlement({params}:{
  const invoiceRows=invoicesResult.data||[];
  const finalInvoice=invoiceRows.find(item=>item.invoice_type==='final'&&item.status!=='cancelled');
  const canIssueInvoice=isKnownIsolatedQaBackend()&&['owner','admin','commercial'].includes(String(profile.role))&&amountReady&&openingConfirmed&&accepted&&!finalInvoice&&invoiceRows.length===0;
- const unsettled=invoiceRows.filter(item=>Number(item.total||0)>Number(item.amount_paid||0));
  return <section className={css.section} style={{maxWidth:860,margin:'32px auto',display:'grid',gap:20}}>
   <p className={css.meta}>PROJECT / {project.project_number} / COMMERCIAL CLOSEOUT</p>
   <h1 style={{fontSize:32,margin:0}}>Final settlement and handover</h1>
@@ -98,12 +97,12 @@ export default async function ProjectFinalSettlement({params}:{
     !final.ownerApproved?
     <p className={css.meta}>Final payment has been verified. The owner must independently authorise the exact final engineering revision before handover. {finalServiceEnabled?'The owner release control is available on Project 360.':'The owner release service is not enabled in this QA preview.'}</p>:
     <p className={css.meta}>Final engineering release is approved. Complete partner settlement and the separate project closure gate.</p>}
-   <p className={css.meta}>Final client invoice: {invoicesResult.error?'Ledger unavailable':finalInvoice?finalInvoice.invoice_number+' · '+finalInvoice.status:invoiceRows.length===0?'Not issued':'Other project invoices exist; verify the final invoice separately'}. Opening this page never creates an invoice or payment.
+   <div className={css.meta}>Final client invoice: {invoicesResult.error?'Ledger unavailable':finalInvoice?finalInvoice.invoice_number+' · '+finalInvoice.status:invoiceRows.length===0?'Not issued':'Other project invoices exist; verify the final invoice separately'}. Opening this page never creates an invoice or payment.
    {canIssueInvoice?<form action={issueQaFinalInvoice} style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:8,marginTop:10}}>
     <input type="hidden" name="project_id" value={id}/>
     <button type="submit" className={css.action} style={{cursor:'pointer'}}>Issue governed final invoice →</button>
     <span className={css.meta}>One invoice for the accepted quote balance. This does not confirm any payment or release engineering files.</span>
-   </form>:null}</p>
+   </form>:null}</div>
    <div style={{display:'flex',flexWrap:'wrap',gap:12}}>
     <Link className={css.secondaryLink} href={base+'#final-release'}>Back to project release controls →</Link>
     <Link className={css.secondaryLink} href="/opos-next/finance">Open invoice register →</Link>
