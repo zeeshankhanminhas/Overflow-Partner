@@ -31,7 +31,7 @@ export default async function ProjectFinalSettlement({params}:{
   .select('id,quote_number,revision,total,currency')
   .eq('organisation_id',organisationId).eq('id',project.quote_id).maybeSingle():{data:null,error:null};
  const quote=quoteResult.data;
- const [contractResult,openingResult,reviewResult,statusResult,invoicesResult]=await Promise.all([
+ const [contractResult,openingResult,reviewResult,statusResult,invoicesResult,documentsResult]=await Promise.all([
   quote?supabase.from('quote_release_contracts')
    .select('opening_amount,release_basis').eq('organisation_id',organisationId)
    .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle():Promise.resolve({data:null,error:null}),
@@ -45,7 +45,10 @@ export default async function ProjectFinalSettlement({params}:{
    p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id
   }):Promise.resolve({data:null,error:null}),
   supabase.from('invoices').select('id,invoice_number,invoice_type,status,total,amount_paid')
-   .eq('organisation_id',organisationId).eq('project_id',id).limit(100)
+   .eq('organisation_id',organisationId).eq('project_id',id).limit(100),
+  supabase.from('documents').select('id,reference,title,document_type,status,revision_code,is_current_revision,storage_path,approved_at,issued_at')
+   .eq('organisation_id',organisationId).eq('project_id',id)
+   .in('document_type',['handover-pack','completion-report','document-register'])
  ]);
  const error=Boolean(quoteResult.error||contractResult.error||openingResult.error||
   reviewResult.error||statusResult.error||invoicesResult.error);
@@ -64,6 +67,10 @@ export default async function ProjectFinalSettlement({params}:{
  const currency=String(quote?.currency||'GBP');
  const finalServiceEnabled=isKnownIsolatedQaBackend()&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true';
  const invoiceRows=invoicesResult.data||[];
+ const controlled=documentsResult.data||[];
+ const handover=controlled.find(x=>x.document_type==='handover-pack'&&x.is_current_revision);
+ const handoverIssued=Boolean(handover&&['issued','published'].includes(handover.status)&&handover.approved_at&&handover.issued_at&&handover.storage_path);
+ const completedDocs=controlled.filter(x=>x.document_type!=='handover-pack');
  const finalInvoice=invoiceRows.find(item=>item.invoice_type==='final'&&item.status!=='cancelled');
  const canIssueInvoice=isKnownIsolatedQaBackend()&&['owner','admin','commercial'].includes(String(profile.role))&&amountReady&&openingConfirmed&&accepted&&!finalInvoice&&invoiceRows.length===0;
  return <section className={css.section} style={{maxWidth:860,margin:'32px auto',display:'grid',gap:20}}>
@@ -107,6 +114,19 @@ export default async function ProjectFinalSettlement({params}:{
     <Link className={css.secondaryLink} href={base+'#final-release'}>Back to project release controls →</Link>
     <Link className={css.secondaryLink} href="/opos-next/finance">Open invoice register →</Link>
    </div>
+  </div>
+  <div className={css.card} style={{display:'grid',gap:12}}>
+   <h3 style={{fontSize:18,margin:0}}>Controlled final handover readiness</h3>
+   <p className={css.meta}>The accepted Partner R01 drawing alone is not the issued Handover Pack. The final handover remains blocked until the current pack is approved, issued and linked to a protected stored document.</p>
+   <dl className={css.detailFacts}>
+    <div><dt>Current Handover Pack</dt><dd>{handover?handover.reference+' · '+handover.revision_code:'Missing'}</dd></div>
+    <div><dt>Document control</dt><dd>{handover?String(handover.status).replaceAll('_',' '):'Not registered'}</dd></div>
+    <div><dt>Controlled file</dt><dd>{handover?.storage_path?'Recorded in private storage':'Not attached'}</dd></div>
+    <div><dt>Release readiness</dt><dd>{handoverIssued?'Issued evidence recorded':'Blocked: issued approved file required'}</dd></div>
+   </dl>
+   {handover?<Link className={css.secondaryLink} href={'/opos-next/documents/'+handover.id}>Review existing Handover Pack record →</Link>:null}
+   {completedDocs.map(d=><Link key={d.id} className={css.secondaryLink} href={'/opos-next/documents/'+d.id}>{d.title} · {d.status} →</Link>)}
+   <Link className={css.secondaryLink} href={base+'#final-release'}>Return to the separate owner release decision →</Link>
   </div>
   <div className={css.card} style={{display:'grid',gap:10}}>
    <h3 style={{fontSize:16,margin:0}}>Client-side test path</h3>
