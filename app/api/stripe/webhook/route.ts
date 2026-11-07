@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const body=await request.text();
   const signature=request.headers.get('stripe-signature')||'';
   if (!validStripeSignature(body,signature,webhookSecret)) return new Response('Invalid signature',{status:400});
-  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string; payment_stage?: string; project_id?: string } };
+  type StripeSession = { livemode?: boolean; object?: string; payment_status?: string; mode?: string; id?: string; payment_intent?: string | null; amount_total?: number; currency?: string; metadata?: { quote_id?: string; organisation_id?: string; quote_revision?: string; payment_stage?: string; project_id?: string; invoice_id?: string } };
   let event: {id?: string; livemode?: boolean; type?: string; data?: {object?: StripeSession}};
   try { event=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
   if ((mode==='qa' && event.livemode !== false) || (mode==='live' && event.livemode !== true))
@@ -84,6 +84,17 @@ export async function POST(request: Request) {
     const {data:project,error:projectError}=await db.from('projects')
       .select('id').eq('organisation_id',organisationId).eq('quote_id',quote.id).eq('id',projectId).maybeSingle();
     if(projectError || !project) return new Response('Final settlement has no valid existing project',{status:422});
+    const invoiceId=String(session.metadata?.invoice_id||'');
+    const {data:finalInvoice,error:invoiceError}=await db.from('invoices')
+      .select('id,status,total,amount_paid,currency').eq('id',invoiceId)
+      .eq('organisation_id',organisationId).eq('project_id',projectId)
+      .eq('quote_id',quote.id).eq('invoice_type','final').maybeSingle();
+    if(invoiceError||!finalInvoice||!['issued','paid'].includes(finalInvoice.status)||
+       Math.round(Number(finalInvoice.total)*100)!==Number(session.amount_total)||
+       String(finalInvoice.currency).trim().toUpperCase()!==String(session.currency||'').toUpperCase())
+      return new Response('Verified Stripe settlement does not match an issued final invoice',{status:422});
+    if(finalInvoice.status==='issued'&&Number(finalInvoice.amount_paid)!==0)
+      return new Response('Final invoice ledger conflicts with Stripe session',{status:409});
   }
   const expectedAmount=Math.round((paymentStage==='opening'
     ? Number(contract.opening_amount)
