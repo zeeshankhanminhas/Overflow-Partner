@@ -37,6 +37,9 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
   if(!review||!['accepted','accepted_with_comments'].includes(String(review.outcome)))
     return unavailable('Awaiting your final review','Final payment is requested only after your engineering review has been accepted.');
+  const {data:invoice}=await db.from('invoices').select('id,invoice_number,status,total,amount_paid,currency')
+    .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
+    .eq('quote_id',quote.id).eq('invoice_type','final').neq('status','cancelled').maybeSingle();
   const {data:settlement}=await db.from('op_project_final_settlements').select('verified_at')
     .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
   const {data:release}=await db.from('op_project_final_release_approvals').select('approved_at')
@@ -46,19 +49,22 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
   const remaining=Math.round((Number(quote.total)-Number(contract.opening_amount))*100)/100;
   const money=(n:number)=>new Intl.NumberFormat('en-GB',{style:'currency',currency:String(quote.currency||'GBP')}).format(n);
   const paymentMode=stripeRuntimeMode();
-  const checkoutAvailable=paymentMode==='live' ||
+  const invoiceMatches=Boolean(invoice&&['issued','paid'].includes(invoice.status)&&
+    Number(invoice.total)===remaining&&String(invoice.currency).trim().toUpperCase()===String(quote.currency).trim().toUpperCase());
+  const checkoutAvailable=invoiceMatches&&(paymentMode==='live' ||
     (paymentMode==='qa' && process.env.OP_STRIPE_FINAL_TEST_ENABLED==='true' &&
-     Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')));
+     Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_'))));
   return <main className={css.page}><div className={css.shell}>
     <p className={css.brand}><span>◈</span> OVERFLOW PARTNER</p>
     <p className={css.eyebrow}>SECURE CLIENT PORTAL / FINAL SETTLEMENT</p>
     <h1 className={css.title}>Final engineering settlement</h1>
     <p className={css.intro}>Project {project.project_number} · Quotation {quote.quote_number}</p>
     <section className={css.panel}>
-      <div className={css.status}><p className={css.eyebrow}>FINAL BALANCE</p><h2>{money(remaining)}</h2><p>Opening payment: {money(Number(contract.opening_amount))}</p></div>
+      <div className={css.status}><p className={css.eyebrow}>FINAL BALANCE</p><h2>{money(remaining)}</h2><p>Opening payment: {money(Number(contract.opening_amount))}</p><p>Final invoice: {invoiceMatches?invoice?.invoice_number+' · '+invoice?.status:'Awaiting an issued final invoice from Overflow Partner'}</p></div>
       {finalPaid?<div className={css.section}><h3>Final payment verified</h3><p className={css.note}>{finalReleased?'The engineering package has been approved for controlled release.':'Overflow Partner must complete the separate final handover approval.'}</p></div>
         :remaining>0?<div className={css.section}><h3>Complete final settlement</h3><p className={css.note}>The final balance is due after client review acceptance and before native engineering files can be released. Payment alone never authorises final handover.</p>
-          {checkoutAvailable?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Pay final balance securely →</button></form>
+          {!invoiceMatches?<p className={css.note}>Your final invoice must first be issued and matched to the agreed quotation. No payment is requested yet.</p>:
+          checkoutAvailable?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button type="submit" className={css.action+' '+css.primary}>Pay final balance securely →</button></form>
             :<p className={css.note}>Online final settlement is not enabled for this account. Contact Overflow Partner to arrange independently verified payment.</p>}
         </div>:<p className={css.note}>No final payment is due under this accepted quotation.</p>}
     </section>
