@@ -12,6 +12,7 @@ import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseCl
 import css from '../../opos.module.css';
 import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import QaManualClientAccess from './QaManualClientAccess';
+import QaClientPasswordSetup from './QaClientPasswordSetup';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
 type Readiness={ready:boolean;reasons:string[];activityOpen?:number;approvedDocuments?:number;issuedDocuments?:number};
@@ -398,6 +399,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
           {staffReviewEvidenceUnavailable?<p role="alert" className={css.meta}>Client issue/attestation evidence could not be verified; no client decision can be assumed.</p>:null}
           {staffReview?.issued?<p className={css.meta}>Current controlled R01 review was issued to a verified Client Workspace account. Only its actual signed-in client can respond; this operator cannot impersonate that client.</p>:null}
           {staffReview?.issued&&!staffReview?.decisionId?<p role="status" className={css.meta}>Awaiting the authorised client's review of the watermarked drawings and their explicit decision.</p>:null}
+          {qaWritable&&['owner','admin'].includes(String(profile.role))&&staffReview?.issued&&!staffReview?.decisionId&&id==='b447f586-bf79-4839-be5e-1af607d9ca43'?<QaClientPasswordSetup projectId={id}/>:null}
           {staffReview?.decisionId?<div className={css.card} style={{display:'grid',gap:11}}>
            <strong>Authenticated client outcome: {String(staffReview.decision||'').replaceAll('_',' ')}</strong>
            {staffReview.decisionComments?<p className={css.meta}>Written client feedback: {staffReview.decisionComments}</p>:null}
