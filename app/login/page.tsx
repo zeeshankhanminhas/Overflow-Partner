@@ -62,17 +62,17 @@ export default async function LoginPage({
         <p className={styles.brand}>OVERFLOW PARTNER</p>
         <h1 id="login-heading" className={styles.heading}>Sign in</h1>
         <p className={styles.context}>
-          {qaClientEmailAccess ? "Enter your invited email to receive a secure sign-in link." : context}
+          {qaClientEmailAccess ? "Northfield QA Client — sign in with your test password." : context}
         </p>
         {error ? <p role="alert" className={styles.alert}>{error}</p> : null}
         {updated ? <p role="status" className={styles.notice}>{updated}</p> : null}
 
         {qaClientEmailAccess ? (
           <>
-            <QaClientEmailSignIn/>
+            <PasswordSignIn next={next} />
             <details className={styles.alternate}>
-              <summary>Use a password instead</summary>
-              <PasswordSignIn next={next} />
+              <summary>Use a one-time email link instead (subject to Supabase email limits)</summary>
+              <QaClientEmailSignIn/>
             </details>
           </>
         ) : (
