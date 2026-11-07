@@ -3,6 +3,20 @@
  */
 const OPOS_PRODUCTION_SUPABASE_REF='klricctsxiifuduxpmzd';
 
+/**
+ * PRESENTATION ROUTING ONLY: the Northfield QA record must never fall back to
+ * legacy Workspace 1.0 merely because privileged QA writes are disabled.
+ * This does NOT permit any mutation, PDF issue, service-role operation or email.
+ */
+export function isKnownIsolatedQaPresentationPreview(): boolean {
+  const branch=process.env.VERCEL_GIT_COMMIT_REF||'';
+  const qaRef=String(process.env.OP_QA_SUPABASE_PROJECT_REF||'').trim().toLowerCase();
+  return process.env.VERCEL_ENV==='preview' &&
+    ['design/opos-decision-first-ia','qa/recovery-ui-client-gate-20261105'].includes(branch) &&
+    qaRef==='ukcamenuxhdznxaxpyis' &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL===`https://${qaRef}.supabase.co`;
+}
+
 export function isKnownIsolatedQaBackend():boolean {
   if(process.env.VERCEL_ENV!=='preview' || process.env.OP_ISOLATED_QA_BACKEND!=='true')return false;
   const qaRef=String(process.env.OP_QA_SUPABASE_PROJECT_REF||'').trim().toLowerCase();

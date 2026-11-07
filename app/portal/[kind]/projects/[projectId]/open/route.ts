@@ -40,6 +40,28 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{kind:str
    .eq('id',p.quote_id).eq('organisation_id',project.organisation_id).maybeSingle();
   if(!q||!['issued','accepted'].includes(String(q.status)))return back(request,kind,projectId,'The quotation is not available for secure review.');
   const token=createClientPortalToken(q.id,q.revision);
+  // Client-selected final settlement is an explicit, authenticated portal
+  // handoff. Reuse the same company/project entitlement check above and
+  // require an accepted current-cycle review; never infer payment from stage.
+  const finalFlow=request.nextUrl.searchParams.get('flow')==='final-settlement';
+  if(finalFlow){
+    const {data:projectStatus}=await db.from('projects')
+      .select('project_stage').eq('id',projectId).eq('organisation_id',project.organisation_id).maybeSingle();
+    const {data:assignment}=await db.from('project_execution_assignments')
+      .select('execution_cycle').eq('project_id',projectId)
+      .eq('organisation_id',project.organisation_id).maybeSingle();
+    const {data:acceptedReview}=await db.from('project_client_reviews')
+      .select('outcome').eq('project_id',projectId)
+      .eq('organisation_id',project.organisation_id)
+      .eq('execution_cycle',assignment?.execution_cycle||-1)
+      .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
+    if(!projectStatus || !['completion','closed'].includes(projectStatus.project_stage) ||
+       !acceptedReview || !['accepted','accepted_with_comments'].includes(acceptedReview.outcome))
+      return back(request,kind,projectId,'Final settlement requires the current accepted client review.');
+    const payment=new URL('/project-final-payment',request.url);
+    payment.searchParams.set('token',token);
+    return NextResponse.redirect(payment,{headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}});
+  }
   const target=new URL('/client-portal',request.url);
   target.searchParams.set('token',token);
   return NextResponse.redirect(target,{headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});

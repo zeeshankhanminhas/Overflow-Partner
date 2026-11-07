@@ -1,0 +1,59 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {canonicalQaWorkspace2Path} from '../../lib/qa/workspace2Routes.ts';
+const read=p=>readFileSync(p,'utf8');
+const mapped=[['/workspace','/opos-next'],['/workspace/projects','/opos-next/projects'],['/workspace/partners','/opos-next/partners'],['/workspace/tasks','/opos-next/tasks'],['/workspace/notifications','/opos-next/notifications'],['/workspace/documents','/opos-next/documents'],['/workspace/projects/b447f586-bf79-4839-be5e-1af607d9ca43','/opos-next/projects/b447f586-bf79-4839-be5e-1af607d9ca43'],['/workspace/documents/templates/msa','/opos-next/documents/templates/msa']];
+for(const [from,to] of mapped)assert.equal(canonicalQaWorkspace2Path(from),to,from);
+const untouched=['/workspace/projects/123/delivery','/workspace/projects/123/execution','/workspace/payments','/workspace/companies','/client-portal','/execution/token','/partner-review/token','/quote-payment','/api/execution/token','/workspace/documents/abc%2fdef'];
+for(const path of untouched)assert.equal(canonicalQaWorkspace2Path(path),null,'Protected/unmapped route '+path);
+const proxy=read('proxy.ts'),isolation=read('lib/qa/isolation.ts');
+assert.ok(proxy.includes("request.method!=='GET'")&&proxy.includes("request.method!=='HEAD'"));
+assert.ok(proxy.includes('isKnownIsolatedQaPresentationPreview()')&&proxy.includes('"/workspace/:path*"'));
+assert.ok(proxy.includes('"/outreach/:path*"')&&proxy.includes('"/opos-next/:path*"'), 'Session refresh matcher must cover original authenticated routes');
+assert.ok(proxy.includes('await supabase.auth.getUser()')&&proxy.includes('response.cookies.getAll()'), 'Workspace redirect must preserve Supabase auth refresh');
+assert.ok(proxy.includes('isKnownIsolatedQaBackend()')&&proxy.includes('status: 423'), 'QA preview write gate must remain fail-closed');
+assert.ok(isolation.includes("process.env.VERCEL_ENV==='preview'")&&isolation.includes("qaRef==='ukcamenuxhdznxaxpyis'"));
+assert.ok(read('app/portal/layout.tsx').includes('css.qaV2')&&read('app/portal/portal.module.css').includes('.qaV2 .header'));
+for(const route of ['client-portal','quote-payment','client-final-files'])assert.ok(read('app/'+route+'/layout.tsx').includes('qa-v2-token'));
+const client=read('app/client-portal/page.tsx');
+assert.ok(client.includes('className={styles.page}')&&client.includes('createStripeCheckout'));
+assert.ok(read('app/client-portal/clientPortal.module.css').includes(':global(.qa-v2-token) .page'));
+const projectPage=read('app/portal/[kind]/projects/[projectId]/page.tsx');
+assert.ok(projectPage.includes('<ClientDrawingReview'));
+assert.ok(projectPage.includes('if(!permitted&&isKnownIsolatedQaPresentationPreview())'), 'Wrong portal identity must be offered kind-specific sign-in on QA');
+assert.ok(projectPage.includes('if(!p)notFound()'), 'Unknown / other-organisation project must remain inaccessible');
+assert.ok(projectPage.includes("encodeURIComponent('/portal/'+kind)"), 'Sign-in must preserve the requested portal kind');
+// QA email sign-in must stay on the fixed recovery branch alias and must not
+// require privileged Supabase service-role write access.
+const loginPage=read('app/login/page.tsx');
+const loginAction=read('app/login/actions.ts');
+const authContext=read('lib/auth/context.ts');
+const clientEmail=read('app/login/QaClientEmailSignIn.tsx');
+const callback=read('app/auth/callback/page.tsx');
+const qaOrigin='https://overflow-partner-git-qa-recov-21e6a9-zeeshankhanminhas-projects.vercel.app';
+assert.ok(loginPage.includes(qaOrigin) && clientEmail.includes(qaOrigin),
+  'Email entry and callback must use the same recovery branch origin');
+assert.ok(loginPage.includes('redirect(canonical.toString())'),
+  'Magic-link entry must canonicalize to the branch hostname for PKCE');
+assert.ok(clientEmail.includes('shouldCreateUser:false') &&
+  clientEmail.includes('createClient().auth.signInWithOtp') &&
+  loginPage.includes('<QaClientEmailSignIn/>'),
+  'QA email sign-in must originate from browser and cannot create accounts');
+assert.ok(!loginAction.includes('export async function emailQaClientLoginLink'),
+  'Do not reintroduce server-initiated PKCE without same-browser verifier');
+assert.ok(loginPage.includes('isKnownIsolatedQaPresentationPreview()') &&
+  callback.includes('isKnownIsolatedQaPresentationPreview()'),
+  'QA email auth must be independent of privileged database write enablement');
+assert.ok(!clientEmail.includes('overflow-partner-git-design-o-9eda95'),
+  'Email link must not send Northfield to obsolete design preview');
+assert.ok(authContext.includes('if (isKnownIsolatedQaPresentationPreview())') &&
+  authContext.includes('Switch to your Operator account') &&
+  authContext.includes("throw new Error('Your account is not connected"),
+  'QA Client sessions must redirect without gaining Operator access; non-QA behavior stays guarded');
+assert.ok(loginPage.includes('action={switchToOperatorQaAccount}') &&
+  loginAction.includes('export async function switchToOperatorQaAccount()') &&
+  loginAction.includes('await supabase.auth.signOut()') &&
+  loginAction.includes("redirect('/login?next=%2Fopos-next&updated='"),
+  'QA wrong-workspace session switch must explicitly sign out before Operator login');
+console.log('PASS: Northfield client email sign-in recovery origin, QA isolation and PKCE host parity.');
+console.log('PASS Workspace 2.0: '+mapped.length+' redirects, '+untouched.length+' protected boundaries, account and transactional QA theme.');

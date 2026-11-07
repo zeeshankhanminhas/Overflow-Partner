@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isKnownIsolatedQaPresentationPreview } from '@/lib/qa/isolation';
 import { requireUserContext } from '@/lib/auth/context';
 import { getWorkflowCase } from '@/lib/orchestration/service';
 import { acceptQuoteAction, approveCommercialAction, approveIntakeAction, createCommercialReviewAction, createIntakeShellAction, issueQuoteAction, recordQuoteOutcomeAction, resendClientQuoteAction, reviseQuoteAction } from '../../orchestration/actions';
@@ -29,7 +29,7 @@ export default async function Case360Page({params,searchParams}:{params:Promise<
   const {id}=await params;
   // QA Northfield's governed case is presented only through Case 360 v2.
   // Preserve historic records and server actions; do not render two UIs.
-  if(isKnownIsolatedQaBackend()&&id==='671883d9-8cf2-4433-9848-65ec37e4e312')
+  if(isKnownIsolatedQaPresentationPreview()&&id==='671883d9-8cf2-4433-9848-65ec37e4e312')
     redirect('/opos-next/cases/'+id);
   const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
   let workflow;try{workflow=await getWorkflowCase(supabase,organisationId,id)}catch{notFound()}

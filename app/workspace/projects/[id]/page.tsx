@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import { isKnownIsolatedQaPresentationPreview } from '@/lib/qa/isolation';
 import { requireUserContext } from '@/lib/auth/context';
 import { getProjectById } from '@/lib/repositories/workflow';
 import { isRecordNotFoundError } from '@/lib/repositories/errors';
@@ -32,8 +32,9 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const {id}=await params;
   // The tested Northfield QA project has one canonical Workspace 2.0 view.
   // Historical API/server actions remain available; legacy rendering must not
-  // reappear after returning from the client or partner journey.
-  if(isKnownIsolatedQaBackend()&&id==='b447f586-bf79-4839-be5e-1af607d9ca43')
+  // reappear after returning from the client or partner journey, even when the
+  // privileged QA write gate is deliberately disabled.
+  if(isKnownIsolatedQaPresentationPreview()&&id==='b447f586-bf79-4839-be5e-1af607d9ca43')
     redirect('/opos-next/projects/'+id);
   const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
   let project;try{project=await getProjectById(supabase,organisationId,id)}catch(error){if(isRecordNotFoundError(error))notFound();throw error;}

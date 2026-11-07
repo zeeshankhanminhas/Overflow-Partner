@@ -4,7 +4,8 @@ const read=p=>readFileSync(p,'utf8');
 const database=read('supabase/migrations/20261104153000_qa_protected_client_review_exchange.sql');
 const externalAttestationFix=read('supabase/migrations/20261104153100_qa_external_attestation_activity_fix.sql');
 const correction=read('supabase/migrations/20261104154700_qa_block_unclassified_client_correction.sql');
-const client=read('app/portal/client/projects/[projectId]/review/page.tsx');
+const client=read('app/portal/client/projects/[projectId]/review/ClientDrawingReview.tsx');
+const legacyReview=read('app/portal/client/projects/[projectId]/review/page.tsx');
 const clientDecision=read('app/portal/client/projects/[projectId]/review/review-actions.ts');
 const clientPdf=read('app/portal/client/projects/[projectId]/review/[fileId]/route.ts');
 const clientProject=read('app/portal/[kind]/projects/[projectId]/page.tsx');
@@ -12,6 +13,7 @@ const clientHome=read('app/portal/[kind]/page.tsx');
 const operator=read('app/opos-next/projects/[id]/page.tsx');
 const operatorActions=read('app/opos-next/projects/[id]/qa-actions.ts');
 const viewer=read('app/opos-next/projects/[id]/review-preview/WatermarkedPdfViewer.tsx');
+const releasePreview=read('app/opos-next/projects/[id]/review-preview/page.tsx');
 const separation=read('supabase/migrations/20261104182500_qa_external_client_identity_separation.sql');
 const recipientMigration=read('supabase/migrations/20261104183000_qa_northfield_client_recipient_invitation.sql');
 const inviteAction=read('app/opos-next/projects/[id]/qa-client-invite-action.ts');
@@ -20,6 +22,9 @@ const manualLinkUI=read('app/opos-next/projects/[id]/QaManualClientAccess.tsx');
 const qaCallback=read('app/auth/callback/QaClientAuthCallback.tsx');
 const loginActions=read('app/login/actions.ts');
 const loginPage=read('app/login/page.tsx');
+const clientEmailSignIn=read('app/login/QaClientEmailSignIn.tsx');
+const passwordSetup=read('app/opos-next/projects/[id]/QaClientPasswordSetup.tsx');
+const passwordAction=read('app/opos-next/projects/[id]/qa-client-password-action.ts');
 const canonicalGuard=read('supabase/migrations/20261104180000_qa_protected_review_canonical_outcome_guard.sql');
 
 const cases=[
@@ -37,19 +42,28 @@ const cases=[
    inviteAction.includes("form.get('confirm_separate_login')")&&
    inviteAction.includes('admin.auth.admin.inviteUserByEmail')&&
    inviteAction.includes("assertRole(profile.role,['owner','admin'])")],
- ['a verified client must use their own invitation or passwordless session',
+ ['both QA design and recovery Operator logins return to the modern workspace, never the legacy one',
+   loginActions.includes('["design/opos-decision-first-ia", "qa/recovery-ui-client-gate-20261105"]')&&
+   loginActions.includes('redesignPreview ? "/opos-next" : "/workspace"')&&
+   loginActions.includes('const qaPreviewBranch = process.env.VERCEL_ENV === "preview"')],
+ ['a verified client must use their own invitation or browser-initiated passwordless session',
    qaCallback.includes("supabase.auth.exchangeCodeForSession(code)")&&
    qaCallback.includes("supabase.auth.verifyOtp")&&
    qaCallback.includes("supabase.auth.setSession")&&
    qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
-   loginActions.includes('shouldCreateUser:false')&&
-   loginPage.includes('next === "/portal/client" && isKnownIsolatedQaBackend()')&&
-   loginPage.includes('form action={emailQaClientLoginLink}')&&
-   loginPage.includes('Email sign-in link')],
- ['operator displays the owner-controlled SMTP-free QA activation instead of silently issuing',
+   clientEmailSignIn.includes("createClient().auth.signInWithOtp")&&
+   clientEmailSignIn.includes("shouldCreateUser:false")&&
+   clientEmailSignIn.includes("emailRedirectTo:QA_ORIGIN+'/auth/callback'")&&
+   clientEmailSignIn.includes('same browser')&&
+   loginPage.includes('<QaClientEmailSignIn/>')&&
+   !loginActions.includes("export async function emailQaClientLoginLink")&&
+   loginPage.includes('isKnownIsolatedQaPresentationPreview()')],
+ ['operator keeps independent client activation guarded and never offers issue from read-only preview',
    operator.includes('QaManualClientAccess')&&operator.includes('!qaRecipient?.ready')&&
-   operator.includes('qaRecipient?.ready')&&
-   operator.includes('Activate a separate QA Client account')],
+   operator.includes('qaRecipient?.ready')&&operator.includes('canManageClientAccess')&&
+   operator.includes("action:'Set up client access'")&&
+   operator.includes('awaitingClientReview&&!qaWritable')&&
+   operator.includes("action:null,anchor:'#release-authorisation',waiting:true")],
  ['protected client acceptance cannot be inserted without exact client-attested evidence',
    canonicalGuard.includes('protected review requires an actual authenticated client decision'.replace('protected review','protected review'))||
    (canonicalGuard.includes('p_evidence_reference=')&&canonicalGuard.includes('op_qa_client_review_decisions'))],
@@ -110,9 +124,16 @@ const cases=[
  ['unclassified correction cannot automatically dispatch new partner work',
   correction.includes("if v_decision.outcome in ('changes_requested','rejected') then")&&
   correction.includes('scope classification before partner work')],
- ['client review page verifies membership and renders one controlled response',
-  client.includes("portalContext('client')")&&client.includes("portal_my_projects")===false&&
-  client.includes("op_qa_client_review_position")&&client.includes('<WatermarkedPdfViewer')&&
+ ['client review is embedded in the entitled Client Portal project, not a separate workflow',
+  legacyReview.includes("portalContext('client')")&&
+  legacyReview.includes("op_qa_client_review_position")&&
+  legacyReview.includes("redirect('/portal/client/projects/'")&&
+  !legacyReview.includes('<WatermarkedPdfViewer')&&
+  clientProject.includes('<ClientDrawingReview')&&
+  clientProject.includes("isKnownIsolatedQaBackend()")&&
+  clientProject.includes("const secureReview=review&&!finalBalanceReady?'#drawing-review':null")&&
+  clientProject.includes("href={settlementHref}")&&
+  client.includes('id="drawing-review"')&&client.includes('<WatermarkedPdfViewer')&&
   client.includes('recordProtectedClientDecisionAction')],
  ['client decision server action calls the existing explicit auth user and guarded RPC',
   clientDecision.includes('supabase.auth.getUser()')&&
@@ -128,10 +149,36 @@ const cases=[
  ['PDF server watermarks bytes, does not cache, or put service key in browser',
   clientPdf.includes('PDFDocument.load')&&clientPdf.includes("doc.save({useObjectStreams:false})")&&
   clientPdf.includes("'Cache-Control':'private, no-store, max-age=0'")],
- ['permanent client workspace directs to real controlled review',
-  clientProject.includes('const secureReview=review?')&&
+ ['client workspace links to an embedded governed review without a separate portal',
+  clientProject.includes("const secureReview=review&&!finalBalanceReady?'#drawing-review':null")&&
   clientHome.includes('const liveClientReview=')&&
-  clientHome.includes('/review')],
+  clientHome.includes("+'#drawing-review'")&&
+  clientDecision.includes("+'#drawing-review'")],
+ ['Northfield QA password sign-in is primary, gated and never creates an identity',
+  loginPage.includes('<PasswordSignIn next={next} />')&&
+  loginPage.indexOf('<PasswordSignIn next={next} />',loginPage.indexOf('{qaClientEmailAccess ? ('))<
+  loginPage.indexOf('<QaClientEmailSignIn/>',loginPage.indexOf('{qaClientEmailAccess ? ('))&&
+  operator.includes('<QaClientPasswordSetup projectId={id}/>')&&
+  passwordSetup.includes('setNorthfieldQaClientPassword')&&
+  passwordSetup.includes('confirm_test_password')&&
+  passwordAction.includes('assertIsolatedQaBackend()')&&
+  passwordAction.includes("assertRole(profile.role,['owner','admin'])")&&
+  passwordAction.includes("project.project_stage!=='client_review'")&&
+  passwordAction.includes("EMAIL='midts.systems@gmail.com'")&&
+  passwordAction.includes("admin.auth.admin.getUserById")&&
+  passwordAction.includes("admin.auth.admin.updateUserById")&&
+  !passwordAction.includes('createUser(')&&!passwordAction.includes('inviteUserByEmail(')],
+ ['operator PDF preview offers one governed release action with reasoned blocked states',
+  releasePreview.includes('issueAllowed?<form action={issueProtectedClientReviewAction}')&&
+  releasePreview.includes('recipient?.ready')&&
+  releasePreview.includes('ownerCanIssue')&&
+  releasePreview.includes('staffReviewResult?.error')&&
+  releasePreview.includes('releaseBlocker')&&
+  releasePreview.includes('name="preview_confirmed"')&&
+  releasePreview.includes('name="return_to" value="review_preview"')&&
+  releasePreview.includes('Northfield client access controls')&&
+  operatorActions.includes("value(form,'return_to')==='review_preview'")&&
+  operatorActions.includes("'/review-preview?error='")],
  ['operator issue requires manual preview acknowledgement and server role check',
   operator.includes('preview_confirmed')&&
   operator.includes('issueProtectedClientReviewAction')&&

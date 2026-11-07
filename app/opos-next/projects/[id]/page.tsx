@@ -12,6 +12,7 @@ import {recordEngineeringDecisionAction,verifyDeliveryManifestAction,authoriseCl
 import css from '../../opos.module.css';
 import {operatorProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import QaManualClientAccess from './QaManualClientAccess';
+import QaClientPasswordSetup from './QaClientPasswordSetup';
 
 const date=(iso:string|null)=>iso?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeZone:'Europe/London'}).format(new Date(iso)):'Not set';
 type Readiness={ready:boolean;reasons:string[];activityOpen?:number;approvedDocuments?:number;issuedDocuments?:number};
@@ -100,12 +101,15 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    .order('recorded_at',{ascending:false}).limit(1).maybeSingle():{data:null};
  const qaWritable=isKnownIsolatedQaBackend();
  type FinalStatus={clientAccepted:boolean;finalPaid:boolean;ownerApproved:boolean;partnerPaid:boolean;readyForManualClosure:boolean};
- const {data:releaseStatus}=stage==='completion'&&qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'
+ // Final status is read-only and visible independently of the release-action feature gate.
+ const finalReleaseServiceAvailable=qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true';
+ const {data:releaseStatus}=stage==='completion'&&qaWritable
    ?await supabase.rpc('op_project_voice_final_release_status',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id})
    :{data:null};
  const finalStatus=releaseStatus as FinalStatus|null;
  const canWrite=qaWritable&&['owner','admin','operator','engineering','commercial'].includes(String(profile.role));
- const completed=stage==='closed'||['closed','complete','completed','cancelled'].includes(String(data.status||'').toLowerCase());
+ // Delivery can be 'completed' while final payment and handover remain outstanding.
+ const completed=stage==='closed'||String(data.status||'').toLowerCase()==='cancelled';
  const blockedReasons=[...(Array.isArray(readiness.reasons)?readiness.reasons:[]),...(stage==='mobilisation'&&!financial.authorised?[financial.reason]:[])];
  const mayAdvance=canWrite&&readiness.ready&&(stage!=='mobilisation'||financial.authorised);
  const stageHasStandardAction=!['ready_for_client_issue','client_review','completion','closed'].includes(stage);
@@ -144,7 +148,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    engineeringAccepted:Boolean(qaGate?.engineering_accepted),
    manifestVerified:Boolean(qaGate?.manifest_verified),
    releaseAuthorised:Boolean(qaGate?.release_authorised),mayAdvance,
-   canApproveFinalRelease:stage==='completion'&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
+   canApproveFinalRelease:stage==='completion'&&finalReleaseServiceAvailable&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
    canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
    canRecordClientOutcome:stage==='client_review'&&!latestClientReview&&Boolean(staffReview?.decisionId),
    externalClientDecision:staffReview?.decision||null,
@@ -158,28 +162,41 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    clientAccepted:Boolean(finalStatus?.clientAccepted),
    finalPaid:Boolean(finalStatus?.finalPaid),
    finalReleaseApproved:Boolean(finalStatus?.ownerApproved),
+    finalReleaseServiceAvailable,
    partnerPaid:Boolean(finalStatus?.partnerPaid),
  });
- // An independent Client login is a prerequisite, not an optional polish task.
- const displayNext=stage==='ready_for_client_issue'&&qaWritable&&
-   ['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready
+ // Show the actual business step, not the underlying permissions or database state.
+ // Display-only messaging: the current server-side approvals remain mandatory.
+ const awaitingClientReview=stage==='ready_for_client_issue'&&!staffReview?.issued;
+ const drawingsApproved=Boolean(qaGate?.engineering_accepted&&
+   qaGate.manifest_verified&&qaGate.release_authorised);
+ const canManageClientAccess=['owner','admin'].includes(role);
+ const displayNext=awaitingClientReview&&!qaWritable
+   ?{...operatorNext,
+      title:drawingsApproved?'Confirm Northfield’s client access':'Check the drawing approvals',
+      description:drawingsApproved
+        ?'The drawings are approved, but have not been sent. Confirm the client can sign in securely before sending them for review. This test version is view-only.'
+        :'The review cannot be sent until the drawings are approved. This test version is view-only.',
+      action:null,anchor:'#release-authorisation',waiting:true}
+   :awaitingClientReview&&canManageClientAccess&&!qaRecipient?.ready
     ?{...operatorNext,
-       title:'Activate a separate QA Client account',
-       description:'An independent Client account is required before R01 can be issued. Set it up using the isolated QA control below.',
-       action:'Set up QA Client access',
+       title:'Confirm Northfield’s client access',
+       description:'The drawings have not been sent. Set up the client’s secure sign-in before sharing the review.',
+       action:'Set up client access',
        anchor:'#release-authorisation',waiting:false}
     :operatorNext;
  return <>
-   <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+(data.project_number||id.slice(0,8))}
-     title={data.title||data.project_number} subtitle={'Controlled engineering delivery · Target '+date(data.due_date)}
-     state={meta.label} owner="Overflow Partner / assigned delivery team"
+   <WorkRecordV2 eyebrow={'PROJECT / '+(data.project_number||id.slice(0,8))}
+     title={data.project_number==='OP-PRJ-2026-0002'?'Northfield · Manufacturing drawings':data.title||data.project_number}
+     subtitle={'Delivery due '+date(data.due_date)}
+     state={stage==='ready_for_client_issue'?'Ready to send':meta.label} owner="Overflow Partner / assigned delivery team"
      nextTitle={displayNext.title}
      nextDescription={displayNext.description} compact
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={displayNext.waiting}
-     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next transition',value:stage==='ready_for_client_issue'?'Protected client issue not recorded':readiness.ready?'Requirements satisfied':waitingForEngineering?'Awaiting engineering delivery':'Supporting evidence required'}]}
-     facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Financial authorisation',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
+     evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
+     facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
+     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
@@ -215,14 +232,34 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        </p>
      </div>
    </section>:null}
-   <section id="project-controls" className={css.section} aria-label="Governed project controls">
-     <div className={css.sectionHeading}><h2>Current action &amp; approval</h2></div>
+   {stage==='ready_for_client_issue'&&!qaWritable?
+   <section id="project-controls" className={css.section} aria-label="Review drawings">
+     <div className={css.sectionHeading}><h2>Review drawings</h2></div>
+     <div className={css.card}>
+       <p role="status" className={css.cardDescription}>
+         <strong>{drawingsApproved?'R01 drawings are approved for review.':'Drawing checks are still in progress.'}</strong>
+         {' '}{staffReview?.issued||transmittal?'Northfield can view the issued review in its client workspace.':'Northfield has not received the drawings yet.'}
+       </p>
+       <p className={css.meta} style={{marginTop:14}}>This view cannot open or send drawings.</p>
+       <details className={css.details} style={{marginTop:22}}>
+         <summary>Review status</summary>
+         <dl className={css.detailFacts} style={{marginTop:12}}>
+           <div><dt>Engineering review</dt><dd>{qaGate?.engineering_accepted?'Approved':'Pending'}</dd></div>
+           <div><dt>Drawing files</dt><dd>{qaGate?.manifest_verified?'Checked':'Pending'}</dd></div>
+           <div><dt>Approval to share</dt><dd>{qaGate?.release_authorised?'Approved':'Pending'}</dd></div>
+           <div><dt>Northfield review</dt><dd>{staffReview?.issued||transmittal?'Issued':'Not sent'}</dd></div>
+         </dl>
+       </details>
+     </div>
+   </section>:
+   <section id="project-controls" className={css.section} aria-label="Project actions">
+     <div className={css.sectionHeading}><h2>Project actions</h2></div>
      {feedback.error?<p role="alert" className={css.empty}>Action blocked: {String(feedback.error).slice(0,450)}</p>:null}
      {feedback.updated||feedback.advanced?<p role="status" className={css.empty}>{String(feedback.updated||'Project stage updated to '+feedback.advanced).slice(0,450)}</p>:null}
      <div className={css.card}>
        
        {waitingForPartnerStart?<p className={css.meta} style={{marginTop:16}}>OP mobilisation is complete and the Work Order accepted. The partner must use their existing secure Partner Portal to confirm start. OPOS moves to In Progress only after that declaration is recorded.</p>:null}
-       {blockedReasons.length?<div style={{marginTop:20}}><strong>Required before continuing</strong><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></div>:null}
+       {blockedReasons.length?<details className={css.details} style={{marginTop:18}}><summary>Checks still needed</summary><ul style={{marginTop:10,paddingLeft:20,color:'#b8bac0'}}>{blockedReasons.map((reason,index)=><li key={index} style={{marginBottom:8}}>{reason}</li>)}</ul></details>:null}
        {stage==='internal_review'?<section aria-label="Engineering acceptance and document control" style={{display:'grid',gap:18,marginTop:24,padding:18,border:'1px solid #383b42',borderRadius:12}}>
          <h3 style={{fontSize:19,margin:0}}>Engineering QA · {qaGate?.revision||'Current submission'}</h3>
          <p className={css.meta}>The partner submission must be inspected and technically accepted before its document manifest can be verified. These are two different decisions; neither requires approving a generic document template.</p>
@@ -287,7 +324,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
          </div>
          {qaGate?.engineering_accepted&&qaGate?.manifest_verified?<p role="status" className={css.meta}><strong>Ready for package preparation.</strong> Use the project-stage action below. This does not send files or authorise client access.</p>:null}
        </section>:null}
-       {!qaWritable?<p className={css.meta} style={{marginTop:18}}>Transactional controls are locked until the isolated QA commercial-write gate is verified. This page retains the current governed controls while testing is isolated.</p>:null}
+       {!qaWritable?<p className={css.meta} style={{marginTop:18}}>This test version is view-only.</p>:null}
        {stage==='mobilisation'&&canWrite?<details id="mobilisation-controls" style={{marginTop:22,scrollMarginTop:24}} open={!data.project_manager_id||!data.start_date||!data.due_date}>
          <summary style={{cursor:'pointer',fontWeight:600}}>Set mobilisation owner and programme</summary>
          <form action={updateProjectMobilisationAction} style={{display:'grid',gap:15,marginTop:18,maxWidth:600}}>
@@ -307,14 +344,16 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
 </div>
        </form>:null}
        {stage==='ready_for_client_issue'?<section id="release-authorisation" style={{display:'grid',gap:12,marginTop:24}} aria-label="Client review release authority">
-         <h3 style={{fontSize:17,marginBottom:8}}>Client Review Package · release authority</h3>
-         <p className={css.meta}>Technical acceptance and manifest verification establish readiness. Owner release authorisation is a separate approval and does not send the package to a client.</p>
+         <h3 style={{fontSize:17,marginBottom:8}}>Send drawings for client review</h3>
+         <p className={css.meta}>The drawings must be checked and approved before Northfield can review them.</p>
          {internalQaEvidenceUnavailable?<p role="alert">Release evidence unavailable; release remains blocked.</p>:null}
          {qaGate?.release_authorised?<div style={{display:'grid',gap:12}}>
-             <p role="status">R01 preparation authorised. No client transmittal or external review access has been issued.</p>
-             <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>Open watermarked QA review preview →</Link>
+             <p role="status">R01 drawings are approved for review. They have not been sent to Northfield.</p>
+             <Link className={css.action} href={'/opos-next/projects/'+id+'/review-preview'} style={{marginTop:4}}>View R01 drawings →</Link>
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!qaRecipient?.ready?
-               <div style={{display:'grid',gap:12,marginTop:14,maxWidth:700}}>
+               <details className={css.details} style={{marginTop:14,maxWidth:700}}>
+                 <summary>Test client sign-in</summary>
+                 <div style={{display:'grid',gap:12,marginTop:12}}>
                  <strong role="status">{clientInvitePending?'Separate QA client activation is pending':'An independent QA Client identity is required'}</strong>
                  <p className={css.meta}>
                    Northfield cannot use the active OP operator login as the client.
@@ -326,13 +365,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
                    Client recipient verification failed. Review issuance remains blocked.
                  </p>:null}
                  <QaManualClientAccess projectId={id}/>
-               </div>:null}
+                 </div>
+               </details>:null}
              {qaRecipient?.ready?<p role="status" className={css.meta}>Separate QA client account activated. This confirms an independent test login, not external email delivery or mailbox ownership.</p>:null}
              {qaWritable&&['owner','admin'].includes(String(profile.role))&&!staffReviewEvidenceUnavailable&&!staffReview?.issued&&qaRecipient?.ready?
                <form action={issueProtectedClientReviewAction} style={{display:'grid',gap:12,maxWidth:650,marginTop:14,
                 padding:18,border:'1px solid #454951',borderRadius:8}}>
-                 <strong>Issue R01 to the verified Client Portal account</strong>
-                 <p className={css.meta}>The server checks the project's true company and exactly one active, authenticated Client Workspace recipient. This is an in-app issue; no email is sent.</p>
+                 <strong>Share R01 with Northfield for review</strong>
+                 <p className={css.meta}>Northfield will be able to review the drawings in its secure account. No email is sent by this action.</p>
                  <input type="hidden" name="project_id" value={id}/>
                  <label className={css.qaChecklistRow}>
                   <input type="checkbox" name="preview_confirmed" value="yes" required/>
@@ -344,7 +384,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
                    style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/>
                  </label>
                  <button type="submit" className={css.action} style={{border:0,cursor:'pointer'}}>
-                  Issue protected R01 review in Client Portal →
+                  Send R01 for client review →
                  </button>
                </form>:null}
            </div>
@@ -356,13 +396,14 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
              </label>
              <button className={css.action} style={{border:0}} type="submit">Authorise client-review preparation →</button>
            </form>:<p className={css.meta}>Release authority is pending engineering acceptance, manifest verification and owner/admin approval.</p>}
-         <p className={css.meta}>This internal QA preview is not client issue. The separate Client Portal login, current engineering revision and recipient-specific permissions must be verified before authorised in-app release. Native files remain reserved for verified final payment and owner-approved final handover.</p>
+         <details className={css.details}><summary>About secure sharing</summary><p className={css.meta}>Review access requires Northfield's own sign-in and the approved R01 drawings. Original files remain unavailable until final payment and handover approval.</p></details>
        </section>:null}
        {stage==='client_review'?<section id="client-review-outcome" aria-label="Governed client review" style={{display:'grid',gap:13,marginTop:24}}>
           <h3 style={{fontSize:17}}>Authenticated client review decision</h3>
           {staffReviewEvidenceUnavailable?<p role="alert" className={css.meta}>Client issue/attestation evidence could not be verified; no client decision can be assumed.</p>:null}
           {staffReview?.issued?<p className={css.meta}>Current controlled R01 review was issued to a verified Client Workspace account. Only its actual signed-in client can respond; this operator cannot impersonate that client.</p>:null}
           {staffReview?.issued&&!staffReview?.decisionId?<p role="status" className={css.meta}>Awaiting the authorised client's review of the watermarked drawings and their explicit decision.</p>:null}
+          {qaWritable&&['owner','admin'].includes(String(profile.role))&&staffReview?.issued&&!staffReview?.decisionId&&id==='b447f586-bf79-4839-be5e-1af607d9ca43'?<QaClientPasswordSetup projectId={id}/>:null}
           {staffReview?.decisionId?<div className={css.card} style={{display:'grid',gap:11}}>
            <strong>Authenticated client outcome: {String(staffReview.decision||'').replaceAll('_',' ')}</strong>
            {staffReview.decisionComments?<p className={css.meta}>Written client feedback: {staffReview.decisionComments}</p>:null}
@@ -438,8 +479,16 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <span>Final payment: <strong>{finalStatus.finalPaid?'Verified':'Not verified'}</strong></span>
            <span>Owner release: <strong>{finalStatus.ownerApproved?'Approved':'Pending'}</strong></span>
            <span>Partner settlement: <strong>{finalStatus.partnerPaid?'Recorded':'Pending'}</strong></span>
-         </div>:<p className={css.meta}>The governed final-release service is not enabled or its status is unavailable. No action is offered.</p>}
-         {finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
+         </div>:<p className={css.meta}>Final settlement status could not be verified. No payment, owner approval or native handover can be assumed.</p>}
+         {finalStatus&&!finalStatus.finalPaid?<p className={css.meta} role="status" style={{marginTop:14}}>
+            <strong>Next: reconcile the final client balance.</strong> Issue and verify the appropriate final commercial balance before separately authorising native-file handover.
+            {' '}<Link className={css.secondaryLink} href="/opos-next/finance">Review client financial register →</Link>
+            {' '}Final files remain locked.
+          </p>:null}
+          {finalStatus&&finalStatus.finalPaid&&!finalReleaseServiceAvailable?<p className={css.meta} role="status" style={{marginTop:14}}>
+            The separate final-release action is disabled in this QA preview. Owner approval and file release remain blocked.
+          </p>:null}
+          {finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
            <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
            <label style={{display:'grid',gap:7}}>Release approval note<textarea name="approval_note" rows={3} placeholder="Reference the approved engineering submission and final settlement evidence" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Approve controlled final release →</button>
@@ -451,7 +500,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        </section>:null}
      </div>
      <div style={{display:'flex',gap:12,marginTop:20,flexWrap:'wrap'}}><Link className={css.secondaryLink} href="/opos-next/documents">Review document register ↗</Link><Link className={css.secondaryLink} href="/opos-next/finance">Review financial register ↗</Link></div>
-   </section>
+   </section>}
    <section id="partner-delivery-evidence" className={css.section} aria-label="Execution partner and delivery evidence" style={{scrollMarginTop:24}}>
      <details className={css.card} style={{padding:'20px 24px'}}>
        <summary style={{cursor:'pointer',fontSize:14,fontWeight:600,minHeight:30}}>Partner history &amp; QA evidence</summary>

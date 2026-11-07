@@ -1,6 +1,9 @@
 import Link from "next/link";
-import { signIn, emailQaClientLoginLink } from "./actions";
-import { isKnownIsolatedQaBackend } from "@/lib/qa/isolation";
+import {headers} from "next/headers";
+import {redirect} from "next/navigation";
+import { signIn, switchToOperatorQaAccount } from "./actions";
+import QaClientEmailSignIn from "./QaClientEmailSignIn";
+import { isKnownIsolatedQaPresentationPreview } from "@/lib/qa/isolation";
 import styles from "./login.module.css";
 
 const permittedDestinations = ["/opos-next", "/portal/client", "/portal/partner"];
@@ -31,7 +34,22 @@ export default async function LoginPage({
 }) {
   const { error, updated, next } = await searchParams;
   // Only invited client accounts in an isolated QA environment get email-link login.
-  const qaClientEmailAccess = next === "/portal/client" && isKnownIsolatedQaBackend();
+  const qaClientEmailAccess = next === "/portal/client" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "qa/recovery-ui-client-gate-20261105" &&
+    isKnownIsolatedQaPresentationPreview();
+  // Magic-link PKCE cookies must be created on the SAME host as the callback.
+  // Always enter through this branch's fixed alias, never a rotating deployment URL.
+  if (qaClientEmailAccess) {
+    const qaOrigin = "https://overflow-partner-git-qa-recov-21e6a9-zeeshankhanminhas-projects.vercel.app";
+    const currentHost = (await headers()).get("host") || "";
+    if (currentHost.toLowerCase() !== new URL(qaOrigin).host) {
+      const canonical = new URL("/login", qaOrigin);
+      canonical.searchParams.set("next", "/portal/client");
+      if (error) canonical.searchParams.set("error", error);
+      if (updated) canonical.searchParams.set("updated", updated);
+      redirect(canonical.toString());
+    }
+  }
   const context = next === "/portal/client"
     ? "Client workspace"
     : next === "/portal/partner"
@@ -44,28 +62,31 @@ export default async function LoginPage({
         <p className={styles.brand}>OVERFLOW PARTNER</p>
         <h1 id="login-heading" className={styles.heading}>Sign in</h1>
         <p className={styles.context}>
-          {qaClientEmailAccess ? "Enter your invited email to receive a secure sign-in link." : context}
+          {qaClientEmailAccess ? "Northfield QA Client — sign in with your test password." : context}
         </p>
         {error ? <p role="alert" className={styles.alert}>{error}</p> : null}
         {updated ? <p role="status" className={styles.notice}>{updated}</p> : null}
 
         {qaClientEmailAccess ? (
           <>
-            <form action={emailQaClientLoginLink} className={styles.form}>
-              <label className={styles.field}>
-                Email
-                <input className={styles.input} type="email" name="email" required autoComplete="email" />
-              </label>
-              <button className={styles.button} type="submit">Email sign-in link</button>
-            </form>
+            <PasswordSignIn next={next} />
             <details className={styles.alternate}>
-              <summary>Use a password instead</summary>
-              <PasswordSignIn next={next} />
+              <summary>Use a one-time email link instead (subject to Supabase email limits)</summary>
+              <QaClientEmailSignIn/>
             </details>
           </>
         ) : (
           <PasswordSignIn next={next} />
         )}
+        {next === "/opos-next" && isKnownIsolatedQaPresentationPreview() ?
+          <form action={switchToOperatorQaAccount} className={styles.alternate}>
+            <p style={{fontSize:12,lineHeight:1.6,margin:'12px 0 8px'}}>
+              Wrong workspace account? Clear the current browser session before signing in as an OP Operator.
+            </p>
+            <button type="submit" className={styles.back} style={{cursor:'pointer'}}>
+              Switch Operator account
+            </button>
+          </form> : null}
         <Link href="/" className={styles.back}>Back to website</Link>
       </section>
     </main>

@@ -25,25 +25,31 @@ function denied(status:number,message='The controlled engineering review is not 
  */
 export async function GET(_req:Request,{params}:{params:Promise<{projectId:string;fileId:string}>}){
  let phase='isolation';
+ const blocked=(status:number,reason:string,message?:string)=>{
+  // QA server diagnostics only: never log identity, secret, file path or content.
+  console.warn('OPOS QA client PDF blocked',{phase,reason,status});
+  return denied(status,message);
+ };
  try{
   assertIsolatedQaBackend();
   const {projectId,fileId}=await params;
-  if(!/^[0-9a-f-]{36}$/i.test(projectId)||!/^[0-9a-f-]{36}$/i.test(fileId))return denied(404);
+  if(!/^[0-9a-f-]{36}$/i.test(projectId)||!/^[0-9a-f-]{36}$/i.test(fileId))return blocked(404,'invalid-file-request');
   phase='external-client-auth';
   const supabase=await createClient();
   const {data:{user},error:userError}=await supabase.auth.getUser();
-  if(userError||!user)return denied(401,'Sign in to your authorised Client Workspace to view the drawings.');
+  if(userError||!user)return blocked(401,'client-session-missing','Sign in to your authorised Client Workspace to view the drawings.');
   // Read-only, SECURITY DEFINER RPC validates exact active client membership,
   // original company, issued current cycle, and delivered revision.
+  phase='client-review-position';
   const {data,error:positionError}=await supabase.rpc('op_qa_client_review_position',{
     p_project_id:projectId});
   const position=data as Position|null;
   if(positionError||!position||position.projectId!==projectId||
      !['issued_to_client','client_review','completion','closed'].includes(position.stage)||
-     !position.files?.some(file=>file.id===fileId))return denied(403);
+     !position.files?.some(file=>file.id===fileId))return blocked(403,'client-review-position-invalid');
   const envUrl=process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if(!envUrl||!serviceKey)return denied(503,'Secure review service is not configured.');
+  if(!envUrl||!serviceKey)return blocked(503,'qa-service-config-missing','Secure review service is not configured.');
   phase='current-cycle-qa-gate';
   const admin=createAdminClient(envUrl,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
   const [issueResult,gateResult]=await Promise.all([
@@ -58,18 +64,18 @@ export async function GET(_req:Request,{params}:{params:Promise<{projectId:strin
      gate.submission_id!==issue.submission_id||gate.manifest_hash!==issue.manifest_hash||
      gate.revision!==issue.revision||!gate.storage_complete||
      !gate.engineering_accepted||!gate.manifest_verified||!gate.release_authorised)
-    return denied(403,'The review is not the currently authorised engineering submission.');
+    return blocked(403,'current-cycle-gate-not-authorised','The review is not the currently authorised engineering submission.');
   const file=(gate.files||[]).find(f=>f.id===fileId);
   if(!file||file.bucket!=='partner-delivery'||!file.filename.toLowerCase().endsWith('.pdf')||
-    file.size<100||file.size>15*1024*1024)return denied(404);
+    file.size<100||file.size>15*1024*1024)return blocked(404,'review-file-invalid');
   phase='private-file-download';
   const {data:blob,error:downloadError}=await admin.storage.from('partner-delivery').download(file.path);
-  if(downloadError||!blob||blob.size>15*1024*1024)return denied(404);
+  if(downloadError||!blob||blob.size>15*1024*1024)return blocked(404,'private-pdf-not-available');
   const raw=new Uint8Array(await blob.arrayBuffer());
-  if(raw.length<100||new TextDecoder().decode(raw.subarray(0,5))!=='%PDF-')return denied(415,'The engineering review file is not a supported PDF.');
+  if(raw.length<100||new TextDecoder().decode(raw.subarray(0,5))!=='%PDF-')return blocked(415,'invalid-pdf-bytes','The engineering review file is not a supported PDF.');
   phase='watermark-pdf';
   const doc=await PDFDocument.load(raw,{updateMetadata:false});
-  if(doc.isEncrypted||doc.getPageCount()>80)return denied(415,'This engineering PDF cannot yet be safely prepared for browser review.');
+  if(doc.isEncrypted||doc.getPageCount()>80)return blocked(415,'pdf-conversion-not-supported','This engineering PDF cannot yet be safely prepared for browser review.');
   const font=await doc.embedFont(StandardFonts.HelveticaBold);
   const ref='CLIENT REVIEW / '+String(issue.revision||'').slice(0,18)+' / '+projectId.slice(0,8);
   const identity=String(user.id).slice(0,8);

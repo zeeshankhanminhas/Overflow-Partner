@@ -30,9 +30,25 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('organisation_id',issue.organisation_id).eq('id',access.quoteId).eq('revision',access.revision).maybeSingle();
   if(!quote)throw new Error('Current accepted quotation not found.');
   if(mode==='qa'){
-    const {data:lead}=await db.from('leads').select('company_name').eq('organisation_id',issue.organisation_id)
-      .eq('id',quote.lead_id).maybeSingle();
-    if(!lead?.company_name?.startsWith('OP QA TEST'))throw new Error('Test Checkout requires a labelled QA customer.');
+    const {data:lead,error:leadError}=await db.from('leads').select('company_name,reference')
+      .eq('organisation_id',issue.organisation_id).eq('id',quote.lead_id).maybeSingle();
+    const northfield=issue.organisation_id==='717262cb-68da-4e7b-a9fa-238dc6c5d16b' &&
+      quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99' &&
+      lead?.reference==='OP-LEAD-2026-0001' &&
+      lead?.company_name==='QA - Northfield Demonstration Engineering';
+    if(leadError || !(lead?.company_name?.startsWith('OP QA TEST')||northfield))
+      throw new Error('Test Checkout requires an explicitly allowlisted fictional QA customer.');
+    if(northfield){
+      const [replay,acknowledgement]=await Promise.all([
+        db.from('op_qa_northfield_replay').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id)
+          .gt('expires_at',new Date().toISOString()).maybeSingle(),
+        db.from('op_qa_northfield_addendum_acceptances').select('quote_id')
+          .eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id).maybeSingle()
+      ]);
+      if(replay.error||acknowledgement.error||!replay.data||!acknowledgement.data)
+        throw new Error('Northfield QA addendum acknowledgement or authorised test replay is not current.');
+    }
     const {data:authorisation}=await db.from('op_sandbox_payment_authorisations').select('quote_id')
       .eq('quote_id',quote.id).eq('organisation_id',issue.organisation_id).eq('quote_revision',quote.revision)
       .gt('expires_at',new Date().toISOString()).maybeSingle();
@@ -58,6 +74,14 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!opening || opening.payment_method!=='stripe'||Number(opening.amount)<Number(contract.opening_amount))
     throw new Error('The opening payment has not been reconciled.');
+  const {data:invoice,error:invoiceError}=await db.from('invoices')
+    .select('id,status,total,amount_paid,currency').eq('organisation_id',issue.organisation_id)
+    .eq('project_id',project.id).eq('quote_id',quote.id).eq('invoice_type','final')
+    .neq('status','cancelled').maybeSingle();
+  if(invoiceError||!invoice||invoice.status!=='issued'||Number(invoice.amount_paid)!==0||
+     Math.round(Number(invoice.total)*100)!==remaining||
+     String(invoice.currency).trim().toLowerCase()!=='gbp')
+    throw new Error('The exact final invoice must be issued before Checkout.');
   const {data:paid}=await db.from('op_project_final_settlements').select('project_id')
     .eq('project_id',project.id).maybeSingle();
   if(paid)throw new Error('Final payment is already confirmed. Do not pay twice.');
@@ -72,12 +96,13 @@ export async function createFinalStripeCheckout(formData:FormData) {
   params.set('metadata[quote_revision]',String(quote.revision));
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('metadata[project_id]',project.id);
+  params.set('metadata[invoice_id]',invoice.id);
   params.set('metadata[payment_stage]','final');
   params.set('success_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
   params.set('cancel_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded',
-      'Idempotency-Key':`op-${mode}-final-${project.id}-r${quote.revision}-${remaining}`},
+      'Idempotency-Key':`op-${mode}-final-${project.id}-r${quote.revision}-${remaining}-${invoice.id}`},
     body:params.toString(),cache:'no-store'
   });
   const session=await response.json();
