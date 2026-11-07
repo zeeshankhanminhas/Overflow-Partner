@@ -27,7 +27,7 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
  if(actor==='client'){
   switch(stage){
    case 'closed':return view('Your project is complete','Your controlled project history and any authorised final files remain available through secure access.','View project status',true);
-   case 'completion':return view('Final settlement and handover','Open the secure record to see verified final balances and release status. The project stage alone is not proof of payment.','Open secure final status',true);
+   case 'completion':return view('Final settlement and handover','Review the final contractual balance and independently verified settlement status. Final engineering files remain locked until separate owner approval.','View final balance',false);
    case 'internal_review':return view('We’re checking your drawings','Overflow Partner is reviewing the engineering work. You do not need to do anything yet.','View project status',true);
    case 'partner_correction':return view('We’re making the requested changes','The drawings are being updated. We’ll share the revised version once it has been checked.','View project status',true);
    case 'in_progress':return view('Your drawings are in progress','Our engineering team is working on your project. We’ll contact you when your review is ready.','View project status',true);
