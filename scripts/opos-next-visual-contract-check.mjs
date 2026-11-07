@@ -186,7 +186,8 @@ const checks = [
     projectPage.includes("from('project_delivery_items')") &&
     projectPage.includes("from('project_client_transmittals')")],
   ['Project primary operator decision remains directly linked to governed actions',
-    projectPage.includes("governedHref={'/opos-next/projects/'+id+displayNext.anchor}") &&
+    projectPage.includes("governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':'/opos-next/projects/'+id+displayNext.anchor}") &&
+    fs.existsSync('app/opos-next/projects/[id]/final-settlement/page.tsx') &&
     projectPage.includes('Review drawings') &&
      projectPage.includes("stage==='ready_for_client_issue'&&!qaWritable?") &&
      projectPage.includes('This view cannot open or send drawings.') &&
