@@ -101,12 +101,15 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    .order('recorded_at',{ascending:false}).limit(1).maybeSingle():{data:null};
  const qaWritable=isKnownIsolatedQaBackend();
  type FinalStatus={clientAccepted:boolean;finalPaid:boolean;ownerApproved:boolean;partnerPaid:boolean;readyForManualClosure:boolean};
- const {data:releaseStatus}=stage==='completion'&&qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'
+ // Final status is read-only and visible independently of the release-action feature gate.
+ const finalReleaseServiceAvailable=qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true';
+ const {data:releaseStatus}=stage==='completion'&&qaWritable
    ?await supabase.rpc('op_project_voice_final_release_status',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id})
    :{data:null};
  const finalStatus=releaseStatus as FinalStatus|null;
  const canWrite=qaWritable&&['owner','admin','operator','engineering','commercial'].includes(String(profile.role));
- const completed=stage==='closed'||['closed','complete','completed','cancelled'].includes(String(data.status||'').toLowerCase());
+ // Delivery can be 'completed' while final payment and handover remain outstanding.
+ const completed=stage==='closed'||String(data.status||'').toLowerCase()==='cancelled';
  const blockedReasons=[...(Array.isArray(readiness.reasons)?readiness.reasons:[]),...(stage==='mobilisation'&&!financial.authorised?[financial.reason]:[])];
  const mayAdvance=canWrite&&readiness.ready&&(stage!=='mobilisation'||financial.authorised);
  const stageHasStandardAction=!['ready_for_client_issue','client_review','completion','closed'].includes(stage);
@@ -145,7 +148,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    engineeringAccepted:Boolean(qaGate?.engineering_accepted),
    manifestVerified:Boolean(qaGate?.manifest_verified),
    releaseAuthorised:Boolean(qaGate?.release_authorised),mayAdvance,
-   canApproveFinalRelease:stage==='completion'&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
+   canApproveFinalRelease:stage==='completion'&&finalReleaseServiceAvailable&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
    canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
    canRecordClientOutcome:stage==='client_review'&&!latestClientReview&&Boolean(staffReview?.decisionId),
    externalClientDecision:staffReview?.decision||null,
@@ -159,6 +162,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    clientAccepted:Boolean(finalStatus?.clientAccepted),
    finalPaid:Boolean(finalStatus?.finalPaid),
    finalReleaseApproved:Boolean(finalStatus?.ownerApproved),
+    finalReleaseServiceAvailable,
    partnerPaid:Boolean(finalStatus?.partnerPaid),
  });
  // Show the actual business step, not the underlying permissions or database state.
@@ -475,8 +479,16 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <span>Final payment: <strong>{finalStatus.finalPaid?'Verified':'Not verified'}</strong></span>
            <span>Owner release: <strong>{finalStatus.ownerApproved?'Approved':'Pending'}</strong></span>
            <span>Partner settlement: <strong>{finalStatus.partnerPaid?'Recorded':'Pending'}</strong></span>
-         </div>:<p className={css.meta}>The governed final-release service is not enabled or its status is unavailable. No action is offered.</p>}
-         {finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
+         </div>:<p className={css.meta}>Final settlement status could not be verified. No payment, owner approval or native handover can be assumed.</p>}
+         {finalStatus&&!finalStatus.finalPaid?<p className={css.meta} role="status" style={{marginTop:14}}>
+            <strong>Next: reconcile the final client balance.</strong> Issue and verify the appropriate final commercial balance before separately authorising native-file handover.
+            {' '}<Link className={css.secondaryLink} href="/opos-next/finance">Review client financial register →</Link>
+            {' '}Final files remain locked.
+          </p>:null}
+          {finalStatus&&finalStatus.finalPaid&&!finalReleaseServiceAvailable?<p className={css.meta} role="status" style={{marginTop:14}}>
+            The separate final-release action is disabled in this QA preview. Owner approval and file release remain blocked.
+          </p>:null}
+          {finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
            <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
            <label style={{display:'grid',gap:7}}>Release approval note<textarea name="approval_note" rows={3} placeholder="Reference the approved engineering submission and final settlement evidence" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Approve controlled final release →</button>
