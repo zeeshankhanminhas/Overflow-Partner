@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {headers} from "next/headers";
 import {redirect} from "next/navigation";
-import { signIn } from "./actions";
+import { signIn, switchToOperatorQaAccount } from "./actions";
 import QaClientEmailSignIn from "./QaClientEmailSignIn";
 import { isKnownIsolatedQaPresentationPreview } from "@/lib/qa/isolation";
 import styles from "./login.module.css";
@@ -78,6 +78,15 @@ export default async function LoginPage({
         ) : (
           <PasswordSignIn next={next} />
         )}
+        {next === "/opos-next" && isKnownIsolatedQaPresentationPreview() ?
+          <form action={switchToOperatorQaAccount} className={styles.alternate}>
+            <p style={{fontSize:12,lineHeight:1.6,margin:'12px 0 8px'}}>
+              Wrong workspace account? Clear the current browser session before signing in as an OP Operator.
+            </p>
+            <button type="submit" className={styles.back} style={{cursor:'pointer'}}>
+              Switch Operator account
+            </button>
+          </form> : null}
         <Link href="/" className={styles.back}>Back to website</Link>
       </section>
     </main>
