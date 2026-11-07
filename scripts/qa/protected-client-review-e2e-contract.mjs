@@ -48,7 +48,10 @@ const cases=[
    qaCallback.includes("supabase.auth.setSession")&&
    qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
    loginActions.includes('shouldCreateUser:false')&&
-   loginPage.includes('next === "/portal/client" && isKnownIsolatedQaBackend()')&&
+   loginPage.includes('next === "/portal/client" &&')&&
+   loginPage.includes('isKnownIsolatedQaPresentationPreview()')&&
+   loginActions.includes('isKnownIsolatedQaPresentationPreview()')&&
+   qaCallback.includes("supabase.rpc('portal_my_workspaces')")&&
    loginPage.includes('form action={emailQaClientLoginLink}')&&
    loginPage.includes('Email sign-in link')],
  ['operator keeps independent client activation guarded and never offers issue from read-only preview',
