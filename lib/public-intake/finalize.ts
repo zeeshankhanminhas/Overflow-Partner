@@ -9,6 +9,15 @@ export async function finalizeVerifiedEnquiry(
  supabase:SupabaseClient,payload:ConfirmedEnquiry,
  owner:{id:string;organisation_id:string},publicOrigin:string
 ):Promise<{prospectId:string;invitationEmailStatus:'queued'|'failed'|'previously_received'}>{
+    // Preserve existing preferences. For new contacts, transactional messages
+    // remain enabled but marketing/nurture is disabled unless explicitly requested.
+    const { error: preferenceError } = await supabase.from('notification_preferences').upsert({
+      organisation_id: owner.organisation_id,
+      email: payload.work_email.toLowerCase(),
+      nurture_email_enabled: payload.nurture_consent === 'true',
+    }, { onConflict: 'organisation_id,email', ignoreDuplicates: true });
+    if (preferenceError) throw preferenceError;
+
     const notes = [
       payload.pageUrl ? `Submitted from: ${payload.pageUrl}` : '',
       payload.source ? `Campaign source: ${payload.source}` : '',
