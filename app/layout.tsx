@@ -36,5 +36,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" className={inter.variable}><body>{children}<CookieConsent /></body></html>;
+  return <html lang="en" className={inter.variable}><body><a className="skip-to-content" href="#main-content">Skip to content</a>{children}<CookieConsent /></body></html>;
 }
