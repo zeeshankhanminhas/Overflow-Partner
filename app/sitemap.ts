@@ -1,3 +1,3 @@
-import type {MetadataRoute} from 'next';import {services,demos} from '@/lib/marketing';
+import type {MetadataRoute} from 'next';import {services} from '@/lib/marketing';
 const siteUrl=(process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');export const dynamic='force-static';
-export default function sitemap():MetadataRoute.Sitemap{return ['', '/services',...services.map(s=>`/services/${s.slug}`),'/process','/demonstrations',...demos.map(d=>`/demonstrations/${d.slug}`),'/about','/faq','/contact','/privacy','/terms','/cookie-policy'].map(path=>({url:`${siteUrl}${path}`,changeFrequency:'monthly' as const,priority:path===''?1:0.6}));}
+export default function sitemap():MetadataRoute.Sitemap{return ['', '/services',...services.map(s=>`/services/${s.slug}`),'/process','/about','/faq','/contact','/privacy','/terms','/cookie-policy'].map(path=>({url:`${siteUrl}${path}`,changeFrequency:'monthly' as const,priority:path===''?1:0.6}));}
