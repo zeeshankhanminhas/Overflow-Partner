@@ -13,7 +13,7 @@ module foot(x){translate([x,-32,12])cube([35,64,12]);}
 color([.42,.51,.47])base();
 color([.65,.72,.68])upright(-130);
 color([.65,.72,.68])upright(112);
-color([.89,.42,.18])foot(-138);
-color([.89,.42,.18])foot(105);
+// Adjustable feet remain a concept option, not in STEP D00.
+
 color([.81,.85,.83])roller();
 color([.22,.29,.27])shaft();
