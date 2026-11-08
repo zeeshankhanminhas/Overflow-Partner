@@ -33,7 +33,7 @@ function getPublicBaseUrl(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({success:false,message:'Preview intake is disabled until an isolated QA database is configured.'},{status:503});
+  if(process.env.VERCEL_ENV==='preview' && !isKnownIsolatedQaBackend()) return NextResponse.json({success:false,message:'Enquiries are temporarily unavailable. Please try again later.'},{status:503});
   try {
     const payload = intakeSchema.parse(await request.json());
     const supabase = getAdminClient();
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     if (ownerError) throw ownerError;
     const owner = owners?.[0];
     if (!owner?.id || !owner.organisation_id) {
-      return NextResponse.json({ success: false, message: 'Workspace ownership is not configured.' }, { status: 503 });
+      return NextResponse.json({ success: false, message: 'Enquiries are temporarily unavailable. Please try again later.' }, { status: 503 });
     }
 
     const notes = [
