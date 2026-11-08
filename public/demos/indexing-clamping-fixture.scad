@@ -6,7 +6,7 @@ Design validation, fasteners, tolerances, pneumatic forces and safety pending re
 */
 $fn=64;
 module base_plate(){difference(){translate([-160,-120,0])cube([320,240,18]);for(x=[-136,136],y=[-96,96])translate([x,y,-1])cylinder(h=20,d=12);}}
-module table(){difference(){translate([0,0,48])cylinder(h=14,d=160);translate([0,0,47])cylinder(h=16,d=24);for(a=[0:90:270])rotate([0,0,a])translate([58,0,47])cylinder(h=16,d=8);}}
+module table(){difference(){translate([0,0,48])cylinder(h=14,d=160);translate([0,0,47])cylinder(h=16,d=24);/* additional indexing/locking holes TBD after independent review */}}
 module pedestal(){translate([0,0,18])cylinder(h=30,d=56);}
 module guide(x){translate([x,-47,18])cube([24,94,42]);}
 module clamp_jaw(x){translate([x,-25,60])cube([34,50,28]);}
