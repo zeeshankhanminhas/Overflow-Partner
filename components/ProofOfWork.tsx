@@ -36,7 +36,7 @@ function StepMark() {
 function DrawingPreview() {
   return (
     <div className="drawing_preview border border-black/15 bg-[var(--paper)] p-4">
-      <svg viewBox="0 0 640 420" className="h-auto w-full text-[var(--ink)]" fill="none" aria-label="Overflow Partner sample technical drawing preview">
+      <svg viewBox="0 0 640 420" className="h-auto w-full text-[var(--ink)]" fill="none" role="img" aria-label="Overflow Partner sample technical drawing preview">
         <rect x="18" y="18" width="604" height="384" stroke="currentColor" />
         <path d="M74 154h118l38-46h150l40 46h80v70h-84l-36 44H230l-40-44H74z" stroke="currentColor" strokeWidth="2" />
         <circle cx="314" cy="188" r="52" stroke="currentColor" strokeWidth="2" />
