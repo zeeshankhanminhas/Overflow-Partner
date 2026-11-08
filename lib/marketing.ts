@@ -20,7 +20,7 @@ export const faqs = [
  {question:'What will we receive at the end of a project?',answer:'The agreed CAD files, drawings and supporting documents are organised into a controlled handover package with identified versions.'},
  {question:'Can we ask for changes during a project?',answer:'Yes. Proposed changes are reviewed against the agreed scope and their impact on timing and cost is confirmed before proceeding.'},
  {question:'Do you handle one-off or recurring requirements?',answer:'Both can be discussed. We assess each requirement to confirm a suitable technical scope and delivery arrangement.'},
- {question:'Are the engineering examples on this website real client projects?',answer:'No. The demonstration examples are original, fictional training projects. They are clearly marked as drafts and are not representations of completed client engagements.'}
+ {question:'Can we review example deliverables before proceeding?',answer:'We can discuss the expected deliverable structure and technical standards during scope review. Public demonstration drawings will be shared only after an independent technical review.'}
 ];
 export const demos = [
  {id:'OP-DEMO-001',slug:'indexing-clamping-fixture',title:'Pneumatic Indexing & Clamping Fixture',type:'Mechanical fixture · concept design',description:'A fictional assembly showing a rotary indexing plate, guided workholding and pneumatic clamping elements.',features:['Assembly and component geometry','Interface and motion considerations','Draft bill of materials','Review and handover documentation'],source:'/demos/indexing-clamping-fixture.scad'},
