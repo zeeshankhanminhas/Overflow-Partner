@@ -1,3 +1,4 @@
+import Image from 'next/image';
 const capabilities = [
   ['01', 'Capacity'],
   ['02', 'CAD / CAM'],
@@ -45,7 +46,7 @@ export default function Hero() {
           <div className="relative z-10 grid max-w-[560px] grid-cols-3 border-b border-black/10 pb-5 lg:max-w-[520px]">
             {capabilities.map(([index, label]) => (
               <div key={label} className="border-l border-black/15 px-4 first:border-l-0 first:pl-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-black/35">{index}</p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-black/65">{index}</p>
                 <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-black/80">{label}</p>
               </div>
             ))}
@@ -89,14 +90,14 @@ export default function Hero() {
 
       <div className="border-t border-black/8 bg-white/55">
         <div className="container_large padding_global py-10 lg:py-11">
-          <p className="text-center text-[10px] font-semibold uppercase tracking-[0.34em] text-black/55">We help engineering teams</p>
+          <h2 className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-black/70">We help engineering teams</h2>
           <div className="mt-8 grid gap-0 md:grid-cols-3">
             {values.map((item, index) => (
               <article key={item.title} className={`grid grid-cols-[56px_1fr] gap-5 py-5 md:min-h-[130px] md:px-7 md:py-2 ${index > 0 ? 'md:border-l md:border-black/12' : ''}`}>
                 <div className="flex h-14 w-14 items-center justify-center bg-[#f1f0eb] text-black/85">{item.icon}</div>
                 <div>
-                  <h2 className="text-[17px] font-semibold tracking-[-0.02em]">{item.title}</h2>
-                  <p className="mt-2 max-w-[260px] text-sm leading-6 text-black/58">{item.body}</p>
+                  <h3 className="text-[17px] font-semibold tracking-[-0.02em]">{item.title}</h3>
+                  <p className="mt-2 max-w-[260px] text-sm leading-6 text-black/70">{item.body}</p>
                 </div>
               </article>
             ))}
@@ -106,4 +107,3 @@ export default function Hero() {
     </section>
   );
 }
-import Image from 'next/image';

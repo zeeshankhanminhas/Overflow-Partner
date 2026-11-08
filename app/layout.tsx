@@ -4,8 +4,6 @@ import './partner-execution-parity.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import CookieConsent from '@/components/CookieConsent';
-import { Analytics } from '@vercel/analytics/next';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -27,16 +25,18 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: 'Overflow Partner',
     type: 'website',
+    images: [{url:'/opengraph-image',width:1200,height:630,alt:'Overflow Partner — Engineering execution capacity'}],
   },
   alternates: { canonical: '/' },
   icons: { icon: '/favicon.svg' },
   twitter: {
     card: 'summary_large_image',
+    images: ['/opengraph-image'],
     title: 'Overflow Partner | CAD/CAM Overflow Engineering Support',
     description: 'Overflow CAD/CAM support for teams that need precise engineering output without slowing down.',
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" className={inter.variable}><body>{children}<CookieConsent /><Analytics /><SpeedInsights /></body></html>;
+  return <html lang="en" className={inter.variable}><body><a className="skip-to-content" href="#main-content">Skip to content</a>{children}<CookieConsent /></body></html>;
 }

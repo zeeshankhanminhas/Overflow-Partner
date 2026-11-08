@@ -8,14 +8,14 @@ export async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    redirect("/login?error=Email%20and%20password%20are%20required.");
+    redirect("/login?error=missing");
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.user) {
-    redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
+    redirect("/login?error=invalid");
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -26,22 +26,12 @@ export async function signIn(formData: FormData) {
 
   if (profileError || !profile) {
     await supabase.auth.signOut();
-    redirect(
-      "/login?error=" +
-        encodeURIComponent(
-          "Your Supabase user exists, but no Overflow Partner workspace profile has been created for it.",
-        ),
-    );
+    redirect("/login?error=unavailable");
   }
 
   if (!profile.is_active || !profile.organisation_id) {
     await supabase.auth.signOut();
-    redirect(
-      "/login?error=" +
-        encodeURIComponent(
-          "Your workspace profile is inactive or is not assigned to an organisation.",
-        ),
-    );
+    redirect("/login?error=unavailable");
   }
 
   redirect("/workspace");
