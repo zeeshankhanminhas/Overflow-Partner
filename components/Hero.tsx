@@ -7,7 +7,7 @@ const capabilities = [
 const values = [
   {
     title: 'Extend Capacity',
-    body: 'Add experienced engineering resource when workload exceeds internal bandwidth.',
+    body: 'Add experienced engineering resource to match your workload and delivery plans.',
     icon: (
       <svg viewBox="0 0 44 44" className="h-8 w-8" fill="none" aria-hidden="true">
         <path d="M22 7 36 14 22 21 8 14 22 7Z" stroke="currentColor" strokeWidth="1.6" />
@@ -17,7 +17,7 @@ const values = [
   },
   {
     title: 'Maintain Control',
-    body: 'We work inside your process, tools and standards — never outside them.',
+    body: 'Your processes, tools and standards guide every stage of delivery.',
     icon: (
       <svg viewBox="0 0 44 44" className="h-8 w-8" fill="none" aria-hidden="true">
         <circle cx="22" cy="22" r="9" stroke="currentColor" strokeWidth="1.6" />
@@ -52,13 +52,13 @@ export default function Hero() {
           </div>
 
           <div className="relative z-10 max-w-[610px] pb-8 pt-16 md:pt-20 lg:pb-24 lg:pt-20">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-black/55">The pressure point</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-black/55">Engineering execution capacity</p>
             <h1 className="mt-8 max-w-[10.8ch] text-[clamp(3.25rem,5.6vw,5.55rem)] font-medium leading-[0.98] tracking-[-0.052em]">
               Keep engineering delivery moving, even when capacity is stretched.
             </h1>
             <div className="mt-7 h-px w-9 bg-[#ff5a2f]" aria-hidden="true" />
             <p className="mt-7 max-w-[540px] text-[17px] leading-7 text-black/64 md:text-lg md:leading-8">
-              Overflow Partner adds controlled engineering resource without asking you to rebuild your team, compromise your process, or hand over ownership of the work.
+              Overflow Partner adds trusted engineering execution capacity alongside your team, with your processes, standards and ownership at the centre of every project.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-8">
               <a
