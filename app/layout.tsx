@@ -25,11 +25,13 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: 'Overflow Partner',
     type: 'website',
+    images: [{url:'/opengraph-image',width:1200,height:630,alt:'Overflow Partner — Engineering execution capacity'}],
   },
   alternates: { canonical: '/' },
   icons: { icon: '/favicon.svg' },
   twitter: {
     card: 'summary_large_image',
+    images: ['/opengraph-image'],
     title: 'Overflow Partner | CAD/CAM Overflow Engineering Support',
     description: 'Overflow CAD/CAM support for teams that need precise engineering output without slowing down.',
   },
