@@ -63,11 +63,11 @@ export default function EnquiryForm() {
       </div>
       <label className={labelClass} htmlFor="brief-requirement">What would you like help with?<textarea className={`${fieldClass} field_textarea min-h-24 resize-y`} id="brief-requirement" name="brief_requirement" placeholder="Describe the work, drawings or deliverables you have in mind." minLength={10} maxLength={4000} required disabled={isSubmitting} /></label>
       <label className="flex max-w-xl items-start gap-3 text-sm leading-6 text-white">
-        <input type="checkbox" name="nurture_consent" className="mt-1.5 h-4 w-4 shrink-0" disabled={isSubmitting}/>
+        <input type="checkbox" name="nurture_consent" className="mt-1.5 h-[18px] w-[18px] shrink-0" disabled={isSubmitting}/>
         <span>Yes, you may email me up to five follow-up messages about Overflow Partner's engineering services. I can unsubscribe at any time. This is optional; you will still receive an acknowledgement of this enquiry.</span>
       </label>
       <div className="form_actions grid gap-4 border-t border-white/40 pt-8 md:grid-cols-[auto_1fr] md:items-center">
-        <button className="button_primary min-h-12 rounded-md bg-white px-7 py-3 text-sm font-medium uppercase text-black transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white disabled:text-black" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending' : 'Send enquiry'}</button>
+        <button className="button_primary min-h-12 bg-[#ef6c24] px-7 py-3 text-sm font-semibold uppercase tracking-wider text-white transition-colors hover:bg-[#b74a0f] disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending' : 'Send enquiry'}</button>
         <p className="text_body text-sm text-white">We’ll confirm your enquiry here and follow up by email.</p>
       </div>
       {submitted ? <p className="text_success rounded-md border border-white bg-white p-4 text-sm text-black" role="status">Thanks — your enquiry has been received. We’ll be in touch by email with the next steps.</p> : null}
