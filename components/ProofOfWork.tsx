@@ -19,7 +19,7 @@ const fileTree = ['/Production Drawings', '/Models', '/Supporting Documentation'
 const deliveryChecks = [
   'Clear file naming conventions',
   'Version-controlled outputs',
-  'QA-reviewed before delivery',
+  'Review checkpoints agreed',
   'Compatible with manufacturing workflows',
 ];
 
@@ -95,8 +95,8 @@ export default function ProofOfWork() {
           <div className="proof_output_grid motion_fade_up mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="sample_output">
               <p className="text_eyebrow mb-6 text-sm font-semibold uppercase text-black">Example Output / Drawing Pack</p>
-              <h3 className="heading_section max-w-xl text-3xl font-semibold leading-tight text-black md:text-4xl">Example Output: Production-Ready Drawing Pack</h3>
-              <p className="text_body mt-6 max-w-2xl text-base leading-7 text-black">A typical Overflow Partner drawing package includes fully dimensioned technical drawings, tolerance definitions, and revision-controlled documentation ready for manufacturing or internal use.</p>
+              <h3 className="heading_section max-w-xl text-3xl font-semibold leading-tight text-black md:text-4xl">Example Output: Drawing Package Concept</h3>
+              <p className="text_body mt-6 max-w-2xl text-base leading-7 text-black">This illustrative preview explains how we organise drawings, dimensions and revisions. The new technical demonstration files are drafts pending independent engineering review.</p>
               <div className="mt-8"><DrawingPreview /></div>
               <div className="grid_drawing_details mt-6 grid gap-4 border-y border-black/20 py-5 text-xs font-medium uppercase text-black sm:grid-cols-2 lg:grid-cols-5">
                 {drawingDetails.map((detail) => <p key={detail} className="text_detail lg:border-l lg:border-black/20 lg:first:border-l-0 lg:pl-4">{detail}</p>)}
@@ -113,7 +113,7 @@ export default function ProofOfWork() {
               <div className="delivery_checks mt-6 border-y border-black/20 py-5">
                 {deliveryChecks.map((check) => <p key={check} className="text_check py-2 text-sm text-black">{check}</p>)}
               </div>
-              <div className="delivery_statement mt-6 border border-black bg-black px-6 py-5 text-sm font-semibold text-white">No guesswork. No missing files. No rework loops.</div>
+              <div className="delivery_statement mt-6 border border-black bg-black px-6 py-5 text-sm font-semibold text-white">Clear records. Defined outputs. Controlled handover.</div>
             </div>
           </div>
         </div>

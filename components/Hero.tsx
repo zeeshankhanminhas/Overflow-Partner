@@ -62,7 +62,7 @@ export default function Hero() {
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-8">
               <a
-                className="inline-flex min-h-14 items-center gap-7 bg-[#101311] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-85"
+                className="inline-flex min-h-14 items-center gap-7 bg-[#ef6c24] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#b74a0f]"
                 href="#contact"
               >
                 Submit a requirement <span aria-hidden="true">↗</span>

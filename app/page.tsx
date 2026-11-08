@@ -1,25 +1,2 @@
-import CTA from '@/components/CTA';
-import FAQ from '@/components/FAQ';
-import Footer from '@/components/Footer';
-import Header from '@/components/Header';
-import Hero from '@/components/Hero';
-import Proof from '@/components/Proof';
-import ProofOfWork from '@/components/ProofOfWork';
-import Services from '@/components/Services';
-
-export default function HomePage() {
-  return (
-    <>
-      <Header />
-      <main>
-        <Hero />
-        <Services />
-        <ProofOfWork />
-        <Proof />
-        <FAQ />
-        <CTA />
-        <Footer />
-      </main>
-    </>
-  );
-}
+import CTA from '@/components/CTA';import FAQ from '@/components/FAQ';import Footer from '@/components/Footer';import Header from '@/components/Header';import Hero from '@/components/Hero';import Proof from '@/components/Proof';import ProofOfWork from '@/components/ProofOfWork';import Services from '@/components/Services';import EngineeringShowcase from '@/components/EngineeringShowcase';
+export default function HomePage(){return <><Header/><main><Hero/><Services/><EngineeringShowcase/><ProofOfWork/><Proof/><FAQ/><CTA/></main><Footer/></>}
