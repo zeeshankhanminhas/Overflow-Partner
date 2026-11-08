@@ -9,7 +9,7 @@ const messages: Record<string,string> = {
 };
 export default async function LoginPage({searchParams}:{searchParams:Promise<{error?:string}>}){
  const {error}=await searchParams;const message=error?messages[error]:undefined;
- return <main className="auth px-5"><section className="card stack rounded-lg shadow-sm" aria-labelledby="sign-in-heading">
+ return <main id="main-content" className="auth px-5"><section className="card stack rounded-lg shadow-sm" aria-labelledby="sign-in-heading">
    <div><p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-[#a64210]">Protected workspace</p><h1 id="sign-in-heading" className="text-3xl font-semibold tracking-tight">Sign in</h1><p className="mt-3 text-sm leading-6 text-[#44514a]">Secure access for authorized Overflow Partner users.</p></div>
    {message?<p className="border-l-4 border-[#bd521b] bg-[#fff1e9] p-4 text-sm" role="alert">{message}</p>:null}
    <form action={signIn} className="stack">
