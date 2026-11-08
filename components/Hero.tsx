@@ -54,7 +54,7 @@ export default function Hero() {
           <div className="relative z-10 max-w-[610px] pb-8 pt-16 md:pt-20 lg:pb-24 lg:pt-20">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-black/55">The pressure point</p>
             <h1 className="mt-8 max-w-[10.8ch] text-[clamp(3.25rem,5.6vw,5.55rem)] font-medium leading-[0.98] tracking-[-0.052em]">
-              Capacity pressure should not become delivery failure.
+              Keep engineering delivery moving, even when capacity is stretched.
             </h1>
             <div className="mt-7 h-px w-9 bg-[#ff5a2f]" aria-hidden="true" />
             <p className="mt-7 max-w-[540px] text-[17px] leading-7 text-black/64 md:text-lg md:leading-8">
