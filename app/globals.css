@@ -119,3 +119,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 #contact-form {scroll-margin-top:112px;}
 @media(max-width:640px){.op-cta{width:auto;max-width:100%}.section_cta .form_enquiry{min-width:0}.section_cta .form_enquiry input,.section_cta .form_enquiry select,.section_cta .form_enquiry textarea{min-width:0;font-size:16px}.section_cta .form_enquiry input[type="checkbox"]{width:18px;min-width:18px;height:18px;flex:0 0 18px;}}
 @media(prefers-reduced-motion:reduce){.op-cta:hover{transform:none}}
+
+/* Accessible marketing and login refinements */
+.skip-to-content{position:fixed;top:8px;left:8px;z-index:9999;transform:translateY(-170%);background:#ef6c24;color:white;padding:12px 20px;font-size:14px;font-weight:700;}
+.skip-to-content:focus{transform:translateY(0)}
+.section_cta .field_input::placeholder{color:rgba(255,255,255,.58)}
+.section_cta .form_enquiry input:focus,.section_cta .form_enquiry select:focus,.section_cta .form_enquiry textarea:focus{outline:2px solid #ff9c65;outline-offset:3px}
