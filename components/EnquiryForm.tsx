@@ -11,7 +11,7 @@ export default function EnquiryForm() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [submissionInfo, setSubmissionInfo] = useState<{ submissionId: string; timestamp: string } | null>(null);
+  
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +39,7 @@ export default function EnquiryForm() {
       });
 
       // Keep the existing acknowledgement reference; Step 2 is invitation-only after interest.
-      setSubmissionInfo(result);
+      void result;
       setSubmitted(true);
       form.reset();
     } catch (error) {
