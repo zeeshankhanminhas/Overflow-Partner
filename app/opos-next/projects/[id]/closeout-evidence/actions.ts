@@ -68,6 +68,7 @@ function finish(message:string,error=false):never{
 }
 
 export async function reconcileNorthfieldOpeningInvoice(fd:FormData){
+ let success='';
  try{
   if(String(fd.get('project_id'))!==PROJECT||String(fd.get('acknowledge'))!=='verified')
    throw new Error('Explicit Northfield reconciliation confirmation required.');
@@ -86,12 +87,13 @@ export async function reconcileNorthfieldOpeningInvoice(fd:FormData){
    issued_at:new Date().toISOString(),created_by:e.user.id
   });
   if(error)throw new Error('Historical deposit reconciliation rejected: '+error.message);
-  finish('Opening TEST payment reconciled to the project invoice ledger. No additional payment was created.');
+  success='Opening TEST payment reconciled to the project invoice ledger. No additional payment was created.';
  }catch(err){finish(err instanceof Error?err.message:'Deposit invoice reconciliation failed',true);}
+ finish(success);
 }
 
 export async function prepareNorthfieldCloseoutDocument(fd:FormData){
- let createdId:string|null=null;
+ let success='';
  try{
   const id=String(fd.get('project_id')||'');
   const kind=String(fd.get('kind')||'') as 'invoice'|'completion-report';
@@ -113,7 +115,6 @@ export async function prepareNorthfieldCloseoutDocument(fd:FormData){
     revision_code:'P01'
    }).select('id,reference,status,storage_path').single();
    if(error||!data)throw new Error('Controlled Invoice evidence record could not be created: '+(error?.message||''));
-   createdId=data.id;
    doc=data;
   }
   if(!doc||!idOk(doc.id)||doc.status!=='draft'||doc.storage_path)
@@ -149,11 +150,13 @@ export async function prepareNorthfieldCloseoutDocument(fd:FormData){
    if(uploaded)await e.db.storage.from(CLOSEOUT_BUCKET).remove([path]);
    throw new Error('Controlled document transition failed: '+(error?.message||'no matching Draft document'));
   }
-  finish((kind==='invoice'?'Invoice reconciliation evidence':'Completion Report')+' prepared for explicit review. No client message sent.');
+  success=(kind==='invoice'?'Invoice reconciliation evidence':'Completion Report')+' prepared for explicit review. No client message sent.';
  }catch(err){finish(err instanceof Error?err.message:'Closeout PDF preparation failed',true);}
+ finish(success);
 }
 
 export async function advanceNorthfieldCloseoutDocument(fd:FormData){
+ let success='';
  try{
   if(String(fd.get('project_id'))!==PROJECT||String(fd.get('acknowledge'))!=='reviewed')
    throw new Error('You must confirm review of the controlled PDF and source evidence.');
@@ -181,6 +184,7 @@ export async function advanceNorthfieldCloseoutDocument(fd:FormData){
    .eq('id',doc.id).eq('organisation_id',ORG).eq('project_id',PROJECT).eq('status',current)
    .select('id').maybeSingle();
   if(error||!data)throw new Error('Governed '+step+' rejected: '+(error?.message||'status changed'));
-  finish(kind+' R01 moved to '+next+'. Project closure remains a separate decision.');
+  success=kind+' R01 moved to '+next+'. Project closure remains a separate decision.';
  }catch(err){finish(err instanceof Error?err.message:'Controlled document transition failed',true);}
+ finish(success);
 }
