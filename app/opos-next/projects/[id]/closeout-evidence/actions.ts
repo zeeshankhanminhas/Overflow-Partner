@@ -113,7 +113,7 @@ export async function prepareNorthfieldCloseoutDocument(fd:FormData){
     created_by:e.user.id,document_type:'invoice',reference:INVOICE_DOC,
     title:'QA controlled paid Invoice reconciliation evidence',status:'draft',version:1,
     revision_code:'P01'
-   }).select('id,reference,status,storage_path').single();
+   }).select('id,reference,document_type,status,revision_code,storage_path,approved_at,issued_at,signed_by,independent_review_required').single();
    if(error||!data)throw new Error('Controlled Invoice evidence record could not be created: '+(error?.message||''));
    doc=data;
   }
