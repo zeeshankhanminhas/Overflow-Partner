@@ -3,6 +3,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PartnerDeliveryFiles from '@/components/execution/PartnerDeliveryFiles';
 import { BusinessActivityTimeline } from '@/components/workspace/OperationalObjects';
+import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import {canonicalProjectDecision} from '@/lib/presentation/canonicalProjectDecision';
 
 type State={work_order?:{reference:string;partner_price:number;currency:string;lead_time_days?:number|null;delivery_commitment?:string|null;payment_terms:string;commercial_assumptions?:string|null;exclusions?:string|null;issued_at:string;scope_reference:string}|null;work_order_acceptance?:{accepted_by_name:string;accepted_by_role:string;accepted_at:string}|null;execution?:{execution_state:string;committed_due_date?:string|null;reporting_cadence?:string;release_notes?:string|null};project?:{project_number:string;title:string;due_date?:string|null;project_stage:string};partner?:{company_name:string;contact_name?:string|null};controlled_scope?:{title:string;reference:string;revision_code?:string|null}|null;commencement?:Record<string,any>|null;progress_updates?:Array<Record<string,any>>;exceptions?:Array<Record<string,any>>;delivery_submissions?:Array<Record<string,any>>;correction_instruction?:{classification:string;instruction:string;classified_at:string;original_cycle:number;current_cycle:number}|null;message?:string};
@@ -23,11 +24,13 @@ export default function PartnerWorkSurface({assignmentEndpoint}:{assignmentEndpo
    workOrderAccepted:woAccepted,executionState:state.execution.execution_state,
    commencementConfirmed:commenced,partnerSubmitted:submitted,
  });
- const status=core.key==='completed'?'Completed':
+ const reviewStep=state.project.project_stage==='internal_review'||core.key==='await_partner_submission'
+  ?portalProjectNextStep('partner',{project_stage:state.project.project_stage,partner_execution_state:state.execution.execution_state})
+  :null;
+ const status=reviewStep?'Submitted for review':core.key==='completed'?'Completed':
   core.key==='accept_work_order'?'Work Order acceptance required':
   core.key==='complete_mobilisation'?'Mobilisation pending':
   core.key==='confirm_commencement'?'Ready to start':
-  core.key==='await_partner_submission'?'Work submitted':
   openIssues.length?'Issue needs attention':
   core.key==='correct_execution'?'Changes requested':
   latest?.progress_state==='at_risk'?'At risk':latest?.progress_state==='blocked'?'Blocked':'In progress';
@@ -35,10 +38,9 @@ export default function PartnerWorkSurface({assignmentEndpoint}:{assignmentEndpo
  const primaryMode:Mode=core.key==='accept_work_order'&&canAccept?'accept':
   core.key==='confirm_commencement'&&canStart?'start':
   ['perform_execution','correct_execution'].includes(core.key)&&commenced&&canWork?(readyToSubmit?'submit':'progress'):null;
- const next=core.key==='accept_work_order'?(canAccept?'Accept your controlled Work Order':'Await authorised Work Order access'):
+ const next=reviewStep?reviewStep.title:core.key==='accept_work_order'?(canAccept?'Accept your controlled Work Order':'Await authorised Work Order access'):
   core.key==='complete_mobilisation'?'Await OP mobilisation approval':
   core.key==='confirm_commencement'?'Confirm your start':
-  core.key==='await_partner_submission'?'Await Overflow Partner review':
   openIssues.length?'Report progress on the open issue':
   core.key==='correct_execution'?'Submit corrected engineering work':
   core.key==='perform_execution'?(readyToSubmit?'Submit completed engineering work':'Report your engineering progress'):
@@ -71,12 +73,12 @@ export default function PartnerWorkSurface({assignmentEndpoint}:{assignmentEndpo
     This instruction does not amend the agreed Work Order price or delivery date.
    </p>
   </section>:null}
-  <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_310px]"><div className="grid content-start gap-6"><section className="border border-black/10 bg-white/55 p-6 md:p-8"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">What you need to do</p><h2 className="mt-3 text-3xl font-semibold">{next}</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-600">{commenced?
+  <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_310px]"><div className="grid content-start gap-6"><section className="border border-black/10 bg-white/55 p-6 md:p-8"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">What you need to do</p><h2 className="mt-3 text-3xl font-semibold">{next}</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-600">{reviewStep?reviewStep.description:commenced?
  'Your start confirmation has been recorded. Report actual progress, delivery risks and any blockers during execution. Submit completed engineering work only with the required files; OP will review it separately.':
  'Work Order acceptance is separate from permission to begin. OP must first complete mobilisation, confirm the approved Statement of Work, scheduled dates and required inputs before you declare commencement.'}</p><div className="mt-6 grid justify-items-start gap-4">
   {primaryMode?<button className={primary} onClick={()=>setMode(primaryMode)}>
     {primaryMode==='accept'?'Review and accept Work Order':primaryMode==='start'?'Confirm engineering start':primaryMode==='submit'?(correction?'Submit corrected drawings':'Submit completed drawings'):'Update engineering progress'} →
-  </button>:<p role="status" className="max-w-xl border-l-2 border-black/30 pl-4 text-sm text-neutral-600">{core.owner==='partner'?'The controlled Work Order or other required evidence must be available before you can act.':'No partner decision is currently authorised. Overflow Partner owns the next handoff.'}</p>}
+  </button>:reviewStep?null:<p role="status" className="max-w-xl border-l-2 border-black/30 pl-4 text-sm text-neutral-600">{core.owner==='partner'?'The controlled Work Order or other required evidence must be available before you can act.':'No partner decision is currently authorised. Overflow Partner owns the next handoff.'}</p>}
   {(canStart||(commenced&&canWork))?<details className="w-full border-t border-black/10 pt-4">
     <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-neutral-600">Other permitted actions</summary>
     <div className="mt-3 flex flex-wrap gap-3">

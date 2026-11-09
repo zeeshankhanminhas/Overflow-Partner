@@ -38,6 +38,8 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
    default:return view('Overflow Partner is preparing your project','Your accepted quotation and project status remain in the secure account.','View project status',true);
   }
  }
+ if(stage==='internal_review'||situation.key==='await_partner_submission')
+  return view('Awaiting Overflow Partner review','Your drawings have been submitted. Overflow Partner will tell you if a revised delivery is needed.','View submitted work',true);
  switch(situation.key){
   case 'accept_work_order':
    return project.reference&&project.partner_execution_state==='awaiting_acknowledgement'?
@@ -49,8 +51,6 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
    return view('Continue your engineering work','Share progress, raise any problems and submit your completed drawings.','Open engineering work',false);
   case 'correct_execution':
    return view('Submit the requested correction','Review OP findings, prepare a fresh revision and submit new file evidence.','Open revised delivery',false);
-  case 'await_partner_submission':
-   return view('Your submitted drawings are being checked','Overflow Partner is reviewing your work. We’ll contact you if changes are needed.','View submitted work',true);
   case 'complete_mobilisation':
    return view('Waiting for approval to start','Your accepted Work Order does not start the project. Confirm your planned start when Overflow Partner makes that step available.','View Work Order status',true);
   default:
