@@ -119,6 +119,10 @@ const qaHandoverActions=read('app/opos-next/projects/[id]/handover/actions.ts');
 const qaHandoverDownload=read('app/opos-next/projects/[id]/handover/file/route.ts');
 const qaHandoverGuard=read('supabase/migrations/20261107185000_qa_governed_handover_gate.sql');
 assert.ok(qaHandoverPage.includes('prepareQaHandoverPack') &&
+ qaHandoverPage.includes("supabase.rpc('op_project_voice_final_release_status'") &&
+ qaHandoverPage.includes("p_user_id:user.id,p_project_id:id") &&
+ qaHandoverPage.includes("finalStatusError") &&
+ !qaHandoverPage.includes("from('op_project_final_settlements')") &&
  qaHandoverPage.includes('advanceQaHandoverPack') &&
  qaHandoverPage.includes('value="reviewed"') &&
  qaHandoverActions.includes('assertIsolatedQaBackend()') &&
