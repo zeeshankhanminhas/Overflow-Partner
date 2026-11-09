@@ -27,9 +27,9 @@ assert.ok(operator.includes('operatorProjectNextStep({') &&
  operator.includes("action:null,anchor:'#release-authorisation',waiting:true") &&
  operator.includes("action:'Set up client access'") &&
  operator.includes("anchor:'#release-authorisation'") &&
- operator.includes('waiting={displayNext.waiting}') &&
- operator.includes('actionLabel={displayNext.action') &&
- operator.includes('displayNext.anchor'),
+ operator.includes('waiting={nextWithHandover.waiting}') &&
+ operator.includes('actionLabel={nextWithHandover.action') &&
+ operator.includes('displayNext.anchor') && operator.includes('handoverReady'),
  'Project 360 must use canonical actions while refusing client issue from a read-only preview or unverified independent client account');
 assert.ok(operator.includes('The drawings are approved, but have not been sent') &&
  workRecord.includes('<p className={css.decisionKicker}>NEXT STEP</p>') &&
@@ -68,7 +68,7 @@ assert.ok(logic.includes("if(p.stage==='closed')return make('Project closed'") &
 assert.ok(operator.includes("const completed=stage==='closed'||String(data.status||'').toLowerCase()==='cancelled'") &&
   operator.includes("const finalReleaseServiceAvailable=qaWritable&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'") &&
   operator.includes("const {data:releaseStatus}=stage==='completion'&&qaWritable") &&
-  operator.includes("finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted") &&
+  operator.includes("finalReleaseServiceAvailable&&handoverReady&&finalStatus&&finalStatus.clientAccepted") &&
   operator.includes("Review client financial register"),
   'Project 360 must show read-only completion settlement, with disabled final-release writes still locked');
 const finalSettlement=read('app/opos-next/projects/[id]/final-settlement/page.tsx');
