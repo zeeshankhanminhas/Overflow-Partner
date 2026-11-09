@@ -27,7 +27,7 @@ assert.ok(operator.includes('operatorProjectNextStep({') &&
  operator.includes("action:null,anchor:'#release-authorisation',waiting:true") &&
  operator.includes("action:'Set up client access'") &&
  operator.includes("anchor:'#release-authorisation'") &&
- operator.includes('waiting={displayNext.waiting}') &&
+ operator.includes('waiting={nextWithHandover.waiting}') &&
  operator.includes('actionLabel={nextWithHandover.action') &&
  operator.includes('displayNext.anchor') && operator.includes('handoverReady'),
  'Project 360 must use canonical actions while refusing client issue from a read-only preview or unverified independent client account');
