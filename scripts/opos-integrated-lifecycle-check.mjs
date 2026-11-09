@@ -159,6 +159,16 @@ check('Direct final-file token route requires Client membership and currently is
   read('app/client-final-files/page.tsx').includes('clientFinalFilesReady(db,issue.organisation_id,project.id)') &&
   finalReleaseHelper.includes("document_type','handover-pack'") &&
   finalReleaseHelper.includes("['issued','published']"));
+check('Final Stripe success returns inside authenticated project and cannot request repeat payment before verification',
+  finalCheckout.includes("/portal/client/projects/${project.id}/tasks/final-settlement") &&
+  finalCheckout.includes("stripe_return=success") &&
+  finalCheckout.includes("if(paidError)throw") &&
+  finalPaymentPage.includes("stripe_return==='success'") &&
+  finalPaymentPage.includes("please do not pay again") &&
+  read('app/portal/[kind]/projects/[projectId]/tasks/[task]/page.tsx').includes('stripe_return:returnStatus'));
+check('Historical quote token directs open projects to one secure Client Workspace',
+  read('app/client-portal/page.tsx').includes("href={'/portal/client/projects/'+project.id}") &&
+  read('app/client-portal/page.tsx').includes("Continue in your Client Workspace"));
 const finalOwnerAction=read('app/workspace/projects/[id]/final-release-action.ts');
 const projectPage=read('app/workspace/projects/[id]/page.tsx');
 const modeCode=read('lib/payments/stripeEnvironment.ts');
