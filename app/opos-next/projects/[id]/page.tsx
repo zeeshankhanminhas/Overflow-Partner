@@ -107,6 +107,12 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    ?await supabase.rpc('op_project_voice_final_release_status',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id})
    :{data:null};
  const finalStatus=releaseStatus as FinalStatus|null;
+ const {data:currentHandover,error:handoverError}=stage==='completion'&&qaWritable
+  ?await supabase.from('documents').select('id,status,approved_at,issued_at,storage_path,is_current_revision')
+      .eq('organisation_id',organisationId).eq('project_id',id).eq('document_type','handover-pack')
+      .eq('is_current_revision',true).maybeSingle()
+  :{data:null,error:null};
+ const handoverReady=!handoverError&&Boolean(currentHandover&&['issued','published'].includes(String(currentHandover.status))&&currentHandover.approved_at&&currentHandover.issued_at&&currentHandover.storage_path);
  const canWrite=qaWritable&&['owner','admin','operator','engineering','commercial'].includes(String(profile.role));
  // Delivery can be 'completed' while final payment and handover remain outstanding.
  const completed=stage==='closed'||String(data.status||'').toLowerCase()==='cancelled';
@@ -148,7 +154,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    engineeringAccepted:Boolean(qaGate?.engineering_accepted),
    manifestVerified:Boolean(qaGate?.manifest_verified),
    releaseAuthorised:Boolean(qaGate?.release_authorised),mayAdvance,
-   canApproveFinalRelease:stage==='completion'&&finalReleaseServiceAvailable&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
+   canApproveFinalRelease:stage==='completion'&&finalReleaseServiceAvailable&&handoverReady&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
    canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
    canRecordClientOutcome:stage==='client_review'&&!latestClientReview&&Boolean(staffReview?.decisionId),
    externalClientDecision:staffReview?.decision||null,
@@ -185,18 +191,23 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        action:'Set up client access',
        anchor:'#release-authorisation',waiting:false}
     :operatorNext;
+ const nextWithHandover=stage==='completion'&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved&&!handoverReady
+    ?{...displayNext,title:'Prepare controlled final Handover Pack',
+      description:handoverError?'Handover evidence is unavailable; do not release files.':'The client has paid, but the controlled Handover Pack must be reviewed and issued before owner release.',
+      action:'Open Handover Pack',waiting:false}
+    :displayNext;
  return <>
    <WorkRecordV2 eyebrow={'PROJECT / '+(data.project_number||id.slice(0,8))}
      title={data.project_number==='OP-PRJ-2026-0002'?'Northfield · Manufacturing drawings':data.title||data.project_number}
      subtitle={'Delivery due '+date(data.due_date)}
      state={stage==='ready_for_client_issue'?'Ready to send':meta.label} owner="Overflow Partner / assigned delivery team"
-     nextTitle={displayNext.title}
-     nextDescription={displayNext.description} compact
+     nextTitle={nextWithHandover.title}
+     nextDescription={nextWithHandover.description} compact
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
      stageIndex={stageIndex} waiting={displayNext.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={displayNext.action||'Review controls'}/>
+     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={nextWithHandover.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
@@ -488,7 +499,8 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
           {finalStatus&&finalStatus.finalPaid&&!finalReleaseServiceAvailable?<p className={css.meta} role="status" style={{marginTop:14}}>
             The separate final-release action is disabled in this QA preview. Owner approval and file release remain blocked.
           </p>:null}
-          {finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
+          {finalReleaseServiceAvailable&&finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&!handoverReady?<p className={css.meta} role="status" style={{marginTop:14}}>The final release remains locked until the controlled Handover Pack is approved and issued. <Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/handover'}>Prepare and issue Handover Pack →</Link></p>:null}
+          {finalReleaseServiceAvailable&&handoverReady&&finalStatus&&finalStatus.clientAccepted&&finalStatus.finalPaid&&!finalStatus.ownerApproved&&['owner','admin'].includes(String(profile.role))?<form action={approveFinalEngineeringReleaseAction} style={{display:'grid',gap:14,maxWidth:600,marginTop:22}}>
            <input type="hidden" name="opos_next" value="1"/><input type="hidden" name="project_id" value={id}/>
            <label style={{display:'grid',gap:7}}>Release approval note<textarea name="approval_note" rows={3} placeholder="Reference the approved engineering submission and final settlement evidence" style={{background:'#151619',color:'#f4f4f5',padding:12,border:'1px solid #484b52',borderRadius:8}}/></label>
            <button type="submit" className={css.action} style={{border:0,cursor:'pointer',marginTop:0}}>Approve controlled final release →</button>
