@@ -191,6 +191,11 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
        action:'Set up client access',
        anchor:'#release-authorisation',waiting:false}
     :operatorNext;
+ const {data:qaPartnerSimulation}=stage==='completion'&&qaWritable
+   ?await supabase.from('partner_payments').select('id,payment_method')
+      .eq('organisation_id',organisationId).eq('project_id',id)
+      .eq('payment_method','qa_simulated_bank_transfer').eq('status','cleared').limit(1).maybeSingle()
+   :{data:null};
  const nextWithHandover=stage==='completion'&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved&&!handoverReady
     ?{...displayNext,title:'Prepare controlled final Handover Pack',
       description:handoverError?'Handover evidence is unavailable; do not release files.':'The client has paid, but the controlled Handover Pack must be reviewed and issued before owner release.',
@@ -207,7 +212,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      stageIndex={stageIndex} waiting={nextWithHandover.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={nextWithHandover.action||'Review controls'}/>
+     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover':stage==='completion'&&finalStatus?.ownerApproved&&!finalStatus?.partnerPaid?'/opos-next/projects/'+id+'/partner-settlement':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={nextWithHandover.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
@@ -491,12 +496,20 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
            <span>Client review: <strong>{finalStatus.clientAccepted?'Accepted':'Pending'}</strong></span>
            <span>Final payment: <strong>{finalStatus.finalPaid?'Verified':'Not verified'}</strong></span>
            <span>Owner release: <strong>{finalStatus.ownerApproved?'Approved':'Pending'}</strong></span>
-           <span>Partner settlement: <strong>{finalStatus.partnerPaid?'Recorded':'Pending'}</strong></span>
+           <span>Partner settlement: <strong>{finalStatus.partnerPaid?(qaPartnerSimulation?'QA simulated · not real bank funds':'Recorded'):'Pending'}</strong></span>
          </div>:<p className={css.meta}>Final settlement status could not be verified. No payment, owner approval or native handover can be assumed.</p>}
          {finalStatus&&!finalStatus.finalPaid?<p className={css.meta} role="status" style={{marginTop:14}}>
             <strong>Next: reconcile the final client balance.</strong> Issue and verify the appropriate final commercial balance before separately authorising native-file handover.
             {' '}<Link className={css.secondaryLink} href="/opos-next/finance">Review client financial register →</Link>
             {' '}Final files remain locked.
+          </p>:null}
+          {stage==='completion'&&finalStatus?.ownerApproved&&!finalStatus.partnerPaid&&qaWritable?
+          <p className={css.meta} role="status" style={{marginTop:12}}>
+            The client's final handover is authorised. Partner liability and settlement are separate.
+            {' '}<Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/partner-settlement'}>Open governed QA Partner Settlement →</Link>
+          </p>:null}
+          {qaPartnerSimulation?<p className={css.meta} role="status" style={{marginTop:8}}>
+            QA-SIM: Partner settlement was simulated in the isolated test ledger. No actual transfer was made.
           </p>:null}
           {finalStatus&&finalStatus.finalPaid&&!finalReleaseServiceAvailable?<p className={css.meta} role="status" style={{marginTop:14}}>
             The separate final-release action is disabled in this QA preview. Owner approval and file release remain blocked.
