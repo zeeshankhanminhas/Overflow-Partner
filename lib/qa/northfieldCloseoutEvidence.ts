@@ -1,7 +1,6 @@
 import 'server-only';
 import {createClient as createAdminClient} from '@supabase/supabase-js';
 import {getQaScenario,PROJECT,ORG} from '@/lib/qa/northfieldPartnerSettlement';
-import type {SupabaseClient} from '@supabase/supabase-js';
 
 export const CLOSEOUT_BUCKET='opos-qa-controlled-closeout';
 export const CLOSEOUT_BASE='/opos-next/projects/'+PROJECT+'/closeout-evidence';
