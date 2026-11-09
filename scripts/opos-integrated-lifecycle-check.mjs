@@ -159,8 +159,15 @@ check('No live Stripe use without production flags, matching backend and checked
   read('lib/qa/isolation.ts').includes("url.hostname==='127.0.0.1'"));
 check('Deposit finalizer records only frozen opening amount',stagedDepositFinalizer.includes('v_contract.opening_amount')
   &&stagedDepositFinalizer.includes('op_accept_quote_create_project_with_acceptance_core'));
-check('Client final payment requires current accepted review and existing project',finalCheckout.includes("project_client_reviews")
-  &&finalCheckout.includes('accepted_with_comments')&&finalCheckout.includes("from('projects')"));
+const currentAcceptance = read('lib/payments/currentClientAcceptance.ts');
+check('Client final payment requires current-cycle accepted review and existing project',
+  finalCheckout.includes("from('projects')")&&
+  finalCheckout.includes('hasCurrentClientAcceptance(db,issue.organisation_id,project.id)')&&
+  finalCheckout.includes("from('op_project_final_settlements')")&&
+  currentAcceptance.includes("from('project_execution_assignments')")&&
+  currentAcceptance.includes("from('project_client_reviews')")&&
+  currentAcceptance.includes(".eq('execution_cycle',cycle)")&&
+  currentAcceptance.includes("'accepted_with_comments'"));
 check('Signed webhook discriminates opening and final events',webhook.includes("paymentStage==='final'")
   &&webhook.includes('op_record_verified_project_final_settlement')&&webhook.includes("metadata?.payment_stage"));
 check('Final settlement RPC requires independently paid Stripe event and amount',finalContracts.includes('op_record_verified_project_final_settlement')
