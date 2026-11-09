@@ -265,7 +265,9 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    </section>:
    <section id="project-controls" className={css.section} aria-label="Project actions">
      <div className={css.sectionHeading}><h2>Project actions</h2></div>
-     {feedback.error?<p role="alert" className={css.empty}>Action blocked: {String(feedback.error).slice(0,450)}</p>:null}
+     {feedback.error?finalStatus?.ownerApproved&&stage==='completion'
+       ?<p role="status" className={css.empty}>Final owner release is recorded. Notification or follow-up requires attention: {String(feedback.error).slice(0,380)}. The entitled Client Workspace can independently verify authorised final-file access.</p>
+       :<p role="alert" className={css.empty}>Action blocked: {String(feedback.error).slice(0,450)}</p>:null}
      {feedback.updated||feedback.advanced?<p role="status" className={css.empty}>{String(feedback.updated||'Project stage updated to '+feedback.advanced).slice(0,450)}</p>:null}
      <div className={css.card}>
        
