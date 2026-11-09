@@ -1,4 +1,5 @@
 import { isKnownIsolatedQaBackend, isDisposableLocalWebhookQaBackend } from '@/lib/qa/isolation';
+import {qaPublicOrigin} from '@/lib/qa/publicOrigin';
 
 const PRODUCTION_PROJECT='klricctsxiifuduxpmzd';
 
@@ -29,10 +30,9 @@ export function stripeRuntimeMode(): 'qa' | 'live' | null {
 export function checkoutOrigin(mode:'qa'|'live'):string {
   if(mode==='qa'){
     if(!isKnownIsolatedQaBackend())throw new Error('Checkout testing requires an isolated Preview backend.');
-    const host=process.env.VERCEL_URL||'';
-    if(!/^[a-z0-9.-]+\.vercel\.app$/i.test(host))
-      throw new Error('Preview Checkout must return to a verified Vercel deployment.');
-    return 'https://'+host;
+    // Use the stable, checked branch alias. A one-off deployment URL can become
+    // stale between Stripe checkout and webhook reconciliation.
+    return qaPublicOrigin();
   }
   if(stripeRuntimeMode()!=='live')throw new Error('Live Stripe is not authorised.');
   // Stable public origin must be expressly matched to the operator-approved origin.
