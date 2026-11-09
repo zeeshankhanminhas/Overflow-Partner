@@ -13,15 +13,16 @@ export default async function QaHandoverPack({params,searchParams}:{
 }){
  const {id}=await params;const {error,updated}=await searchParams;
  if(!/^[0-9a-f-]{36}$/i.test(id)||!isKnownIsolatedQaBackend())notFound();
- const {supabase,organisationId,profile}=await requireUserContext('/opos-next');
+ const {supabase,organisationId,profile,user}=await requireUserContext('/opos-next');
  assertRole(profile.role,['owner','admin']);
- const [{data:project},{data:doc},{data:clientPayment},{data:review}]=await Promise.all([
+ const [{data:project},{data:doc},{data:finalStatus,error:finalStatusError},{data:review}]=await Promise.all([
   supabase.from('projects').select('id,project_number,title,project_stage')
    .eq('id',id).eq('organisation_id',organisationId).maybeSingle(),
   supabase.from('documents').select('id,reference,title,document_type,revision_code,status,storage_path,approved_at,issued_at,signed_at,independent_review_required')
    .eq('organisation_id',organisationId).eq('project_id',id).eq('document_type','handover-pack').eq('is_current_revision',true).maybeSingle(),
-  supabase.from('op_project_final_settlements').select('verified_at,amount')
-   .eq('organisation_id',organisationId).eq('project_id',id).maybeSingle(),
+  supabase.rpc('op_project_voice_final_release_status',{
+    p_organisation_id:organisationId,p_user_id:user.id,p_project_id:id
+   }),
   supabase.from('project_client_reviews').select('outcome')
    .eq('organisation_id',organisationId).eq('project_id',id)
    .order('recorded_at',{ascending:false}).limit(1).maybeSingle(),
@@ -29,7 +30,7 @@ export default async function QaHandoverPack({params,searchParams}:{
  if(!project||!doc)notFound();
  const state=String(doc.status);
  const accepted=['accepted','accepted_with_comments'].includes(String(review?.outcome));
- const paid=Boolean(clientPayment?.verified_at);
+ const paid=!finalStatusError&&Boolean((finalStatus as null|{finalPaid?:boolean})?.finalPaid);
  const hasFile=Boolean(doc.storage_path);
  const ready=project.project_stage==='completion'&&accepted&&paid;
  const next=state==='draft'?'Prepare draft R01 Handover Pack':
@@ -61,7 +62,7 @@ export default async function QaHandoverPack({params,searchParams}:{
    <p className={css.meta}>{state==='draft'?
     'Prepare a private QA handover index from the accepted R01 partner submission and verified payment evidence. The generated document begins In Review, never Issued.':
     'Review the current private handover PDF before making this separate authenticated owner decision. This step changes only the controlled document status.'}</p>
-   {!ready?<p role="alert" className={css.meta}>Client acceptance, independently verified payment and a completed engineering project are required.</p>:null}
+   {finalStatusError?<p role="alert" className={css.meta}>Payment verification service is unavailable. The handover remains locked. Please use Project 360 to review the status.</p>:!ready?<p role="alert" className={css.meta}>Client acceptance, independently verified payment and a completed engineering project are required.</p>:null}
    {state==='draft'?<form action={prepareQaHandoverPack}>
     <input type="hidden" name="project_id" value={id}/>
     <button disabled={!ready} type="submit" className={css.action} style={{border:0,cursor:ready?'pointer':'not-allowed'}}>{next} →</button>
