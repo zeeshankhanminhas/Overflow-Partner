@@ -97,20 +97,45 @@ export async function prepareQaHandoverPack(formData:FormData) {
  try {
   const d=await trustedContext(id);
   if(d.document.status!=='draft'||d.document.storage_path)throw new Error('Handover Pack has already entered governed review.');
-  const bytes=await createQaPackPdf(d);
-  const path=d.organisationId+'/'+id+'/'+d.document.id+'/R01-'+crypto.randomUUID()+'.pdf';
+  // Upload and document-control update are separate services. Recover an earlier
+  // successfully uploaded QA PDF instead of creating duplicates after a DB failure.
+  const prefix=d.organisationId+'/'+id+'/'+d.document.id+'/';
   const bucketCheck=await d.db.storage.getBucket(BUCKET);
   if(bucketCheck.error)throw new Error('Private QA handover storage bucket is not available.');
-  const upload=await d.db.storage.from(BUCKET).upload(path,bytes,{
-    contentType:'application/pdf',cacheControl:'no-store',upsert:false
-  });
-  if(upload.error)throw new Error('Failed to store the QA handover draft.');
+  const {data:existing,error:listError}=await d.db.storage.from(BUCKET).list(prefix,{limit:20});
+  if(listError)throw new Error('Cannot inspect earlier controlled PDF upload: '+listError.message);
+  const candidates=(existing||[]).filter(f=>/^R01-[0-9a-f-]{36}\\.pdf$/i.test(f.name));
+  if(candidates.length>1)throw new Error('Multiple prior R01 documents exist. An owner must reconcile these before preparation.');
+  let path='';
+  let freshUpload=false;
+  if(candidates.length===1){
+    path=prefix+candidates[0].name;
+    const {data:file,error:downloadError}=await d.db.storage.from(BUCKET).download(path);
+    if(downloadError||!file)throw new Error('Prior handover PDF is missing from private storage.');
+    const recovered=await PDFDocument.load(await file.arrayBuffer());
+    if(recovered.getTitle()!=='QA Controlled Handover Pack - '+d.project.project_number)
+      throw new Error('Existing QA PDF does not match the current project.');
+  } else {
+    const bytes=await createQaPackPdf(d);
+    path=prefix+'R01-'+crypto.randomUUID()+'.pdf';
+    const upload=await d.db.storage.from(BUCKET).upload(path,bytes,{
+      contentType:'application/pdf',cacheControl:'no-store',upsert:false
+    });
+    if(upload.error)throw new Error('Failed to store the QA handover draft: '+upload.error.message);
+    freshUpload=true;
+  }
   const {data,error}=await d.supabase.from('documents').update({
     storage_path:BUCKET+':'+path,revision_code:'R01',prepared_by:d.user.id,
     issue_purpose:'final_handover',status:'in_review'
   }).eq('id',d.document.id).eq('organisation_id',d.organisationId)
     .eq('project_id',id).eq('status','draft').select('id').maybeSingle();
-  if(error||!data)throw new Error('The controlled document did not advance to In Review. Stored file requires administrative cleanup.');
+  if(error||!data){
+    if(freshUpload){
+      const {error:cleanupError}=await d.db.storage.from(BUCKET).remove([path]);
+      if(cleanupError)throw new Error('Document transition failed ('+(error?.message||'no row updated')+'); uploaded QA PDF cleanup also failed: '+cleanupError.message);
+    }
+    throw new Error('Document transition rejected: '+String(error?.message||'No matching Draft document. No approval was recorded.'));
+  }
   destination+='?updated='+encodeURIComponent('R01 Handover Pack prepared for controlled review. No native file released.');
  } catch(e) { destination+='?error='+encodeURIComponent(e instanceof Error?e.message:'Handover preparation failed'); }
  revalidatePath(base);revalidatePath('/opos-next/projects/'+id+'/final-settlement');
