@@ -10,7 +10,7 @@ import {assertIsolatedQaBackend} from '@/lib/qa/isolation';
 const BUCKET='opos-qa-controlled-handover';
 const validId=(s:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
-function short(s:unknown,max=160){return String(s||'').replace(/[\x00-\x1f]+/g,' ').slice(0,max);}
+function short(s:unknown,max=160){return String(s||'').normalize('NFKD').replace(/[\u2010-\u2015]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/[\u2022\u00b7]/g,'-').replace(/[\u00a0]/g,' ').replace(/[^\x20-\x7e\u00a3]/g,'?').slice(0,max);}
 function money(n:number){return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(n);}
 
 async function trustedContext(projectId:string) {
@@ -74,7 +74,7 @@ async function createQaPackPdf(d:Awaited<ReturnType<typeof trustedContext>>):Pro
    y-=8;
  };
  page.drawText('OVERFLOW PARTNER  |  QA CONTROLLED HANDOVER',{x:48,y,size:14,font:bold,color:ink});y-=34;
- page.drawText('DRAFT FOR OWNER REVIEW - NOT AN AUTHORISED FILE RELEASE',{x:48,y,size:10,font:bold,color:rgb(.64,.17,.14)});y-=35;
+ page.drawText('CONTROLLED INDEX - FILE RELEASE STATUS IS GOVERNED IN OPOS',{x:48,y,size:10,font:bold,color:rgb(.64,.17,.14)});y-=35;
  line('Project',d.project.project_number+' - '+d.project.title);
  line('Controlled document',d.document.reference+' / R01 / Pending controlled approval');
  line('Accepted commercial baseline',d.quote.quote_number+' / '+money(Number(d.quote.total)));
