@@ -30,7 +30,8 @@ The QA branch contains hardcoded Northfield case IDs and values, restricted paym
 | G08 | Repeatability | At least two separate synthetic organisations/projects through new-project E2E; automated negative-case tests, CI checks on release branch and PR, no manual DB corrections | Blocker |
 | G09 | Production config / rollback | Validate production env matrix without printing secrets; stage a production-equivalent build, prove rollback and audit logging, obtain explicit owner go-live approval | Blocker |
 | G10 | Commercial and legal | Counsel-reviewed client/partner agreements, IP/licensing, VAT invoices, international transfers, operating policies, incident/support playbook | Before external onboarding |
-| G11 | Release UX and observability | Operator, client and partner single-next-action flow; mobile and accessibility checks; alerting, restore test and support ownership | Before broad launch |
+| G11 | Release UX and observability | Operator, client and partner single-next-action flow; mobile and accessibility checks; alerting, restore test and support ownership | **Blocker before any commercial portal launch** |
+| G12 | UX experience parity | Pass `docs/release/OPOS_UI_UX_AUDIT_2026-11-09.md`: single authoritative CTA, uninterrupted operator/client/partner journey, route cleanup, clear failed/blocked/saved states and responsive role-by-role acceptance | **Blocker** |
 
 ## Implementation policy
 
