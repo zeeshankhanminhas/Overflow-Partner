@@ -145,6 +145,20 @@ const finalContracts=read('supabase/migrations/20261021060000_final_payment_and_
 const stagedDepositFinalizer=read('supabase/migrations/20261021054100_verified_deposit_stripe_release.sql');
 const finalPage=read('app/client-final-files/page.tsx');
 const finalCheckout=read('app/project-final-payment/stripe-action.ts');
+const finalPaymentPage=read('app/project-final-payment/page.tsx');
+const entitlementHelper=read('lib/portals/clientEntitlement.ts');
+const finalReleaseHelper=read('lib/portals/clientFinalRelease.ts');
+check('Final checkout and payment display independently require authenticated Client Workspace membership',
+  finalCheckout.includes('clientProjectEntitled(issue.organisation_id,project.id)') &&
+  finalPaymentPage.includes('clientProjectEntitled(issue.organisation_id,project.id)') &&
+  entitlementHelper.includes("portal_my_projects") &&
+  entitlementHelper.includes("p_kind:'client'") &&
+  entitlementHelper.includes("item.organisation_id===organisationId && item.project_id===projectId"));
+check('Direct final-file token route requires Client membership and currently issued Handover Pack',
+  read('app/client-final-files/page.tsx').includes('clientProjectEntitled(issue.organisation_id,project.id)') &&
+  read('app/client-final-files/page.tsx').includes('clientFinalFilesReady(db,issue.organisation_id,project.id)') &&
+  finalReleaseHelper.includes("document_type','handover-pack'") &&
+  finalReleaseHelper.includes("['issued','published']"));
 const finalOwnerAction=read('app/workspace/projects/[id]/final-release-action.ts');
 const projectPage=read('app/workspace/projects/[id]/page.tsx');
 const modeCode=read('lib/payments/stripeEnvironment.ts');
