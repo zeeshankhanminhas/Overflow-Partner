@@ -30,7 +30,7 @@ expect(css.includes(':focus-visible'),'Shared interaction surfaces have visible 
 expect(css.includes('prefers-reduced-motion'),'Interaction layer respects reduced motion');
 expect(css.includes('100dvh'),'Mobile work windows use viewport-safe full-screen treatment');
 expect(layout.includes("import './workspace-features.css';")&&css.includes('.workspace-shell-actions'),'Shared interaction styles are mounted through the workspace feature layer');
-expect((layout.match(/\.css';/g)||[]).length===4 && layout.indexOf("import './focus-first.css';")>layout.indexOf("import './workspace-surfaces.css';"),'Focus layer loads after the three shared workspace stylesheets');
+expect((layout.match(/\.css';/g)||[]).length===5 && layout.indexOf("import './focus-first.css';")>layout.indexOf("import './workspace-surfaces.css';") && layout.indexOf("import './opos-dark-system.css';")>layout.indexOf("import './focus-first.css';"),'Focus layer loads after the three shared workspace stylesheets');
 expect(productContracts.includes('# 7. System Feedback & Accessibility Contract'),'Seven-contract product standard is present');
 expect(!layout.includes('commercial-saas-ui.css'),'Legacy commercial SaaS layer is not loaded');
 expect(recordWorkspace.includes('showStatus={false}')&&recordWorkspace.includes('showActionSummary={false}')&&!recordWorkspace.includes('href={primaryHref}'),'Record state summary does not repeat its status badge or next-action control');
