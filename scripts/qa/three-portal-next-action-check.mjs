@@ -201,4 +201,40 @@ assert.ok(qaPartnerPage.includes('createQaPartnerPayable') &&
   operator.includes("'/partner-settlement'"),
   'Northfield partner QA settlement must be isolated, approved, synthetic-only, safely reconciled and separately closed through the canonical engine');
 
+
+const closeoutEvidence=read('lib/qa/northfieldCloseoutEvidence.ts');
+const closeoutActions=read('app/opos-next/projects/[id]/closeout-evidence/actions.ts');
+const closeoutPage=read('app/opos-next/projects/[id]/closeout-evidence/page.tsx');
+const closeoutFile=read('app/opos-next/projects/[id]/closeout-evidence/file/route.ts');
+const closeoutSql=read('scripts/qa/sql/20261109_northfield_closeout_reconciliation.sql');
+assert.ok(
+ closeoutEvidence.includes('getQaScenario(id)') &&
+ closeoutEvidence.includes('quote_stripe_payment_events') &&
+ closeoutEvidence.includes("stripe_payment_status!=='paid'") &&
+ closeoutEvidence.includes("DEPOSIT_INVOICE") &&
+ closeoutEvidence.includes("billingReady:!!deposit") &&
+ closeoutActions.includes("invoice_number:DEPOSIT_INVOICE,invoice_type:'deposit',status:'paid'") &&
+ closeoutActions.includes('external_reference:e.receipt.payment_reference') &&
+ closeoutActions.includes("issued_at:new Date().toISOString()") &&
+ closeoutActions.includes("confirm")===false &&
+ closeoutActions.includes("status:'in_review'") &&
+ closeoutActions.includes("step==='sign'?'signed'") &&
+ closeoutActions.includes("step==='approve'?'approved'") &&
+ closeoutActions.includes("step==='sign'?{status:next") &&
+ closeoutActions.includes("if(uploaded)await e.db.storage") &&
+ !closeoutActions.includes('queueLifecycleEmail') &&
+ !closeoutActions.includes('stripe.checkout.sessions.create') &&
+ closeoutPage.includes('Additional charge required') &&
+ closeoutPage.includes('£0.00') &&
+ closeoutPage.includes('reconcileNorthfieldOpeningInvoice') &&
+ closeoutPage.includes('advanceNorthfieldCloseoutDocument') &&
+ closeoutFile.includes('getCloseoutEvidence') &&
+ closeoutFile.includes("'Cache-Control':'private, no-store, max-age=0'") &&
+ closeoutSql.includes('QA-OPEN-NORTHFIELD-0002') &&
+ closeoutSql.includes('quote_stripe_payment_events') &&
+ closeoutSql.includes('op_qa_guard_closeout_document') &&
+ operator.includes("'/closeout-evidence'"),
+ 'QA closeout requires already-paid Stripe receipt, audited deposit reconciliation, separately issued evidence and no further client charge'
+);
+
 console.log('Three-portal next-action contract: Operator, Client and Partner; all guarded original actions preserved. PASS (static).');
