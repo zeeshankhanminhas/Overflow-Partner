@@ -5,6 +5,7 @@ import { stripeRuntimeMode, checkoutOrigin } from '@/lib/payments/stripeEnvironm
 
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
 /** QA-only final-balance Checkout. Never enable with the shared live Supabase project. */
@@ -49,10 +50,8 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('quote_id',quote.id).maybeSingle();
   if(!project || !['client_review','completion'].includes(String(project.project_stage)))
     throw new Error('Project client review must be complete before requesting final payment.');
-  const {data:review}=await db.from('project_client_reviews').select('outcome')
-    .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
-    .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
-  if(!review || !['accepted','accepted_with_comments'].includes(String(review.outcome)))
+  if(!['client_review','completion','closed'].includes(project.project_stage) ||
+     !await hasCurrentClientAcceptance(db,issue.organisation_id,project.id))
     throw new Error('Latest client review must be accepted.');
   const {data:opening}=await db.from('quote_payment_confirmations').select('amount,payment_method,payment_reference')
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();

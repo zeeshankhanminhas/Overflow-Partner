@@ -55,7 +55,6 @@ export default async function AccountProject({params,searchParams}:{
  const query:{notice?:string;error?:string;updated?:string}=searchParams?await searchParams:{};
  const notice=String(query.notice||'').slice(0,280);
  const feedback={error:String(query.error||'').slice(0,280),updated:String(query.updated||'').slice(0,260)};
- const secure='/portal/'+kind+'/projects/'+p.project_id+'/open';
  const settlementHref='/portal/client/projects/'+projectId+'/tasks/final-settlement';
  const finalFilesHref='/portal/client/projects/'+projectId+'/tasks/final-files';
  return <>
@@ -74,8 +73,8 @@ export default async function AccountProject({params,searchParams}:{
    {finalFilesReady?<Link className={css.action} href={finalFilesHref}>Open final engineering files →</Link>:
    finalBalanceReady?<Link className={css.action} href={settlementHref}>View final balance →</Link>:
    secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
-     !next.waiting&&next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
-  </section> : <PartnerWorkSurface assignmentEndpoint={'/portal/partner/projects/'+projectId+'/work'}/>}
+     null}
+  </section> : p.project_stage==='closed'?<section className={css.nextAction}><h2>Project closed</h2><p>Your work order and project details are available below.</p></section>:<PartnerWorkSurface assignmentEndpoint={'/portal/partner/projects/'+projectId+'/work'}/>}
   {client&&review?<ClientDrawingReview projectId={p.project_id} review={review} feedback={feedback}/>:null}
   <details className={css.compactDisclosure}>
    <summary>Project information</summary>

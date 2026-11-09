@@ -1,3 +1,6 @@
+import {classifyClientFeedbackAction,reconcileProtectedClientReviewAction} from './delivery-actions';
+import DeliveryDecision,{deliveryTitle,type DeliveryGate} from './DeliveryDecision';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import LifecycleProgress, {phaseForProject} from '@/components/workspace/LifecycleProgress';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -29,7 +32,7 @@ function stateLabel(input:unknown){return String(input||'not_released').replaceA
 type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number;activityOpen:number;approvedDocuments?:number;issuedDocuments?:number;executionMode?:string;partnerCommencement?:boolean;deliveryItems?:number;deliveryWorkOpen?:number;deliveryCloseOpen?:number;openPartnerExceptions?:number;executionCycle?:number;clientTransmittals?:number;clientOutcome?:string|null};
 
 export default async function ProjectWorkspacePage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|undefined>>}){
-  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
+  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user,profile}=await requireUserContext();
   let project;try{project=await getProjectById(supabase,organisationId,id)}catch(error){if(isRecordNotFoundError(error))notFound();throw error;}
 
   const [tasksResult,documentsResult,activityResult,membersResult,readinessResult,financialGateResult,executionAssignmentResult]=await Promise.all([
@@ -156,5 +159,32 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const metadata=<dl className="project-os-summary" style={{margin:0}}><div><dt>Project ID</dt><dd>{project.id}</dd></div><div><dt>Created</dt><dd>{formatDate(project.created_at)}</dd></div><div><dt>Updated</dt><dd>{formatDate(project.updated_at)}</dd></div>{project.lead_id?<div><dt>Source Case</dt><dd><Link href={`/workspace/leads/${project.lead_id}`}>Open Case 360</Link></dd></div>:null}{readiness.clientOutcome?<div><dt>Client outcome</dt><dd>{stateLabel(readiness.clientOutcome)}</dd></div>:null}</dl>;
   const audit=<div className="stack"><Link href={documentsHref}>Document register →</Link><Link href={paymentsHref}>Payments →</Link><Link href={financeHref}>Commercial control →</Link>{partnerControlled?<Link href={executionHref}>Partner execution →</Link>:null}</div>;
 
-  return <RecordWorkspace focusMode className="project-os-page" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readinessPanel} nextAction={nextAction} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>;
+  const governedDelivery=isKnownIsolatedQaBackend()&&['internal_review','ready_for_client_issue'].includes(stage);
+  const deliveryResult=governedDelivery?await supabase.rpc('op_qa_delivery_gate',{p_project_id:id}):null;
+  const gate=(deliveryResult?.error?null:deliveryResult?.data) as DeliveryGate|null;
+  const title=governedDelivery?deliveryTitle(gate,stage):null;
+  if(title) nextAction=<DeliveryDecision gate={gate} projectId={id} role={profile.role} stage={stage}/>;
+  let reviewTitle:string|null=null;
+  if(isKnownIsolatedQaBackend() && stage==='client_review' && !readiness.clientOutcome) {
+    const result=await supabase.rpc('op_qa_staff_client_review_state',{p_project_id:id});
+    const review=result.error?null:result.data;
+    const accepted=['accepted','accepted_with_comments'].includes(review?.decision);
+    const feedback=['changes_requested','rejected'].includes(review?.decision);
+    reviewTitle='Await verified client review';
+    nextAction=<p>{review?.issued?'The assigned client can respond in their workspace.':'The current client issue could not be verified.'}</p>;
+    if(review?.decisionId && review.opReconciliationRequired && accepted){
+      reviewTitle='Reconcile the client’s acceptance';
+      nextAction=['owner','admin','operator','engineering'].includes(profile.role)?<form action={reconcileProtectedClientReviewAction}><input type="hidden" name="project_id" value={id}/><p>{review.decisionComments}</p><button className="button">Record verified acceptance</button></form>:<p>Awaiting an authorised operator.</p>;
+    } else if(review?.decisionId && feedback){
+      reviewTitle=review.feedbackClassification?'Await the classified correction or variation':'Classify the client’s feedback';
+      nextAction=review.feedbackClassification?<p>{String(review.feedbackClassification).replaceAll('_',' ')}</p>:
+        ['owner','admin'].includes(profile.role)?<form action={classifyClientFeedbackAction}><input type="hidden" name="project_id" value={id}/><p>{review.decisionComments}</p>
+        <label>Classification<select name="classification" required defaultValue=""><option disabled value="">Select</option><option value="included_correction">Included correction</option><option value="partner_defect">Partner defect</option><option value="variation">Commercial variation</option></select></label>
+        <label>Scope rationale<textarea name="rationale" minLength={25} required/></label><label>Partner instruction for corrective work<textarea name="partner_instruction"/></label>
+        <label><input required type="checkbox" name="classification_authorised" value="yes"/> I confirm the scope classification.</label><button className="button">Record classification</button></form>:<p>Awaiting the release owner.</p>;
+    }
+  }
+  const currentTitle=reviewTitle||title;
+  const currentPresentation=currentTitle?{...presentation,nextAction:{...presentation.nextAction,label:currentTitle,reason:'The current submission and its recorded approvals determine this step.'}}:presentation;
+  return <RecordWorkspace focusMode className="project-os-page" header={header} notices={notices} stateStrip={stateStrip} presentation={currentPresentation} readiness={readinessPanel} nextAction={nextAction} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>;
 }

@@ -146,7 +146,7 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
  if(p.stage==='ready_for_client_issue'){
   if(situation.key==='evidence_unavailable')return make('Release evidence is not ready','Release requires current-cycle engineering acceptance and verified document manifest.',null,'#release-authorisation',true);
   if(situation.key==='secure_review_blocked')return make('Inspect watermarked QA review preview',
-   'Preparation is authorised. Inspect the watermarked R01 PDF in the private operator-only preview. External client issue stays blocked until recipient-scoped review access is implemented and verified.',
+   'Preparation is authorised. Inspect the watermarked current revision in the private operator-only preview. External client issue stays blocked until recipient-scoped review access is implemented and verified.',
    'Open watermarked QA preview','/review-preview');
   return p.canAuthoriseRelease?
    make('Authorise preparation of client review','Approve this exact revision for package preparation. This action must NOT issue or unlock client files.','Review release authority','#release-authorisation'):
@@ -186,7 +186,7 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
      null,'#client-review-outcome',true);
  }
  if(p.stage==='completion'){
-  if(p.clientAccepted!==true)return make('Verify accepted client review','The accepted R01 outcome must be reconciled before final settlement and delivery can continue.',null,'#final-release',true);
+  if(p.clientAccepted!==true)return make('Verify accepted client review','The accepted current-cycle outcome must be reconciled before final settlement and delivery can continue.',null,'#final-release',true);
   if(p.finalPaid!==true)return make('Collect and verify the final client balance','Client acceptance is recorded. Final payment is still unverified; issue and reconcile the final commercial balance before releasing editable files.','Review final settlement','#final-release');
   if(p.finalReleaseApproved!==true){
     if(!p.finalReleaseServiceAvailable)return make('Await governed final handover availability','Final payment is verified, but the separate owner-authorised final release service is not enabled in this test workspace. Native files remain locked.',null,'#final-release',true);
