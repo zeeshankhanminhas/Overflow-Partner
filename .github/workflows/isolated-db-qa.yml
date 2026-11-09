@@ -2,7 +2,7 @@ name: Isolated Database QA (no Supabase subscription)
 
 on:
   push:
-    branches: [feat/linkedin-acquisition-funnel]
+    branches: [feat/linkedin-acquisition-funnel, release/opos-production-hardening-2026-11-09]
   pull_request:
     branches: [main]
     paths:
