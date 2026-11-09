@@ -173,7 +173,9 @@ const checks = [
     v2WorkRecord.includes('className={css.decision}') && v2WorkRecord.includes('className={css.timeline}') &&
     v2WorkRecord.includes('className={css.section+\' \'+css.grid}')],
   ['Project 360 uses original decision-first layout with compact progress',
-    projectPage.includes('nextDescription={displayNext.description} compact') &&
+    projectPage.includes('nextDescription={nextWithHandover.description} compact') &&
+    projectPage.includes("title:'Prepare controlled final Handover Pack'") &&
+    projectPage.includes("action:'Open Handover Pack'") &&
     v2WorkRecord.includes('className={css.decision}') &&
     v2WorkRecord.includes('className={css.timeline}') &&
     v2WorkRecord.includes('compact?<details className={css.compactDetails}>') &&
@@ -186,7 +188,10 @@ const checks = [
     projectPage.includes("from('project_delivery_items')") &&
     projectPage.includes("from('project_client_transmittals')")],
   ['Project primary operator decision remains directly linked to governed actions',
-    projectPage.includes("governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':'/opos-next/projects/'+id+displayNext.anchor}") &&
+    projectPage.includes("stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover'") &&
+    projectPage.includes("finalReleaseServiceAvailable&&handoverReady&&finalStatus") &&
+    projectPage.includes("const handoverReady=!handoverError&&Boolean(currentHandover") &&
+    fs.existsSync('app/opos-next/projects/[id]/handover/page.tsx') &&
     fs.existsSync('app/opos-next/projects/[id]/final-settlement/page.tsx') &&
     projectPage.includes('Review drawings') &&
      projectPage.includes("stage==='ready_for_client_issue'&&!qaWritable?") &&
