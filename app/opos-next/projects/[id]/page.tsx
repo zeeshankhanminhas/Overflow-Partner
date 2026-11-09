@@ -155,7 +155,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
    manifestVerified:Boolean(qaGate?.manifest_verified),
    releaseAuthorised:Boolean(qaGate?.release_authorised),mayAdvance,
    canApproveFinalRelease:stage==='completion'&&finalReleaseServiceAvailable&&handoverReady&&Boolean(finalStatus?.clientAccepted&&finalStatus?.finalPaid&&!finalStatus?.ownerApproved)&&['owner','admin'].includes(role),
-   canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure),
+   canClose:stage==='completion'&&Boolean(finalStatus?.readyForManualClosure)&&readiness.ready,
    canRecordClientOutcome:stage==='client_review'&&!latestClientReview&&Boolean(staffReview?.decisionId),
    externalClientDecision:staffReview?.decision||null,
    externalFeedbackClassification:staffReview?.feedbackClassification||null,
@@ -200,6 +200,10 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
     ?{...displayNext,title:'Prepare controlled final Handover Pack',
       description:handoverError?'Handover evidence is unavailable; do not release files.':'The client has paid, but the controlled Handover Pack must be reviewed and issued before owner release.',
       action:'Open Handover Pack',waiting:false}
+    :stage==='completion'&&finalStatus?.partnerPaid&&!readiness.ready
+    ?{...displayNext,title:'Complete governed closeout evidence',
+      description:'The partner settlement has been recorded in QA, but independent Completion Report and invoice controls must pass before closure.',
+      action:'Review closeout blockers',waiting:false}
     :displayNext;
  return <>
    <WorkRecordV2 eyebrow={'PROJECT / '+(data.project_number||id.slice(0,8))}
@@ -212,7 +216,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      stageIndex={stageIndex} waiting={nextWithHandover.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
-     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover':stage==='completion'&&finalStatus?.ownerApproved&&!finalStatus?.partnerPaid?'/opos-next/projects/'+id+'/partner-settlement':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={nextWithHandover.action||'Review controls'}/>
+     governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover':stage==='completion'&&finalStatus?.ownerApproved&&!finalStatus?.partnerPaid?'/opos-next/projects/'+id+'/partner-settlement':stage==='completion'&&finalStatus?.partnerPaid&&!readiness.ready?'/opos-next/projects/'+id+'/partner-settlement':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={nextWithHandover.action||'Review controls'}/>
    {scheduleVariance?<section className={css.section} aria-label="Partner schedule variance" role="status">
      <div className={css.card}>
        <span className={css.overline}>SCHEDULE VARIANCE · OP REVIEW REQUIRED</span>
