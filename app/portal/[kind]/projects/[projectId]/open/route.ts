@@ -4,6 +4,7 @@ import {createClient as createAdminClient} from '@supabase/supabase-js';
 import {createClient} from '@/lib/supabase/server';
 import {isPortalKind} from '@/lib/portals/account';
 import {createClientPortalToken} from '@/lib/quotes/clientPortalToken';
+import {clientFinalFilesReady} from '@/lib/portals/clientFinalRelease';
 import {createExecutionSessionToken} from '@/lib/execution/sessionToken';
 
 export const dynamic='force-dynamic';
@@ -40,6 +41,19 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{kind:str
    .eq('id',p.quote_id).eq('organisation_id',project.organisation_id).maybeSingle();
   if(!q||!['issued','accepted'].includes(String(q.status)))return back(request,kind,projectId,'The quotation is not available for secure review.');
   const token=createClientPortalToken(q.id,q.revision);
+  // Client-selected final file handover: a real entitled Client session
+  // checks payment, current issued document, exact approved R01 and stored files.
+  // The target page independently repeats the release checks before signing URLs.
+  if(request.nextUrl.searchParams.get('flow')==='final-files'){
+    if(process.env.OP_VOICE_FINAL_RELEASE_ENABLED!=='true' ||
+       !await clientFinalFilesReady(db,project.organisation_id,projectId))
+      return back(request,kind,projectId,'Final engineering files are not yet authorised for this project.');
+    const target=new URL('/client-final-files',request.url);
+    target.searchParams.set('token',token);
+    return NextResponse.redirect(target,{
+      headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}
+    });
+  }
   // Client-selected final settlement is an explicit, authenticated portal
   // handoff. Reuse the same company/project entitlement check above and
   // require an accepted current-cycle review; never infer payment from stage.
