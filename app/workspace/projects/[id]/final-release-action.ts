@@ -41,16 +41,26 @@ export async function approveFinalEngineeringReleaseAction(formData:FormData) {
       ? 'https://'+process.env.VERCEL_URL
       : (process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');
     const url=host+'/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
-    const outboxId=await queueLifecycleEmail(supabase,{
-      organisationId,scenario:'client_delivery.final_released',recipientEmail:issued.recipient_email,
-      recipientName:issued.recipient_name||undefined,actionUrl:url,
-      entityType:'project',entityId:projectId,
-      payload:{reference:project.project_number,projectReference:project.project_number},
-      idempotencyKey:'client:final-release:'+projectId,
-    });
-    if(!outboxId)throw new Error('Final approval saved but client email is suppressed. Review notification preferences.');
+    // Release approval is a durable governed decision. A QA email allowlist
+    // failure must NEVER be misreported as a failed final-release approval.
+    let notice='Final engineering release approved. Client notification was not queued; check the outbox. The entitled Client Workspace can independently open final files.';
+    try{
+      const outboxId=await queueLifecycleEmail(supabase,{
+        organisationId,scenario:'client_delivery.final_released',recipientEmail:issued.recipient_email,
+        recipientName:issued.recipient_name||undefined,actionUrl:url,
+        entityType:'project',entityId:projectId,
+        payload:{reference:project.project_number,projectReference:project.project_number},
+        idempotencyKey:'client:final-release:'+projectId,
+      });
+      if(outboxId)notice='Final engineering release approved. Secure client notification queued; delivery is not yet confirmed.';
+    }catch{
+      // Do not bypass QA recipient allowlists, send to unknown recipients,
+      // or roll back an owner approval that is already committed.
+      if(process.env.VERCEL_ENV==='preview')
+        notice='Final engineering release approved. QA email blocked by the isolated recipient allowlist; no client notification was sent. Sign in to the entitled Client Workspace to test final-file access.';
+    }
     revalidatePath(destination);
-    destination+='?updated='+encodeURIComponent('Final engineering release approved and secure client notification queued.')+'&focus=record-next-action';
+    destination+='?updated='+encodeURIComponent(notice)+'&focus=record-next-action';
   } catch(error) {
     destination+='?error='+encodeURIComponent(error instanceof Error?error.message:'Final release could not be completed.')+'&focus=record-next-action';
   }
