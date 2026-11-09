@@ -94,6 +94,7 @@ export default async function QaPartnerSettlement({params,searchParams}:{
      <button className={css.action} type="submit" style={{border:0,cursor:'pointer'}}>Close Northfield QA project →</button>
     </form>:<p className={css.meta}>Closure remains locked until the canonical project readiness function confirms every requirement. No shortcut is provided.</p>}
     {closeoutError?<p role="alert">Project readiness is unavailable: {closeoutError.message}</p>:null}
+    {blockers.length?<Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/closeout-evidence'}>Reconcile opening payment and issue closeout documents →</Link>:null}
     {blockers.length?<div style={{display:'grid',gap:8}}>
       <strong>Outstanding closeout evidence</strong>
       {blockers.map((reason,i)=><p key={i} className={css.meta}>• {reason}</p>)}
