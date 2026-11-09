@@ -512,6 +512,11 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
             The client's final handover is authorised. Partner liability and settlement are separate.
             {' '}<Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/partner-settlement'}>Open governed QA Partner Settlement →</Link>
           </p>:null}
+          {stage==='completion'&&finalStatus?.partnerPaid&&!readiness.ready&&qaWritable?
+          <p className={css.meta} role="status" style={{marginTop:8}}>
+            All partner settlement entries have been reconciled, but closeout evidence remains missing.
+            {' '}<Link className={css.secondaryLink} href={'/opos-next/projects/'+id+'/closeout-evidence'}>Open final closeout evidence →</Link>
+          </p>:null}
           {qaPartnerSimulation?<p className={css.meta} role="status" style={{marginTop:8}}>
             QA-SIM: Partner settlement was simulated in the isolated test ledger. No actual transfer was made.
           </p>:null}
