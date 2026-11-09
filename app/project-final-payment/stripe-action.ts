@@ -60,9 +60,10 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!opening || opening.payment_method!=='stripe'||Number(opening.amount)<Number(contract.opening_amount))
     throw new Error('The opening payment has not been reconciled.');
-  const {data:paid}=await db.from('op_project_final_settlements').select('project_id')
-    .eq('project_id',project.id).maybeSingle();
-  if(paid)throw new Error('Final payment is already confirmed. Do not pay twice.');
+  const {data:paid,error:paidError}=await db.from('op_project_final_settlements').select('project_id,verified_at')
+    .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
+  if(paidError)throw new Error('Final settlement status could not be verified. Please do not retry payment yet.');
+  if(paid?.verified_at)throw new Error('Final payment is already confirmed. Do not pay twice.');
   const params=new URLSearchParams();
   params.set('mode','payment');
   params.set('payment_method_types[0]','card');
@@ -75,8 +76,11 @@ export async function createFinalStripeCheckout(formData:FormData) {
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('metadata[project_id]',project.id);
   params.set('metadata[payment_stage]','final');
-  params.set('success_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
-  params.set('cancel_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
+  // Return to the same independently authenticated project, not the older
+  // token-only payment page. A Checkout return never proves that money cleared.
+  const returnPage=`${site}/portal/client/projects/${project.id}/tasks/final-settlement`;
+  params.set('success_url',`${returnPage}?stripe_return=success`);
+  params.set('cancel_url',`${returnPage}?stripe_return=cancelled`);
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded',
       'Idempotency-Key':`op-${mode}-final-${project.id}-r${quote.revision}-${remaining}`},
