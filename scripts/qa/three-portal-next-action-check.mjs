@@ -77,6 +77,8 @@ const finalInvoiceMigration=read('supabase/migrations/20261107170000_qa_final_in
 const clientProject=read('app/portal/[kind]/projects/[projectId]/page.tsx');
 const clientWorkspace=read('app/portal/[kind]/page.tsx');
 const portalHandoff=read('app/portal/[kind]/projects/[projectId]/open/route.ts');
+const clientFinalRelease=read('lib/portals/clientFinalRelease.ts');
+const releaseAction=read('app/workspace/projects/[id]/final-release-action.ts');
 const checkout=read('app/project-final-payment/stripe-action.ts');
 assert.ok(operator.includes("stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement'"),
  'Final settlement CTA must navigate to a real route, not jump to a same-page anchor');
@@ -93,7 +95,8 @@ assert.ok(finalSettlement.includes("op_project_voice_final_release_status") &&
   finalInvoiceMigration.includes("op_qa_reconcile_paid_final_invoice") &&
   !finalInvoiceAction.includes("op_record_verified_project_final_settlement"),
  'Final settlement remains read-only on GET; only the separately authorised invoice action creates a ledger entry, never payment');
-assert.ok(clientProject.includes("finalBalanceReady?<Link className={css.action} href={settlementHref}") &&
+assert.ok(clientProject.includes("finalFilesReady?<Link className={css.action} href={finalFilesHref}") &&
+  clientProject.includes("finalBalanceReady?<Link className={css.action} href={settlementHref}") &&
   clientWorkspace.includes("'?flow=final-settlement'") &&
   portalHandoff.includes("request.nextUrl.searchParams.get('flow')==='final-settlement'") &&
   portalHandoff.includes("acceptedReview") &&
@@ -101,6 +104,20 @@ assert.ok(clientProject.includes("finalBalanceReady?<Link className={css.action}
   portalHandoff.includes("new URL('/project-final-payment',request.url)") &&
   portalHandoff.includes("portal_my_projects"),
  'Signed-in and entitled client must have a secure final payment route after actual acceptance');
+assert.ok(clientProject.includes("finalFilesReady=await clientFinalFilesReady(db,p.organisation_id,p.project_id)") &&
+  portalHandoff.includes("request.nextUrl.searchParams.get('flow')==='final-files'") &&
+  portalHandoff.includes("clientFinalFilesReady(db,project.organisation_id,projectId)") &&
+  portalHandoff.includes("portal_my_projects") &&
+  portalHandoff.includes("new URL('/client-final-files',request.url)") &&
+  clientFinalRelease.includes("op_project_final_settlements") &&
+  clientFinalRelease.includes("op_project_final_release_approvals") &&
+  clientFinalRelease.includes("document_type','handover-pack'") &&
+  clientFinalRelease.includes("submission.id!==release.data.submission_id") &&
+  clientFinalRelease.includes("partner_delivery_submission_files") &&
+  releaseAction.includes("QA email blocked by the isolated recipient allowlist") &&
+  releaseAction.includes("if(outboxId)notice") &&
+  !releaseAction.includes("if(!outboxId)throw new Error"),
+  'Final files must be discoverable only by entitled clients with verified payment, issued handover and exact release revision; email failure must not reverse owner approval');
 assert.ok(checkout.includes("if(mode==='qa')assertIsolatedQaBackend()") &&
   checkout.includes("quote.id==='c5b894db-ccdd-47e2-a58a-c38005bcaa99'") &&
   checkout.includes("op_qa_northfield_replay") &&
