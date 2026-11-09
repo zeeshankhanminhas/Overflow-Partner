@@ -16,6 +16,7 @@ export default async function ProjectLayout({children,params}:{children:ReactNod
           <Link href={`/workspace/projects/${id}/execution`}>Execution</Link>
           <Link href={`/workspace/documents?project=${id}`}>Documents</Link>
           <Link href={`/workspace/payments?project=${id}`}>Payments</Link>
+          <Link href={`/workspace/commercial-control?project=${id}`}>Commercial controls</Link>
           <Link href={`/workspace/communications/project/${id}`}>Messages</Link>
         </div>
       </details>
