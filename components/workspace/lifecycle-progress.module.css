@@ -1,0 +1,8 @@
+
+.progress {margin: 12px 0; border: 1px solid currentColor; border-color: color-mix(in srgb,currentColor 22%,transparent); border-radius: 8px; padding: 12px 16px}
+.progress summary {cursor:pointer; min-height: 24px}
+.progress summary span {margin:0 12px 0 6px}
+.progress ol {display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;padding:10px 0 0;list-style:none}
+.progress li {font-size: .875rem; padding:8px;border-bottom:2px solid transparent}
+.progress li[aria-current] {font-weight:700;border-bottom-color:currentColor}
+.progress summary:focus-visible {outline:2px solid currentColor;outline-offset:3px}

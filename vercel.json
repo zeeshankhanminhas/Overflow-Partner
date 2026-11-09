@@ -1,9 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["dub1"],
-  "git": {
-    "deploymentEnabled": {
-      "release/opos-production-hardening-2026-11-09": false
-    }
-  }
+  "regions": ["dub1"]
 }
