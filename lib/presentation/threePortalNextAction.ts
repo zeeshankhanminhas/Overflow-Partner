@@ -27,14 +27,14 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
  if(actor==='client'){
   switch(stage){
    case 'closed':return view('Your project is complete','Your controlled project history and any authorised final files remain available through secure access.','View project status',true);
-   case 'completion':return view('Final settlement and handover','Open the secure record to see verified final balances and release status. The project stage alone is not proof of payment.','Open secure final status',true);
-   case 'internal_review':return view('Your engineering work is with OP quality control','Overflow Partner is inspecting the submitted engineering evidence. No response is required from you.','View project status',true);
-   case 'partner_correction':return view('Technical corrections are underway','The Execution Partner is preparing revised work. OP must approve the new revision before client review.','View project status',true);
-   case 'in_progress':return view('Engineering work is in progress','OP is supervising engineering work and will contact you when an authorised decision is required.','View project status',true);
-   case 'ready_for_client_issue':return view('Overflow Partner is preparing your review','Internal quality, file verification and release authority must finish before secure client access.','View project status',true);
+   case 'completion':return view('Final settlement and handover','Review the final contractual balance and independently verified settlement status. Final engineering files remain locked until separate owner approval.','View final balance',false);
+   case 'internal_review':return view('We’re checking your drawings','Overflow Partner is reviewing the engineering work. You do not need to do anything yet.','View project status',true);
+   case 'partner_correction':return view('We’re making the requested changes','The drawings are being updated. We’ll share the revised version once it has been checked.','View project status',true);
+   case 'in_progress':return view('Your drawings are in progress','Our engineering team is working on your project. We’ll contact you when your review is ready.','View project status',true);
+   case 'ready_for_client_issue':return view('We’re preparing your drawings for review','The drawings are being checked before they are shared with you. No action is needed yet.','View project status',true);
    case 'issued_to_client':
-   case 'client_review':return view('Your controlled review is being prepared',
-    'Review access cannot be inferred from the project stage. A genuinely issued protected review invitation is required.','View review status',true);
+   case 'client_review':return view('We’re checking your review access',
+    'If your drawings have been shared, they will appear in your secure account. We’ll let you know if anything needs your attention.','View review status',true);
    default:return view('Overflow Partner is preparing your project','Your accepted quotation and project status remain in the secure account.','View project status',true);
   }
  }
@@ -42,20 +42,20 @@ export function portalProjectNextStep(actor:PortalActor, project:PortalProjectPo
   case 'accept_work_order':
    return project.reference&&project.partner_execution_state==='awaiting_acknowledgement'?
     view('Review and accept your Work Order','Check scope, price and delivery obligations. Acceptance is separate from commencement.','Open Work Order acceptance',false):
-    view('Await authorised Work Order access','The secure invitation or accepted Work Order evidence must be available before acting.','View Work Order status',true);
+    view('Waiting for your Work Order','Overflow Partner will share the Work Order when it is ready for your review.','View Work Order status',true);
   case 'confirm_commencement':
-   return view('Confirm you are ready to start','Confirm scope, inputs, capacity and planned start using your secure Partner Work session.','Confirm commencement',false);
+   return view('Confirm your start date','Check the scope, materials and planned start date in Partner Work before confirming.','Confirm start',false);
   case 'perform_execution':
-   return view('Continue your engineering work','Report progress and issues, and submit completed deliverables when ready.','Open engineering work',false);
+   return view('Continue your engineering work','Share progress, raise any problems and submit your completed drawings.','Open engineering work',false);
   case 'correct_execution':
    return view('Submit the requested correction','Review OP findings, prepare a fresh revision and submit new file evidence.','Open revised delivery',false);
   case 'await_partner_submission':
-   return view('Await Overflow Partner quality review','Your submitted work is under OP review. No further submission is due unless corrections are requested.','View submitted work',true);
+   return view('Your submitted drawings are being checked','Overflow Partner is reviewing your work. We’ll contact you if changes are needed.','View submitted work',true);
   case 'complete_mobilisation':
-   return view('Await OP mobilisation authority','Even an accepted Work Order does not permit the partner to start before formal commencement.','View Work Order status',true);
+   return view('Waiting for approval to start','Your accepted Work Order does not start the project. Confirm your planned start when Overflow Partner makes that step available.','View Work Order status',true);
   default:
-   return view(stage==='closed'?'This Work Order is closed':'Await the next authorised decision',
-    'Overflow Partner controls technical acceptance, client review, settlement and closeout.','View Work Order status',true);
+   return view(stage==='closed'?'This Work Order is closed':'Waiting for Overflow Partner',
+    'We’ll let you know when there is something you need to do.','View Work Order status',true);
  }
 }
 
@@ -100,6 +100,7 @@ export type OperatorPosition={
  mayAdvance:boolean;canApproveFinalRelease:boolean;canClose:boolean;canRecordClientOutcome:boolean;
  partnerSubmitted?:boolean;protectedReviewIssued?:boolean;
  clientAccepted?:boolean;finalPaid?:boolean;finalReleaseApproved?:boolean;partnerPaid?:boolean;
+ finalReleaseServiceAvailable?:boolean;
  externalClientDecision?:string|null;externalFeedbackClassification?:string|null;
  clientReviewReconciled?:boolean;clientReviewEvidenceAvailable?:boolean;
  canClassifyClientFeedback?:boolean;
@@ -116,8 +117,10 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
    clientAccepted:p.clientAccepted,finalPaid:p.finalPaid,
    finalReleaseApproved:p.finalReleaseApproved,partnerPaid:p.partnerPaid,
  });
- if(p.completed)return make('Project closed','There is no outstanding project decision. The controlled history remains available.',null,'#project-controls',true);
- if(!p.canWrite)return make('Await an authorised OP operator','Your role or the isolated QA write gate does not permit the next transaction.',null,'#project-controls',true);
+ // Only the canonical CLOSED stage can be presented as closed. The project
+ // status 'completed' denotes delivery progress and is not a commercial closeout.
+ if(p.stage==='closed')return make('Project closed','All governed closeout gates have been satisfied. The controlled project history remains available.',null,'#project-controls',true);
+ if(!p.canWrite)return make('View the current project','Changes are not available from this view. The project history is available below.',null,'#project-controls',true);
  if(p.stage==='mobilisation'){
   if(p.needsWorkOrder)return p.workOrderCanIssue?
    make('Issue the approved Partner Work Order','The existing action checks the verified opening payment and approved scope. It will not start execution.','Review and issue Work Order','#work-order-issue'):
@@ -183,9 +186,17 @@ export function operatorProjectNextStep(p:OperatorPosition):OperatorNextStep{
      null,'#client-review-outcome',true);
  }
  if(p.stage==='completion'){
-  if(p.canApproveFinalRelease)return make('Approve controlled final handover','A verified final payment and accepted client review permit the owner to inspect and authorise the exact final submission.','Review final release','#final-release');
-  if(p.canClose)return make('Close the governed project','Final settlement, partner payable and completion checks are satisfied.','Review closure decision','#project-closure');
-  return make('Complete final settlement and handover','Verify client settlement, owner release and partner payable evidence before closure.','Review final settlement','#final-release');
+  if(p.clientAccepted!==true)return make('Verify accepted client review','The accepted R01 outcome must be reconciled before final settlement and delivery can continue.',null,'#final-release',true);
+  if(p.finalPaid!==true)return make('Collect and verify the final client balance','Client acceptance is recorded. Final payment is still unverified; issue and reconcile the final commercial balance before releasing editable files.','Review final settlement','#final-release');
+  if(p.finalReleaseApproved!==true){
+    if(!p.finalReleaseServiceAvailable)return make('Await governed final handover availability','Final payment is verified, but the separate owner-authorised final release service is not enabled in this test workspace. Native files remain locked.',null,'#final-release',true);
+    return p.canApproveFinalRelease?
+      make('Approve controlled final handover','Verified final payment and client acceptance permit the owner to check the exact technical submission and separately authorise handover.','Review final release','#final-release'):
+      make('Await owner release approval','Final settlement is verified. An authorised owner must approve the final engineering package before files can be released.',null,'#final-release',true);
+  }
+  if(p.partnerPaid!==true)return make('Complete Execution Partner settlement','Client handover is authorised. Verify the partner payable and cleared partner payment before closing the project.','Review partner settlement','#final-release');
+  if(p.canClose)return make('Close the governed project','Client payment, final engineering release and partner settlement are all verified.','Review closure decision','#project-closure');
+  return make('Verify final closeout evidence','Review the independent completion checks before closing the project.',null,'#final-release',true);
  }
  return make('Review current project evidence','Follow the authorised OP stage controls and required evidence.',null,'#project-controls',true);
 }

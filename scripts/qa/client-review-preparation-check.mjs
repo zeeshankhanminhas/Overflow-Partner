@@ -27,7 +27,9 @@ const cases=[
   metadata.includes("completion: 'Client issue is still pending.")&&
   !metadata.includes("completion: 'Client transmittal is recorded.'")],
  ['the next operator action points only to internal preview',
-  operator.includes("'/review-preview'")&&operator.includes('Open watermarked QA review preview')&&
+  operator.includes("'/review-preview'")&&operator.includes('View R01 drawings')&&
+   operator.includes("stage==='ready_for_client_issue'&&!qaWritable?")&&
+   operator.includes('This view cannot open or send drawings.')&&
   decision.includes("situation.key==='secure_review_blocked'")],
  ['operator preview is QA-only and staff-authenticated',
   preview.includes('isKnownIsolatedQaBackend()')&&preview.includes('requireUserContext()')&&

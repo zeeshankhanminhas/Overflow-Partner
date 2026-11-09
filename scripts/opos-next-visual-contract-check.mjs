@@ -59,8 +59,11 @@ const checks = [
   ['Scoped legacy record pages send the tested Northfield QA record to the modern UI',
     legacyProjectPage.includes("redirect('/opos-next/projects/'+id)") &&
     legacyCasePage.includes("redirect('/opos-next/cases/'+id)") &&
-    legacyProjectPage.includes('isKnownIsolatedQaBackend()') &&
-    legacyCasePage.includes('isKnownIsolatedQaBackend()')],
+    legacyProjectPage.includes('isKnownIsolatedQaPresentationPreview()') &&
+    legacyCasePage.includes('isKnownIsolatedQaPresentationPreview()') &&
+    qaIsolation.includes('export function isKnownIsolatedQaPresentationPreview()') &&
+    qaIsolation.includes("qaRef==='ukcamenuxhdznxaxpyis'") &&
+    qaIsolation.includes("process.env.VERCEL_ENV==='preview'")],
   ['Customer Portal shows project context after quote has converted, preserving payment record',
     clientPortalPage.includes("select('id,project_number,project_stage')") &&
     clientPortalPage.includes("project?'Your engineering project.'") &&
@@ -125,7 +128,7 @@ const checks = [
     !/\.shell\s+a\s*\{[^}]*color\s*:\s*inherit/.test(styles) &&
     styles.includes('.shell a:not([class]) { color: inherit; }')],
   ['QA preview displays truthful locked vs writable status',
-    shell.includes('QA · Actions locked') && shell.includes('QA · Actions enabled') &&
+    shell.includes('Test · View only') && shell.includes('Test · Actions available') &&
     shell.includes('isKnownIsolatedQaBackend()') &&
     mobileNav.includes('{statusLabel}')],
   ['Mission Control reuses canonical business prioritisation', mission.includes('buildMissionPriorityQueue') && mission.includes('ranked.slice(1,5)')],
@@ -170,7 +173,9 @@ const checks = [
     v2WorkRecord.includes('className={css.decision}') && v2WorkRecord.includes('className={css.timeline}') &&
     v2WorkRecord.includes('className={css.section+\' \'+css.grid}')],
   ['Project 360 uses original decision-first layout with compact progress',
-    projectPage.includes('nextDescription={displayNext.description} compact') &&
+    projectPage.includes('nextDescription={nextWithHandover.description} compact') &&
+    projectPage.includes("title:'Prepare controlled final Handover Pack'") &&
+    projectPage.includes("action:'Open Handover Pack'") &&
     v2WorkRecord.includes('className={css.decision}') &&
     v2WorkRecord.includes('className={css.timeline}') &&
     v2WorkRecord.includes('compact?<details className={css.compactDetails}>') &&
@@ -183,8 +188,15 @@ const checks = [
     projectPage.includes("from('project_delivery_items')") &&
     projectPage.includes("from('project_client_transmittals')")],
   ['Project primary operator decision remains directly linked to governed actions',
-    projectPage.includes("governedHref={'/opos-next/projects/'+id+displayNext.anchor}") &&
-    projectPage.includes('Current action &amp; approval') &&
+    projectPage.includes("stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover'") &&
+    projectPage.includes("finalReleaseServiceAvailable&&handoverReady&&finalStatus") &&
+    projectPage.includes("const handoverReady=!handoverError&&Boolean(currentHandover") &&
+    fs.existsSync('app/opos-next/projects/[id]/handover/page.tsx') &&
+    fs.existsSync('app/opos-next/projects/[id]/final-settlement/page.tsx') &&
+    projectPage.includes('Review drawings') &&
+     projectPage.includes("stage==='ready_for_client_issue'&&!qaWritable?") &&
+     projectPage.includes('This view cannot open or send drawings.') &&
+     projectPage.includes('<summary>Checks still needed</summary>') &&
     projectPage.includes('id="release-authorisation"') &&
     projectPage.includes('id="client-review-outcome"') &&
     projectPage.includes('id="final-release"') &&

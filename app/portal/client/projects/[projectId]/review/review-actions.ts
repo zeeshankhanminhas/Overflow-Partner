@@ -5,7 +5,7 @@ import {createClient} from '@/lib/supabase/server';
 import {assertIsolatedQaBackend} from '@/lib/qa/isolation';
 
 function safe(id:string,key:'error'|'updated',message:string){
- return '/portal/client/projects/'+id+'/review?'+new URLSearchParams({[key]:message.slice(0,260)}).toString();
+ return '/portal/client/projects/'+id+'?'+new URLSearchParams({[key]:message.slice(0,260)}).toString()+'#drawing-review';
 }
 export async function recordProtectedClientDecisionAction(form:FormData){
  const projectId=String(form.get('project_id')||'').trim();
@@ -31,7 +31,7 @@ export async function recordProtectedClientDecisionAction(form:FormData){
   revalidatePath('/portal/client/projects/'+projectId);
   revalidatePath('/portal/client');
   revalidatePath('/opos-next/projects/'+projectId);
-  redirect(safe(projectId,'updated','Your authenticated decision was received. Overflow Partner will reconcile it into the governed project outcome.'));
+  redirect(safe(projectId,'updated','Your response has been received. Overflow Partner will review it.'));
  }catch(error){
   if(error&&typeof error==='object'&&'digest' in error&&String((error as {digest?:string}).digest||'').startsWith('NEXT_REDIRECT'))throw error;
   message=error instanceof Error?error.message:message;

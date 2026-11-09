@@ -1,6 +1,28 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isKnownIsolatedQaBackend, isKnownIsolatedQaFixtureBackend, isKnownIsolatedQaStep2Backend } from "@/lib/qa/isolation";
+import { isKnownIsolatedQaBackend, isKnownIsolatedQaFixtureBackend, isKnownIsolatedQaStep2Backend, isKnownIsolatedQaPresentationPreview } from "@/lib/qa/isolation";
+import { canonicalQaWorkspace2Path } from "@/lib/qa/workspace2Routes";
+
+
+/**
+ * Navigation parity only: authenticated legacy bookmarks land in Workspace 2.0
+ * on the exact isolated QA presentation preview. Preserve refreshed auth cookies
+ * on the redirect and never reroute POST, APIs or token-bearing transaction routes.
+ */
+function redirectKnownQaNavigation(request: NextRequest, response: NextResponse): NextResponse {
+  if ((request.method!=='GET' && request.method!=='HEAD') ||
+      !isKnownIsolatedQaPresentationPreview()) return response;
+  const destination = canonicalQaWorkspace2Path(request.nextUrl.pathname);
+  if (!destination) return response;
+  const url = request.nextUrl.clone();
+  url.pathname = destination;
+  const redirect = NextResponse.redirect(url, {
+    status: 307,
+    headers: { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' },
+  });
+  response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
+}
 
 export async function proxy(request: NextRequest) {
   // Draft redesign preview may share production Supabase for read-only inspection.
@@ -42,7 +64,7 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url || !key) return response;
+  if (!url || !key) return redirectKnownQaNavigation(request, response);
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -56,7 +78,7 @@ export async function proxy(request: NextRequest) {
   });
 
   await supabase.auth.getUser();
-  return response;
+  return redirectKnownQaNavigation(request, response);
 }
 
 export const config = {

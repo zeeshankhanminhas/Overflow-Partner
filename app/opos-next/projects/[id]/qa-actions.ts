@@ -73,6 +73,8 @@ export async function authoriseClientReviewReleaseAction(form:FormData){
  * No email is claimed/sent, and no money/final file permission is modified. */
 export async function issueProtectedClientReviewAction(form:FormData){
  const id=value(form,'project_id');let message='Protected client-review issue was not recorded.';
+ // Only this exact internal origin is permitted as an error-return destination.
+ const fromPreview=value(form,'return_to')==='review_preview';
  try{
   assertIsolatedQaBackend();
   if(form.get('preview_confirmed')!=='yes')throw new Error('Confirm that you inspected the actual watermarked R01 PDF.');
@@ -90,6 +92,9 @@ export async function issueProtectedClientReviewAction(form:FormData){
  }catch(error){
   if(error&&typeof error==='object'&&'digest' in error&&String((error as {digest?:string}).digest||'').startsWith('NEXT_REDIRECT'))throw error;
   message=error instanceof Error?error.message:message;
+ }
+ if(fromPreview){
+  redirect('/opos-next/projects/'+id+'/review-preview?error='+encodeURIComponent(message));
  }
  redirect(projectUrl(id,{error:message}));
 }

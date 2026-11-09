@@ -2,13 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {assertIsolatedQaBackend} from "@/lib/qa/isolation";
+import {isKnownIsolatedQaPresentationPreview} from "@/lib/qa/isolation";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "");
-  const redesignPreview = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === "design/opos-decision-first-ia";
+  const redesignPreview = process.env.VERCEL_ENV === "preview" &&
+    ["design/opos-decision-first-ia", "qa/recovery-ui-client-gate-20261105"]
+      .includes(process.env.VERCEL_GIT_COMMIT_REF || "");
   // Only pre-approved internal destinations are accepted. Never redirect to
   // arbitrary paths from a login form or cross-organisation portal URLs.
   const externalKind=next==='/portal/client'?'client':next==='/portal/partner'?'partner':null;
@@ -18,11 +20,29 @@ export async function signIn(formData: FormData) {
     redirect("/login?error=Email%20and%20password%20are%20required.");
   }
 
+  // QA preview safety: a new Git branch does not inherit another branch's
+  // Vercel-scoped environment variables. Never send operator QA credentials
+  // to the production Supabase Auth instance from either QA review branch.
+  const qaPreviewBranch = process.env.VERCEL_ENV === "preview" &&
+    ["design/opos-decision-first-ia", "qa/recovery-ui-client-gate-20261105"]
+      .includes(process.env.VERCEL_GIT_COMMIT_REF || "");
+  if (qaPreviewBranch) {
+    const qaRef = String(process.env.OP_QA_SUPABASE_PROJECT_REF || "").trim().toLowerCase();
+    const authUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    if (!/^[a-z0-9]{12,32}$/.test(qaRef) ||
+        qaRef === "klricctsxiifuduxpmzd" ||
+        authUrl !== `https://${qaRef}.supabase.co`) {
+      redirect("/login?next=%2Fopos-next&error=" +
+        encodeURIComponent("This preview is not connected to isolated QA. Sign-in is disabled until its environment is corrected."));
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.user) {
-    redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
+    redirect('/login?next='+encodeURIComponent(safeNext)+'&error='+
+      encodeURIComponent(error?.message ?? "Unable to sign in."));
   }
 
   if(externalKind){
@@ -72,22 +92,16 @@ export async function signOut() {
   redirect("/login");
 }
 
-
-/** Explicit one-time email sign-in for already-invited QA client accounts only.
- * Never creates an unsolicited user or grants access by email resemblance.
- */
-export async function emailQaClientLoginLink(formData:FormData){
- assertIsolatedQaBackend();
- const email=String(formData.get('email')||'').trim().toLowerCase();
- if(email.length>254||!(/^[^@\s]+@[^@\s]+\.[^@\s]+$/).test(email))
-  redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent('Enter a valid QA client email.'));
- const supabase=await createClient();
- const origin='https://overflow-partner-git-design-o-9eda95-zeeshankhanminhas-projects.vercel.app';
- const {error}=await supabase.auth.signInWithOtp({
-   email,
-   options:{shouldCreateUser:false,emailRedirectTo:origin+'/auth/callback'},
- });
- if(error)redirect('/login?next=%2Fportal%2Fclient&error='+encodeURIComponent(error.message));
- redirect('/login?next=%2Fportal%2Fclient&updated='+encodeURIComponent(
-   'If your account is invited, a secure one-time sign-in link has been sent to that email address.'));
+/** QA-only identity switch. Explicit logout is required when the browser is
+ * holding a Client session and the user needs the Operator workspace.
+ * It never changes roles or portal memberships. */
+export async function switchToOperatorQaAccount() {
+  if (!isKnownIsolatedQaPresentationPreview()) {
+    redirect('/login');
+  }
+  const supabase=await createClient();
+  await supabase.auth.signOut();
+  redirect('/login?next=%2Fopos-next&updated='+
+    encodeURIComponent('Client session cleared from this browser. Sign in with your OP Operator account.'));
 }
+
