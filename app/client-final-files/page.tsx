@@ -1,4 +1,6 @@
 import { isKnownIsolatedQaBackend } from '@/lib/qa/isolation';
+import {clientProjectEntitled} from '@/lib/portals/clientEntitlement';
+import {clientFinalFilesReady} from '@/lib/portals/clientFinalRelease';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import css from '@/app/client-portal/clientPortal.module.css';
@@ -33,6 +35,10 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
   const {data:project}=await db.from('projects').select('id,project_number')
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!project)return denied('The project has not been commercially released.');
+  if(!await clientProjectEntitled(issue.organisation_id,project.id))
+    return denied('Sign in with your authorised Client Workspace account to access this project. A quotation link alone cannot release engineering files.');
+  if(!await clientFinalFilesReady(db,issue.organisation_id,project.id))
+    return denied('The controlled final Handover Pack has not yet been issued against the current approved engineering revision.');
   const [payment,approval]=await Promise.all([
     db.from('op_project_final_settlements').select('project_id,verified_at')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
