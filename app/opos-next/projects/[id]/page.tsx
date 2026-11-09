@@ -204,7 +204,7 @@ export default async function ProjectPage({params,searchParams}:{params:Promise<
      nextTitle={nextWithHandover.title}
      nextDescription={nextWithHandover.description} compact
      stages={[{name:'Mobilisation',detail:'Advance and preparation'},{name:'Work Order',detail:workOrderAccepted?'Formally accepted':'Partner acceptance required'},{name:'Execution',detail:waitingForPartnerStart?'Await partner start':'Technical work and internal QA'},{name:'Delivery & Closeout',detail:'Client review and settlement'}]}
-     stageIndex={stageIndex} waiting={displayNext.waiting}
+     stageIndex={stageIndex} waiting={nextWithHandover.waiting}
      evidence={[{label:'Project reference',value:data.project_number||id.slice(0,8)},{label:'Current stage',value:meta.label},{label:'Delivery target',value:date(data.due_date)},{label:'Next step',value:stage==='ready_for_client_issue'?'Send drawings for client review':readiness.ready?'Ready for the next step':waitingForEngineering?'Waiting for drawings':'Checks still needed'}]}
      facts={[{label:'Project status',value:String(data.status||'Not recorded').replaceAll('_',' ')},{label:'Created',value:date(data.created_at)},{label:'Payment status',value:financial.displayState+' · '+financial.reason}]}
      governedHref={stage==='completion'&&!finalStatus?.finalPaid?'/opos-next/projects/'+id+'/final-settlement':stage==='completion'&&!handoverReady?'/opos-next/projects/'+id+'/handover':'/opos-next/projects/'+id+displayNext.anchor} previous="/opos-next/projects" actionLabel={nextWithHandover.action||'Review controls'}/>
