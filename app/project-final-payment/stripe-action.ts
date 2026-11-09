@@ -6,6 +6,7 @@ import { stripeRuntimeMode, checkoutOrigin } from '@/lib/payments/stripeEnvironm
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
+import {clientProjectEntitled} from '@/lib/portals/clientEntitlement';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
 /** QA-only final-balance Checkout. Never enable with the shared live Supabase project. */
@@ -50,6 +51,8 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('quote_id',quote.id).maybeSingle();
   if(!project || !['client_review','completion'].includes(String(project.project_stage)))
     throw new Error('Project client review must be complete before requesting final payment.');
+  if(!await clientProjectEntitled(issue.organisation_id,project.id))
+    throw new Error('A signed-in, authorised Client Workspace account is required before final payment.');
   if(!['client_review','completion','closed'].includes(project.project_stage) ||
      !await hasCurrentClientAcceptance(db,issue.organisation_id,project.id))
     throw new Error('Latest client review must be accepted.');
