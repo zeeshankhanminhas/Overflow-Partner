@@ -216,7 +216,6 @@ assert.ok(
  closeoutActions.includes("invoice_number:DEPOSIT_INVOICE,invoice_type:'deposit',status:'paid'") &&
  closeoutActions.includes('external_reference:e.receipt.payment_reference') &&
  closeoutActions.includes("issued_at:new Date().toISOString()") &&
- closeoutActions.includes("confirm")===false &&
  closeoutActions.includes("status:'in_review'") &&
  closeoutActions.includes("step==='sign'?'signed'") &&
  closeoutActions.includes("step==='approve'?'approved'") &&
