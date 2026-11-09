@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
+import {clientProjectEntitled} from '@/lib/portals/clientEntitlement';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 import { createFinalStripeCheckout } from './stripe-action';
@@ -27,6 +28,8 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!project||!contract||!['deposit','payment'].includes(String(contract.release_basis)))
     return <main><h1>Final settlement terms unavailable</h1><p>Contact Overflow Partner.</p></main>;
+  if(!await clientProjectEntitled(issue.organisation_id,project.id))
+    return <main><h1>Client Workspace sign-in required</h1><p>Sign in to your authorised project account before viewing or paying the final balance.</p></main>;
   if(!['client_review','completion','closed'].includes(project.project_stage) ||
      !await hasCurrentClientAcceptance(db,issue.organisation_id,project.id))
     return <main><h1>Awaiting your final review</h1><p>Final payment is requested only after your engineering review has been accepted.</p></main>;
