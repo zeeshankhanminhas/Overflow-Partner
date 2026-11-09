@@ -124,7 +124,7 @@ export async function prepareNorthfieldCloseoutDocument(fd:FormData){
   if(listError)throw new Error('Private closeout storage unavailable: '+listError.message);
   const matches=(objects||[]).filter(x=>/^R01-[0-9a-f-]{36}\.pdf$/i.test(x.name));
   if(matches.length>1)throw new Error('Multiple closeout evidence PDFs require manual reconciliation.');
-  let path=prefix+(matches[0]?.name||'R01-'+crypto.randomUUID()+'.pdf');
+  const path=prefix+(matches[0]?.name||'R01-'+crypto.randomUUID()+'.pdf');
   let uploaded=false;
   if(matches.length){
    const {data,error}=await e.db.storage.from(CLOSEOUT_BUCKET).download(path);
