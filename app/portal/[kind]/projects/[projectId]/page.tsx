@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import {createClient as createAdminClient} from '@supabase/supabase-js';
+import {clientFinalFilesReady} from '@/lib/portals/clientFinalRelease';
 import {notFound,redirect} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
@@ -35,12 +37,25 @@ export default async function AccountProject({params,searchParams}:{
    reviewData.issueId.length>0&&Array.isArray(reviewData.files)
    ?reviewData as ClientReview:null;
  const finalBalanceReady=client&&p.project_stage==='completion'&&['accepted','accepted_with_comments'].includes(String(review?.decision||''));
+ // Membership was independently verified above by portal_my_projects. A
+ // privilege-scoped read only checks the already-entitled exact project.
+ let finalFilesReady=false;
+ if(client&&isKnownIsolatedQaBackend()&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'&&
+    ['completion','closed'].includes(p.project_stage)){
+   const url=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL;
+   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+   if(url&&key){
+     const db=createAdminClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+     finalFilesReady=await clientFinalFilesReady(db,p.organisation_id,p.project_id);
+   }
+ }
  const secureReview=review&&!finalBalanceReady?'#drawing-review':null;
  const query:{notice?:string;error?:string;updated?:string}=searchParams?await searchParams:{};
  const notice=String(query.notice||'').slice(0,280);
  const feedback={error:String(query.error||'').slice(0,280),updated:String(query.updated||'').slice(0,260)};
  const secure='/portal/'+kind+'/projects/'+p.project_id+'/open';
  const settlementHref=secure+'?flow=final-settlement';
+ const finalFilesHref=secure+'?flow=final-files';
  return <>
   <Link className={css.crumb} href={'/portal/'+kind}>← Back to {client?'Client':'Partner'} Workspace</Link>
   <div className={css.hero}>
@@ -51,9 +66,10 @@ export default async function AccountProject({params,searchParams}:{
   {notice?<p role="alert" className={css.notice}>We couldn’t open that page. Please return to your project and try again. If the problem continues, ask Overflow Partner for a fresh link.</p>:null}
   <section className={css.nextAction} aria-label="Current next step">
    <span className={css.eyebrow}>NEXT STEP</span>
-   <h2>{finalBalanceReady?'Final balance and handover':secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
-   <p>{finalBalanceReady?'Your R01 review is accepted. Open the secure final-balance page to see settlement status before controlled final handover.':secureReview?(review?.canRespond?'Check the approved drawings. You can accept them or request changes.':'You can view the drawings and any response you have already submitted. Final editable files are provided separately after handover approval.'):next.description}</p>
-   {finalBalanceReady?<Link className={css.action} href={settlementHref}>View final balance →</Link>:
+   <h2>{finalFilesReady?'Your approved engineering files are ready':finalBalanceReady?'Final balance and handover':secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
+   <p>{finalFilesReady?'The final payment is verified and Overflow Partner has authorised this exact engineering revision. Open your secure final handover to access the approved files.':finalBalanceReady?'Your R01 review is accepted. Open the secure final-balance page to see settlement status before controlled final handover.':secureReview?(review?.canRespond?'Check the approved drawings. You can accept them or request changes.':'You can view the drawings and any response you have already submitted. Final editable files are provided separately after handover approval.'):next.description}</p>
+   {finalFilesReady?<Link className={css.action} href={finalFilesHref}>Open final engineering files →</Link>:
+   finalBalanceReady?<Link className={css.action} href={settlementHref}>View final balance →</Link>:
    secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
      !next.waiting&&next.action?<Link className={css.action} href={secure}>{next.action} →</Link>:null}
   </section>
