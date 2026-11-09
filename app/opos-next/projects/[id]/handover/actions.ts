@@ -104,7 +104,7 @@ export async function prepareQaHandoverPack(formData:FormData) {
   if(bucketCheck.error)throw new Error('Private QA handover storage bucket is not available.');
   const {data:existing,error:listError}=await d.db.storage.from(BUCKET).list(prefix,{limit:20});
   if(listError)throw new Error('Cannot inspect earlier controlled PDF upload: '+listError.message);
-  const candidates=(existing||[]).filter(f=>/^R01-[0-9a-f-]{36}\\.pdf$/i.test(f.name));
+  const candidates=(existing||[]).filter(f=>/^R01-[0-9a-f-]{36}\.pdf$/i.test(f.name));
   if(candidates.length>1)throw new Error('Multiple prior R01 documents exist. An owner must reconcile these before preparation.');
   let path='';
   let freshUpload=false;
