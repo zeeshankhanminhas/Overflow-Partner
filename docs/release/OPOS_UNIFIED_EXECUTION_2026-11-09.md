@@ -202,3 +202,67 @@ release branch so migration replay can produce independently inspectable results
 
 Continue from this ledger. Do not describe this foundation as completed production
 hardening or as an approved production UI.
+
+## Follow-on implementation checkpoint — 9 November 2026
+
+This checkpoint records actual release-branch changes after the first Work Mode
+foundation. It does **not** supersede the outstanding production NO-GO.
+
+**Current verified release state (source):**
+- A main-based, draft PR #123; latest verified pre-checkpoint release SHA
+  `61778d0dc3323dc137a13b00930e2b20a79c4bb6`.
+- 23 release commits and 68 changed files versus `main` at that checkpoint.
+- Vercel preview build READY on that SHA.
+- GitHub **Quality Gate**, **Isolated Database QA (ephemeral migrations/pgTAP)**,
+  and **Stripe HTTP → Project 360 (disposable QA)** were all reported successful.
+  These are automated CI results; **not** an authenticated browser E2E or
+  actual provider money settlement.
+- Northfield frozen commit remains byte-identical to `freeze/northfield-e2e-2026-11-09`.
+- QA database migration history remains 142 entries; production remains untouched.
+
+**Code changes completed in this checkpoint:**
+1. Repaired the failing final-payment lifecycle regression to inspect the
+   extracted **current execution-cycle client acceptance** helper instead of
+   demanding obsolete inline SQL text. The reviewed test now passes.
+2. Release preview fails closed across application routes if its Supabase URL,
+   server URL and QA project reference do not match the **isolated QA project**
+   (release branch only). The broad-matcher outreach test was updated accordingly.
+3. Direct final-payment view, Stripe server action and final-file route now
+   require a signed-in, exact-organisation/project **Client Workspace membership**.
+   An old quotation token alone cannot authorise a native-file download.
+4. Direct final-file route now additionally requires an issued, approved,
+   stored current **Handover Pack** and the current accepted revision before
+   signing file URLs, aligned with `clientFinalFilesReady`.
+5. Client Workspace final-stage CTA now distinguishes final balance due,
+   Stripe-recorded payment pending owner handover, inaccessible verification
+   and fully approved downloadable files, using canonical current-cycle
+   acceptance and verified finance evidence.
+6. Historical quotation links now direct **opened projects** into their
+   authenticated Client Workspace instead of offering a parallel final-payment
+   and final-download journey.
+7. Final Stripe checkout returns to
+   `/portal/client/projects/{projectId}/tasks/final-settlement`, preserves
+   success/cancel state and suppresses repeat checkout after a success return
+   until payment is independently reconciled. Error reading settlement status
+   blocks payment instead of treating it as unpaid.
+8. QA Stripe return origin is bound to the **stable validated Preview branch
+   alias**, not the ephemeral deployment URL or an uncontrolled production
+   fallback. Added static release regressions.
+
+**Still NOT verified / must be finished before commercial launch:**
+- A generic, production-safe engineering review/manifest/client-review/closeout
+  service in place of QA-only `op_qa_*` RPCs and scenario-specific pages.
+- Server-authenticated evidence adapters and complete wiring of the full
+  28-gate `resolveCurrentAction` model to Operator, Client and Partner
+  workspaces. Current UI is integrated partially but remains mixed with
+  legacy components.
+- Authenticated three-role *browser* E2E of a fresh project with native CAD
+  and detailed document review; a second failure/correction/recovery project.
+- Verified QA email delivery/retries (not merely queued), approved financial
+  settlement workflow for real bank evidence, role/tenant penetration tests,
+  migration production dry-run and rollback proof.
+- Screenshots/keyboard/mobile checks on the actual release candidate, legal
+  release approval, real production secrets/origin and owner go-live gate.
+
+**No production migration, merge, live charge, bank transfer or customer
+notification was authorised or performed in this checkpoint.**
