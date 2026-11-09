@@ -166,4 +166,39 @@ assert.ok(qaHandoverPage.includes('prepareQaHandoverPack') &&
  qaHandoverActions.includes("Document transition rejected:"),
  'QA handover requires stored PDF evidence and explicit owner steps; it cannot auto-release native files');
 
+
+const qaPartnerPage=read('app/opos-next/projects/[id]/partner-settlement/page.tsx');
+const qaPartnerActions=read('app/opos-next/projects/[id]/partner-settlement/actions.ts');
+const qaPartnerEvidence=read('lib/qa/northfieldPartnerSettlement.ts');
+const qaPartnerGuard=read('scripts/qa/sql/20261109_northfield_partner_simulation_guard.sql');
+const financePreview=read('app/opos-next/finance/page.tsx');
+const legacyPayments=read('app/workspace/payments/page.tsx');
+assert.ok(qaPartnerPage.includes('createQaPartnerPayable') &&
+  qaPartnerPage.includes('approveQaPartnerPayable') &&
+  qaPartnerPage.includes('simulateQaPartnerPayment') &&
+  qaPartnerPage.includes('closeQaNorthfieldProject') &&
+  qaPartnerPage.includes('SIMULATED BANK PAYMENT — NOT REAL FUNDS') &&
+  qaPartnerPage.includes('closeout?.ready===true') &&
+  qaPartnerPage.includes('closeout?.reasons') &&
+  qaPartnerActions.includes('getQaScenario(id)') &&
+  qaPartnerActions.includes("status:'received'") &&
+  qaPartnerActions.includes("status:'approved',evidence_confirmed:true") &&
+  qaPartnerActions.includes("payment_method:'qa_simulated_bank_transfer'") &&
+  qaPartnerActions.includes("reference:TRANSFER") &&
+  qaPartnerActions.includes("formData.get('confirm_simulation')!=='yes'") &&
+  qaPartnerActions.includes("p_target_stage:'closed'") &&
+  qaPartnerActions.includes("op_advance_project_stage") &&
+  !qaPartnerActions.includes('STRIPE_SECRET_KEY') &&
+  !qaPartnerActions.includes('queueLifecycleEmail') &&
+  qaPartnerEvidence.includes('assertIsolatedQaBackend()') &&
+  qaPartnerEvidence.includes("process.env.VERCEL_GIT_COMMIT_REF!=='qa/recovery-ui-client-gate-20261105'") &&
+  qaPartnerEvidence.includes("p_project_id:projectId") &&
+  qaPartnerEvidence.includes("status?.ownerApproved") &&
+  qaPartnerGuard.includes('op_qa_one_simulated_transfer_per_payable') &&
+  qaPartnerGuard.includes('Synthetic QA payables cannot be deleted') &&
+  financePreview.includes('QA synthetic bank settlement is NOT an actual transfer') &&
+  legacyPayments.includes('qa_simulated_bank_transfer') &&
+  operator.includes("'/partner-settlement'"),
+  'Northfield partner QA settlement must be isolated, approved, synthetic-only, safely reconciled and separately closed through the canonical engine');
+
 console.log('Three-portal next-action contract: Operator, Client and Partner; all guarded original actions preserved. PASS (static).');
