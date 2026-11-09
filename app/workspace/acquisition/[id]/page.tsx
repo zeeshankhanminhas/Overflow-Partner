@@ -93,14 +93,15 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const beforeInterestHandoff = acquisition.actionKey === 'create_intake'
     && !canInviteFromLinkedIn(prospect);
   const governedPresentation = resolveAcquisitionPresentation(acquisition);
-  const presentation = beforeInterestHandoff ? {
+  const websitePendingInvite = prospect.source==='website' && !session && acquisition.actionKey==='create_intake';
+  const presentation = websitePendingInvite ? {...governedPresentation,state:'Website enquiry received',summary:'Inbound enquiry received. Send the secure requirements invitation.',nextAction:{...governedPresentation.nextAction,label:'Send Step 2 requirements invitation',reason:'The customer has already requested support. Invite them to submit detailed technical requirements.'}} : beforeInterestHandoff ? {
     ...governedPresentation,
-    state: prospect.source === 'website' ? 'Website enquiry received' : 'LinkedIn outreach',
-    summary: prospect.source === 'website' ? 'Customer acknowledgement sent; wait for a positive reply before inviting technical details.' : 'Build interest through a direct conversation before opening the formal enquiry.',
+    state: 'LinkedIn outreach',
+    summary: 'Build interest through a direct conversation before opening the formal enquiry.',
     nextAction: {
       ...governedPresentation.nextAction,
-      label: prospect.source === 'website' ? 'Confirm customer interest' : 'Engage on LinkedIn',
-      reason: prospect.source === 'website' ? 'Record the customer’s affirmative response before sending the secure requirements form.' : 'Send a personal message, record the reply and confirm interest first. Do not request technical requirements yet.',
+      label: 'Engage on LinkedIn',
+      reason: 'Send a personal message, record the reply and confirm interest first. Do not request technical requirements yet.',
     },
   } : governedPresentation;
   const rawInvitation=Array.isArray(query.invitation)?query.invitation[0]:query.invitation;
@@ -118,14 +119,22 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
 
   const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href={prospect.source === 'linkedin' ? '/workspace/acquisition/funnel' : '/workspace/acquisition'}>← {prospect.source === 'linkedin' ? 'Back to LinkedIn funnel' : 'Back to opportunities'}</Link><p className="vp-kicker">Opportunity · {id.slice(0,8).toUpperCase()}</p><h1>{prospect.company_name}</h1><p className="vp-subtitle">{[prospect.contact_name,prospect.job_title].filter(Boolean).join(' · ')||'Contact not recorded'}</p></div></div>;
 
-  const stateStrip=beforeInterestHandoff
-    ? <div className="vp-callout"><strong>Awaiting customer interest · {prospect.source === 'website' ? 'Website enquiry' : 'LinkedIn acquisition'}</strong><p>The secure technical form is only available after an interested reply has been recorded.</p>{prospect.source === 'linkedin' ? <Link href="/workspace/acquisition/funnel">Open LinkedIn funnel</Link> : null}</div>
-    : <div><div className="opportunity-stage-strip" style={{display:'grid',gridTemplateColumns:`repeat(${acquisitionStages.length},minmax(0,1fr))`,gap:8}}>{acquisitionStages.map((label,index)=><div key={label} className="opportunity-stage-step" style={{padding:'10px 12px',borderTop:`2px solid ${index===acquisition.stageIndex?'var(--op-accent)':index<acquisition.stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>acquisition.stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<acquisition.stageIndex?'Complete':index===acquisition.stageIndex?'Current':'Next'}</small><strong>{opportunityStageLabel(label)}</strong></div>)}</div></div>;
-
+  const stateStrip = beforeInterestHandoff
+    ? <div className="vp-callout"><strong>Awaiting LinkedIn interest</strong><p>Confirm interest through the separate Outreach conversation before opening a technical enquiry.</p><Link href="/outreach">Open LinkedIn Outreach</Link></div>
+    : <div className="opos-journey" aria-label="Opportunity progress">
+        {['Enquiry','Requirements','Feasibility'].map((label,index)=>{
+          const done=index===0 || (index===1&&Boolean(submission)) || (index===2&&Boolean(partnerRequest&&decision));
+          const active=index===1&&!submission || index===2&&Boolean(submission)&&!done;
+          return <div className="opos-journey__step" key={label} aria-current={active?'step':undefined}>
+            <div className="opos-journey__step-top"><span>{String(index+1).padStart(2,'0')}</span><span aria-label={done?'Complete':active?'Current':'Not started'}>{done?'✓':'○'}</span></div>
+            <strong>{label}</strong>
+          </div>;
+        })}
+      </div>;
   const readiness=<div className="vp-facts"><Fact label="Requirements" value={acquisition.readiness.technicalIntake}/><Fact label="Client submission" value={acquisition.readiness.technicalSubmission}/><Fact label="Delivery review" value={acquisition.readiness.partnerReview}/><Fact label="Partner cost" value={acquisition.readiness.partnerPricing}/><Fact label="Commercial decision" value={acquisition.readiness.approval}/><Fact label="Ready to progress" value={acquisition.readiness.qualification}/></div>;
 
   const partnerGate=<AcquisitionPartnerGate prospectId={id} intakeSessionId={session?.id||''} scopeSummary={String(submission?.description||prospect.requirement_summary||'Engineering requirement')} partners={partners} request={partnerRequest} response={response} quote={partnerQuote} decision={decision} reviewUrl={canUseDeveloperLink?reviewUrl:undefined}/>;
-  const canEditWorkingStatus=['identified','contacted','conversation','not_a_fit'].includes(String(prospect.status))&&!convertedCaseId;
+  const canEditWorkingStatus=prospect.source!=='website'&&['identified','contacted','conversation','not_a_fit'].includes(String(prospect.status))&&!convertedCaseId;
   const statusControl=canEditWorkingStatus?<DecisionDialog triggerLabel="Update opportunity status" triggerClassName="button secondary" eyebrow="Opportunity control" title="Update opportunity status" description="Manage early commercial engagement without bypassing technical qualification or Case conversion."><form action={updateProspectWorkingStatusFormAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Status<select name="status" defaultValue={prospect.status} required><option value="identified">Identified</option><option value="contacted">Contacted</option><option value="conversation">In conversation</option><option value="not_a_fit">Not a fit</option></select></label><label>Reason<textarea name="reason" rows={3} placeholder="Required when closing or reopening an opportunity"/></label><div className="product-notice"><strong>Governed boundaries</strong><div>Qualified status remains controlled by the approved Go / No-Go decision. Converted status remains controlled by Case 360 creation.</div></div><button className="button" type="submit">Save status</button></form></DecisionDialog>:null;
   const nextActionPanel=<div><p className="vp-kicker">Next action</p><h2 style={{marginTop:6}}>{commercialCopy(presentation.nextAction.label)}</h2><p>{commercialCopy(presentation.nextAction.reason)}</p>
     {acquisition.actionKey==='create_intake' && !beforeInterestHandoff?<form action={createStep2InvitationFormAction}><input type="hidden" name="prospect_id" value={id}/><button className="button">Create requirements request</button></form>:null}
@@ -151,8 +160,8 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   const outreachStatus=String(prospect.outreach_status||'not_contacted');
   const outreachTools=<div className="outreach-panel"><p style={{color:'var(--op-muted)',lineHeight:1.6}}>{prospect.source === 'website' ? 'Record the customer’s email response or follow-up here. Only invite Step 2 after the customer confirms interest.' : 'Run the conversation on LinkedIn, which remains the sending channel. Never email a cold LinkedIn prospect.'}</p>{prospect.source === 'linkedin' ? <ProspectOutreachTools linkedinUrl={prospect.linkedin_url} message={approvedMessage}/> : null}{prospect.source === 'linkedin' ? <div className="outreach-message"><small>Approved opening message</small><p>{approvedMessage}</p></div> : null}<form action={updateProspectOutreachAction} className="stack"><input type="hidden" name="prospect_id" value={id}/><label>Outreach action<select name="outreach_status" defaultValue={outreachStatus}><option value="not_contacted">Not contacted</option><option value="message_sent">Mark message sent</option><option value="follow_up_due">Set follow-up</option><option value="replied">Record reply</option><option value="no_response">No response</option><option value="paused">Pause outreach</option></select></label><label>Reply outcome<select name="response_outcome" defaultValue={prospect.response_outcome||''}><option value="">Not applicable</option><option value="interested">Interested</option><option value="later">Possible later requirement</option><option value="referred">Referred internally</option><option value="not_interested">Not interested</option><option value="no_response">No response</option></select></label><label>Next follow-up<input type="datetime-local" name="next_follow_up_at" defaultValue={prospect.next_follow_up_at?new Date(prospect.next_follow_up_at).toISOString().slice(0,16):''}/></label><label>Conversation note<textarea name="outreach_note" rows={3} placeholder="Record the commercial substance of the reply or follow-up"/></label><button className="button" type="submit">Record outreach</button></form>{acquisition.actionKey==='create_intake'?null:<div className="product-notice"><strong>Secure intake</strong><div>{session?'A requirements request already exists. For security, its raw link is not retained after creation.':'The secure link becomes available when this opportunity is ready for requirements intake.'}</div></div>}{prospect.company_id?<Link className="button secondary" href={`/workspace/companies/${prospect.company_id}`}>Open client account</Link>:null}</div>;
   // Before interest, prospect outreach is the primary work, not a hidden Messages drawer.
-  const activities = beforeInterestHandoff ? outreachTools : activitySummary;
-  const communications = prospect.source==='linkedin' ? undefined : beforeInterestHandoff ? undefined : outreachTools;
+  const activities = prospect.source==='website' ? activitySummary : beforeInterestHandoff ? outreachTools : activitySummary;
+  const communications = ['website','linkedin'].includes(String(prospect.source)) ? undefined : beforeInterestHandoff ? undefined : outreachTools;
 
   const history=<div>{events.length===0?<p>No opportunity activity recorded yet.</p>:events.slice(0,16).map((event:any)=><div className="project-os-history-row" key={event.id}><span>→</span><div><strong>{commercialCopy(String(event.event_type).replaceAll('_',' ').replaceAll('.',' '))}</strong><small>{dateTime(event.created_at)}</small></div></div>)}</div>;
   const metadata=<div className="vp-facts"><Fact label="Opportunity ID" value={prospect.id}/><Fact label="Created" value={dateTime(prospect.created_at)}/><Fact label="Updated" value={dateTime(prospect.updated_at)}/><Fact label="Delivery review ref" value={partnerRequest?.case_reference}/></div>;
