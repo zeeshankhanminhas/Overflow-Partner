@@ -118,6 +118,7 @@ const qaHandoverPage=read('app/opos-next/projects/[id]/handover/page.tsx');
 const qaHandoverActions=read('app/opos-next/projects/[id]/handover/actions.ts');
 const qaHandoverDownload=read('app/opos-next/projects/[id]/handover/file/route.ts');
 const qaHandoverGuard=read('supabase/migrations/20261107185000_qa_governed_handover_gate.sql');
+const qaHandoverRepair=read('supabase/migrations/20261109113000_qa_handover_read_gates_repair.sql');
 assert.ok(qaHandoverPage.includes('prepareQaHandoverPack') &&
  qaHandoverPage.includes("supabase.rpc('op_project_voice_final_release_status'") &&
  qaHandoverPage.includes("p_user_id:user.id,p_project_id:id") &&
@@ -137,7 +138,15 @@ assert.ok(qaHandoverPage.includes('prepareQaHandoverPack') &&
  qaHandoverDownload.includes("'Cache-Control':'private, no-store, max-age=0'") &&
  qaHandoverGuard.includes('op_qa_guard_handover_pack') &&
  qaHandoverGuard.includes('opos-qa-controlled-handover') &&
- qaHandoverGuard.includes('op_project_final_settlements'),
+ qaHandoverGuard.includes('op_project_final_settlements') &&
+ qaHandoverRepair.includes('opos_qa_owner_handover_storage_read') &&
+ qaHandoverRepair.includes("p.role::text IN ('owner','admin')") &&
+ qaHandoverRepair.includes('op_project_voice_final_release_status') &&
+ !qaHandoverRepair.includes('GRANT SELECT ON public.op_project_final_settlements') &&
+ qaHandoverActions.includes("const candidates=(existing||[]).filter") &&
+ qaHandoverActions.includes("getTitle()!=='QA Controlled Handover Pack - '") &&
+ qaHandoverActions.includes("if(freshUpload)") &&
+ qaHandoverActions.includes("Document transition rejected:"),
  'QA handover requires stored PDF evidence and explicit owner steps; it cannot auto-release native files');
 
 console.log('Three-portal next-action contract: Operator, Client and Partner; all guarded original actions preserved. PASS (static).');
