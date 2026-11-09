@@ -3,6 +3,7 @@ import PartnerWorkSurface from '@/components/execution/PartnerWorkSurface';
 import Link from 'next/link';
 import {createClient as createAdminClient} from '@supabase/supabase-js';
 import {clientFinalFilesReady} from '@/lib/portals/clientFinalRelease';
+import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
 import {notFound,redirect} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
@@ -38,18 +39,30 @@ export default async function AccountProject({params,searchParams}:{
    reviewData.projectId===p.project_id&&typeof reviewData.issueId==='string'&&
    reviewData.issueId.length>0&&Array.isArray(reviewData.files)
    ?reviewData as ClientReview:null;
- const finalBalanceReady=client&&p.project_stage==='completion'&&['accepted','accepted_with_comments'].includes(String(review?.decision||''));
- // Membership was independently verified above by portal_my_projects. A
- // privilege-scoped read only checks the already-entitled exact project.
+ // Portal membership has already been verified against this exact account.
+ // Financial/review truth is read from the same current-cycle, organisation-scoped
+ // records used by the final payment and native handover services. The QA client
+ // review preview alone cannot authorise another payment request.
+ let finalBalanceReady=false;
  let finalFilesReady=false;
- if(client&&isKnownIsolatedQaBackend()&&process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true'&&
-    ['completion','closed'].includes(p.project_stage)){
+ let finalPaid=false;
+ let finalSettlementUnavailable=false;
+ const finalServiceEnabled=process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true' &&
+   (isKnownIsolatedQaBackend()||process.env.VERCEL_ENV==='production');
+ if(client&&finalServiceEnabled&&['completion','closed'].includes(p.project_stage)){
    const url=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL;
    const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
    if(url&&key){
      const db=createAdminClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-     finalFilesReady=await clientFinalFilesReady(db,p.organisation_id,p.project_id);
-   }
+     finalBalanceReady=await hasCurrentClientAcceptance(db,p.organisation_id,p.project_id);
+     if(finalBalanceReady){
+       const settlement=await db.from('op_project_final_settlements').select('verified_at')
+         .eq('organisation_id',p.organisation_id).eq('project_id',p.project_id).maybeSingle();
+       finalSettlementUnavailable=Boolean(settlement.error);
+       finalPaid=!settlement.error&&Boolean(settlement.data?.verified_at);
+       if(finalPaid)finalFilesReady=await clientFinalFilesReady(db,p.organisation_id,p.project_id);
+     }
+   }else finalSettlementUnavailable=true;
  }
  const secureReview=review&&!finalBalanceReady?'#drawing-review':null;
  const query:{notice?:string;error?:string;updated?:string}=searchParams?await searchParams:{};
@@ -68,10 +81,11 @@ export default async function AccountProject({params,searchParams}:{
   {notice?<p role="alert" className={css.notice}>We couldn’t open that page. Please return to your project and try again. If the problem continues, ask Overflow Partner for a fresh link.</p>:null}
   {client ? <section className={css.nextAction} aria-label="Current next step">
    <span className={css.eyebrow}>NEXT STEP</span>
-   <h2>{finalFilesReady?'Your approved engineering files are ready':finalBalanceReady?'Final balance and handover':secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
-   <p>{finalFilesReady?'The final payment is verified and Overflow Partner has authorised this exact engineering revision. Open your secure final handover to access the approved files.':finalBalanceReady?'Your review is accepted. Open the secure final-balance page to see settlement status before controlled final handover.':secureReview?(review?.canRespond?'Check the approved drawings. You can accept them or request changes.':'You can view the drawings and any response you have already submitted. Final editable files are provided separately after handover approval.'):next.description}</p>
+   <h2>{finalFilesReady?'Your approved engineering files are ready':finalSettlementUnavailable?'Final balance verification unavailable':finalPaid?'Final payment received · handover pending':finalBalanceReady?'Complete the final balance':secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
+   <p>{finalFilesReady?'Your final payment, latest accepted engineering revision and controlled handover have been verified. Open your secure files.':finalSettlementUnavailable?'We cannot verify the payment service at the moment. No repeat payment is requested; please contact Overflow Partner.':finalPaid?'Your final payment is recorded. Overflow Partner must separately authorise the controlled handover before final files become available. No further payment is required.':finalBalanceReady?'Your accepted review has been recorded. Open the final settlement page to see the verified balance and permitted payment options.':secureReview?(review?.canRespond?'Check the drawings and accept them or request changes.':'Your recorded drawing review remains available for reference.'):next.description}</p>
    {finalFilesReady?<Link className={css.action} href={finalFilesHref}>Open final engineering files →</Link>:
-   finalBalanceReady?<Link className={css.action} href={settlementHref}>View final balance →</Link>:
+   finalSettlementUnavailable||finalPaid?null:
+   finalBalanceReady?<Link className={css.action} href={settlementHref}>Review final balance →</Link>:
    secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
      null}
   </section> : p.project_stage==='closed'?<section className={css.nextAction}><h2>Project closed</h2><p>Your work order and project details are available below.</p></section>:<PartnerWorkSurface assignmentEndpoint={'/portal/partner/projects/'+projectId+'/work'}/>}
