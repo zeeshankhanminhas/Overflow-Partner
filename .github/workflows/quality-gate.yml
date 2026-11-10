@@ -36,7 +36,7 @@ jobs:
         run: npm run typecheck
 
       - name: Unified lifecycle action and ownership regression
-        run: node --test scripts/qa/current-action.test.mjs scripts/qa/workspace-routing.test.mjs scripts/qa/portal-final-action.test.mjs scripts/qa/portal-dashboard-qa-isolation.test.mjs scripts/qa/work-order-evidence.test.mjs scripts/qa/client-settlement-parity.test.mjs scripts/qa/workspace-approved-ui.test.mjs
+        run: node --test scripts/qa/current-action.test.mjs scripts/qa/workspace-routing.test.mjs scripts/qa/portal-final-action.test.mjs scripts/qa/portal-dashboard-qa-isolation.test.mjs scripts/qa/work-order-evidence.test.mjs scripts/qa/client-settlement-parity.test.mjs scripts/qa/workspace-approved-ui.test.mjs scripts/qa/controller-ui-contract.test.mjs
 
       - name: Phase 3 release contracts
         run: npm run phase3:check
