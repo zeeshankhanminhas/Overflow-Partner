@@ -44,3 +44,23 @@
   .sectionPanel { padding: 22px 20px; }
   .rowAction { font-size: 10px; }
 }
+
+/* Controller Mission Control adopts the shared light-navy design.
+   Maintain the same data priority, task ownership and route permissions. */
+.eyebrow{color:#64748b}
+.heading{color:#17263d}
+.lead{color:#52667d}
+.primary{background:#fff;border-color:#dbe4ec;box-shadow:0 3px 14px rgba(28,58,91,.04)}
+.pill{background:#eaf2f9;border-color:#cedfee;color:#315d88}
+.pillDot{background:#b17d2c}
+.primaryTitle{color:#193a60}
+.primaryDesc{color:#4c627c}
+.divider{background:#e2e8f0}
+.primaryName,.sectionHead h2,.rowTitle{color:#17263d}
+.primaryMeta,.sectionCount,.rowAction{color:#64748b}
+.primaryAction{background:#193a60;color:#fff}
+.primaryAction:hover{background:#2b527c;color:#fff}
+.sectionPanel{background:#fff;border-color:#dbe4ec}
+.row{border-color:#e2e8f0}
+.rowLink:hover .rowTitle{color:#193a60}
+.rowCopy,.empty{color:#52667d}
