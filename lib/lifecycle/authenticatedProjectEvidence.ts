@@ -53,7 +53,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  const verified=(gate:GateKey,ok:boolean,available=true)=>{
   evidence[gate]={state:!available?'unknown':ok?'verified':'missing'};
  };
- const read=async(table:string,select:string,filters:Record<string,string|number|null>,
+ const read=async(table:string,select:string,filters:Record<string,string|number|boolean|null>,
   order?:string)=>{
   let q=trusted.from(table).select(select).eq('organisation_id',organisationId!);
   for(const [key,val] of Object.entries(filters)){
@@ -177,9 +177,9 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  // Partner invoice and its matched transfer are independent evidence.
  check('partner_invoice_verified',payable,r=>Boolean(r.approved_at&&r.evidence_confirmed&&r.invoice_reference));
  if(payable.row?.id){
-  const payment=await read('partner_payments','id,status,paid_at,payable_id',
+  const payment=await read('partner_payments','id,status,paid_at,payable_id,reference',
    {project_id:projectId,payable_id:String(payable.row.id)},'paid_at');
-  check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='paid'));
+  check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='cleared'&&r.reference));
  }
  const stage=String(p.project_stage||'');
  const phase=stage==='closed'?'closure':stage==='completion'?'payment_settlement':
