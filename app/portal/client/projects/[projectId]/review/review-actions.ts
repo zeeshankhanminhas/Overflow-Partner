@@ -14,6 +14,8 @@ export async function recordProtectedClientDecisionAction(form:FormData){
  try{
   assertIsolatedQaBackend();
   if(form.get('confirmed')!=='yes')throw new Error('Confirm your authority to decide on this revision.');
+  const issueId=String(form.get('issue_id')||'').trim();
+  if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(issueId))throw new Error('Reopen the current drawing revision before responding.');
   const outcome=String(form.get('outcome')||'').trim();
   const comments=String(form.get('comments')||'').trim();
   if(!['accepted','accepted_with_comments','changes_requested','rejected'].includes(outcome))
@@ -25,11 +27,12 @@ export async function recordProtectedClientDecisionAction(form:FormData){
   // The database independently enforces an active exact company membership,
   // the current issued revision, no prior decision and stage=client_review.
   const {error}=await supabase.rpc('op_qa_record_client_review_decision',{
-    p_project_id:projectId,p_outcome:outcome,p_comments:comments});
+    p_project_id:projectId,p_issue_id:issueId,p_outcome:outcome,p_comments:comments});
   if(error)throw new Error(error.message);
   revalidatePath('/portal/client/projects/'+projectId+'/review');
   revalidatePath('/portal/client/projects/'+projectId);
   revalidatePath('/portal/client');
+  revalidatePath('/workspace/projects/'+projectId);
   revalidatePath('/opos-next/projects/'+projectId);
   redirect(safe(projectId,'updated','Your response has been received. Overflow Partner will review it.'));
  }catch(error){

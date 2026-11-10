@@ -61,6 +61,7 @@ export default function ClientDrawingReview({projectId,review,feedback}:{
       <p style={{fontSize:12,color:'#596960'}}>Received {review.decidedAt?format(review.decidedAt):''}. Overflow Partner will follow up if needed.</p>
      </div>:canDecide?<form action={recordProtectedClientDecisionAction} style={{display:'grid',gap:15,maxWidth:700}}>
       <input type="hidden" name="project_id" value={projectId}/>
+      <input type="hidden" name="issue_id" value={review.issueId}/>
       <label style={{display:'grid',gap:7,fontWeight:650,fontSize:13}}>Choose your response
        <select name="outcome" required defaultValue="" style={{width:'100%',padding:12,border:'1px solid #c6cec8',borderRadius:8,background:'#fff',color:'#1b1e1b'}}>
         <option value="" disabled>Select after reviewing the drawings</option>
