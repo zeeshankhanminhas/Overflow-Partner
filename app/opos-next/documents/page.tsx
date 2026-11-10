@@ -98,7 +98,7 @@ export default async function DocumentsPage({searchParams}:{searchParams?:Promis
     <label>Document type<select name="type" defaultValue={type}>
      <option value="">All document types</option>
      {typeOptions.map(t=><option key={t} value={t}>{docTypeLabel(t)}</option>)}
-     {type&&!typeOptions.includes(type)?<option value={type}>{docTypeLabel(type)}</option>:null}
+     {type&&!typeOptions.some(option=>option===type)?<option value={type}>{docTypeLabel(type)}</option>:null}
     </select></label>
     <label>Status<select name="status" defaultValue={status}>
      <option value="">All statuses</option>
