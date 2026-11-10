@@ -1,12 +1,10 @@
 import LifecycleProgress, {phaseForProject} from '@/components/workspace/LifecycleProgress';
 import PartnerWorkSurface from '@/components/execution/PartnerWorkSurface';
 import Link from 'next/link';
-import {createClient as createAdminClient} from '@supabase/supabase-js';
-import {clientFinalFilesReady} from '@/lib/portals/clientFinalRelease';
-import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
 import {notFound,redirect} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
+import {clientSettlementPosition} from '@/lib/portals/clientSettlementPosition';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import ClientDrawingReview,{type ClientReview} from '@/app/portal/client/projects/[projectId]/review/ClientDrawingReview';
 import css from '../../../portal.module.css';
@@ -47,22 +45,9 @@ export default async function AccountProject({params,searchParams}:{
  let finalFilesReady=false;
  let finalPaid=false;
  let finalSettlementUnavailable=false;
- const finalServiceEnabled=process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true' &&
-   (isKnownIsolatedQaBackend()||process.env.VERCEL_ENV==='production');
- if(client&&finalServiceEnabled&&['completion','closed'].includes(p.project_stage)){
-   const url=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL;
-   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
-   if(url&&key){
-     const db=createAdminClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-     finalBalanceReady=await hasCurrentClientAcceptance(db,p.organisation_id,p.project_id);
-     if(finalBalanceReady){
-       const settlement=await db.from('op_project_final_settlements').select('verified_at')
-         .eq('organisation_id',p.organisation_id).eq('project_id',p.project_id).maybeSingle();
-       finalSettlementUnavailable=Boolean(settlement.error);
-       finalPaid=!settlement.error&&Boolean(settlement.data?.verified_at);
-       if(finalPaid)finalFilesReady=await clientFinalFilesReady(db,p.organisation_id,p.project_id);
-     }
-   }else finalSettlementUnavailable=true;
+ if(client){
+   const position=await clientSettlementPosition(p.organisation_id,p.project_id,p.project_stage);
+   ({finalBalanceReady,finalFilesReady,finalPaid,finalSettlementUnavailable}=position);
  }
  const secureReview=review&&!finalBalanceReady?'#drawing-review':null;
  const query:{notice?:string;error?:string;updated?:string}=searchParams?await searchParams:{};
