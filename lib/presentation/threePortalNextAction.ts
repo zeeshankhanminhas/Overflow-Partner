@@ -73,10 +73,22 @@ export type SecureClientPosition={
 export function secureClientNextStep(p:SecureClientPosition):NextStep & {href:string|null}{
  const result=(title:string,description:string,href:string|null,action:string|null,waiting:boolean)=>
   ({title,description,href,action,waiting});
- if(p.finalReleaseApproved)return result('Your approved engineering files are available',
-  'Final payment and separate owner release approval have been verified.',p.finalFilesHref,'Open final engineering handover',false);
- if(p.finalReviewAccepted&&!p.finalSettlementVerified)return result('Settle your final engineering balance',
+ // Presentation never grants file access. Require the full supplied evidence
+ // before advertising release; missing or conflicting evidence fails closed.
+ if(p.finalReleaseApproved && p.finalReviewAccepted && p.finalSettlementVerified)
+  return result('Your approved engineering files are available',
+   'Final payment and separate owner release approval have been verified.',p.finalFilesHref,'Open final engineering handover',false);
+ if(p.finalReleaseApproved && (!p.finalReviewAccepted || !p.finalSettlementVerified))
+  return result('Final handover verification is incomplete',
+   'The release record does not match the verified review and payment evidence. Native files remain locked while Overflow Partner reconciles the records.',null,null,true);
+ if(p.finalReviewAccepted && p.paymentVerificationPending)
+  return result('Your final payment is being verified',
+   'Please do not pay again. Native engineering files remain locked until the receipt is independently verified.',null,null,true);
+ if(p.finalReviewAccepted && !p.finalSettlementVerified)return result('Settle your final engineering balance',
   'An accepted client review precedes final payment. Native engineering files remain locked.',p.finalBalanceHref,'Review final balance',false);
+ if(p.finalReviewAccepted && p.finalSettlementVerified)
+  return result('Final handover is awaiting owner approval',
+   'Your final payment is verified. An authorised Overflow Partner owner must still approve the exact engineering files before download.',null,null,true);
  if(p.projectStage){
   const basic=portalProjectNextStep('client',{project_stage:p.projectStage});
   return result(basic.title,basic.description,null,null,true);
