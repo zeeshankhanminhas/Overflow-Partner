@@ -65,6 +65,18 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  const chosenAction=chosenProject?nextFor(chosenProject):null;
  const primary=liveClientReview?{label:'Review your drawings',detail:'Your drawings are ready. Please check them and accept or request changes.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'#drawing-review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the price and scope, then accept, request more time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id,action:'Open quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id,action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
+ const attentionCount=orderedProjects.filter(p=>!nextFor(p).waiting&&p.project_stage!=='closed').length
+  +(isClient?quotes.filter(q=>!q.project_id&&['','awaiting_response','pending'].includes(String(q.client_response||'').trim())).length:0);
+ const activeCount=projects.filter(p=>p.project_stage!=='closed').length;
+ const dashboardStats=isClient?[
+  {label:'Active projects',value:activeCount},
+  {label:'Open quotations',value:quotes.filter(q=>!q.project_id).length},
+  {label:'Items needing attention',value:attentionCount},
+ ]:[
+  {label:'Active assignments',value:activeCount},
+  {label:'Work Orders awaiting acceptance',value:projects.filter(p=>p.project_stage==='mobilisation'&&p.work_order_accepted===false).length},
+  {label:'Items needing attention',value:attentionCount},
+ ];
  const previewProjects=orderedProjects.slice(0,3);
  const title=isClient?'Your engineering projects':'Your engineering work';
  return <>
@@ -73,6 +85,12 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
    <h1 className={css.title}>{title}</h1>
    <p className={css.subtitle}>{mine.length===1?mine[0].account_name+' · ':''}Progress, decisions and documents in one place.</p>
   </div>
+  {permitted?<section className={css.metrics} aria-label="Workspace overview">
+   {dashboardStats.map(stat=><div key={stat.label} className={css.metric}>
+    <span className={css.metricLabel}>{stat.label}</span>
+    <strong className={css.metricValue}>{stat.value}</strong>
+   </div>)}
+  </section>:null}
   {!permitted?<div className={css.empty}>This sign-in does not have access to a {isClient?'Client':'Partner'} Workspace. An Overflow Partner administrator must grant access to your verified account. <Link href="/portal" className={css.crumb}>View available workspaces</Link></div>:<>
    <section className={css.nextAction} aria-label="Your one next action">
     <span className={css.eyebrow}>{primary?(primary.waiting?'WAITING ON OTHERS':'YOUR NEXT STEP'):'ALL UP TO DATE'}</span>
