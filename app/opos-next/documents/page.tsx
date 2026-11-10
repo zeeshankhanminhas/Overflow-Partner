@@ -20,7 +20,7 @@ export default async function DocumentsPage({searchParams}:{searchParams?:Promis
  const type=String(raw.type||'').slice(0,80);
  const status=String(raw.status||'').slice(0,40);
  const search=String(raw.search||'').trim().slice(0,80);
- const projectQuery=String(raw.project_query||'').trim().replace(/[%,()]/g,'').slice(0,80);
+ const projectQuery=String(raw.project_query||'').trim().replace(/[^a-zA-Z0-9\s\-_\/]/g,'').slice(0,80);
  const requestedPage=Number.parseInt(String(raw.page||'1'),10);
  const page=Number.isFinite(requestedPage)?Math.max(1,Math.min(10000,requestedPage)):1;
  const requestedProjectPage=Number.parseInt(String(raw.project_page||'1'),10);
