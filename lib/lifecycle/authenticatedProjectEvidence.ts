@@ -3,6 +3,8 @@ import {createClient as createPrivilegedClient} from '@supabase/supabase-js';
 import {createClient} from '@/lib/supabase/server';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import {lifecycleGates,resolveCurrentAction,type GateKey,type GateEvidence,type WorkspaceActor} from './currentAction';
+const stageName=(value:unknown)=>String(value||'');
+
 
 /**
  * Read-only 28-gate evidence projection for an exact authenticated project.
@@ -95,7 +97,8 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   // but unapproved intake does not.
   check('requirements_approved',intake,r=>r.status==='approved'&&Boolean(r.reviewed_at));
   if(scope.row?.approved_at)verified('requirements_approved',true);
-  check('mobilisation_approved',terms,r=>Boolean(r.authorised_at));
+  // Commercial terms do not prove a historic mobilisation-stage approval.
+  void terms;
  }
  if(quote){
   const [commercial,offer,accept,openingInvoice,openingReceipt]=await Promise.all([
@@ -158,6 +161,19 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
 
    }
   }
+ }
+ // A stage label alone is not historical gate evidence. Governed transitions
+ // are recorded as immutable organisation-scoped activity events.
+ const history=await trusted.from('activity_events').select('new_value,event_data')
+  .eq('organisation_id',organisationId).eq('entity_type','project')
+  .eq('entity_id',projectId).eq('event_type','project.stage_advanced')
+  .order('created_at',{ascending:true}).limit(100);
+ if(!history.error){
+  const advanced=(to:string)=>(history.data||[]).some(event=>
+   (event.new_value as {project_stage?:string}|null)?.project_stage===to&&
+   (event.event_data as {canonicalLifecycle?:boolean}|null)?.canonicalLifecycle===true);
+  verified('mobilisation_approved',advanced('ready_for_execution'));
+  verified('closure_approved',stageName(p.project_stage)==='closed'&&advanced('closed'));
  }
  const [transmittal,finalInvoice,settlement,release,handover,payable]=await Promise.all([
   Number.isInteger(cycle)&&cycle>0?read('project_client_transmittals','id,issued_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'issued_at'):Promise.resolve({row:null,available:false}),
