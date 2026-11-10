@@ -4,6 +4,7 @@ import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/
 
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import {clientSettlementPosition} from '@/lib/portals/clientSettlementPosition';
 import css from '../portal.module.css';
 
 export const dynamic='force-dynamic';
@@ -27,18 +28,41 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  const liveClientReview=reviewChecks.find((r):r is {project:typeof projects[number];review:{projectId?:string;canRespond?:boolean;revision?:string}}=>Boolean(r))||null;
  const outstandingQuote=isClient?quotes.find(q=>!q.project_id&&['','awaiting_response','pending'].includes(String(q.client_response||'').trim())):null;
 
- // Role-scoped RPCs remain the only source of dashboard data. These counts and
- // ordering are presentation-only; a dashboard link never grants a transaction.
+ // Fetch the same scoped current-cycle financial truth as the Client Project.
+ // Membership is established by portalContext before any privileged read.
+ const completionProjects=permitted&&isClient
+  ?projects.filter(p=>p.project_stage==='completion'||p.project_stage==='closed'):[];
+ const positions=await Promise.all(completionProjects.map(async p=>({
+  id:p.project_id,
+  position:await clientSettlementPosition(p.organisation_id,p.project_id,p.project_stage),
+ })));
+ const positionByProject=new Map(positions.map(entry=>[entry.id,entry.position]));
+ const nextFor=(p:typeof projects[number])=>{
+  const base=portalProjectNextStep(kind,p);
+  const settlement=isClient?positionByProject.get(p.project_id):undefined;
+  if(!settlement||p.project_stage==='closed')return base;
+  if(settlement.finalSettlementUnavailable)
+   return {title:'Final balance verification unavailable',description:'We cannot verify your settlement status. Please do not repeat a payment; Overflow Partner will investigate.',action:null,waiting:true};
+  if(settlement.finalFilesReady)
+   return {title:'Final engineering files are available',description:'Your verified final handover can be opened securely in this project.',action:'Open project handover',waiting:false};
+  if(settlement.finalPaid)
+   return {title:'Final balance received · handover pending',description:'Your payment is recorded. Final file release still requires independent owner approval.',action:null,waiting:true};
+  if(settlement.finalBalanceReady)
+   return {title:'Final balance requires attention',description:'Review the verified final settlement information inside this project before paying.',action:'Review final balance',waiting:false};
+  return {title:'Final review verification pending',description:'Overflow Partner must verify the current accepted review before requesting final payment.',action:null,waiting:true};
+ };
+ // Role-scoped RPCs remain the only source of dashboard project membership.
+ // Project ordering and links never grant transaction permission.
  const orderedProjects=[...projects].sort((a,b)=>{
-  const aNeeds=portalProjectNextStep(kind,a).waiting?0:1;
-  const bNeeds=portalProjectNextStep(kind,b).waiting?0:1;
+  const aNeeds=nextFor(a).waiting?0:1;
+  const bNeeds=nextFor(b).waiting?0:1;
   if(aNeeds!==bNeeds)return bNeeds-aNeeds;
   const aOpen=a.project_stage==='closed'?0:1;
   const bOpen=b.project_stage==='closed'?0:1;
   return bOpen-aOpen;
  });
  const chosenProject=orderedProjects[0]||null;
- const chosenAction=chosenProject?portalProjectNextStep(kind,chosenProject):null;
+ const chosenAction=chosenProject?nextFor(chosenProject):null;
  const primary=liveClientReview?{label:'Review your drawings',detail:'Your drawings are ready. Please check them and accept or request changes.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'#drawing-review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the price and scope, then accept, request more time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id,action:'Open quotation',waiting:false}:
   chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id,action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
  const previewProjects=orderedProjects.slice(0,3);
@@ -61,7 +85,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
     <div className={css.sectionHead}><div><p className={css.eyebrow}>YOUR WORK</p><h2>Projects</h2></div></div>
     {previewProjects.length?<div className={css.dashboardList}>
       {previewProjects.map(p=>{
-       const next=portalProjectNextStep(kind,p);
+       const next=nextFor(p);
        return <Link key={p.account_id+'-'+p.project_id} className={css.dashboardProject}
         href={'/portal/'+kind+'/projects/'+p.project_id}>
         <div><span className={css.eyebrow}>{p.project_number}</span><h3>{p.project_title}</h3><p>{next.title}</p></div>
@@ -73,7 +97,7 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
       <summary>View all {projects.length} projects</summary>
       <div className={css.list}>
        {orderedProjects.slice(3).map(p=><Link className={css.project} key={p.account_id+'-'+p.project_id} href={'/portal/'+kind+'/projects/'+p.project_id}>
-        <div><p className={css.eyebrow}>{p.project_number}</p><h3>{p.project_title}</h3><p>{portalProjectNextStep(kind,p).title}</p></div>
+        <div><p className={css.eyebrow}>{p.project_number}</p><h3>{p.project_title}</h3><p>{nextFor(p).title}</p></div>
         <div className={css.projectMeta}><span className={css.tag}>{stageLabel(p.project_stage,kind)}</span><span>{p.account_name}</span></div>
        </Link>)}
       </div>
