@@ -32,7 +32,7 @@ test('all project pages display one common owner/reason diagnostic',()=>{
  assert.match(external,/<ProjectLifecycleEvidence actor=\{kind\} projectId=\{projectId\}/);
  assert.match(component,/Responsible role:/);
  assert.match(component,/action\.reason/);
- assert.match(component,/action\.canExecute&&action\.target\?<Link/);
+ assert.match(component,/action\.canExecute&&destination\?<Link/);
  assert.match(adapter,/const capabilities:Partial<Record<GateKey,ActionCapability>>=\{\}/);
 });
 
@@ -76,4 +76,25 @@ test('QA simulated or manually cleared partner transfer never passes verified ba
  assert.match(adapter,/evidence\.partner_payment_verified=\{state:'unknown'/);
  assert.match(adapter,/A real partner bank transfer requires independently reconciled settlement evidence/);
  assert.doesNotMatch(adapter,/check\('partner_payment_verified',payment/);
+});
+
+test('one authoritative next-action headline controls all three project pages',()=>{
+ const shell=load('app/opos-next/WorkRecordV2.tsx');
+ const partner=load('components/execution/PartnerWorkSurface.tsx');
+ assert.match(component,/aria-label="Authoritative project next action"/);
+ assert.match(operator,/showDecision=\{false\}/);
+ assert.match(shell,/showDecision=true/);
+ assert.match(shell,/\{showDecision\?<section className=\{css\.decision\}/);
+ assert.doesNotMatch(external,/aria-label="Current next step"/);
+ assert.match(external,/<PartnerWorkSurface embeddedDecision/);
+ assert.match(external,/Secure review, settlement and handover services/);
+ assert.match(partner,/embeddedDecision=false/);
+ assert.match(partner,/\{!embeddedDecision\?<><h2/);
+ assert.match(partner,/id="partner-work-controls"/);
+});
+test('capability links land on actual guarded work surfaces, not the top of the same record',()=>{
+ assert.match(component,/actor==='operator'\?'#project-controls'/);
+ assert.match(component,/actor==='partner'\?'#partner-work-controls'/);
+ assert.match(component,/action\.key==='client_review_accepted'\?'#drawing-review'/);
+ assert.match(component,/action\.canExecute&&destination\?<Link/);
 });
