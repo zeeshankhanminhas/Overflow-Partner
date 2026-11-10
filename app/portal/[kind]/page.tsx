@@ -1,3 +1,4 @@
+import ProjectLifecycleEvidence from '@/components/workspace/ProjectLifecycleEvidence';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
@@ -62,9 +63,9 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
   return bOpen-aOpen;
  });
  const chosenProject=orderedProjects[0]||null;
- const chosenAction=chosenProject?nextFor(chosenProject):null;
- const primary=liveClientReview?{label:'Review your drawings',detail:'Your drawings are ready. Please check them and accept or request changes.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'#drawing-review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the price and scope, then accept, request more time or decline.',href:'/portal/client/quotes/'+outstandingQuote.quote_id,action:'Open quotation',waiting:false}:
-  chosenProject&&chosenAction?{label:chosenAction.title,detail:chosenAction.description,href:'/portal/'+kind+'/projects/'+chosenProject.project_id,action:chosenAction.action||'View status',waiting:chosenAction.waiting}:null;
+ // Secure review and quotation decisions precede project-only lifecycle steps.
+ // Project tasks themselves are resolved by the authenticated 28-gate engine.
+ const primary=liveClientReview?{label:'Review your drawings',detail:'Your current controlled drawing package is available in your verified client workspace.',href:'/portal/client/projects/'+liveClientReview.project.project_id+'#drawing-review',action:'Open drawing review',waiting:false}:outstandingQuote?{label:'Review your quotation',detail:'Check the issued price and scope before recording your decision.',href:'/portal/client/quotes/'+outstandingQuote.quote_id,action:'Open quotation',waiting:false}:null;
  const attentionCount=orderedProjects.filter(p=>!nextFor(p).waiting&&p.project_stage!=='closed').length
   +(isClient?quotes.filter(q=>!q.project_id&&['','awaiting_response','pending'].includes(String(q.client_response||'').trim())).length:0);
  const activeCount=projects.filter(p=>p.project_stage!=='closed').length;
@@ -92,12 +93,17 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
    </div>)}
   </section>:null}
   {!permitted?<div className={css.empty}>This sign-in does not have access to a {isClient?'Client':'Partner'} Workspace. An Overflow Partner administrator must grant access to your verified account. <Link href="/portal" className={css.crumb}>View available workspaces</Link></div>:<>
+   {primary?<section className={css.nextAction} aria-label="Your one next action">
+    <span className={css.eyebrow}>YOUR VERIFIED NEXT STEP</span>
+    <h2>{primary.label}</h2>
+    <p>{primary.detail}</p>
+    <Link className={css.action} href={primary.href}>{primary.action} →</Link>
+   </section>:chosenProject?<ProjectLifecycleEvidence actor={kind} projectId={chosenProject.project_id}/>:
    <section className={css.nextAction} aria-label="Your one next action">
-    <span className={css.eyebrow}>{primary?(primary.waiting?'WAITING ON OTHERS':'YOUR NEXT STEP'):'ALL UP TO DATE'}</span>
-    <h2>{primary?primary.label:'Nothing needs your action'}</h2>
-    <p>{primary?primary.detail:'We’ll let you know when there is something to do.'}</p>
-    {primary&&!primary.waiting?<Link className={css.action} href={primary.href}>{primary.action} →</Link>:null}
-   </section>
+    <span className={css.eyebrow}>ALL UP TO DATE</span>
+    <h2>No assigned project needs reviewing</h2>
+    <p>Verified account work appears here when it is assigned.</p>
+   </section>}
 
    <section className={css.section+' '+css.dashboardSection} aria-label="Your project register" id="projects">
     <div className={css.sectionHead}><div><p className={css.eyebrow}>YOUR WORK</p><h2>Projects</h2></div></div>
