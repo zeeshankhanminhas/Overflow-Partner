@@ -10,13 +10,13 @@ const client=file('app/portal/[kind]/page.tsx');
 const externalLayout=file('app/portal/layout.tsx');
 const browser=file('scripts/qa/three-role-browser.mjs');
 
-test('controller design matches light-navy account workspace and has mobile coverage',()=>{
- assert.match(shell,/--canvas:#f5f7fa/);
- assert.match(shell,/--text:#17263d/);
- assert.match(shell,/color-scheme:light/);
- assert.match(shell,/\.shell \.action\{background:#193a60;color:#fff/);
- assert.match(mission,/\.primary\{background:#fff;border-color:#dbe4ec/);
- assert.match(mission,/\.primaryAction\{background:#193a60;color:#fff/);
+test('controller retains established dark workspace and has mobile coverage',()=>{
+ assert.match(shell,/--canvas: #090a0b/);
+ assert.match(shell,/--text: #f4f4f5/);
+ assert.match(shell,/color-scheme: dark/);
+ assert.match(shell,/\.shell \.action \{ display: inline-flex/);
+ assert.match(mission,/\.primary \{ border: 1px solid #303238/);
+ assert.match(mission,/\.primaryAction \{ display: inline-flex/);
  assert.match(mission,/@media\(max-width:700px\)\{\.overview/);
  assert.match(client,/className=\{css\.metrics\}/);
  assert.match(externalLayout,/isWorkspaceTwoPreview\(\)\?css\.canvas\+' '\+css\.qaV2:css\.canvas/);
