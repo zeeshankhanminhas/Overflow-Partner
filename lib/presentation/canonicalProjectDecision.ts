@@ -51,10 +51,15 @@ export function canonicalProjectDecision(facts:ProjectDecisionFacts):CanonicalDe
  });
  switch(stage){
   case 'mobilisation':
+   // Missing Work Order evidence is not authority to complete mobilisation.
+   if(facts.workOrderIssued===undefined)return decision('evidence_unavailable','operator',true);
    if(facts.workOrderIssued===false)return decision('issue_work_order','operator');
-   if(facts.workOrderIssued===true&&facts.workOrderAccepted===false)return decision('accept_work_order','partner');
+   if(facts.workOrderAccepted===undefined)return decision('evidence_unavailable','operator',true);
+   if(facts.workOrderAccepted===false)return decision('accept_work_order','partner');
    return decision('complete_mobilisation','operator');
   case 'ready_for_execution':
+   // Never propose a commencement when acceptance evidence failed to load.
+   if(facts.workOrderAccepted===undefined)return decision('evidence_unavailable','operator',true);
    if(facts.workOrderAccepted===false)return decision('accept_work_order','partner');
    return decision('confirm_commencement','partner');
   case 'in_progress':
