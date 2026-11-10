@@ -62,3 +62,11 @@ test('operator capabilities match authenticated role and exact current technical
  assert.match(adapter,/completionEvent:'delivery\.manifest_verified'/);
  assert.match(adapter,/completionEvent:'client_review\.protected_issued'/);
 });
+
+test('confidentiality only passes real governed lineage, never QA simulation',()=>{
+ assert.match(adapter,/trusted\.rpc\('op_preproject_lineage_readiness'/);
+ assert.match(adapter,/lineageState\.reason==='approved_prequotation_lineage'/);
+ assert.match(adapter,/lineageState\.simulation!==true/);
+ assert.match(adapter,/lineageState\?\.simulation===true/);
+ assert.match(adapter,/verified\('confidentiality_confirmed',true\)/);
+});
