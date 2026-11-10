@@ -192,7 +192,7 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
     {notices}
     <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+project.project_number} title={project.title}
       subtitle={clientName} state={stageMeta.label} owner="Overflow Partner"
-      nextTitle={currentPresentation.nextAction.label} nextDescription={currentPresentation.nextAction.reason}
+      nextTitle={currentPresentation.nextAction.label} nextDescription={currentPresentation.nextAction.reason || currentPresentation.summary}
       stages={[]} stageIndex={0} evidence={[]} facts={[]} previous="/opos-next/projects"
       governedHref="#project-controls" actionLabel="View current controls" />
     {stateStrip}

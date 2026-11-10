@@ -37,7 +37,6 @@ export async function proxy(request: NextRequest) {
     const target = path === '/workspace' ? '/opos-next' :
       nextHref(path + request.nextUrl.search);
     // Subpages with their own forms or file handlers retain their exact destination.
-    
     if (!path.startsWith('/opos-next') && !/^\/workspace\/projects\/[^/]+\/.+/.test(path) && target.startsWith('/opos-next')) {
       const destination = request.nextUrl.clone();
       destination.pathname = target;

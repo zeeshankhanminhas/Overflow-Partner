@@ -125,7 +125,14 @@ export default async function OpportunityPreview({
   const activity=eventsResult.data||[];
   const formRole=actionKey==='request_partner'?canRequestPartner:canWrite;
   const invitation=query.invitation;
-  const secureIntake=invitation?.startsWith(qaPublicOrigin()+'/intake/') && /^[A-Za-z0-9_-]+$/.test(invitation.slice(invitation.lastIndexOf('/')+1)) && invitation === qaPublicOrigin()+'/intake/'+invitation.split('/').pop() ? invitation : null;
+  let secureIntake:string|null=null;
+  if(invitation){
+    try {
+      const url=new URL(invitation);
+      if(url.origin===qaPublicOrigin() && /^\/intake\/[A-Za-z0-9_-]+$/.test(url.pathname) &&
+        !url.username && !url.password && !url.search && !url.hash) secureIntake=url.href;
+    } catch { /* Invalid or unavailable QA links must never be displayed. */ }
+  }
   return <article aria-labelledby="opos-opportunity-name">
     <div className={css.frame}>
       <div className={css.header}>
