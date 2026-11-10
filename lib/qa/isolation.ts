@@ -45,3 +45,36 @@ export function isDisposableLocalWebhookQaBackend(): boolean {
 export function isTrustedWebhookQaBackend(): boolean {
   return isKnownIsolatedQaBackend() || isDisposableLocalWebhookQaBackend();
 }
+
+export function isKnownIsolatedQaFixtureBackend(): boolean {
+  if (process.env.VERCEL_ENV !== 'preview' ||
+      process.env.OP_QA_FIXTURE_WRITES_ENABLED !== 'true') return false;
+  const qaRef = String(process.env.OP_QA_SUPABASE_PROJECT_REF || '').trim().toLowerCase();
+  if (!/^[a-z0-9]{12,32}$/.test(qaRef) || qaRef === OPOS_PRODUCTION_SUPABASE_REF) return false;
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '');
+    return url.protocol === 'https:' &&
+      url.hostname.toLowerCase() === qaRef + '.supabase.co' &&
+      Boolean(process.env.OP_QA_TEST_INBOX);
+  } catch { return false; }
+}
+
+export function assertIsolatedQaFixtureBackend() {
+  if (!isKnownIsolatedQaFixtureBackend())
+    throw new Error('Synthetic CRM entry is locked until the isolated OPOS-QA fixture gate is verified.');
+}
+
+/** Narrow test-only Step 2 switch, separate from the normal commercial write gate. */
+export function isKnownIsolatedQaStep2Backend(): boolean {
+  return isKnownIsolatedQaFixtureBackend() &&
+    process.env.OP_QA_STEP2_ENABLED === 'true' &&
+    process.env.OP_QA_SUPABASE_PROJECT_REF === 'ukcamenuxhdznxaxpyis';
+}
+
+
+export function isWorkspaceTwoPreview(): boolean {
+  return process.env.VERCEL_ENV === 'preview' &&
+    process.env.VERCEL_GIT_COMMIT_REF === 'release/opos-production-hardening-2026-11-09' &&
+    process.env.OP_QA_SUPABASE_PROJECT_REF === 'ukcamenuxhdznxaxpyis' &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://ukcamenuxhdznxaxpyis.supabase.co';
+}

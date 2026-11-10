@@ -1,3 +1,5 @@
+import WorkRecordV2 from '@/app/opos-next/WorkRecordV2';
+import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
 import {classifyClientFeedbackAction,reconcileProtectedClientReviewAction} from './delivery-actions';
 import DeliveryDecision,{deliveryTitle,type DeliveryGate} from './DeliveryDecision';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
@@ -186,5 +188,17 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   }
   const currentTitle=reviewTitle||title;
   const currentPresentation=currentTitle?{...presentation,nextAction:{...presentation.nextAction,label:currentTitle,reason:'The current submission and its recorded approvals determine this step.'}}:presentation;
+  if (isWorkspaceTwoPreview()) return <>
+    {notices}
+    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+project.project_number} title={project.title}
+      subtitle={clientName} state={stageMeta.label} owner="Overflow Partner"
+      nextTitle={currentPresentation.nextAction.label} nextDescription={currentPresentation.nextAction.reason}
+      stages={[]} stageIndex={0} evidence={[]} facts={[]} previous="/opos-next/projects"
+      governedHref="#project-controls" actionLabel="View current controls" />
+    {stateStrip}
+    <section id="project-controls" className="stack">{nextAction}</section>
+    <details id="record-readiness"><summary>Readiness and evidence</summary>{readinessPanel}{evidence}</details>
+    <details><summary>Project details and history</summary>{summary}{activities}{history}{metadata}{communications}{audit}</details>
+  </>;
   return <RecordWorkspace focusMode className="project-os-page" header={header} notices={notices} stateStrip={stateStrip} presentation={currentPresentation} readiness={readinessPanel} nextAction={nextAction} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>;
 }

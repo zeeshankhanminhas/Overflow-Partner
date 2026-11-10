@@ -1,5 +1,6 @@
 "use server";
 
+import { isWorkspaceTwoPreview } from "@/lib/qa/isolation";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,7 +55,7 @@ export async function signIn(formData: FormData) {
     );
   }
 
-  redirect("/workspace");
+  redirect(isWorkspaceTwoPreview() ? "/opos-next" : "/workspace");
 }
 
 export async function signOut() {

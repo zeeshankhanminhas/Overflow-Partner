@@ -3,11 +3,11 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type { AppRole, Profile } from '@/types/domain';
 
-export const requireUserContext = cache(async function requireUserContext() {
+export const requireUserContext = cache(async function requireUserContext(next?: '/opos-next') {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (authError || !user) redirect('/login');
+  if (authError || !user) redirect(next === '/opos-next' ? '/login?next=%2Fopos-next' : '/login');
 
   const { data, error: profileError } = await supabase
     .from('profiles')

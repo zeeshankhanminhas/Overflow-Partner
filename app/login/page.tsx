@@ -1,10 +1,12 @@
+import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
 import Link from "next/link";
 import { signIn } from "./actions";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   const { error, next } = await searchParams;
-  const destinations: Record<string,string> = {'/portal/client':'Client Workspace','/portal/partner':'Execution Partner Workspace','/workspace':'Operator Workspace'};
-  const destination = next && Object.hasOwn(destinations, next) ? next : '/workspace';
+  const operatorHome = isWorkspaceTwoPreview() ? '/opos-next' : '/workspace';
+  const destinations: Record<string,string> = {'/portal/client':'Client Workspace','/portal/partner':'Execution Partner Workspace',[operatorHome]:'Operator Workspace'};
+  const destination = next && Object.hasOwn(destinations, next) ? next : operatorHome;
 
   return (
     <main className="auth">

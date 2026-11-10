@@ -15,7 +15,11 @@ import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { assertCanInviteTechnicalIntake } from '@/lib/business/invariants';
 import type { ActionResult, Lead, Prospect } from '@/types/domain';
 
+import {qaPublicOrigin} from '@/lib/qa/publicOrigin';
+import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
+
 function siteUrl(path: string) {
+  if (isWorkspaceTwoPreview()) return qaPublicOrigin() + path;
   const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
   return `${base.startsWith('http') ? base : `https://${base}`}${path}`;
 }
@@ -84,6 +88,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     }
 
     const token = randomBytes(32).toString('base64url');
+    const url = siteUrl(`/intake/${token}`);
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const now = new Date().toISOString();
@@ -91,7 +96,7 @@ export async function createStep2InvitationFormAction(formData: FormData) {
     if (error) throw error;
     await supabase.from('prospects').update({ next_action: 'Await customer technical intake' }).eq('organisation_id', organisationId).eq('id', prospectId);
     await supabase.from('activity_events').insert({ organisation_id: organisationId, user_id: user.id, entity_type: 'prospect', entity_id: prospectId, event_type: 'technical_intake_invited', event_data: { intakeSessionId: session.id, expiresAt, delivery: prospect.email ? 'queued_for_email' : 'link_ready', invariant:'ACTIVE_PROSPECT_INTAKE' } });
-    const url = siteUrl(`/intake/${token}`);
+
 
     await cancelEntityReminders(supabase, { organisationId, entityType: 'prospect', entityId: prospectId, categories: ['nurture'] }).catch(() => 0);
     if (prospect.email) {

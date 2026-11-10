@@ -1,3 +1,5 @@
+import {nextHref} from './app/opos-next/nextHref';
+import {isWorkspaceTwoPreview} from './lib/qa/isolation';
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -28,6 +30,19 @@ export async function proxy(request: NextRequest) {
       status: 503,
       headers: { "Cache-Control": "no-store" }
     });
+  }
+
+  if (request.method === 'GET' && isWorkspaceTwoPreview()) {
+    const path = request.nextUrl.pathname;
+    const target = path === '/workspace' ? '/opos-next' :
+      nextHref(path + request.nextUrl.search);
+    // Subpages with their own forms or file handlers retain their exact destination.
+    
+    if (!path.startsWith('/opos-next') && !/^\/workspace\/projects\/[^/]+\/.+/.test(path) && target.startsWith('/opos-next')) {
+      const destination = request.nextUrl.clone();
+      destination.pathname = target;
+      return NextResponse.redirect(destination);
+    }
   }
 
   let response = NextResponse.next({ request });
