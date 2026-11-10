@@ -11,7 +11,7 @@ test('both client project and dashboard use the same scoped current-cycle positi
  assert.match(detail,/await clientSettlementPosition\(p\.organisation_id,p\.project_id,p\.project_stage\)/);
  assert.match(home,/await clientSettlementPosition\(p\.organisation_id,p\.project_id,p\.project_stage\)/);
  assert.match(home,/const positionByProject=new Map/);
- assert.match(home,/const chosenAction=chosenProject\?nextFor\(chosenProject\):null/);
+ assert.match(home,/<ProjectLifecycleEvidence actor=\{kind\} projectId=\{chosenProject\.project_id\}\/>/);
 });
 
 test('privileged settlement reader is server-only and cannot grant client membership',()=>{
