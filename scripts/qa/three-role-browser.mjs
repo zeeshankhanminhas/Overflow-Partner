@@ -62,6 +62,25 @@ try{
     }
    }
    await page.screenshot({path:'artifacts/three-role-browser/'+identity.key+'-'+width+'.png',fullPage:true});
+   // Exercise a real authenticated record surface, without submitting a task.
+   if(identity.key==='controller'){
+    await page.goto(origin+'/opos-next/projects',{waitUntil:'domcontentloaded'});
+    assert.ok(await page.locator('main').count(),'Controller projects register missing');
+   }else{
+    const record=page.locator('a[href^="/portal/'+identity.key+'/projects/"]').first();
+    if(!await record.count())throw Error('No synthetic '+identity.key+' project/assignment fixture; E2E cannot pass.');
+    await record.click();
+    await page.waitForURL(address=>address.pathname.startsWith('/portal/'+identity.key+'/projects/'));
+    await page.getByRole('heading',{level:1}).first().waitFor();
+    assert.ok(await page.getByRole('main').count(),'Scoped project page missing');
+    await page.screenshot({path:'artifacts/three-role-browser/'+identity.key+'-record-'+width+'.png',fullPage:true});
+    // An authenticated account of one external role must not obtain the
+    // other portal's private project dashboard by changing the URL.
+    await page.goto(origin+'/portal/'+(identity.key==='client'?'partner':'client'),{waitUntil:'domcontentloaded'});
+    assert.ok(new URL(page.url()).pathname.startsWith('/login') ||
+      await page.getByText(/does not have access to a|different workspace/i).count()>0,
+      'Cross-role portal exposure: '+identity.key);
+   }
    console.log('PASS',identity.key,width,page.url());
    await context.close();
   }
