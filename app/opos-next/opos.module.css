@@ -326,3 +326,18 @@
 .shell .searchInput:focus{border-color:#315d88;outline-color:#315d88}
 .skipLink{background:#193a60;color:#fff}
 @media(max-width:850px){.sidebar{box-shadow:none}}
+
+/* Complete Controller mobile and engineering-control contrast alignment. */
+@media(max-width:850px){
+ .shell .mobileHeader{background:#fff;border-bottom-color:#dbe4ec}
+ .shell .mobileMenuTrigger{color:#193a60}
+ .shell .mobileBrand{color:#193a60}
+ .mobilePreview{background:#eaf2f9;border-color:#cedfee;color:#315d88}
+ .mobileLiveDot{background:#36816a}
+ .mobileAvatar{background:#eaf2f9;border-color:#cedfee;color:#193a60}
+ .shell .mobileMenu{box-shadow:0 14px 26px rgba(16,40,68,.12)}
+}
+.shell .qaChecklistRow{border-color:#dbe4ec;background:#fff;color:#17263d}
+.shell .qaChecklistRow:hover{border-color:#b6c9dc;background:#f1f6fb}
+.shell .qaChecklistRow:focus-within{outline-color:#315d88}
+.shell .qaChecklistRow input[type="checkbox"]{accent-color:#193a60}
