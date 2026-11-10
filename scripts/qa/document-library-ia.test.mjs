@@ -27,3 +27,19 @@ test('large document registers have independent project/document pagination',()=
  assert.match(style,/@media\(max-width:540px\)/);
  assert.match(style,/background:#101113/);
 });
+
+test('project directory searches across all pages with organisation scope',()=>{
+ assert.match(src,/project_query\?:string/);
+ assert.match(src,/if\(projectQuery\)/);
+ assert.match(src,/\.from\('projects'\)/);
+ assert.match(src,/\.or\('title\.ilike\.%'\+projectQuery\+'%,project_number\.ilike\.%'\+projectQuery\+'%'\)/);
+ assert.match(src,/\.range\(projectOffset,projectOffset\+PAGE_SIZE\)/);
+ assert.match(src,/name="project_query"/);
+ assert.match(src,/project_query:projectQuery/);
+});
+test('deep links verify exact project membership independently of visible project page',()=>{
+ assert.match(src,/\.eq\('organisation_id',organisationId\)\s*\.eq\('id',projectId\)\.maybeSingle\(\)/);
+ assert.match(src,/const selected=selectedResult\?\.data/);
+ assert.doesNotMatch(src,/const selected=projects\.find/);
+ assert.match(src,/if\(scope==='project'&&selected\)query=query\.eq\('project_id',selected\.id\)/);
+});
