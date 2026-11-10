@@ -26,6 +26,8 @@ export type GateEvidence = {
   state: EvidenceState;
   /** Safe public reference only; no private prices, bank details or notes. */
   reference?: string;
+  /** Short non-sensitive explanation supplied by the trusted evidence reader. */
+  reason?: string;
 };
 type Gate = { key: GateKey; phase: LifecyclePhase; owner: WorkspaceActor; title: string };
 export const lifecycleGates: readonly Gate[] = [
@@ -108,13 +110,13 @@ export function resolveCurrentAction(input: CurrentActionInput): CurrentAction {
   }
   // The earliest unresolved prerequisite wins even if the stored stage is ahead.
   const state = evidence[0].state;
-  if (state === 'unknown') return {...result,state:'unknown',reason:'Required evidence could not be verified.'};
+  if (state === 'unknown') return {...result,state:'unknown',reason:input.evidence[gate.key]?.reason || 'Required evidence could not be verified.'};
   if (state === 'pending') return {...result,state:'waiting',reason:`Waiting for verified completion from ${gate.owner}.`};
   if (input.actor !== gate.owner) return {...result,state:'waiting',reason:`Waiting for ${gate.owner}.`};
   const capability = input.capabilities[gate.key];
   if (!capability?.permitted || !safeTarget(capability.target) || !capability.completionEvent.trim()) {
     return {...result,state:state === 'failed' ? 'failed' : 'blocked',
-      reason:'The authorised task service is not available. Resolve its permission or evidence requirements.'};
+      reason:input.evidence[gate.key]?.reason || 'The authorised task service is not available. Resolve its permission or evidence requirements.'};
   }
   return {...result,state:state === 'failed' ? 'failed' : 'actionable',
     reason:state === 'failed' ? 'The task failed. Open the authorised task to review and retry safely.' : 'The prerequisite evidence and task permissions have been verified.',
