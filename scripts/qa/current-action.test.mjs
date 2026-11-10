@@ -61,3 +61,26 @@ test('failed retry requires capability; closed has no repeated CTA',()=>{
   const closed=resolveCurrentAction({actor:'operator',phase:'closure',evidence:verified,capabilities:{closure_approved:capability}});
   assert.equal(closed.state,'done');assert.equal(closed.target,null);assert.equal(closed.canExecute,false);
 });
+
+test('unverified confidentiality blocks release even when all later evidence is present',()=>{
+ const evidence={...verified,confidentiality_confirmed:{
+  state:'unknown',reason:'Confidentiality approval evidence missing.'
+ }};
+ for(const actor of ['operator','client','partner']){
+  const result=resolveCurrentAction({actor,phase:'closure',evidence,
+   capabilities:{confidentiality_confirmed:capability}});
+  assert.equal(result.key,'confidentiality_confirmed');
+  assert.equal(result.state,'unknown');
+  assert.equal(result.canExecute,false);
+  assert.equal(result.target,null);
+  assert.match(result.reason,/Confidentiality approval evidence missing/);
+ }
+});
+test('no task capability is derived from a verified stage or missing record alone',()=>{
+ const evidence={...verified,owner_release_approved:{state:'missing',reason:'Owner approval not recorded.'}};
+ const result=resolveCurrentAction({actor:'operator',phase:'payment_settlement',evidence,capabilities:{}});
+ assert.equal(result.key,'owner_release_approved');
+ assert.equal(result.state,'blocked');
+ assert.equal(result.canExecute,false);
+ assert.equal(result.reason,'Owner approval not recorded.');
+});
