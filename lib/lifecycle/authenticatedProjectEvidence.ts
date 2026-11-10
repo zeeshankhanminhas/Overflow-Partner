@@ -84,6 +84,11 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   ]);
   // Lead status alone does not prove formal qualification; preserve unknown.
   if(opportunity.row?.prospect_id){
+   const prospectId=String(opportunity.row.prospect_id);
+   const conversion=await read('activity_events','id,event_data,created_at',
+    {entity_type:'prospect',entity_id:prospectId,event_type:'prospect_converted'},'created_at');
+   check('opportunity_qualified',conversion,r=>(
+    (r.event_data as {leadId?:string}|null)?.leadId===lead));
    const feasibility=await read('prospect_technical_reviews',
     'id,approved_at,status,decision',{prospect_id:String(opportunity.row.prospect_id)},'approved_at');
    check('feasibility_approved',feasibility,r=>Boolean(r.approved_at&&['approved','feasible'].includes(String(r.decision))));
