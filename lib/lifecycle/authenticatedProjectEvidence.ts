@@ -333,10 +333,15 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  // Partner invoice and its matched transfer are independent evidence.
  check('partner_invoice_verified',payable,r=>Boolean(r.approved_at&&r.evidence_confirmed&&r.invoice_reference));
  if(payable.row?.id){
-  const payment=await read('partner_payments','id,status,paid_at,payable_id,reference',
+  const payment=await read('partner_payments','id,status,paid_at,payable_id,reference,payment_method',
    {project_id:projectId,payable_id:String(payable.row.id)},'paid_at');
-  check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='cleared'&&r.reference),
-   'No cleared partner payment is matched to the approved payable. A simulation cannot prove bank settlement.');
+  // A self-reported or QA-simulated transfer is NOT independent bank evidence.
+  // Until a generic reconciled bank confirmation service exists, this gate
+  // stays unknown even when someone manually marked the payment as cleared.
+  evidence.partner_payment_verified={state:'unknown',
+   reason:payment.row?.payment_method==='qa_simulated_bank_transfer'?
+    'The partner transfer is a synthetic QA simulation, not real settlement.':
+    'A real partner bank transfer requires independently reconciled settlement evidence.'};
  }
  const stage=String(p.project_stage||'');
  const phase=stage==='closed'?'closure':stage==='completion'?'payment_settlement':
