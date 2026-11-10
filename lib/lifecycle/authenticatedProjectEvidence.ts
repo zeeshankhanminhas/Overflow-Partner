@@ -124,32 +124,53 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
    if(submission.row?.id){
     const submissionId=String(submission.row.id);
     verified('engineering_approved',submission.row.review_status==='accepted',submission.available);
-    const [manifest,clientReview]=await Promise.all([
+    const [manifest,clientIssue]=await Promise.all([
      read('op_qa_manifest_verifications','id,submission_id,verified_at',{project_id:projectId,submission_id:submissionId},'verified_at'),
-     read('project_client_reviews','id,outcome,recorded_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'recorded_at'),
+     read('op_qa_client_review_issues','id,issued_at,submission_id,execution_cycle,transmittal_id',{project_id:projectId,submission_id:submissionId,execution_cycle:cycle},'issued_at'),
     ]);
     check('manifest_verified',manifest,r=>Boolean(r.verified_at));
-    check('client_review_accepted',clientReview,r=>Boolean(r.recorded_at&&['accepted','accepted_with_comments'].includes(String(r.outcome))));
+    // Only the protected, recipient-bound current-cycle issue is evidence of
+    // an externally actionable review, not merely a project stage/transmittal.
+    check('client_review_issued',clientIssue,r=>Boolean(r.issued_at&&r.transmittal_id));
+    if(clientIssue.row?.id){
+     const [clientDecision,internalDecision]=await Promise.all([
+      read('op_qa_client_review_decisions','id,outcome,decided_at,decided_by',{project_id:projectId,issue_id:String(clientIssue.row.id)},'decided_at'),
+      read('project_client_reviews','id,outcome,recorded_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'recorded_at'),
+     ]);
+     verified('client_review_accepted',Boolean(
+      clientDecision.available&&internalDecision.available&&
+      clientDecision.row?.decided_at&&clientDecision.row?.decided_by&&
+      internalDecision.row?.recorded_at&&
+      ['accepted','accepted_with_comments'].includes(String(clientDecision.row?.outcome))&&
+      clientDecision.row?.outcome===internalDecision.row?.outcome),
+      clientDecision.available&&internalDecision.available);
+    }
+
    }
   }
  }
- const [transmittal,finalInvoice,settlement,release,handover,payment]=await Promise.all([
+ const [transmittal,finalInvoice,settlement,release,handover,payable]=await Promise.all([
   Number.isInteger(cycle)&&cycle>0?read('project_client_transmittals','id,issued_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'issued_at'):Promise.resolve({row:null,available:false}),
   read('invoices','id,issued_at,invoice_type',{project_id:projectId,invoice_type:'final'},'issued_at'),
   read('op_project_final_settlements','project_id,verified_at',{project_id:projectId}),
   read('op_project_final_release_approvals','project_id,approved_at,submission_id',{project_id:projectId}),
   read('documents','id,issued_at,approved_at,is_current_revision,status,storage_path',{project_id:projectId,document_type:'handover-pack',is_current_revision:true},'issued_at'),
-  read('partner_payments','id,status,paid_at',{project_id:projectId},'paid_at'),
+  read('partner_payables','id,status,invoice_reference,evidence_confirmed,approved_at',{project_id:projectId},'approved_at'),
  ]);
  // Issued transmittal alone is insufficient proof of protected portal access.
  // Its gate remains unknown until generic recipient-scoped issuance is wired.
  void transmittal;
  check('final_invoice_issued',finalInvoice,r=>Boolean(r.issued_at));
  check('final_payment_verified',settlement,r=>Boolean(r.verified_at));
- check('owner_release_approved',release,r=>Boolean(r.approved_at));
+ check('owner_release_approved',release,r=>Boolean(r.approved_at&&r.submission_id));
  check('handover_issued',handover,r=>Boolean(r.issued_at&&r.approved_at&&r.storage_path&&r.is_current_revision&&['issued','published'].includes(String(r.status))));
- // Partner payment is explicitly separate from its invoice verification.
- check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='paid'));
+ // Partner invoice and its matched transfer are independent evidence.
+ check('partner_invoice_verified',payable,r=>Boolean(r.approved_at&&r.evidence_confirmed&&r.invoice_reference));
+ if(payable.row?.id){
+  const payment=await read('partner_payments','id,status,paid_at,payable_id',
+   {project_id:projectId,payable_id:String(payable.row.id)},'paid_at');
+  check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='paid'));
+ }
  const stage=String(p.project_stage||'');
  const phase=stage==='closed'?'closure':stage==='completion'?'payment_settlement':
   ['client_review','issued_to_client','ready_for_client_issue'].includes(stage)?'delivery':
