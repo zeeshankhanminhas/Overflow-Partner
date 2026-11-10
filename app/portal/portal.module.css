@@ -119,34 +119,10 @@
 .qaV2 .notice{background:#18251e;border-color:#345748;color:#d1e4d6}
 .qaV2 :is(a,button,summary,input):focus-visible{outline:2px solid #f4f4f5;outline-offset:3px}
 
-/* Approved Workspace 2.0 visual direction: restrained navy, light canvas,
-   clear single-action card, and useful overview metrics.
-   Scoped to account portals; internal controls retain their existing gates. */
+/* Maintain the established black QA Workspace 2.0 appearance. */
 .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:0 0 22px}
-.metric{background:#fff;border:1px solid #dbe4ec;border-radius:13px;padding:18px 20px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.metricLabel{font-size:12px;font-weight:560;color:#64748b;line-height:1.4}
-.metricValue{font-size:26px;font-weight:700;line-height:1.1;color:#193a60;font-variant-numeric:tabular-nums}
+.metric{background:#101113;border:1px solid #303238;border-radius:13px;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
+.metricLabel{font-size:12px;font-weight:560;color:#b8bac0;line-height:1.4}
+.metricValue{font-size:26px;font-weight:700;line-height:1.1;color:#f4f4f5;font-variant-numeric:tabular-nums}
 @media(max-width:750px){.metrics{gap:9px}.metric{padding:13px}.metricLabel{font-size:11px}.metricValue{font-size:23px}}
 @media(max-width:420px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric:last-child{grid-column:1/-1}}
-/* Replace the previous dark QA preview skin with the approved light proposal. */
-.qaV2{background:#f5f7fa;color:#17263d;color-scheme:light}
-.qaV2 .header{background:#fff;border-color:#dbe4ec}
-.qaV2 .brand,.qaV2 .title,.qaV2 .sectionHead h2,.qaV2 .project h3,.qaV2 .dashboardProject h3,.qaV2 .card h2{color:#17263d}
-.qaV2 .navigation :is(a,button){color:#475569}
-.qaV2 .navigation :is(a,button):hover,.qaV2 .navigation .active{background:#eaf1f8;color:#193a60}
-.qaV2 .foot{border-color:#dbe4ec;color:#64748b}
-.qaV2 :is(.eyebrow,.crumb,.subtitle,.summary p,.sectionHead p,.project p,.projectMeta span,.dashboardProject p,.dashboardMore>summary,.compactDisclosure>summary){color:#64748b}
-.qaV2 .dashboardStage{color:#315d88}
-.qaV2 :is(.summary,.project,.dashboardProject,.card,.empty){background:#fff;border-color:#dbe4ec;color:#17263d}
-.qaV2 .dashboardProject:hover,.qaV2 .project:hover{background:#f8fbfe;border-color:#a7bfd5}
-.qaV2 :is(.projectMeta,.facts>div,.dashboardMore,.compactDisclosure){border-color:#dbe4ec}
-.qaV2 .tag{background:#eaf2f9;border-color:#cedfee;color:#315d88}
-.qaV2 :is(.nextAction,.nextDetail){background:#f1f6fb;border-color:#d9e6f3}
-.qaV2 :is(.nextAction h2,.nextDetail h2){color:#193a60}
-.qaV2 :is(.nextAction p,.nextDetail p,.facts dt,.card p){color:#4c627c}
-.qaV2 .action{background:#193a60;color:#fff;border-color:#193a60}
-.qaV2 .action:hover{background:#2b527c;color:#fff}
-.qaV2 .secondaryAction{background:#fff;color:#193a60;border-color:#c6d6e5}
-.qaV2 .secondaryAction:hover{background:#eaf2fa}
-.qaV2 .notice{background:#edf4f9;border-color:#315d88;color:#31506c}
-.qaV2 :is(a,button,summary,input):focus-visible{outline:2px solid #315d88;outline-offset:3px}
