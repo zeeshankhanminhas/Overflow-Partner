@@ -50,3 +50,15 @@ test('client review capability comes only from member-scoped protected review se
  assert.match(adapter,/evidence\.client_review_issued\.state==='verified'/);
  assert.match(adapter,/completionEvent:'client_review\.client_attested'/);
 });
+
+test('operator capabilities match authenticated role and exact current technical submission',()=>{
+ assert.match(adapter,/select\('organisation_id,is_active,role'\)/);
+ assert.match(adapter,/db\.rpc\('op_qa_delivery_gate',\{p_project_id:projectId\}\)/);
+ assert.match(adapter,/gate\.submission_id===currentSubmissionId&&gate\.storage_complete/);
+ assert.match(adapter,/allowedEngineering&&/);
+ assert.match(adapter,/allowedManifest&&/);
+ assert.match(adapter,/allowedIssue&&/);
+ assert.match(adapter,/completionEvent:'engineering\.qa_decided'/);
+ assert.match(adapter,/completionEvent:'delivery\.manifest_verified'/);
+ assert.match(adapter,/completionEvent:'client_review\.protected_issued'/);
+});
