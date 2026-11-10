@@ -9,7 +9,7 @@ const external=load('app/portal/[kind]/projects/[projectId]/page.tsx');
 const engine=load('lib/lifecycle/currentAction.ts');
 test('all 28 gates share the original fail-closed reducer',()=>{
  assert.match(adapter,/Object\.fromEntries\(lifecycleGates\.map/);
- assert.match(adapter,/resolveCurrentAction\(\{actor,phase,evidence,capabilities:\{\},openingBasis\}\)/);
+ assert.match(adapter,/resolveCurrentAction\(\{actor,phase,evidence,capabilities,openingBasis\}\)/);
  assert.match(engine,/const gate = gates\.find\(item => input\.evidence\[item\.key\]\?\.state !== 'verified'\)/);
  assert.match(adapter,/state:'unknown'/);
 });
