@@ -67,10 +67,23 @@ export default async function NewMissionControl() {
   const waiting = attention.items.filter(item => item.ownerBucket === 'client' || item.ownerBucket === 'partner').slice(0,3);
   const action = primary ? nextHref(primary.href) : '/opos-next/opportunities';
   const primaryIsGoverned = primary ? action === primary.href : false;
+  // These are counts of records returned through the existing authenticated
+  // organisation-scoped repositories, never hardcoded demo numbers.
+  const overview = [
+    {label:'Open work records',value:dashboard.cases.filter(item=>item.status!=='closed').length},
+    {label:'Priorities to review',value:ranked.length},
+    {label:'Waiting on others',value:attention.waitingOnClient+attention.waitingOnPartner},
+  ];
   return <section className={styles.root} aria-labelledby="opos-mission-heading">
     <p className={styles.eyebrow}>{new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'Europe/London'}).format(new Date()).toUpperCase()}</p>
     <h1 className={styles.heading} id="opos-mission-heading">Mission Control</h1>
     <p className={styles.lead}>The decisions that matter. Everything else stays in motion.</p>
+    <section className={styles.overview} aria-label="Controller workspace overview">
+      {overview.map(metric=><div className={styles.metric} key={metric.label}>
+        <span className={styles.metricLabel}>{metric.label}</span>
+        <strong className={styles.metricValue}>{metric.value}</strong>
+      </div>)}
+    </section>
     <section className={styles.primary} aria-label="Next priority">
       <div className={styles.primaryTop}>
         <span className={styles.eyebrow}>{primary ? 'NEXT PRIORITY' : 'ALL CLEAR'}</span>
