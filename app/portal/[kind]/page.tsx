@@ -3,6 +3,7 @@ import {notFound} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
 
 import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import css from '../portal.module.css';
 
 export const dynamic='force-dynamic';
@@ -13,7 +14,10 @@ export default async function AccountWorkspace({params}:{params:Promise<{kind:st
  const {accounts,permitted,projects,quotes,supabase}=await portalContext(kind);
  const mine=accounts.filter(a=>a.portal_kind===kind);
  const isClient=kind==='client';
- const reviewCandidates=isClient?projects.filter(p=>p.project_stage==='client_review').slice(0,8):[];
+ // This review RPC is QA-only. Never query it from production or a preview
+ // whose Supabase project isolation cannot be verified.
+ const reviewCandidates=permitted&&isClient&&isKnownIsolatedQaBackend()
+  ?projects.filter(p=>p.project_stage==='client_review').slice(0,8):[];
  const reviewChecks=permitted?await Promise.all(reviewCandidates.map(async p=>{
   const {data,error}=await supabase.rpc('op_qa_client_review_position',{p_project_id:p.project_id});
   const review=data as {projectId?:string;canRespond?:boolean;revision?:string}|null;
