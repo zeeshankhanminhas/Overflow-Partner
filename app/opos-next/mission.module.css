@@ -45,29 +45,9 @@
   .rowAction { font-size: 10px; }
 }
 
-/* Controller Mission Control adopts the shared light-navy design.
-   Maintain the same data priority, task ownership and route permissions. */
-.eyebrow{color:#64748b}
-.heading{color:#17263d}
-.lead{color:#52667d}
-.primary{background:#fff;border-color:#dbe4ec;box-shadow:0 3px 14px rgba(28,58,91,.04)}
-.pill{background:#eaf2f9;border-color:#cedfee;color:#315d88}
-.pillDot{background:#b17d2c}
-.primaryTitle{color:#193a60}
-.primaryDesc{color:#4c627c}
-.divider{background:#e2e8f0}
-.primaryName,.sectionHead h2,.rowTitle{color:#17263d}
-.primaryMeta,.sectionCount,.rowAction{color:#64748b}
-.primaryAction{background:#193a60;color:#fff}
-.primaryAction:hover{background:#2b527c;color:#fff}
-.sectionPanel{background:#fff;border-color:#dbe4ec}
-.row{border-color:#e2e8f0}
-.rowLink:hover .rowTitle{color:#193a60}
-.rowCopy,.empty{color:#52667d}
-
-/* Role-consistent, evidence-derived overview cards. */
+/* The original dark Workspace 2.0 theme remains authoritative. */
 .overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:22px}
-.metric{display:flex;flex-direction:column;gap:9px;min-width:0;border:1px solid #dbe4ec;border-radius:13px;background:#fff;padding:18px 20px}
-.metricLabel{color:#64748b;font-size:12px;line-height:1.4}
-.metricValue{color:#193a60;font-size:26px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.metric{display:flex;flex-direction:column;gap:9px;min-width:0;border:1px solid #303238;border-radius:13px;background:#101113;padding:18px 20px}
+.metricLabel{color:#b8bac0;font-size:12px;line-height:1.4}
+.metricValue{color:#f4f4f5;font-size:26px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
 @media(max-width:700px){.overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{padding:14px}.metric:last-child{grid-column:1/-1}.metricValue{font-size:23px}}
