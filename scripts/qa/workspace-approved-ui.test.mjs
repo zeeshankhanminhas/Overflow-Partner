@@ -11,9 +11,9 @@ test('client and partner dashboard overview is scoped to entitled account record
  assert.match(page,/dashboardStats\.map\(stat=>/);
  assert.match(page,/portalContext\(kind\)/);
 });
-test('approved light navy proposal is enabled in QA preview and responsive',()=>{
- assert.match(style,/\.qaV2\{background:#f5f7fa;color:#17263d;color-scheme:light\}/);
- assert.match(style,/\.qaV2 \.action\{background:#193a60;color:#fff/);
+test('original black Workspace 2.0 theme is enabled in QA preview and responsive',()=>{
+ assert.match(style,/\.qaV2\{background:#090a0b;color:#f4f4f5;color-scheme:dark\}/);
+ assert.match(style,/\.qaV2 \.action\{background:#f4f4f5;color:#101114/);
  assert.match(style,/@media\(max-width:420px\)\{\.metrics/);
  assert.match(style,/\.qaV2 :is\(a,button,summary,input\):focus-visible/);
 });
