@@ -4,7 +4,6 @@ import PartnerWorkSurface from '@/components/execution/PartnerWorkSurface';
 import Link from 'next/link';
 import {notFound,redirect} from 'next/navigation';
 import {formatAmount,isPortalKind,portalContext,stageLabel} from '@/lib/portals/account';
-import {portalProjectNextStep} from '@/lib/presentation/threePortalNextAction';
 import {clientSettlementPosition} from '@/lib/portals/clientSettlementPosition';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
 import ClientDrawingReview,{type ClientReview} from '@/app/portal/client/projects/[projectId]/review/ClientDrawingReview';
@@ -28,7 +27,6 @@ export default async function AccountProject({params,searchParams}:{
  const p=permitted?projects.find(x=>x.project_id===projectId):null;
  if(!p)notFound(); // Never disclose a project across organisations or portal kinds.
  const client=kind==='client';
- const next=portalProjectNextStep(kind,p);
  // Only the current explicitly entitled Client Portal user may discover an issued
  // protected review; the RPC also verifies project, company, cycle and membership.
  const reviewResult=client&&isKnownIsolatedQaBackend()&&['issued_to_client','client_review','completion','closed'].includes(p.project_stage)
@@ -66,16 +64,18 @@ export default async function AccountProject({params,searchParams}:{
   <LifecycleProgress phase={phaseForProject(p.project_stage)}/>
   <ProjectLifecycleEvidence actor={kind} projectId={projectId}/>
   {notice?<p role="alert" className={css.notice}>We couldn’t open that page. Please return to your project and try again. If the problem continues, ask Overflow Partner for a fresh link.</p>:null}
-  {client ? <section className={css.nextAction} aria-label="Current next step">
-   <span className={css.eyebrow}>NEXT STEP</span>
-   <h2>{finalFilesReady?'Your approved engineering files are ready':finalSettlementUnavailable?'Final balance verification unavailable':finalPaid?'Final payment received · handover pending':finalBalanceReady?'Complete the final balance':secureReview?(review?.canRespond?'Review your drawings':'Your drawing review is available'):next.title}</h2>
-   <p>{finalFilesReady?'Your final payment, latest accepted engineering revision and controlled handover have been verified. Open your secure files.':finalSettlementUnavailable?'We cannot verify the payment service at the moment. No repeat payment is requested; please contact Overflow Partner.':finalPaid?'Your final payment is recorded. Overflow Partner must separately authorise the controlled handover before final files become available. No further payment is required.':finalBalanceReady?'Your accepted review has been recorded. Open the final settlement page to see the verified balance and permitted payment options.':secureReview?(review?.canRespond?'Check the drawings and accept them or request changes.':'Your recorded drawing review remains available for reference.'):next.description}</p>
-   {finalFilesReady?<Link className={css.action} href={finalFilesHref}>Open final engineering files →</Link>:
-   finalSettlementUnavailable||finalPaid?null:
-   finalBalanceReady?<Link className={css.action} href={settlementHref}>Review final balance →</Link>:
-   secureReview?<Link className={css.action} href={secureReview}>{review?.canRespond?'Open drawing review':'View drawing review'} →</Link>:
-     null}
-  </section> : p.project_stage==='closed'?<section className={css.nextAction}><h2>Project closed</h2><p>Your work order and project details are available below.</p></section>:<PartnerWorkSurface assignmentEndpoint={'/portal/partner/projects/'+projectId+'/work'}/>}
+  {client?<details className={css.compactDisclosure}>
+   <summary>Secure review, settlement and handover services</summary>
+   <section className={css.card} aria-label="Independently governed client controls">
+    <h2>{finalFilesReady?'Approved files are available':finalSettlementUnavailable?'Financial verification unavailable':finalPaid?'Final payment received':finalBalanceReady?'Final settlement service':review?.canRespond?'Drawing review service':'Project services'}</h2>
+    <p>{finalSettlementUnavailable?'The settlement service could not verify current financial evidence. Do not repeat a payment.':finalFilesReady?'Your current final files have passed the separate payment and owner-release checks.':finalPaid?'Your final balance is recorded; handover still requires the authorised owner release.':finalBalanceReady?'Open the independent, authenticated settlement service to review the balance.':'Client review and financial services remain independently permission-controlled.'}</p>
+    {finalFilesReady?<Link className={css.secondaryAction} href={finalFilesHref}>Open approved files →</Link>:
+     finalSettlementUnavailable||finalPaid?null:
+     finalBalanceReady?<Link className={css.secondaryAction} href={settlementHref}>Review verified balance →</Link>:
+     secureReview?<Link className={css.secondaryAction} href={secureReview}>Open controlled drawing review →</Link>:null}
+   </section>
+  </details>:p.project_stage==='closed'?<p className={css.subtitle}>Your completed Work Order and project evidence remain available below.</p>:
+   <PartnerWorkSurface embeddedDecision assignmentEndpoint={'/portal/partner/projects/'+projectId+'/work'}/>}
   {client&&review?<ClientDrawingReview projectId={p.project_id} review={review} feedback={feedback}/>:null}
   <details className={css.compactDisclosure}>
    <summary>Project information</summary>
