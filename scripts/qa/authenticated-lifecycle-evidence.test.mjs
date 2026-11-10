@@ -98,3 +98,12 @@ test('capability links land on actual guarded work surfaces, not the top of the 
  assert.match(component,/action\.key==='client_review_accepted'\?'#drawing-review'/);
  assert.match(component,/action\.canExecute&&destination\?<Link/);
 });
+
+test('account homes resolve project next actions using the exact shared authenticated engine',()=>{
+ const home=load('app/portal/[kind]/page.tsx');
+ assert.match(home,/import ProjectLifecycleEvidence from/);
+ assert.match(home,/<ProjectLifecycleEvidence actor=\{kind\} projectId=\{chosenProject\.project_id\}\/>/);
+ assert.doesNotMatch(home,/chosenProject&&chosenAction\?/);
+ assert.match(home,/liveClientReview\?/);
+ assert.match(home,/outstandingQuote\?/);
+});
