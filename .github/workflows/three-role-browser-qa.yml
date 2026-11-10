@@ -1,0 +1,41 @@
+name: OPOS three-role browser QA
+on:
+  workflow_dispatch:
+    inputs:
+      qa_origin:
+        description: 'Exact approved isolated release preview URL (not production)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  three-role-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser runner
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright
+          npx playwright install --with-deps chromium
+      - name: Authenticated three-role viewports and access smoke
+        env:
+          OPOS_QA_BROWSER_ORIGIN: ${{ inputs.qa_origin }}
+          OPOS_QA_CONTROLLER_EMAIL: ${{ secrets.OPOS_QA_CONTROLLER_EMAIL }}
+          OPOS_QA_CONTROLLER_PASSWORD: ${{ secrets.OPOS_QA_CONTROLLER_PASSWORD }}
+          OPOS_QA_CLIENT_EMAIL: ${{ secrets.OPOS_QA_CLIENT_EMAIL }}
+          OPOS_QA_CLIENT_PASSWORD: ${{ secrets.OPOS_QA_CLIENT_PASSWORD }}
+          OPOS_QA_PARTNER_EMAIL: ${{ secrets.OPOS_QA_PARTNER_EMAIL }}
+          OPOS_QA_PARTNER_PASSWORD: ${{ secrets.OPOS_QA_PARTNER_PASSWORD }}
+        run: node scripts/qa/three-role-browser.mjs
+      - name: Upload screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-role-browser-qa
+          path: artifacts/three-role-browser/
+          if-no-files-found: ignore
