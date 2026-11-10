@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type {Metadata} from 'next';
 import {signOut} from '@/app/login/actions';
 import css from './portal.module.css';
+import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
 
 export const metadata:Metadata={
  title:'Account Workspaces | Overflow Partner',
@@ -9,7 +10,7 @@ export const metadata:Metadata={
 };
 export const dynamic='force-dynamic';
 export default function ExternalPortalLayout({children}:{children:React.ReactNode}){
- return <div className={css.canvas}>
+ return <div className={isWorkspaceTwoPreview()?css.canvas+' '+css.qaV2:css.canvas}>
   <header className={css.header}>
    <div className={css.headInner}>
     <Link href="/portal" className={css.brand} aria-label="Overflow Partner account workspaces">
