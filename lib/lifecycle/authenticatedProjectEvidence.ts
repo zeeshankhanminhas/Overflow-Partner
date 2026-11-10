@@ -129,8 +129,10 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   // Never infer settlement from a checkout redirect or unverified receipt.
   const contract=releaseContract.row;
   const q=quoteRecord.row;
-  if(contract?.release_basis==='approved_no_advance'&&contract.approved_at&&
-    Number(contract.quote_revision)===Number(q?.revision))
+  if(contract?.release_basis==='approved_no_advance'&&contract.approved_at&&q&&
+    Number(contract.opening_amount)===0&&
+    String(contract.currency).toUpperCase()===String(q.currency).toUpperCase()&&
+    Number(contract.quote_revision)===Number(q.revision))
    openingBasis='approved_no_advance';
   if(openingBasis==='advance'){
    if(!contract||!q)verified('opening_payment_verified',false,false);
