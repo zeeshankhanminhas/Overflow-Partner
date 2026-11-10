@@ -64,3 +64,10 @@
 .row{border-color:#e2e8f0}
 .rowLink:hover .rowTitle{color:#193a60}
 .rowCopy,.empty{color:#52667d}
+
+/* Role-consistent, evidence-derived overview cards. */
+.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:22px}
+.metric{display:flex;flex-direction:column;gap:9px;min-width:0;border:1px solid #dbe4ec;border-radius:13px;background:#fff;padding:18px 20px}
+.metricLabel{color:#64748b;font-size:12px;line-height:1.4}
+.metricValue{color:#193a60;font-size:26px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+@media(max-width:700px){.overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{padding:14px}.metric:last-child{grid-column:1/-1}.metricValue{font-size:23px}}
