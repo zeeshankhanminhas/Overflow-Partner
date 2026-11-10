@@ -192,6 +192,16 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   verified('mobilisation_approved',advanced('ready_for_execution'));
   verified('closure_approved',stageName(p.project_stage)==='closed'&&advanced('closed'));
  }
+ const [controlledRegister,approvedTechnical,finalScope,finalStatement]=await Promise.all([
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'document-register',is_current_revision:true},'approved_at'),
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'technical-review',is_current_revision:true},'approved_at'),
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'scope-of-work',is_current_revision:true},'approved_at'),
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'statement-of-work',is_current_revision:true},'approved_at'),
+ ]);
+ const controlled=[controlledRegister,approvedTechnical,finalScope,finalStatement];
+ verified('controlled_documents_approved',controlled.every(item=>
+  Boolean(item.row?.approved_at&&['approved','issued','published'].includes(String(item.row.status)))),
+  controlled.every(item=>item.available));
  const [transmittal,finalInvoice,settlement,release,handover,payable]=await Promise.all([
   Number.isInteger(cycle)&&cycle>0?read('project_client_transmittals','id,issued_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'issued_at'):Promise.resolve({row:null,available:false}),
   read('invoices','id,issued_at,invoice_type',{project_id:projectId,invoice_type:'final'},'issued_at'),
