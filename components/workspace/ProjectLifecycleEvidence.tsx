@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {authenticatedProjectLifecycle} from '@/lib/lifecycle/authenticatedProjectEvidence';
 import {lifecycleGates,type WorkspaceActor} from '@/lib/lifecycle/currentAction';
 
@@ -22,6 +23,12 @@ export default async function ProjectLifecycleEvidence({
    <span>Responsible role: {owner}</span>
    <span>Decision state: {action.state.replaceAll('_',' ')}</span>
    <p style={{margin:0,color:'#b8bac0'}}>{action.reason}</p>
+   {action.canExecute&&action.target?<Link href={action.target}
+     style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
+      background:'#f4f4f5',color:'#101113',borderRadius:7,padding:'10px 14px',
+      textDecoration:'none',fontSize:12,fontWeight:700,width:'fit-content'}}>
+     Open authorised task →
+    </Link>:null}
    {!ready?<p style={{margin:0,color:'#f1c076'}}>The isolated QA evidence service is unavailable. This view cannot authorise any work.</p>:null}
    <p style={{margin:0,color:'#9497a0',fontSize:11}}>Read-only, permission-scoped evidence; unknown prerequisites remain blocked until a trusted source is verified. Use only the authorised task controls in the project workspace.</p>
    {internal&&ready?<div style={{marginTop:12,borderTop:'1px solid #303238',paddingTop:12}}>
