@@ -195,7 +195,7 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
       subtitle={clientName} state={stageMeta.label} owner="Overflow Partner"
       nextTitle={currentPresentation.nextAction.label} nextDescription={currentPresentation.nextAction.reason || currentPresentation.summary}
       stages={[]} stageIndex={0} evidence={[]} facts={[]} previous="/opos-next/projects"
-      governedHref="#project-controls" actionLabel="View current controls" />
+      governedHref="#project-controls" actionLabel="View current controls" showDecision={false} />
     {stateStrip}
     <ProjectLifecycleEvidence actor="operator" projectId={id}/>
     <section id="project-controls" className="stack">{nextAction}</section>
