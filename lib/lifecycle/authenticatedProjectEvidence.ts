@@ -21,12 +21,14 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  if(!/^[0-9a-f-]{36}$/i.test(projectId))return null;
 
  let organisationId:string|undefined;
+ let internalRole:string|undefined;
  let entitledExternalAccountId:string|undefined;
  if(actor==='operator'){
-  const {data,error}=await db.from('profiles').select('organisation_id,is_active')
+  const {data,error}=await db.from('profiles').select('organisation_id,is_active,role')
    .eq('id',identity.data.user.id).maybeSingle();
   if(error||!data?.is_active||!data.organisation_id)return null;
   organisationId=data.organisation_id;
+  internalRole=data.role;
  }else{
   const {data,error}=await db.rpc('portal_my_projects',{p_kind:actor});
   const match=!error&&Array.isArray(data)?data.find(
@@ -253,6 +255,37 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
    (event.event_data as {canonicalLifecycle?:boolean}|null)?.canonicalLifecycle===true);
   verified('mobilisation_approved',advanced('ready_for_execution'));
   verified('closure_approved',stageName(p.project_stage)==='closed'&&advanced('closed'));
+ }
+ // Operator QA capability comes from the same authenticated delivery gate
+ // and role policy as the existing engineering/manifest server actions.
+ // A project stage alone never authorises an approval.
+ if(actor==='operator'&&['internal_review','ready_for_client_issue'].includes(String(p.project_stage))){
+  const allowedEngineering=['owner','admin','engineering'].includes(String(internalRole));
+  const allowedManifest=['owner','admin','operator','engineering'].includes(String(internalRole));
+  const allowedIssue=['owner','admin'].includes(String(internalRole));
+  const {data:quality,error:qualityError}=await db.rpc('op_qa_delivery_gate',{p_project_id:projectId});
+  const gate=!qualityError?quality as {submission_id?:string;storage_complete?:boolean;
+    engineering_accepted?:boolean;manifest_verified?:boolean;release_authorised?:boolean;
+    files?:{filename:string}[]}|null:null;
+  if(gate?.submission_id&&gate.submission_id===currentSubmissionId&&gate.storage_complete&&
+    Array.isArray(gate.files)&&gate.files.length){
+   const target='/opos-next/projects/'+projectId;
+   if(String(p.project_stage)==='internal_review'&&allowedEngineering&&
+      !gate.engineering_accepted&&evidence.engineering_approved.state==='missing')
+    capabilities.engineering_approved={permitted:true,target,
+     completionEvent:'engineering.qa_decided'};
+   if(String(p.project_stage)==='internal_review'&&allowedManifest&&
+      gate.engineering_accepted&&!gate.manifest_verified&&
+      evidence.manifest_verified.state==='missing')
+    capabilities.manifest_verified={permitted:true,target,
+     completionEvent:'delivery.manifest_verified'};
+   if(String(p.project_stage)==='ready_for_client_issue'&&allowedIssue&&
+      gate.engineering_accepted&&gate.manifest_verified&&gate.release_authorised&&
+      gate.files.some(file=>file.filename.toLowerCase().endsWith('.pdf'))&&
+      evidence.client_review_issued.state==='missing')
+    capabilities.client_review_issued={permitted:true,target,
+     completionEvent:'client_review.protected_issued'};
+  }
  }
  const [controlledRegister,approvedTechnical,finalScope,finalStatement]=await Promise.all([
   read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'document-register',is_current_revision:true},'approved_at'),
