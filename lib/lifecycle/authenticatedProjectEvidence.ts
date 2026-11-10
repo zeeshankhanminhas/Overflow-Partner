@@ -33,8 +33,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   organisationId=match.organisation_id;
  }
  if(!organisationId)return null;
- const empty=Object.fromEntries(lifecycleGates.map(g=>[g.key,{state:'unknown'}]))
-  as Record<GateKey,GateEvidence>;
+ const empty=Object.fromEntries(lifecycleGates.map(g=>[g.key,{state:'unknown'}])) as Record<GateKey,GateEvidence>;
  const unavailable=()=>({
   action:resolveCurrentAction({actor,phase:'mobilisation',evidence:empty,capabilities:{}}),
   evidence:empty,ready:false,known:0,total:lifecycleGates.length,
