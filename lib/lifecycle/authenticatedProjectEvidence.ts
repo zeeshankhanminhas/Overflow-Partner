@@ -116,6 +116,22 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   void terms;
  }
  if(quote){
+  // This existing governed pre-quotation validator checks current technical
+  // requirements, partner scope/pricing and signed partner NDA at quote issue.
+  // The Northfield simulation branch is never proof of real confidentiality.
+  const lineage=await trusted.rpc('op_preproject_lineage_readiness',{
+   p_organisation_id:organisationId,p_quote_id:quote,
+  });
+  const lineageState=!lineage.error&&lineage.data&&typeof lineage.data==='object'?
+   lineage.data as {ready?:boolean;reason?:string;simulation?:boolean}:null;
+  const realLineage=lineageState?.ready===true&&
+   lineageState.reason==='approved_prequotation_lineage'&&lineageState.simulation!==true;
+  if(realLineage){
+   verified('confidentiality_confirmed',true);
+  }else if(lineageState?.simulation===true){
+   evidence.confidentiality_confirmed={state:'unknown',
+    reason:'This QA rehearsal uses a simulated pre-quotation lineage; it is not independent confidentiality evidence.'};
+  }
   const [offer,accept,openingInvoice,openingReceipt,releaseContract,quoteRecord]=await Promise.all([
    read('quote_issue_records','id,issued_at,quote_revision',{quote_id:quote},'issued_at'),
    read('quote_acceptance_records','id,accepted_at',{quote_id:quote},'accepted_at'),
