@@ -36,6 +36,9 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  }
  if(!organisationId)return null;
  const empty=Object.fromEntries(lifecycleGates.map(g=>[g.key,{state:'unknown'}])) as Record<GateKey,GateEvidence>;
+ empty.opportunity_qualified={state:'unknown',reason:'The source opportunity qualification or matching conversion record has not been verified.'};
+ empty.confidentiality_confirmed={state:'unknown',reason:'Confidentiality and authorised technical sharing have no complete, project-linked verification record.'};
+ empty.controlled_documents_approved={state:'unknown',reason:'The approved current engineering document set could not be established.'};
  const unavailable=()=>({
   action:resolveCurrentAction({actor,phase:'mobilisation',evidence:empty,capabilities:{}}),
   evidence:empty,ready:false,known:0,total:lifecycleGates.length,
@@ -52,8 +55,9 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  if(project.error||!project.data)return null;
  const p=project.data;
  const evidence={...empty};
- const verified=(gate:GateKey,ok:boolean,available=true)=>{
-  evidence[gate]={state:!available?'unknown':ok?'verified':'missing'};
+ const verified=(gate:GateKey,ok:boolean,available=true,reason?:string)=>{
+  evidence[gate]={state:!available?'unknown':ok?'verified':'missing',
+   ...(!ok&&reason?{reason}:{})};
  };
  const read=async(table:string,select:string,filters:Record<string,string|number|boolean|null>,
   order?:string)=>{
@@ -67,8 +71,8 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   return {row:result.error?null:result.data as Record<string,unknown>|null,
    available:!result.error};
  };
- const check=(gate:GateKey,value:{row:Record<string,unknown>|null;available:boolean},predicate:(r:Record<string,unknown>)=>boolean)=>{
-  verified(gate,Boolean(value.row&&predicate(value.row)),value.available);
+ const check=(gate:GateKey,value:{row:Record<string,unknown>|null;available:boolean},predicate:(r:Record<string,unknown>)=>boolean,reason?:string)=>{
+  verified(gate,Boolean(value.row&&predicate(value.row)),value.available,reason);
  };
  // Existing project existence is an independent fact, not stage-derived.
  verified('project_created',true);
@@ -135,7 +139,8 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
     Number(r.quote_revision)===Number(contract.quote_revision)&&
     String(r.currency).toUpperCase()===String(contract.currency).toUpperCase()&&
     Number(r.amount)>=Number(contract.opening_amount)&&
-    Number(contract.opening_amount)>0));
+    Number(contract.opening_amount)>0),
+    'The original opening receipt has not been reconciled to the approved amount, currency and quotation revision.');
   }
  }
  const assignment=await read('project_execution_assignments','id,execution_cycle,partner_id',{project_id:projectId},'created_at');
@@ -231,7 +236,8 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  if(payable.row?.id){
   const payment=await read('partner_payments','id,status,paid_at,payable_id,reference',
    {project_id:projectId,payable_id:String(payable.row.id)},'paid_at');
-  check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='cleared'&&r.reference));
+  check('partner_payment_verified',payment,r=>Boolean(r.paid_at&&r.status==='cleared'&&r.reference),
+   'No cleared partner payment is matched to the approved payable. A simulation cannot prove bank settlement.');
  }
  const stage=String(p.project_stage||'');
  const phase=stage==='closed'?'closure':stage==='completion'?'payment_settlement':
