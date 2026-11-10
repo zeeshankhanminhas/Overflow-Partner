@@ -35,6 +35,7 @@ export async function proxy(request: NextRequest) {
   if (request.method === 'GET' && isWorkspaceTwoPreview()) {
     const path = request.nextUrl.pathname;
     const target = path === '/workspace' ? '/opos-next' :
+      path.startsWith('/workspace/documents/templates/') ? path.replace('/workspace/', '/opos-next/') :
       nextHref(path + request.nextUrl.search);
     // Subpages with their own forms or file handlers retain their exact destination.
     if (!path.startsWith('/opos-next') && !/^\/workspace\/projects\/[^/]+\/.+/.test(path) && target.startsWith('/opos-next')) {

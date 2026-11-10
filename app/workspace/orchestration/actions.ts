@@ -1,5 +1,6 @@
 'use server';
 
+import {workspaceLinkOrigin} from '@/lib/qa/publicOrigin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
@@ -31,7 +32,7 @@ function refreshCase(leadId: string) {
 }
 function caseUrl(leadId: string, params: Record<string, string>) { return `/workspace/leads/${leadId}?${new URLSearchParams(params).toString()}`; }
 function publicSiteUrl(path='') {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://overflow-partner.vercel.app';
+  const base = workspaceLinkOrigin(process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://overflow-partner.vercel.app');
   const root = base.startsWith('http') ? base.replace(/\/$/, '') : `https://${base.replace(/\/$/, '')}`;
   return `${root}${path}`;
 }

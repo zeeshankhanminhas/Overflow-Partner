@@ -1,3 +1,5 @@
+import {isWorkspaceTwoPreview} from './isolation';
+
 /** Trusted QA entry point shared by client portal emails and Stripe return URLs.
  * Never use this origin for production; do not accept arbitrary user-supplied URLs.
  */
@@ -26,4 +28,15 @@ export function qaPublicOrigin(): string {
     process.env.OP_QA_PUBLIC_ORIGIN || (process.env.VERCEL_BRANCH_URL ? 'https://' + process.env.VERCEL_BRANCH_URL : ''),
     process.env.VERCEL_BRANCH_URL || undefined
   );
+}
+
+/** Resolve QA before evaluating production defaults used by legacy link builders. */
+export function workspaceLinkOrigin(fallback: string): string {
+  if (process.env.VERCEL_ENV !== 'preview' ||
+      process.env.VERCEL_GIT_COMMIT_REF !== 'release/opos-production-hardening-2026-11-09') return fallback;
+  if (!isWorkspaceTwoPreview()) throw new Error('QA link creation requires the isolated release preview.');
+  const origin = qaPublicOrigin();
+  if (!process.env.VERCEL_BRANCH_URL || new URL(origin).host !== process.env.VERCEL_BRANCH_URL)
+    throw new Error('QA link creation requires the verified release branch alias.');
+  return origin;
 }

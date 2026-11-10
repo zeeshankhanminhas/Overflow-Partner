@@ -1,5 +1,6 @@
 'use server';
 
+import {workspaceLinkOrigin} from '@/lib/qa/publicOrigin';
 import { createHash, randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -13,12 +14,8 @@ function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string') return (error as { message: string }).message;
   return fallback;
 }
-import {qaPublicOrigin} from '@/lib/qa/publicOrigin';
-import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
-
 function siteUrl(path: string) {
-  if (isWorkspaceTwoPreview()) return qaPublicOrigin() + path;
-  const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app';
+  const base = workspaceLinkOrigin(process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || 'https://overflow-partner.vercel.app');
   return `${base.startsWith('http') ? base : `https://${base}`}${path}`;
 }
 
