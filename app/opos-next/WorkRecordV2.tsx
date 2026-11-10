@@ -4,11 +4,11 @@ import css from './work-record.module.css';
 type Stage = {name:string;detail:string};
 type Fact={label:string;value:string};
 export default function WorkRecordV2({
-  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,compact=true,actionLabel='Review current controls',
+  eyebrow,title,subtitle,state,owner,nextTitle,nextDescription,stages,stageIndex,evidence,facts,governedHref,previous,waiting=false,compact=true,actionLabel='Review current controls',showDecision=true,
 }:{
   eyebrow:string;title:string;subtitle:string;state:string;owner:string;
   nextTitle:string;nextDescription:string;stages:Stage[];stageIndex:number;
-  evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;compact?:boolean;actionLabel?:string;
+  evidence:Fact[];facts:Fact[];governedHref:string;previous:string;waiting?:boolean;compact?:boolean;actionLabel?:string;showDecision?:boolean;
 }){
   // Use one decision-first layout by default across record types.
   // Supporting evidence remains available on demand.
@@ -42,14 +42,14 @@ export default function WorkRecordV2({
       <span className={css.pill}><span className={css.dot}/>{state}</span>
       {!compact?<span className={css.smallMeta}>Owner: {owner}</span>:null}
     </div>
-    <section className={css.decision} aria-label={waiting?'Current waiting position':'Current decision'}>
+    {showDecision?<section className={css.decision} aria-label={waiting?'Current waiting position':'Current decision'}>
       <p className={css.decisionKicker}>NEXT STEP</p>
       <h2>{nextTitle}</h2>
       <p>{nextDescription}</p>
       {!waiting?<div className={css.decisionActions}>
         <Link className={css.primary} href={governedHref}>{actionLabel} ↗</Link>
       </div>:null}
-    </section>
+    </section>:null}
     {compact && (facts.length || evidence.length || stages.length) ? <details className={css.compactDetails}>
       <summary>{eyebrow.includes('CASE')?'Case details':'Project details'}</summary>
       {lifecycleContent}
