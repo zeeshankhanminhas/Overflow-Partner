@@ -1,3 +1,4 @@
+import ProjectLifecycleEvidence from '@/components/workspace/ProjectLifecycleEvidence';
 import WorkRecordV2 from '@/app/opos-next/WorkRecordV2';
 import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
 import {classifyClientFeedbackAction,reconcileProtectedClientReviewAction} from './delivery-actions';
@@ -196,6 +197,7 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
       stages={[]} stageIndex={0} evidence={[]} facts={[]} previous="/opos-next/projects"
       governedHref="#project-controls" actionLabel="View current controls" />
     {stateStrip}
+    <ProjectLifecycleEvidence actor="operator" projectId={id}/>
     <section id="project-controls" className="stack">{nextAction}</section>
     <details id="record-readiness"><summary>Readiness and evidence</summary>{readinessPanel}{evidence}</details>
     <details><summary>Project details and history</summary>{summary}{activities}{history}{metadata}{communications}{audit}</details>
