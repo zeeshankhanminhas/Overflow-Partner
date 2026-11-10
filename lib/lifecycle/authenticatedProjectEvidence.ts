@@ -74,6 +74,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  verified('project_created',true);
  const quote=p.quote_id?String(p.quote_id):'';
  const lead=p.lead_id?String(p.lead_id):'';
+ let openingBasis:'advance'|'approved_no_advance'='advance';
  if(lead){
   const [opportunity,intake,scope,terms]=await Promise.all([
    read('leads','id,status,prospect_id',{id:lead}),
@@ -101,20 +102,36 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   void terms;
  }
  if(quote){
-  const [commercial,offer,accept,openingInvoice,openingReceipt]=await Promise.all([
+  const [commercial,offer,accept,openingInvoice,openingReceipt,releaseContract,quoteRecord]=await Promise.all([
    lead?read('commercial_reviews','id,status,approved_at',{lead_id:lead}):Promise.resolve({row:null,available:false}),
    read('quote_issue_records','id,issued_at',{quote_id:quote},'issued_at'),
    read('quote_acceptance_records','id,accepted_at',{quote_id:quote},'accepted_at'),
    read('invoices','id,issued_at,invoice_type',{quote_id:quote,invoice_type:'deposit'},'issued_at'),
-   read('quote_payment_provider_confirmations','id,paid_at,livemode',{quote_id:quote},'paid_at'),
+   read('quote_payment_provider_confirmations','id,paid_at,livemode,quote_revision,amount,currency',{quote_id:quote},'paid_at'),
+   read('quote_release_contracts','quote_id,quote_revision,release_basis,opening_amount,currency,approved_at',{quote_id:quote}),
+   read('quotes','id,revision,currency,total',{id:quote}),
   ]);
   check('commercial_approved',commercial,r=>Boolean(r.approved_at));
   check('offer_issued',offer,r=>Boolean(r.issued_at));
   check('contract_accepted',accept,r=>Boolean(r.accepted_at));
   check('opening_invoice_issued',openingInvoice,r=>Boolean(r.issued_at));
-  // This read is evidence of a provider confirmation only, not a live
-  // release permission. Transaction handlers still verify full amount/mode.
-  check('opening_payment_verified',openingReceipt,r=>Boolean(r.paid_at));
+  // A provider record must reconcile the approved release contract,
+  // quote revision, currency, and minimum authorised opening amount.
+  // Never infer settlement from a checkout redirect or unverified receipt.
+  const contract=releaseContract.row;
+  const q=quoteRecord.row;
+  if(contract?.release_basis==='approved_no_advance'&&contract.approved_at&&
+    Number(contract.quote_revision)===Number(q?.revision))
+   openingBasis='approved_no_advance';
+  if(openingBasis==='advance'){
+   if(!contract||!q)verified('opening_payment_verified',false,false);
+   else check('opening_payment_verified',openingReceipt,r=>Boolean(
+    r.paid_at&&Number(r.quote_revision)===Number(q.revision)&&
+    Number(r.quote_revision)===Number(contract.quote_revision)&&
+    String(r.currency).toUpperCase()===String(contract.currency).toUpperCase()&&
+    Number(r.amount)>=Number(contract.opening_amount)&&
+    Number(contract.opening_amount)>0));
+  }
  }
  const assignment=await read('project_execution_assignments','id,execution_cycle,partner_id',{project_id:projectId},'created_at');
  const assignmentId=assignment.row?.id?String(assignment.row.id):'';
@@ -202,7 +219,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   ['client_review','issued_to_client','ready_for_client_issue'].includes(stage)?'delivery':
   stage==='internal_review'?'quality_assurance':
   ['in_progress','partner_correction','ready_for_execution'].includes(stage)?'execution':'mobilisation';
- const action=resolveCurrentAction({actor,phase,evidence,capabilities:{}});
+ const action=resolveCurrentAction({actor,phase,evidence,capabilities:{},openingBasis});
  return {action,evidence,ready:true,
   known:Object.values(evidence).filter(e=>e.state!=='unknown').length,total:lifecycleGates.length};
 }
