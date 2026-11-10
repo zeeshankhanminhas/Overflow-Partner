@@ -12,10 +12,10 @@ delivery or authenticated three-role browser acceptance.
 
 ## Initial test workflow
 
-GitHub Actions → **OPOS QA Browser Smoke (read-only)**.
+GitHub Actions → **Quality Gate** → **browser-smoke** job.
 
-The workflow runs on changes to QA/browser, login or portal code in PRs against
-main, and also supports manual dispatch. It uses pinned Playwright 1.65.0,
+The browser-smoke job runs automatically on the existing QA release PR against
+main. It does not run on the production branch or other PRs. It uses pinned Playwright 1.65.0,
 Chromium, screenshot/trace capture on failures and a seven-day HTML report.
 
 The temporary default target is the last verified OPOS isolated-QA preview.
