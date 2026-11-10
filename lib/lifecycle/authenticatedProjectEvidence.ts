@@ -2,7 +2,7 @@ import 'server-only';
 import {createClient as createPrivilegedClient} from '@supabase/supabase-js';
 import {createClient} from '@/lib/supabase/server';
 import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
-import {lifecycleGates,resolveCurrentAction,type GateKey,type GateEvidence,type WorkspaceActor} from './currentAction';
+import {lifecycleGates,resolveCurrentAction,type GateKey,type GateEvidence,type ActionCapability,type WorkspaceActor} from './currentAction';
 const stageName=(value:unknown)=>String(value||'');
 
 
@@ -21,6 +21,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  if(!/^[0-9a-f-]{36}$/i.test(projectId))return null;
 
  let organisationId:string|undefined;
+ let entitledExternalAccountId:string|undefined;
  if(actor==='operator'){
   const {data,error}=await db.from('profiles').select('organisation_id,is_active')
    .eq('id',identity.data.user.id).maybeSingle();
@@ -33,6 +34,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
     p.project_id===projectId&&p.portal_kind===actor):null;
   if(!match)return null;
   organisationId=match.organisation_id;
+  entitledExternalAccountId=match.account_id;
  }
  if(!organisationId)return null;
  const empty=Object.fromEntries(lifecycleGates.map(g=>[g.key,{state:'unknown'}])) as Record<GateKey,GateEvidence>;
@@ -55,6 +57,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  if(project.error||!project.data)return null;
  const p=project.data;
  const evidence={...empty};
+ const capabilities:Partial<Record<GateKey,ActionCapability>>={};
  const verified=(gate:GateKey,ok:boolean,available=true,reason?:string)=>{
   evidence[gate]={state:!available?'unknown':ok?'verified':'missing',
    ...(!ok&&reason?{reason}:{})};
@@ -152,7 +155,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
     'The original opening receipt has not been reconciled to the approved amount, currency and quotation revision.');
   }
  }
- const assignment=await read('project_execution_assignments','id,execution_cycle,partner_id',{project_id:projectId},'created_at');
+ const assignment=await read('project_execution_assignments','id,execution_cycle,partner_id,execution_state',{project_id:projectId},'created_at');
  const assignmentId=assignment.row?.id?String(assignment.row.id):'';
  let currentSubmissionId:string|undefined;
  const cycle=Number(assignment.row?.execution_cycle);
@@ -171,6 +174,33 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
    check('work_order_accepted',acceptance,r=>Boolean(r.accepted_at&&order.row?.issued_at&&r.scope_revision_code===order.row.scope_revision_code));
    check('commencement_confirmed',commencement,r=>Boolean(r.submitted_at));
    check('delivery_submitted',submission,r=>Boolean(r.submitted_at));
+   // The authenticated membership RPC must identify exactly this assigned
+   // partner. Existing Partner Work API independently validates every mutation.
+   const entitledPartner=actor==='partner'&&Boolean(entitledExternalAccountId)&&
+    assignment.row?.partner_id===entitledExternalAccountId;
+   const taskTarget='/portal/partner/projects/'+projectId;
+   if(entitledPartner&&order.available&&acceptance.available&&
+      order.row?.issued_at&&
+      ['mobilisation','ready_for_execution'].includes(String(p.project_stage))&&
+      assignment.row?.execution_state==='awaiting_acknowledgement'&&
+      evidence.work_order_accepted.state==='missing'){
+    capabilities.work_order_accepted={permitted:true,target:taskTarget,
+     completionEvent:'partner_work_order.accepted'};
+   }
+   if(entitledPartner&&acceptance.available&&commencement.available&&
+      evidence.work_order_accepted.state==='verified'&&
+      evidence.commencement_confirmed.state==='missing'&&
+      p.project_stage==='ready_for_execution'){
+    capabilities.commencement_confirmed={permitted:true,target:taskTarget,
+     completionEvent:'partner_execution.commencement_declared'};
+   }
+   if(entitledPartner&&commencement.available&&submission.available&&
+      evidence.commencement_confirmed.state==='verified'&&
+      evidence.delivery_submitted.state==='missing'&&
+      ['in_progress','partner_correction'].includes(String(p.project_stage))){
+    capabilities.delivery_submitted={permitted:true,target:taskTarget,
+     completionEvent:'partner_execution.delivery_submitted'};
+   }
    if(submission.row?.id){
     const submissionId=String(submission.row.id);
     currentSubmissionId=submissionId;
@@ -184,6 +214,17 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
     // an externally actionable review, not merely a project stage/transmittal.
     check('client_review_issued',clientIssue,r=>Boolean(r.issued_at&&r.transmittal_id));
     if(clientIssue.row?.id){
+     // This RPC checks the active client membership and current protected issue.
+     // Stage or a generic project record alone cannot enable drawing decisions.
+     if(actor==='client'&&evidence.client_review_issued.state==='verified'){
+      const externalReview=await db.rpc('op_qa_client_review_position',{p_project_id:projectId});
+      const review=externalReview.data as {projectId?:string;canRespond?:boolean}|null;
+      if(!externalReview.error&&review?.projectId===projectId&&review.canRespond){
+       capabilities.client_review_accepted={permitted:true,
+        target:'/portal/client/projects/'+projectId,
+        completionEvent:'client_review.client_attested'};
+      }
+     }
      const [clientDecision,internalDecision]=await Promise.all([
       read('op_qa_client_review_decisions','id,outcome,decided_at,decided_by',{project_id:projectId,issue_id:String(clientIssue.row.id)},'decided_at'),
       read('project_client_reviews','id,outcome,recorded_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'recorded_at'),
@@ -253,7 +294,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   ['client_review','issued_to_client','ready_for_client_issue'].includes(stage)?'delivery':
   stage==='internal_review'?'quality_assurance':
   ['in_progress','partner_correction','ready_for_execution'].includes(stage)?'execution':'mobilisation';
- const action=resolveCurrentAction({actor,phase,evidence,capabilities:{},openingBasis});
+ const action=resolveCurrentAction({actor,phase,evidence,capabilities,openingBasis});
  return {action,evidence,ready:true,
   known:Object.values(evidence).filter(e=>e.state!=='unknown').length,total:lifecycleGates.length};
 }
