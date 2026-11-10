@@ -7,6 +7,7 @@ const shell=file('app/opos-next/opos.module.css');
 const mission=file('app/opos-next/mission.module.css');
 const page=file('app/opos-next/page.tsx');
 const client=file('app/portal/[kind]/page.tsx');
+const externalLayout=file('app/portal/layout.tsx');
 const browser=file('scripts/qa/three-role-browser.mjs');
 
 test('controller design matches light-navy account workspace and has mobile coverage',()=>{
@@ -18,6 +19,7 @@ test('controller design matches light-navy account workspace and has mobile cove
  assert.match(mission,/\.primaryAction\{background:#193a60;color:#fff/);
  assert.match(mission,/@media\(max-width:700px\)\{\.overview/);
  assert.match(client,/className=\{css\.metrics\}/);
+ assert.match(externalLayout,/isWorkspaceTwoPreview\(\)\?css\.canvas\+' '\+css\.qaV2:css\.canvas/);
 });
 test('controller data is derived from authenticated repositories, not demonstration figures',()=>{
  assert.match(page,/await requireUserContext\(\)/);
