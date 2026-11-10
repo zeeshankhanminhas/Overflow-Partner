@@ -36,11 +36,6 @@ export default async function DocumentsPage({searchParams}:{searchParams?:Promis
  const hasMoreProjects=projectBatch.length>PAGE_SIZE;
  // Exact selected-project membership is verified against the same
  // organisation-scoped project queue, not inferred from an arbitrary URL ID.
- const selectedResult=projectId?await supabase.rpc('op_project_queue',{
-  p_organisation_id:organisationId,p_view:'all',p_limit:1,p_offset:0,
-  // Membership is additionally checked in documents through RLS, but we
-  // do not attempt to infer authorisation from a non-scoped document.
- }):null;
  // A project can be selected only when present on the current directory page.
  const selected=projects.find(p=>p.id===projectId)||null;
  const showRegister=scope!=='project'||Boolean(selected);
