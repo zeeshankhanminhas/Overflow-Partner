@@ -32,5 +32,21 @@ test('all project pages display one common owner/reason diagnostic',()=>{
  assert.match(external,/<ProjectLifecycleEvidence actor=\{kind\} projectId=\{projectId\}/);
  assert.match(component,/Responsible role:/);
  assert.match(component,/action\.reason/);
- assert.doesNotMatch(component,/<Link|<button/);
+ assert.match(component,/action\.canExecute&&action\.target\?<Link/);
+ assert.match(adapter,/const capabilities:Partial<Record<GateKey,ActionCapability>>=\{\}/);
+});
+
+test('partner capabilities require assigned identity and recorded current-stage prerequisite',()=>{
+ assert.match(adapter,/assignment\.row\?\.partner_id===entitledExternalAccountId/);
+ assert.match(adapter,/actor==='partner'&&Boolean\(entitledExternalAccountId\)/);
+ assert.match(adapter,/assignment\.row\?\.execution_state==='awaiting_acknowledgement'/);
+ assert.match(adapter,/evidence\.work_order_accepted\.state==='verified'/);
+ assert.match(adapter,/evidence\.commencement_confirmed\.state==='verified'/);
+ assert.match(adapter,/partner_execution\.delivery_submitted/);
+});
+test('client review capability comes only from member-scoped protected review service',()=>{
+ assert.match(adapter,/db\.rpc\('op_qa_client_review_position'/);
+ assert.match(adapter,/review\?\.projectId===projectId&&review\.canRespond/);
+ assert.match(adapter,/evidence\.client_review_issued\.state==='verified'/);
+ assert.match(adapter,/completionEvent:'client_review\.client_attested'/);
 });
