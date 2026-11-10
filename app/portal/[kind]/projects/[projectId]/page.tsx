@@ -1,3 +1,4 @@
+import ProjectLifecycleEvidence from '@/components/workspace/ProjectLifecycleEvidence';
 import LifecycleProgress, {phaseForProject} from '@/components/workspace/LifecycleProgress';
 import PartnerWorkSurface from '@/components/execution/PartnerWorkSurface';
 import Link from 'next/link';
@@ -63,6 +64,7 @@ export default async function AccountProject({params,searchParams}:{
    <p className={css.subtitle}>{stageLabel(p.project_stage,kind)}</p>
   </div>
   <LifecycleProgress phase={phaseForProject(p.project_stage)}/>
+  <ProjectLifecycleEvidence actor={kind} projectId={projectId}/>
   {notice?<p role="alert" className={css.notice}>We couldn’t open that page. Please return to your project and try again. If the problem continues, ask Overflow Partner for a fresh link.</p>:null}
   {client ? <section className={css.nextAction} aria-label="Current next step">
    <span className={css.eyebrow}>NEXT STEP</span>
