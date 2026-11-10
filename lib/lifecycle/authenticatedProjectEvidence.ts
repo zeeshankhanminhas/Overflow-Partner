@@ -135,6 +135,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  }
  const assignment=await read('project_execution_assignments','id,execution_cycle,partner_id',{project_id:projectId},'created_at');
  const assignmentId=assignment.row?.id?String(assignment.row.id):'';
+ let currentSubmissionId:string|undefined;
  const cycle=Number(assignment.row?.execution_cycle);
  if(assignment.available){
   if(!assignmentId){
@@ -153,6 +154,7 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
    check('delivery_submitted',submission,r=>Boolean(r.submitted_at));
    if(submission.row?.id){
     const submissionId=String(submission.row.id);
+    currentSubmissionId=submissionId;
     verified('engineering_approved',submission.row.review_status==='accepted',submission.available);
     const [manifest,clientIssue]=await Promise.all([
      read('op_qa_manifest_verifications','id,submission_id,verified_at',{project_id:projectId,submission_id:submissionId},'verified_at'),
@@ -215,8 +217,10 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  void transmittal;
  check('final_invoice_issued',finalInvoice,r=>Boolean(r.issued_at));
  check('final_payment_verified',settlement,r=>Boolean(r.verified_at));
- check('owner_release_approved',release,r=>Boolean(r.approved_at&&r.submission_id));
- check('handover_issued',handover,r=>Boolean(r.issued_at&&r.approved_at&&r.storage_path&&r.is_current_revision&&['issued','published'].includes(String(r.status))));
+ check('owner_release_approved',release,r=>Boolean(r.approved_at&&currentSubmissionId&&r.submission_id===currentSubmissionId));
+ check('handover_issued',handover,r=>Boolean(r.issued_at&&r.approved_at&&r.storage_path&&r.is_current_revision&&
+  release.row?.approved_at&&release.row?.submission_id===currentSubmissionId&&
+  ['issued','published'].includes(String(r.status))));
  // Partner invoice and its matched transfer are independent evidence.
  check('partner_invoice_verified',payable,r=>Boolean(r.approved_at&&r.evidence_confirmed&&r.invoice_reference));
  if(payable.row?.id){
