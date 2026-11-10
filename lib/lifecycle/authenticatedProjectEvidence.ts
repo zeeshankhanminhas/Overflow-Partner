@@ -81,10 +81,21 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
    read('commercial_terms','id,authorised_at,authorisation_basis',{project_id:projectId}),
   ]);
   // Lead status alone does not prove formal qualification; preserve unknown.
-  void opportunity;
-  check('requirements_approved',scope,r=>Boolean(r.approved_at));
-  if(!scope.row&&intake.row&&intake.row.reviewed_at)
-   verified('requirements_approved',false,false); // review is not approval
+  if(opportunity.row?.prospect_id){
+   const feasibility=await read('prospect_technical_reviews',
+    'id,approved_at,status,decision',{prospect_id:String(opportunity.row.prospect_id)},'approved_at');
+   check('feasibility_approved',feasibility,r=>Boolean(r.approved_at&&['approved','feasible'].includes(String(r.decision))));
+  }
+  const request=await read('partner_review_requests','id,lead_id,prospect_id',{lead_id:lead},'created_at');
+  if(request.row?.id){
+   const decision=await read('partner_review_internal_decisions',
+    'id,decision,approved_at',{partner_review_request_id:String(request.row.id)},'approved_at');
+   check('partner_terms_approved',decision,r=>r.decision==='approved'&&Boolean(r.approved_at));
+  }
+  // A formally approved technical intake proves its own approval; a reviewed
+  // but unapproved intake does not.
+  check('requirements_approved',intake,r=>r.status==='approved'&&Boolean(r.reviewed_at));
+  if(scope.row?.approved_at)verified('requirements_approved',true);
   check('mobilisation_approved',terms,r=>Boolean(r.authorised_at));
  }
  if(quote){
