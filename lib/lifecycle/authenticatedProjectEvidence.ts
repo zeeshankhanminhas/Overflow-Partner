@@ -111,24 +111,31 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
   void terms;
  }
  if(quote){
-  const [commercial,offer,accept,openingInvoice,openingReceipt,releaseContract,quoteRecord]=await Promise.all([
-   lead?read('commercial_reviews','id,status,approved_at',{lead_id:lead}):Promise.resolve({row:null,available:false}),
-   read('quote_issue_records','id,issued_at',{quote_id:quote},'issued_at'),
+  const [offer,accept,openingInvoice,openingReceipt,releaseContract,quoteRecord]=await Promise.all([
+   read('quote_issue_records','id,issued_at,quote_revision',{quote_id:quote},'issued_at'),
    read('quote_acceptance_records','id,accepted_at',{quote_id:quote},'accepted_at'),
    read('invoices','id,issued_at,invoice_type',{quote_id:quote,invoice_type:'deposit'},'issued_at'),
    read('quote_payment_provider_confirmations','id,paid_at,livemode,quote_revision,amount,currency',{quote_id:quote},'paid_at'),
    read('quote_release_contracts','quote_id,quote_revision,release_basis,opening_amount,currency,approved_at',{quote_id:quote}),
-   read('quotes','id,revision,currency,total',{id:quote}),
+   read('quotes','id,revision,currency,total,commercial_review_id,issued_at',{id:quote}),
   ]);
-  check('commercial_approved',commercial,r=>Boolean(r.approved_at));
-  check('offer_issued',offer,r=>Boolean(r.issued_at));
-  check('contract_accepted',accept,r=>Boolean(r.accepted_at));
+  const q=quoteRecord.row;
+  if(q?.commercial_review_id){
+   const commercial=await read('commercial_reviews','id,status,approved_at,lead_id',
+    {id:String(q.commercial_review_id)});
+   check('commercial_approved',commercial,r=>Boolean(
+    r.status==='approved'&&r.approved_at&&r.lead_id===lead&&
+    q.issued_at&&new Date(String(r.approved_at)).getTime()<=new Date(String(q.issued_at)).getTime()));
+  }
+  check('offer_issued',offer,r=>Boolean(r.issued_at&&q&&
+    Number(r.quote_revision)===Number(q.revision)));
+  check('contract_accepted',accept,r=>Boolean(r.accepted_at&&offer.row?.issued_at&&
+    new Date(String(r.accepted_at)).getTime()>=new Date(String(offer.row.issued_at)).getTime()));
   check('opening_invoice_issued',openingInvoice,r=>Boolean(r.issued_at));
   // A provider record must reconcile the approved release contract,
   // quote revision, currency, and minimum authorised opening amount.
   // Never infer settlement from a checkout redirect or unverified receipt.
   const contract=releaseContract.row;
-  const q=quoteRecord.row;
   if(contract?.release_basis==='approved_no_advance'&&contract.approved_at&&q&&
     Number(contract.opening_amount)===0&&
     String(contract.currency).toUpperCase()===String(q.currency).toUpperCase()&&
