@@ -73,6 +73,20 @@ export async function authenticatedProjectLifecycle(actor:WorkspaceActor,project
  verified('project_created',true);
  const quote=p.quote_id?String(p.quote_id):'';
  const lead=p.lead_id?String(p.lead_id):'';
+ if(lead){
+  const [opportunity,intake,scope,terms]=await Promise.all([
+   read('leads','id,status,prospect_id',{id:lead}),
+   read('technical_intakes','id,submitted_at,reviewed_at,status',{lead_id:lead},'created_at'),
+   read('documents','id,document_type,approved_at,is_current_revision',{lead_id:lead,document_type:'client-requirements',is_current_revision:true},'approved_at'),
+   read('commercial_terms','id,authorised_at,authorisation_basis',{project_id:projectId}),
+  ]);
+  // Lead status alone does not prove formal qualification; preserve unknown.
+  void opportunity;
+  check('requirements_approved',scope,r=>Boolean(r.approved_at));
+  if(!scope.row&&intake.row&&intake.row.reviewed_at)
+   verified('requirements_approved',false,false); // review is not approval
+  check('mobilisation_approved',terms,r=>Boolean(r.authorised_at));
+ }
  if(quote){
   const [commercial,offer,accept,openingInvoice,openingReceipt]=await Promise.all([
    lead?read('commercial_reviews','id,status,approved_at',{lead_id:lead}):Promise.resolve({row:null,available:false}),
