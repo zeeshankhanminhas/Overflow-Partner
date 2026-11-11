@@ -34,14 +34,21 @@ try{
  console.log('PASS browser: unsigned/tampered Helix portal links rejected.');
  // Disposable Operator identity is provisioned through Supabase Auth API, never
  // by editing a project, review, payment or lifecycle table.
- const operatorId='00000000-0000-4000-8000-000000009931';
  const admin=createClient('http://127.0.0.1:54321',process.env.SUPABASE_SERVICE_ROLE_KEY,{
   auth:{persistSession:false,autoRefreshToken:false}});
  const password='qa-only-Helix-operator-2026!'+Math.random().toString(36).slice(2);
- const {error:identityError}=await admin.auth.admin.updateUserById(operatorId,{
-  password,email_confirm:true
+ const email='helix-workspace-operator-qa@example.invalid';
+ const {data:identity,error:identityError}=await admin.auth.admin.createUser({
+  email,password,email_confirm:true
  });
- assert.equal(identityError,null,'Disposable Helix operator must be configured through the Auth API');
+ assert.equal(identityError,null,'Disposable Helix operator must be created using real Supabase Auth');
+ assert.ok(identity?.user?.id,'Auth must return an attributable operator identity');
+ const operatorId=identity.user.id;
+ const {error:profileError}=await admin.from('profiles').upsert({
+  id:operatorId,organisation_id:'00000000-0000-4000-8000-000000009932',
+  role:'owner',full_name:'Helix browser QA operator',is_active:true
+ },{onConflict:'id'});
+ assert.equal(profileError,null,'Disposable Auth identity must be provisioned into Helix organisation');
  const {data:projects,error:projectsError}=await admin.from('projects')
   .select('id,project_stage').eq('organisation_id','00000000-0000-4000-8000-000000009932')
   .eq('quote_id','00000000-0000-4000-8000-000000009934');
@@ -53,7 +60,7 @@ try{
   const control=await operator.newPage();
   control.setDefaultTimeout(25000);
   await control.goto('/login');
-  await control.getByLabel('Email',{exact:true}).fill('helix-ci-qa@example.invalid');
+  await control.getByLabel('Email',{exact:true}).fill(email);
   await control.getByLabel('Password',{exact:true}).fill(password);
   await Promise.all([
    control.waitForURL(u=>u.pathname==='/workspace',{timeout:25000}),
@@ -66,6 +73,28 @@ try{
   assert.doesNotMatch(projectCopy,/Project closed.*Delivery is complete/s,
    'Helix cannot be shown as closed after just an opening payment');
   console.log('PASS browser: real Helix operator login and stage-scoped Project 360, no shortcut.');
+  // Exercise an actual governed Operator Workspace server action, then observe
+  // the DB read-only. No direct project INSERT/UPDATE is permitted by this test.
+  const startDate=new Date().toISOString().slice(0,10);
+  const due=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+  const mobilisation=control.locator('form:has(select[name="project_manager_id"])');
+  await mobilisation.locator('select[name="project_manager_id"]').selectOption(operatorId);
+  await mobilisation.locator('input[name="start_date"]').fill(startDate);
+  await mobilisation.locator('input[name="due_date"]').fill(due);
+  await Promise.all([
+   control.waitForURL(u=>u.pathname==='/workspace/projects/'+projects[0].id && u.searchParams.has('updated'),{timeout:30000}),
+   mobilisation.getByRole('button',{name:'Save mobilisation controls'}).click()
+  ]);
+  const {data:after,error:afterError}=await admin.from('projects')
+   .select('project_manager_id,start_date,due_date,project_stage').eq('id',projects[0].id)
+   .eq('organisation_id','00000000-0000-4000-8000-000000009932').single();
+  assert.equal(afterError,null);
+  assert.equal(after.project_manager_id,operatorId,'Real operator action assigned project manager');
+  assert.equal(after.start_date,startDate);
+  assert.equal(after.due_date,due);
+  assert.equal(after.project_stage,'mobilisation','Mobilisation action cannot skip downstream partner and QA gates');
+  console.log('PASS browser: Helix mobilisation controls saved through operator UI; project remains governed.');
+
  }finally{await operator.close();}
  await context.close();
 } finally {
