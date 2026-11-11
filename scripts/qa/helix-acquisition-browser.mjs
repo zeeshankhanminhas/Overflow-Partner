@@ -104,15 +104,24 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
  assert.ok(submittedIntakes>0,'Client must submit actual technical requirements');
  console.log('PASS browser: secure requirements request and separate client submission recorded.');
 
- await control.goto('/workspace/acquisition/'+prospectId);
- const reviewForm=control.locator('form:has(select[name="partner_id"])');
- await reviewForm.locator('select[name="partner_id"]').selectOption(partners[0].id);
- await Promise.all([
-  control.waitForURL(u=>u.pathname==='/workspace/acquisition/'+prospectId&&u.searchParams.has('partnerReviewCreated'),{timeout:30000}),
-  reviewForm.getByRole('button',{name:'Request partner review'}).click()
- ]);
- const partnerUrl=new URL(control.url()).searchParams.get('reviewUrl');
- assert.ok(partnerUrl?.includes('/partner-review/'),'Partner review must issue a real bearer link');
+ // A single approved NDA-ready partner is deliberately available, so the
+ // trusted intake handler should create the actual referral and notification.
+ // Read the issued URL; do not fabricate or directly insert partner approval.
+ const {data:referrals,error:referralError}=await admin.from('partner_review_requests')
+  .select('id,status,partner_id').eq('organisation_id',organisationId)
+  .eq('prospect_id',prospectId).order('created_at',{ascending:false});
+ assert.equal(referralError,null);
+ assert.equal(referrals?.length,1,'Automatic intake handoff must create exactly one partner referral');
+ assert.equal(referrals[0].partner_id,partners[0].id);
+ assert.equal(referrals[0].status,'invited');
+ const {data:notice,error:noticeError}=await admin.from('notification_outbox')
+  .select('id,payload,recipient_email').eq('organisation_id',organisationId)
+  .eq('event_key','partner_review.requested').eq('entity_id',prospectId).single();
+ assert.equal(noticeError,null,'Partner review invitation must be queued');
+ assert.equal(notice.recipient_email,'helix-partner@example.invalid');
+ const partnerUrl=notice.payload?.actionUrl;
+ assert.ok(partnerUrl?.includes('/partner-review/'),'Partner link must be issued by the normal notification system');
+ console.log('PASS browser: approved partner automatically referred with governed invitation.');
  const partnerContext=await control.context().browser().newContext({serviceWorkers:'block'});
  try{
   const review=await partnerContext.newPage();
