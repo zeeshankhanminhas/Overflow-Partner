@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHelixDraftQuoteThroughCase360} from './helix-case-browser.mjs';
 
 export async function createHelixAcquisitionThroughWorkspace(control,admin,organisationId){
- const clientName='Helix E2E Engineering Client';
+ const clientName='OP QA TEST Helix Engineering Client';
  await control.goto('/workspace/acquisition');
  await control.getByRole('button',{name:'1 · Add company'}).click();
  const companyForm=control.locator('form:has(input[name="name"])');

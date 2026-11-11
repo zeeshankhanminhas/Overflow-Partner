@@ -1,6 +1,7 @@
 // Governed Case 360 progression: only rendered operator server actions.
 import assert from 'node:assert/strict';
 import {approveHelixCaseEvidence} from './helix-document-browser.mjs';
+import {verifyHelixOpeningPayment} from './helix-opening-payment.mjs';
 
 export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,caseId){
  const path='/workspace/leads/'+caseId;
@@ -120,6 +121,16 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
   assert.equal(unpaidProject,0,'Client acceptance alone cannot release Project 360 without verified opening payment');
   console.log('PASS browser: separate client signed quote acceptance and attested authority; opening payment still required.');
  }finally{await clientContext.close();}
+ const projectId=await verifyHelixOpeningPayment(admin,orgId,quotes[0],caseId);
+ await control.goto('/workspace/projects/'+projectId);
+ await control.locator('#record-next-action').waitFor({timeout:30000});
+ const {data:createdProject,error:createdProjectError}=await admin.from('projects')
+  .select('project_stage,quote_id,lead_id').eq('organisation_id',orgId).eq('id',projectId).single();
+ assert.equal(createdProjectError,null);
+ assert.equal(createdProject.project_stage,'mobilisation','Real opening payment must not bypass mobilisation');
+ assert.equal(createdProject.quote_id,quotes[0].id);
+ assert.equal(createdProject.lead_id,caseId);
+ console.log('PASS browser: new client-originated Helix Project 360 is visible to operator at governed mobilisation stage.');
 
  return quotes[0];
 }
