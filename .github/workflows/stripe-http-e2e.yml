@@ -46,6 +46,8 @@ jobs:
       OP_QA_SUPABASE_PROJECT_REF: 'opos_ephemeral_ci'
       VERCEL_ENV: 'local-qa'
       STRIPE_WEBHOOK_SECRET: 'whsec_qa_http_disposable_20261021'
+      QUOTE_RESPONSE_SECRET: 'qa_local_client_portal_disposable_20261111'
+      OP_VOICE_FINAL_RELEASE_ENABLED: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - name: Checkout
@@ -96,6 +98,12 @@ jobs:
           echo $! > "$RUNNER_TEMP/opos-next-server.pid"
       - name: Signed HTTP webhook and stateful database integration
         run: node scripts/qa/stripe-http-e2e.mjs && node scripts/qa/stripe-http-second-org-e2e.mjs
+      - name: Install Chromium for real client portal QA
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+          npx playwright install --with-deps chromium
+      - name: Real Chromium client portal boundary (disposable)
+        run: node scripts/qa/helix-client-portal-browser.mjs
       - name: Diagnostic Next.js logs on failure
         if: failure()
         shell: bash
