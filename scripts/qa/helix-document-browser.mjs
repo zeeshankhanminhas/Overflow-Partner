@@ -1,6 +1,5 @@
 // Governed document creation, technical signature and independent approval.
 import assert from 'node:assert/strict';
-import {chromium} from '@playwright/test';
 
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function awaitDocumentState(admin,orgId,documentId,state,control){
@@ -15,7 +14,7 @@ async function awaitDocumentState(admin,orgId,documentId,state,control){
   '; current URL '+control.url()+'; feedback '+(await control.locator('#document-review-feedback').allInnerTexts()).join(' | '));
 }
 async function prepareIndependentReviewer(admin,orgId,control){
- const email='helix-independent-review-qa@example.invalid';
+ const email='helix-independent-'+Math.random().toString(36).slice(2)+'@example.invalid';
  const password='qa-Independent-review-2026!'+Math.random().toString(36).slice(2);
  const {data:user,error:userError}=await admin.auth.admin.createUser({email,password,email_confirm:true});
  assert.equal(userError,null);
@@ -36,10 +35,18 @@ async function prepareIndependentReviewer(admin,orgId,control){
  return {ctx,reviewer,id:user.user.id};
 }
 export async function approveHelixCaseEvidence(control,admin,orgId,caseId,slug){
- const owner='/workspace/leads/'+caseId;
+ return approveHelixDocument(control,admin,orgId,caseId,slug,'case');
+}
+export async function approveHelixProjectEvidence(control,admin,orgId,projectId,slug){
+ return approveHelixDocument(control,admin,orgId,projectId,slug,'project');
+}
+async function approveHelixDocument(control,admin,orgId,recordId,slug,kind){
+ const scope=kind==='case'?'lead_id':'project_id';
+ const query=kind+'='+recordId;
+ const owner=(kind==='case'?'/workspace/leads/':'/workspace/projects/')+recordId;
  const {data:found,error:findError}=await admin.from('documents')
   .select('id,status,independent_review_required').eq('organisation_id',orgId)
-  .eq('lead_id',caseId).eq('document_type',slug)
+  .eq(scope,recordId).eq('document_type',slug)
   .eq('is_current_revision',true).order('created_at',{ascending:false}).limit(1).maybeSingle();
  assert.equal(findError,null);
  let documentId=found?.id;
@@ -55,7 +62,7 @@ export async function approveHelixCaseEvidence(control,admin,orgId,caseId,slug){
   ]);
   documentId=new URL(control.url()).searchParams.get('document_record');
  }else{
-  await control.goto('/workspace/documents/templates/'+slug+'?case='+caseId+'&document_record='+documentId);
+  await control.goto('/workspace/documents/templates/'+slug+'?'+query+'&document_record='+documentId);
  }
  assert.ok(documentId);
  const {data:doc,error:docError}=await admin.from('documents').select('status,independent_review_required')
@@ -80,7 +87,7 @@ export async function approveHelixCaseEvidence(control,admin,orgId,caseId,slug){
   if(signed.independent_review_required){
    const {ctx,reviewer,id}=await prepareIndependentReviewer(admin,orgId,control);
    try{
-    await reviewer.goto('/workspace/documents/templates/'+slug+'?case='+caseId+'&document_record='+documentId);
+    await reviewer.goto('/workspace/documents/templates/'+slug+'?'+query+'&document_record='+documentId);
     await reviewer.getByRole('button',{name:'Approve',exact:true}).click();
     const result=await awaitDocumentState(admin,orgId,documentId,'approved',reviewer);
     assert.equal(result.approved_by,id,'Independent reviewer must approve, not the technical signer');
