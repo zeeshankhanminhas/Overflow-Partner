@@ -27,6 +27,15 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
  assert.equal(project.due_date,due);
  console.log('PASS browser: new client-originated Project 360 mobilisation manager and programme saved through UI.');
 
+ // Canonical scope MUST remain blocked while the Project Statement of Work
+ // is absent, even after the linked Case technical evidence is approved.
+ const {data:beforeSow,error:beforeSowError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projectId});
+ assert.equal(beforeSowError,null);
+ assert.equal(beforeSow.ready,false,'Approved Case scope alone must not authorise Project mobilisation');
+ assert.ok(beforeSow.reasons.includes('Approved Statement of Work is required.'),
+  'Missing controlled Project agreement must keep the actual stage blocked');
+ console.log('PASS browser: approved Case technical evidence cannot substitute for an unsigned Project SOW.');
+
  const sowId=await approveHelixProjectEvidence(control,admin,orgId,projectId,'statement-of-work');
  await control.goto(projectPath+'/execution');
  const form=control.locator('form:has(select[name="scope_document_id"])');
