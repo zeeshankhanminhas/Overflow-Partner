@@ -43,11 +43,11 @@ jobs:
 
       - name: Authenticated read-only QA — no traces, screenshots or artifacts
         env:
-        VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET }}
-        OPOS_QA_CONTROLLER_EMAIL: ${{ secrets.OPOS_QA_CONTROLLER_EMAIL }}
-        OPOS_QA_CONTROLLER_PASSWORD: ${{ secrets.OPOS_QA_CONTROLLER_PASSWORD }}
-        OPOS_QA_CLIENT_EMAIL: ${{ secrets.OPOS_QA_CLIENT_EMAIL }}
-        OPOS_QA_CLIENT_PASSWORD: ${{ secrets.OPOS_QA_CLIENT_PASSWORD }}
-        OPOS_QA_PARTNER_EMAIL: ${{ secrets.OPOS_QA_PARTNER_EMAIL }}
-        OPOS_QA_PARTNER_PASSWORD: ${{ secrets.OPOS_QA_PARTNER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET }}
+          OPOS_QA_CONTROLLER_EMAIL: ${{ secrets.OPOS_QA_CONTROLLER_EMAIL }}
+          OPOS_QA_CONTROLLER_PASSWORD: ${{ secrets.OPOS_QA_CONTROLLER_PASSWORD }}
+          OPOS_QA_CLIENT_EMAIL: ${{ secrets.OPOS_QA_CLIENT_EMAIL }}
+          OPOS_QA_CLIENT_PASSWORD: ${{ secrets.OPOS_QA_CLIENT_PASSWORD }}
+          OPOS_QA_PARTNER_EMAIL: ${{ secrets.OPOS_QA_PARTNER_EMAIL }}
+          OPOS_QA_PARTNER_PASSWORD: ${{ secrets.OPOS_QA_PARTNER_PASSWORD }}
         run: npx playwright test --config=qa/browser/authenticated.config.mjs
