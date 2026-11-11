@@ -18,7 +18,7 @@ The browser-smoke job runs automatically on the existing QA release PR against
 main. It does not run on the production branch or other PRs. It uses pinned Playwright 1.65.0,
 Chromium, screenshot/trace capture on failures and a seven-day HTML report.
 
-The temporary default target is the last verified OPOS isolated-QA preview.
+The bootstrap target is the manually verified OPOS isolated-QA preview.
 For lasting coverage, set the repository Actions variable
 `OPOS_QA_BASE_URL` to the exact current preview address for the release branch.
 Never point it at `main`, the production custom domain or a live-payments site.
@@ -46,8 +46,14 @@ Do not save browser storage-state fixtures or authentication tokens in GitHub.
 
 ## What comes after smoke
 
-1. Confirm the preview is not Vercel-protected for the GitHub runner, or configure
-   the official Vercel automation-bypass method using an appropriately scoped secret.
+1. Vercel Authentication is enabled on preview deployments. In Vercel's project
+   Settings → Deployment Protection → Protection Bypass for Automation, create a
+   distinct bypass key for browser QA. Save the value DIRECTLY as the GitHub
+   repository Actions secret `OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET`; do not
+   paste the value into chat, code, issue comments, or action logs. Keep Vercel
+   Authentication enabled. Do not make the protected preview public.
+   The runner sends the key in `x-vercel-protection-bypass` and disables HTTP
+   traces and videos to avoid leaking authentication headers in artifacts.
 2. Verify the exact Controller, Client and Partner QA account entitlements.
 3. Add authenticated Playwright cases, each in an isolated browser context.
 4. Validate the cross-role workflow and negative permissions with synthetic data.
@@ -60,7 +66,7 @@ Do not save browser storage-state fixtures or authentication tokens in GitHub.
 ```bash
 npm install --no-save --package-lock=false @playwright/test@1.65.0
 npx playwright install chromium
-OPOS_QA_BASE_URL=https://<approved-preview>.vercel.app npx playwright test --config=qa/browser/playwright.config.mjs
+OPOS_QA_BASE_URL=https://<approved-preview>.vercel.app VERCEL_AUTOMATION_BYPASS_SECRET=<locally-configured-secret> npx playwright test --config=qa/browser/playwright.config.mjs
 ```
 
 No production API keys, financial provider keys or real client data should be used.
