@@ -42,6 +42,9 @@ insert into public.quote_issue_records(
 '00000000-0000-4000-8000-000000009933',1,'Helix QA Client','helix-client@example.invalid',
 'client_portal','OP-QA-HTTP-QUOTE-ISSUED-2','00000000-0000-4000-8000-000000009931',
 'accepted',now());
+-- A tenant policy is test configuration, not client review or payment evidence.
+insert into public.op_client_review_release_policy(organisation_id,require_attested_portal)
+ values ('00000000-0000-4000-8000-000000009932',true);
 insert into public.op_sandbox_payment_authorisations(
  quote_id,organisation_id,quote_revision,expires_at,note
 ) values ('00000000-0000-4000-8000-000000009934','00000000-0000-4000-8000-000000009932',

@@ -51,6 +51,8 @@ async function post(event,expected,label){
  }
  verified(response.status,expected,label+' (HTTP '+response.status+')');
 }
+verified(await count('op_client_review_release_policy',{organisation_id:second.org,require_attested_portal:true}),1,
+ 'Helix final settlement requires client-attested portal review');
 verified(await count('projects',{organisation_id:first.org,quote_id:first.quote}),1,'first customer still has one project');
 verified(await count('projects',{organisation_id:second.org,quote_id:second.quote}),0,'second has no project before payment');
 verified(await count('quote_payment_confirmations',{organisation_id:second.org,quote_id:second.quote}),0,'no opening receipt for second customer');
