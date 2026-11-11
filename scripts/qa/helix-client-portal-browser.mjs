@@ -94,6 +94,12 @@ try{
   assert.equal(after.due_date,due);
   assert.equal(after.project_stage,'mobilisation','Mobilisation action cannot skip downstream partner and QA gates');
   console.log('PASS browser: Helix mobilisation controls saved through operator UI; project remains governed.');
+  const {data:readiness,error:readinessError}=await admin.rpc('op_project_stage_readiness',{p_project_id:projects[0].id});
+  assert.equal(readinessError,null);
+  assert.equal(readiness.stage,'mobilisation');
+  assert.ok(Array.isArray(readiness.reasons));
+  console.log('HELIX MOBILISATION READINESS: '+JSON.stringify(readiness.reasons));
+
 
  }finally{await operator.close();}
  await context.close();
