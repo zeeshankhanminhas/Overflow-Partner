@@ -49,6 +49,8 @@ jobs:
       QUOTE_RESPONSE_SECRET: 'qa_local_client_portal_disposable_20261111'
       OP_VOICE_FINAL_RELEASE_ENABLED: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3211'
+      NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3211'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

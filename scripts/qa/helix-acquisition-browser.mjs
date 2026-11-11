@@ -69,5 +69,79 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
  assert.equal(partners[0].nda_signed,true);
  console.log('PASS browser: Helix test execution partner registered through real Partner form.');
 
- return {companyId,contactId,prospectId,partnerId:partners[0].id};
+
+ // Customer requirement is requested through the operator UI and submitted through
+ // a separate public browser session, not inserted into intake tables.
+ await control.goto('/workspace/acquisition/'+prospectId);
+ await control.getByRole('button',{name:'Create requirements request'}).click();
+ await control.waitForURL(u=>u.pathname==='/workspace/acquisition/'+prospectId&&u.searchParams.has('invitation'),{timeout:30000});
+ const invitation=new URL(control.url()).searchParams.get('invitation');
+ assert.ok(invitation?.includes('/intake/'));
+ const clientContext=await control.context().browser().newContext({serviceWorkers:'block'});
+ try{
+  const intake=await clientContext.newPage();
+  await intake.goto(invitation);
+  await intake.getByRole('heading',{name:'Technical intake'}).waitFor();
+  await intake.locator('textarea[name="description"]').fill(
+   'Manufacturing CAD package for pump housing and assembly fixtures: full dimensions, GD&T and fabrication-ready drawings.');
+  await intake.locator('select[name="project_type"]').selectOption('Manufacturing drawings');
+  await intake.locator('input[name="deliverable_items"][value="Manufacturing drawings"]').check();
+  await intake.locator('input[name="deliverable_items"][value="3D CAD models"]').check();
+  await intake.getByRole('button',{name:'Submit technical intake'}).click();
+  await intake.getByText('Technical intake submitted successfully.',{exact:false}).waitFor({timeout:30000});
+ } finally { await clientContext.close(); }
+ const {count:submittedIntakes,error:intakeError}=await admin.from('intake_submissions')
+  .select('*',{count:'exact',head:true}).eq('organisation_id',organisationId);
+ assert.equal(intakeError,null);
+ assert.ok(submittedIntakes>0,'Client must submit actual technical requirements');
+ console.log('PASS browser: secure requirements request and separate client submission recorded.');
+
+ await control.goto('/workspace/acquisition/'+prospectId);
+ const reviewForm=control.locator('form:has(select[name="partner_id"])');
+ await reviewForm.locator('select[name="partner_id"]').selectOption(partners[0].id);
+ await Promise.all([
+  control.waitForURL(u=>u.pathname==='/workspace/acquisition/'+prospectId&&u.searchParams.has('partnerReviewCreated'),{timeout:30000}),
+  reviewForm.getByRole('button',{name:'Request partner review'}).click()
+ ]);
+ const partnerUrl=new URL(control.url()).searchParams.get('reviewUrl');
+ assert.ok(partnerUrl?.includes('/partner-review/'),'Partner review must issue a real bearer link');
+ const partnerContext=await control.context().browser().newContext({serviceWorkers:'block'});
+ try{
+  const review=await partnerContext.newPage();
+  await review.goto(partnerUrl);
+  await review.getByRole('heading',{name:'Partner review'}).waitFor();
+  const form=review.locator('form:has(select[name="feasibility"])');
+  await form.locator('select[name="feasibility"]').selectOption('feasible');
+  await form.locator('input[name="confidence_percent"]').fill('94');
+  await form.locator('select[name="capability_confirmed"]').selectOption('true');
+  await form.locator('select[name="capacity_status"]').selectOption('available');
+  await form.locator('input[name="estimated_engineering_hours"]').fill('30');
+  await form.locator('input[name="estimated_lead_time_days"]').fill('14');
+  await form.locator('select[name="pricing_readiness"]').selectOption('ready');
+  await form.locator('input[name="commercial_price"]').fill('1600');
+  await form.locator('input[name="quote_reference"]').fill('HELIX-QA-PTA-001');
+  await form.locator('input[name="reviewer_name"]').fill('Helix QA Partner Engineer');
+  await form.locator('input[name="declaration_checked"]').check();
+  await form.getByRole('button',{name:'Submit technical and commercial response'}).click();
+  await review.getByText('Technical and commercial response submitted.',{exact:false}).waitFor({timeout:30000});
+ } finally { await partnerContext.close(); }
+ console.log('PASS browser: Execution Partner submitted feasibility, capacity and price through public review.');
+
+ await control.goto('/workspace/acquisition/'+prospectId);
+ const decision=control.locator('form:has(select[name="decision"])');
+ await decision.locator('select[name="decision"]').selectOption('approved');
+ await decision.locator('textarea[name="review_notes"]').fill('Engineering feasibility and commercial capacity independently reviewed');
+ await Promise.all([
+  control.waitForURL(u=>u.pathname==='/workspace/acquisition/'+prospectId&&u.searchParams.has('partnerDecision'),{timeout:30000}),
+  decision.getByRole('button',{name:'Confirm decision'}).click()
+ ]);
+ await control.getByRole('button',{name:'Progress opportunity'}).click();
+ await control.waitForURL(u=>u.pathname.startsWith('/workspace/leads/')&&u.searchParams.has('success'),{timeout:30000});
+ const caseId=new URL(control.url()).pathname.split('/').at(-1);
+ assert.match(caseId,/^[0-9a-f-]{36}$/i);
+ const {data:caseRow,error:caseError}=await admin.from('leads').select('id,organisation_id').eq('id',caseId).single();
+ assert.equal(caseError,null);
+ assert.equal(caseRow.organisation_id,organisationId);
+ console.log('PASS browser: partner-approved Go / No-Go converted Helix prospect into Case 360.');
+ return {companyId,contactId,prospectId,caseId,partnerId:partners[0].id};
 }
