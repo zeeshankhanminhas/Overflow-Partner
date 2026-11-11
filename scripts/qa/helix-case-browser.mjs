@@ -88,5 +88,38 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  assert.match(messages[0].html,/quote-response\?token=/);
  assert.ok(messages[0].attachments?.some(x=>x.filename?.endsWith('.pdf')&&x.content?.length>100));
  console.log('PASS browser: Client Quote issued through governed UI; local HTTP provider accepted PDF and signed response links.');
+ const acceptUrl=outbox.payload?.actions?.find(action=>action.label==='Accept and proceed')?.url;
+ assert.ok(acceptUrl?.includes('/quote-response?token='),'Mail payload must contain signed client acceptance action');
+ const clientContext=await control.context().browser().newContext({serviceWorkers:'block'});
+ try{
+  const client=await clientContext.newPage();
+  client.setDefaultTimeout(25000);
+  await client.goto(acceptUrl);
+  await client.getByRole('heading',{name:'Accept this quotation?'}).waitFor();
+  await client.locator('input[name="signatory_name"]').fill('Helix QA Client Engineer');
+  await client.locator('input[name="signatory_email"]').fill('helix-client@example.invalid');
+  await client.locator('input[name="authority_attested"]').check();
+  await Promise.all([
+   client.waitForURL(u=>u.pathname==='/quote-payment'&&u.searchParams.has('token'),{timeout:30000}),
+   client.getByRole('button',{name:'Confirm acceptance'}).click()
+  ]);
+  await client.getByRole('heading',{name:'Complete your payment'}).waitFor();
+  const {data:decision,error:decisionError}=await admin.from('quote_issue_records')
+   .select('client_response').eq('organisation_id',orgId).eq('quote_id',quotes[0].id).single();
+  assert.equal(decisionError,null);
+  assert.equal(decision.client_response,'accepted');
+  const {data:attestation,error:attestationError}=await admin.from('quote_client_signatory_attestations')
+   .select('signatory_email,authority_attested_at').eq('organisation_id',orgId)
+   .eq('quote_id',quotes[0].id).eq('quote_revision',quotes[0].revision).single();
+  assert.equal(attestationError,null);
+  assert.equal(String(attestation.signatory_email).toLowerCase(),'helix-client@example.invalid');
+  assert.ok(attestation.authority_attested_at);
+  const {count:unpaidProject,error:unpaidProjectError}=await admin.from('projects')
+   .select('*',{count:'exact',head:true}).eq('organisation_id',orgId).eq('quote_id',quotes[0].id);
+  assert.equal(unpaidProjectError,null);
+  assert.equal(unpaidProject,0,'Client acceptance alone cannot release Project 360 without verified opening payment');
+  console.log('PASS browser: separate client signed quote acceptance and attested authority; opening payment still required.');
+ }finally{await clientContext.close();}
+
  return quotes[0];
 }
