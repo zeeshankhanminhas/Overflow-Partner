@@ -65,3 +65,10 @@ test('accepted client intake becomes the canonical prospect requirement without 
  assert.match(handler,/\.eq\('organisation_id', session\.organisation_id\)\.eq\('id', session\.prospect_id\)/);
  assert.match(handler,/if \(summaryError\) throw summaryError/);
 });
+
+test('Project 360 exposes governed document generation rather than dead preview-only evidence links',()=>{
+ const source=read('app/workspace/projects/[id]/page.tsx');
+ assert.match(source,/DocumentGenerationPanel context="project" recordId=\{id\}/);
+ assert.match(source,/items=\{documentRequirements\}/);
+ assert.doesNotMatch(source,/href=\{\`\/workspace\/documents\/templates\/\$\{item\.key\}\?project=\$\{id\}\`\}/);
+});
