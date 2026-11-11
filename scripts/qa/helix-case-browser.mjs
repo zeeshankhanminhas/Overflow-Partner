@@ -52,5 +52,14 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  assert.ok(quotes[0].commercial_review_id,'Quote must inherit approved partner commercial lineage');
  assert.ok(Number(quotes[0].total)>0,'Quote total must be positive');
  console.log('PASS browser: governed Case technical approval, 33% margin and draft Client Quote generated through UI.');
+ await approveHelixCaseEvidence(control,admin,orgId,caseId,'client-quote');
+ const {data:controlledQuote,error:controlledQuoteError}=await admin.from('documents')
+  .select('id,status,quote_id,approved_by,signed_by').eq('organisation_id',orgId)
+  .eq('lead_id',caseId).eq('quote_id',quotes[0].id).eq('document_type','client-quote')
+  .eq('is_current_revision',true).single();
+ assert.equal(controlledQuoteError,null,'Generated Client Quote must have its controlled document');
+ assert.equal(controlledQuote.status,'approved');
+ assert.ok(controlledQuote.signed_by&&controlledQuote.approved_by);
+ console.log('PASS browser: actual Client Quote independently governed document approved before issue.');
  return quotes[0];
 }
