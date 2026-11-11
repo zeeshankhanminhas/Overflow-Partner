@@ -70,3 +70,33 @@ OPOS_QA_BASE_URL=https://<approved-preview>.vercel.app VERCEL_AUTOMATION_BYPASS_
 ```
 
 No production API keys, financial provider keys or real client data should be used.
+
+## Authenticated browser suite (implemented, not yet executed)
+
+`qa/browser/tests/authenticated.spec.mjs` contains three credential-backed,
+read-only QA tests: Controller, Northfield Client and Precision Partner login,
+the expected workspace/account, and negative cross-role access checks.
+
+This is intentionally **NOT** enabled on PR #123. The separate
+`OPOS Authenticated Browser QA (protected)` workflow has no PR or push event,
+requires `refs/heads/main`, and uses the `opos-qa-auth` GitHub environment.
+Review the PR before merging; merging remains separately blocked by the wider
+OPOS production NO-GO state. Do **not** merge solely to run browser tests.
+
+Before enabling execution:
+1. Create the GitHub Actions environment `opos-qa-auth` and configure required
+   reviewers and the `main` branch restriction.
+2. Confirm all six QA email/password repository secrets exist alongside the
+   Vercel bypass secret. Never echo them.
+3. Review the authenticated test file and confirm the preview belongs to the
+   known isolated Supabase QA project. It must never hit production.
+4. After approved code is on protected main, manually dispatch
+   `OPOS Authenticated Browser QA (protected)`.
+
+No authentication storage states, cookies, traces, screenshots, videos, or
+browser reports are uploaded for credential-bearing tests. The CI runner is
+ephemeral and only performs read-only navigation/sign-in; no financial writes.
+
+Successful authenticated login checks still do not prove the 28-step business
+lifecycle, real provider email delivery, or payment settlement. Those require
+separate governed tests.
