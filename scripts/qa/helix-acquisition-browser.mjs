@@ -87,8 +87,16 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
   await intake.locator('select[name="project_type"]').selectOption('Manufacturing drawings');
   await intake.locator('input[name="deliverable_items"][value="Manufacturing drawings"]').check();
   await intake.locator('input[name="deliverable_items"][value="3D CAD models"]').check();
+  const requestPromise=intake.waitForResponse(
+   response=>response.url().includes('/api/intake/')&&response.request().method()==='POST',
+   {timeout:30000}
+  );
   await intake.getByRole('button',{name:'Submit technical intake'}).click();
-  await intake.getByText('Technical intake submitted successfully.',{exact:false}).waitFor({timeout:30000});
+  const submittedResponse=await requestPromise;
+  const submittedBody=await submittedResponse.text();
+  assert.equal(submittedResponse.status(),200,
+   'Client intake POST rejected: '+submittedResponse.status()+' '+submittedBody.slice(0,800));
+  await intake.getByText('Technical intake submitted successfully.',{exact:false}).waitFor({timeout:15000});
  } finally { await clientContext.close(); }
  const {count:submittedIntakes,error:intakeError}=await admin.from('intake_submissions')
   .select('*',{count:'exact',head:true}).eq('organisation_id',organisationId);
