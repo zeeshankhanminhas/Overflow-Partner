@@ -83,5 +83,56 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
  assert.equal(afterError,null);
  assert.equal(after.project_stage,'ready_for_execution');
  console.log('PASS browser: new Project 360 advanced to Ready for Execution by operator stage action.');
+
+ // The assigned Partner now uses a real signed workspace link, not an admin
+ // insertion of a commencement row or a project-stage write.
+ await control.goto(projectPath+'/execution');
+ const invite=control.getByRole('button',{name:'Create Partner access link'});
+ assert.equal(await invite.count(),1,'Ready-to-execute Project must offer governed Partner access');
+ await Promise.all([
+  control.waitForURL(u=>u.pathname===projectPath+'/execution'&&(u.searchParams.has('execution_link')||u.searchParams.has('error')),{timeout:30000}),
+  invite.click()
+ ]);
+ const partnerInviteUrl=new URL(control.url());
+ assert.equal(partnerInviteUrl.searchParams.get('error'),null,
+  'Governed Partner workspace invitation failed: '+partnerInviteUrl.searchParams.get('error'));
+ const partnerUrl=partnerInviteUrl.searchParams.get('execution_link');
+ assert.ok(partnerUrl?.startsWith('http://127.0.0.1:3211/execution/'),
+  'Partner access must be a signed, local-QA-only link');
+ const partnerCtx=await control.context().browser().newContext({serviceWorkers:'block'});
+ try{
+  const partner=await partnerCtx.newPage();
+  partner.setDefaultTimeout(25000);
+  await partner.goto(partnerUrl);
+  await partner.getByRole('button',{name:'Confirm start'}).waitFor({timeout:30000});
+  await partner.getByRole('button',{name:'Confirm start'}).click();
+  const declaration=partner.getByRole('dialog',{name:'Confirm you are ready to start'});
+  await declaration.locator('input[name="execution_lead_name"]').fill('Helix QA Partner Lead');
+  await declaration.locator('input[name="planned_commencement_date"]').fill(start);
+  await declaration.locator('input[name="forecast_delivery_date"]').fill(due);
+  for(const name of ['scope_reviewed','inputs_received','capacity_confirmed','no_unresolved_blocker','declaration_checked']){
+   await declaration.locator('input[name="'+name+'"]').check();
+  }
+  const responsePromise=partner.waitForResponse(response=>
+   response.url().includes('/api/execution/')&&response.request().method()==='POST',{timeout:30000});
+  await declaration.getByRole('button',{name:'Confirm start'}).click();
+  const response=await responsePromise;
+  const responseText=await response.text();
+  assert.equal(response.status(),200,
+   'Partner commencement rejected: '+response.status()+' '+responseText.slice(0,650));
+  const {data:commencement,error:commencementError}=await admin.from('partner_commencement_declarations')
+   .select('assignment_id,scope_reviewed,inputs_received,capacity_confirmed,no_unresolved_blocker')
+   .eq('organisation_id',orgId).eq('assignment_id',assignments[0].id).single();
+  assert.equal(commencementError,null);
+  assert.equal(commencement.assignment_id,assignments[0].id);
+  for(const field of ['scope_reviewed','inputs_received','capacity_confirmed','no_unresolved_blocker'])
+   assert.equal(commencement[field],true,'Partner declaration must attest '+field);
+ }finally{await partnerCtx.close();}
+ const {data:inProgress,error:progressError}=await admin.from('projects')
+  .select('project_stage').eq('organisation_id',orgId).eq('id',projectId).single();
+ assert.equal(progressError,null);
+ assert.equal(inProgress.project_stage,'in_progress',
+  'Only the genuine Partner commencement transaction may start project execution');
+ console.log('PASS browser: signed Partner workspace and attested start automatically advanced Helix Project to In Progress.');
  return assignments[0].id;
 }
