@@ -25,8 +25,12 @@ BEGIN
     RAISE EXCEPTION 'Project not found.';
   END IF;
 
+  -- PostgREST exposes the verified JWT through request.jwt.claims on
+  -- current Supabase. auth.role() resolves that signed claim correctly,
+  -- including nested SECURITY DEFINER calls from Partner token RPCs.
+  -- Checking request.jwt.claim.role alone rejected legitimate service_role.
   IF session_user <> 'postgres'
-     AND coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+     AND coalesce(auth.role(), '') <> 'service_role'
   THEN
     IF auth.uid() IS NULL OR NOT EXISTS (
       SELECT 1 FROM public.profiles
