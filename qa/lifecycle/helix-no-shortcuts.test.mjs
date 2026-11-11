@@ -61,7 +61,7 @@ test('partner setup is available before partner execution, but only during gover
 
 test('accepted client intake becomes the canonical prospect requirement without SQL fixture shortcuts',()=>{
  const handler=read('app/api/intake/[token]/route.ts');
- assert.match(handler,/requirement_summary: payload\.description/);
+ assert.match(handler,/requirement_summary: payload\.description, project_type: payload\.project_type/);
  assert.match(handler,/\.eq\('organisation_id', session\.organisation_id\)\.eq\('id', session\.prospect_id\)/);
  assert.match(handler,/if \(summaryError\) throw summaryError/);
 });

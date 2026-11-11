@@ -83,7 +83,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     // Preserve the client's submitted, validated requirement as the canonical
     // structured summary used by governed Go / No-Go and Case conversion.
     const { error: summaryError } = await supabase.from('prospects')
-      .update({ requirement_summary: payload.description,
+      .update({ requirement_summary: payload.description, project_type: payload.project_type,
         next_action: 'Review submitted technical intake and qualify prospect' })
       .eq('organisation_id', session.organisation_id).eq('id', session.prospect_id);
     if (summaryError) throw summaryError;
