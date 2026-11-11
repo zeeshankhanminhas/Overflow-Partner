@@ -3,7 +3,7 @@
 -- The browser scenario separately exercises the positive transition end-to-end.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 select ok(to_regprocedure('public.op_project_stage_readiness(uuid)') is not null,
  'Canonical Project readiness RPC exists');
@@ -14,6 +14,12 @@ select ok(not has_function_privilege('anon','public.op_project_stage_readiness_w
  'Anonymous clients cannot invoke the privileged core');
 select ok(not has_function_privilege('authenticated','public.op_project_stage_readiness_with_duplicate_scope_gate(uuid)','EXECUTE'),
  'Operators cannot bypass the organisation-scoped readiness wrapper');
+
+with definition as (
+ select pg_get_functiondef(to_regprocedure('public.op_project_stage_readiness(uuid)')) as sql
+)
+select ok(position('auth.role()' in sql)>0,
+ 'Signed JWT role is recognised when a service-only Partner RPC invokes readiness') from definition;
 
 with definition as (
  select pg_get_functiondef(to_regprocedure('public.op_project_stage_readiness(uuid)')) as sql
