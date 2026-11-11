@@ -64,6 +64,11 @@ await post(paymentEvent('evt_helix_cross_org','cs_helix_cross_org','opening',720
  'cross-organisation quote metadata rejected');
 await post(paymentEvent('evt_helix_underpay','cs_helix_underpay','opening',71900),422,
  '£719 opening payment rejected against frozen £720 deposit');
+await post(paymentEvent('evt_helix_wrong_revision','cs_helix_wrong_revision','opening',72000,{quote_revision:'2'}),422,
+ 'stale quotation revision cannot authorise payment');
+const wrongCurrency=paymentEvent('evt_helix_wrong_currency','cs_helix_wrong_currency');
+wrongCurrency.data.object.currency='eur';
+await post(wrongCurrency,422,'wrong currency cannot authorise GBP project');
 await post(paymentEvent('evt_helix_open','cs_helix_open','opening',72000),200,
  'correctly priced £720 opening payment accepted');
 verified(await count('projects',{organisation_id:second.org,quote_id:second.quote}),1,
@@ -83,7 +88,11 @@ if(error)throw error;
 verified(projects?.length,1,'independent second project is readable');
 verified(projects[0].organisation_id,second.org,'project tenant never inherited from first quote');
 const projectId=projects[0].id;
-await post(paymentEvent('evt_helix_other_project','cs_helix_other_project','final',168000,{project_id:first.quote}),422,
+const {data:firstProjects,error:firstError}=await db.from('projects').select('id')
+ .eq('organisation_id',first.org).eq('quote_id',first.quote);
+if(firstError)throw firstError;
+verified(firstProjects?.length,1,'other tenant has exactly one real project for foreign-ID test');
+await post(paymentEvent('evt_helix_other_project','cs_helix_other_project','final',168000,{project_id:firstProjects[0].id}),422,
  'foreign project ID cannot enable second-tenant final settlement');
 await post(paymentEvent('evt_helix_short_final','cs_helix_short_final','final',167900,{project_id:projectId}),422,
  '£1,679 final payment rejected against £1,680 balance');
