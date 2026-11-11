@@ -140,7 +140,7 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
   await form.locator('input[name="reviewer_name"]').fill('Helix QA Partner Engineer');
   await form.locator('input[name="declaration_checked"]').check();
   await form.getByRole('button',{name:'Submit technical and commercial response'}).click();
-  await review.getByText('Technical and commercial response submitted.',{exact:false}).waitFor({timeout:30000});
+  await review.getByRole('heading',{name:'Partner response received.'}).waitFor({timeout:30000});
  } finally { await partnerContext.close(); }
  console.log('PASS browser: Execution Partner submitted feasibility, capacity and price through public review.');
 
