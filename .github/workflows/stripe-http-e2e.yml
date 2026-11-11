@@ -75,7 +75,7 @@ jobs:
           test -z "$SUPABASE_ACCESS_TOKEN"
           test -z "$DATABASE_URL"
           sed -i '1i project_id = "opos_ephemeral_ci"' supabase/config.toml
-          supabase start -x studio,inbucket,analytics,vector,edge-runtime,realtime,storage,imgproxy
+          supabase start -x studio,mailpit,logflare,vector,edge-runtime,realtime,storage-api,imgproxy,postgres-meta
           supabase status -o env > "$RUNNER_TEMP/opos-supabase-local.env"
           set -a
           source "$RUNNER_TEMP/opos-supabase-local.env"
