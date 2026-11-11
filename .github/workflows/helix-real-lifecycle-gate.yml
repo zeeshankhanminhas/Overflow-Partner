@@ -1,0 +1,31 @@
+name: Helix real lifecycle acceptance gate (no SQL approval shortcuts)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'qa/lifecycle/**'
+      - 'scripts/qa/stripe-http-second-org-e2e.mjs'
+      - 'app/client-portal/**'
+      - 'app/workspace/projects/**'
+      - '.github/workflows/helix-real-lifecycle-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-sql-approval-shortcut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      DATABASE_URL: ''
+      STRIPE_SECRET_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Helix lifecycle acceptance contract
+        run: node --test qa/lifecycle/helix-no-shortcuts.test.mjs
