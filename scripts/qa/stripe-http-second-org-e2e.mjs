@@ -40,7 +40,16 @@ async function post(event,expected,label){
  const response=await fetch(endpoint,{method:'POST',signal:AbortSignal.timeout(15000),headers:{
   'content-type':'application/json','stripe-signature':'t='+timestamp+',v1='+signature
  },body});
- await response.text();
+ const reply=await response.text();
+ if(response.status===503 && expected===200 && event.data?.object?.metadata?.payment_stage==='opening'){
+  // Local CI only: reveal the actual governed SQL rejection, not secrets.
+  const {error:finalizerError}=await db.rpc('op_finalize_verified_stripe_quote_payment',{
+   p_session_id:event.data.object.id,
+  });
+  console.error('SECOND-ORG QA local finalizer diagnostic: '+
+   (finalizerError?.message?.slice(0,350)||'direct RPC returned no error')+
+   '; HTTP response: '+reply.slice(0,120));
+ }
  verified(response.status,expected,label+' (HTTP '+response.status+')');
 }
 function recordSyntheticAcceptance(projectId){
