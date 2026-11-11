@@ -82,6 +82,17 @@ if(error)throw error;
 verified(projects?.length,1,'independent second project is readable');
 verified(projects[0].organisation_id,second.org,'project tenant never inherited from first quote');
 const projectId=projects[0].id;
+// The application-level client review RPC is deliberately NOT a backdoor:
+ // a freshly opened project without an issued current-cycle review pack cannot
+ // accept a client decision, even when the caller is the trusted portal service.
+const {error:prematureReviewError}=await db.rpc('op_record_attested_client_portal_review',{
+ p_quote_id:second.quote,p_quote_revision:1,p_project_id:projectId,
+ p_transmittal_id:'00000000-0000-4000-8000-000000009999',
+ p_client_email:'helix-client@example.invalid',p_outcome:'accepted',p_comments:null,
+});
+verified(Boolean(prematureReviewError),true,'portal review RPC rejects premature acceptance');
+verified(await count('project_client_reviews',{organisation_id:second.org,project_id:projectId}),0,
+ 'premature portal review leaves client acceptance evidence empty');
 const {data:firstProjects,error:firstError}=await db.from('projects').select('id')
  .eq('organisation_id',first.org).eq('quote_id',first.quote);
 if(firstError)throw firstError;
