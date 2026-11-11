@@ -39,7 +39,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Verify QA test policy without credentials
-        run: node --test qa/browser/authenticated-policy.test.mjs && node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs
+        run: node --test qa/browser/authenticated-policy.test.mjs && node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs && node --check qa/browser/tests/project-details.spec.mjs
 
       - name: Authenticated read-only QA — no traces, screenshots or artifacts
         env:
