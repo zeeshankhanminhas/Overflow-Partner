@@ -1,0 +1,53 @@
+name: OPOS Authenticated Browser QA (protected)
+
+# Credential-bearing tests deliberately never execute from a pull_request.
+# Activate only after the test code is reviewed and merged to protected main.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-qa:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: opos-qa-auth
+    env:
+      CI: 'true'
+      OPOS_AUTH_QA_APPROVED: 'true'
+      OPOS_QA_BASE_URL: https://overflow-partner-9621nvpda-zeeshankhanminhas-projects.vercel.app
+    steps:
+      - name: Checkout trusted main code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install project dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify QA test policy without credentials
+        run: node --test qa/browser/authenticated-policy.test.mjs && node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs
+
+      - name: Authenticated read-only QA — no traces, screenshots or artifacts
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET }}
+          OPOS_QA_CONTROLLER_EMAIL: ${{ secrets.OPOS_QA_CONTROLLER_EMAIL }}
+          OPOS_QA_CONTROLLER_PASSWORD: ${{ secrets.OPOS_QA_CONTROLLER_PASSWORD }}
+          OPOS_QA_CLIENT_EMAIL: ${{ secrets.OPOS_QA_CLIENT_EMAIL }}
+          OPOS_QA_CLIENT_PASSWORD: ${{ secrets.OPOS_QA_CLIENT_PASSWORD }}
+          OPOS_QA_PARTNER_EMAIL: ${{ secrets.OPOS_QA_PARTNER_EMAIL }}
+          OPOS_QA_PARTNER_PASSWORD: ${{ secrets.OPOS_QA_PARTNER_PASSWORD }}
+        run: npx playwright test --config=qa/browser/authenticated.config.mjs
