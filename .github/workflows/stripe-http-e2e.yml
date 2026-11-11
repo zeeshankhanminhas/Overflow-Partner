@@ -59,6 +59,10 @@ jobs:
           cache: npm
       - name: Install app dependencies
         run: npm ci
+      - name: Install Chromium for real client portal QA
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+          npx playwright install --with-deps chromium
       - uses: supabase/setup-cli@v3
         with:
           version: 2.84.2
@@ -98,10 +102,6 @@ jobs:
           echo $! > "$RUNNER_TEMP/opos-next-server.pid"
       - name: Signed HTTP webhook and stateful database integration
         run: node scripts/qa/stripe-http-e2e.mjs && node scripts/qa/stripe-http-second-org-e2e.mjs
-      - name: Install Chromium for real client portal QA
-        run: |
-          npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
-          npx playwright install --with-deps chromium
       - name: Real Chromium client portal boundary (disposable)
         run: node scripts/qa/helix-client-portal-browser.mjs
       - name: Diagnostic Next.js logs on failure
