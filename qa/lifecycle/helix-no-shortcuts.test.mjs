@@ -43,3 +43,11 @@ test('operator evidence does not count as proof of client interaction',()=>{
  const scenario=read('scripts/qa/stripe-http-second-org-e2e.mjs');
  assert.doesNotMatch(scenario,/recordClientReviewOutcomeAction|client-actions\.ts/);
 });
+
+test('client transmittal and reminder send a signed review portal route instead of a homepage',()=>{
+ const delivery=read('app/workspace/projects/[id]/client-actions.ts');
+ assert.match(delivery,/createClientPortalToken\(quote\.id,Number\(quote\.revision\)\)/);
+ assert.match(delivery,/actionUrl:reviewUrl/);
+ assert.doesNotMatch(delivery,/scenario:'client_delivery\.issued'[^\n]*actionUrl:appUrl\(\)/);
+ assert.doesNotMatch(delivery,/scenario:'client_delivery\.review_reminder'[^\n]*actionUrl:appUrl\(\)/);
+});
