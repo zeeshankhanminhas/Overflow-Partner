@@ -28,7 +28,7 @@ if(new Set(emails).size!==3 || emails.some((e,i)=>!e.endsWith('+'+['controller',
 const bypass=process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 export default defineConfig({
  testDir:'./tests',
- testMatch:'authenticated.spec.mjs',
+ testMatch:['authenticated.spec.mjs','project-details.spec.mjs'],
  workers:1,
  fullyParallel:false,
  retries:0,
