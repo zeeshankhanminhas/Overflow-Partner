@@ -65,6 +65,9 @@ jobs:
       - name: Production Stripe release-mode readiness (offline)
         run: npm run stripe-live:check
 
+      - name: Parse authenticated Playwright files without exposing credentials
+        run: node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs
+
       - name: Production build
         run: npx next build
 
