@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {chromium} from '@playwright/test';
 import {createClient} from '@supabase/supabase-js';
+import {createHelixAcquisitionThroughWorkspace} from './helix-acquisition-browser.mjs';
 
 assert.equal(process.env.CI,'true');
 assert.equal(process.env.VERCEL_ENV,'local-qa');
@@ -103,6 +104,7 @@ try{
   assert.equal(readiness.stage,'mobilisation');
   assert.ok(Array.isArray(readiness.reasons));
   console.log('HELIX MOBILISATION READINESS: '+JSON.stringify(readiness.reasons));
+  await createHelixAcquisitionThroughWorkspace(control,admin,'00000000-0000-4000-8000-000000009932');
 
 
  }finally{await operator.close();}
