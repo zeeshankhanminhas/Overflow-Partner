@@ -29,6 +29,14 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
   await act('Approve technical scope');
  }
  await approveHelixCaseEvidence(control,admin,orgId,caseId,'partner-technical-assessment-report');
+ const [intake,partnerQuotes,reviews,controlled]=await Promise.all([
+  admin.from('technical_intakes').select('id,status').eq('organisation_id',orgId).eq('lead_id',caseId),
+  admin.from('partner_quotes').select('id,status,price,partner_review_request_id').eq('organisation_id',orgId).eq('lead_id',caseId),
+  admin.from('partner_review_requests').select('id,status,partner_id').eq('organisation_id',orgId).eq('lead_id',caseId),
+  admin.from('documents').select('document_type,status').eq('organisation_id',orgId).eq('lead_id',caseId)
+ ]);
+ const next=await control.locator('#record-next-action').innerText();
+ console.log('HELIX CASE PRICING READINESS '+JSON.stringify({next,intake:intake.data,partnerQuotes:partnerQuotes.data,reviews:reviews.data,documents:controlled.data,errors:[intake.error?.message,partnerQuotes.error?.message,reviews.error?.message,controlled.error?.message].filter(Boolean)}));
  assert.equal(await control.locator('#record-next-action').getByRole('button',{name:'Set commercial position'}).count(),1,
   'Approved inherited partner feasibility and scope must enable commercial pricing');
  await act('Set commercial position');
