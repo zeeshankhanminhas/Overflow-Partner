@@ -127,6 +127,43 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
   assert.equal(commencement.assignment_id,assignments[0].id);
   for(const field of ['scope_reviewed','inputs_received','capacity_confirmed','no_unresolved_blocker'])
    assert.equal(commencement[field],true,'Partner declaration must attest '+field);
+
+  // Submit physical synthetic evidence through the Partner's actual upload
+  // picker, signed local Storage upload and finalisation route.
+  await partner.getByRole('button',{name:'Submit completed work'}).waitFor({timeout:30000});
+  await partner.getByRole('button',{name:'Submit completed work'}).click();
+  const delivery=partner.getByRole('dialog',{name:'Submit completed work'});
+  const filename='helix-qa-pump-assembly-evidence.txt';
+  await delivery.locator('input[type="file"]').setInputFiles({
+   name:filename,mimeType:'text/plain',
+   buffer:Buffer.from('Disposable QA engineering package: pump housing drawing checklist; not a real customer deliverable.\\n')
+  });
+  await delivery.getByText(filename,{exact:true}).waitFor({timeout:30000});
+  await delivery.locator('textarea[name="delivery_summary"]').fill('Pump housing CAD and fixture drawing check completed for isolated QA.');
+  await delivery.locator('textarea[name="deliverables_manifest"]').fill('One attached synthetic QA scope checklist with engineering package reference.');
+  await delivery.locator('input[name="declaration_checked"]').check();
+  const deliveryResponsePromise=partner.waitForResponse(response=>
+   response.url().includes('/api/execution/')&&!response.url().includes('/files')&&
+   response.request().method()==='POST',{timeout:30000});
+  await delivery.getByRole('button',{name:'Submit completed work'}).click();
+  const deliveryResponse=await deliveryResponsePromise;
+  const deliveryResponseBody=await deliveryResponse.text();
+  assert.equal(deliveryResponse.status(),200,
+   'Real Partner engineering delivery rejected: '+deliveryResponse.status()+' '+deliveryResponseBody.slice(0,700));
+  const {data:submissions,error:submissionsError}=await admin.from('partner_delivery_submissions')
+   .select('id,assignment_id,execution_cycle,review_status').eq('organisation_id',orgId)
+   .eq('assignment_id',assignments[0].id);
+  assert.equal(submissionsError,null);
+  assert.equal(submissions.length,1,'Exactly one Partner submitted package is permitted for current cycle');
+  const {data:deliveryFiles,error:deliveryFilesError}=await admin.from('partner_delivery_submission_files')
+   .select('id,submission_id,original_filename').eq('organisation_id',orgId)
+   .eq('assignment_id',assignments[0].id).eq('execution_cycle',1);
+  assert.equal(deliveryFilesError,null);
+  assert.equal(deliveryFiles.length,1,'Real Partner delivery must contain one registered physical file');
+  assert.equal(deliveryFiles[0].submission_id,submissions[0].id,
+   'Submitted file must be immutably linked to the actual Partner delivery');
+  assert.equal(deliveryFiles[0].original_filename,filename);
+  console.log('PASS browser: Partner uploaded a synthetic engineering file, submitted a governed real delivery, and file locked to current cycle.');
  }finally{await partnerCtx.close();}
  const {data:inProgress,error:progressError}=await admin.from('projects')
   .select('project_stage').eq('organisation_id',orgId).eq('id',projectId).single();
@@ -134,5 +171,26 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
  assert.equal(inProgress.project_stage,'in_progress',
   'Only the genuine Partner commencement transaction may start project execution');
  console.log('PASS browser: signed Partner workspace and attested start automatically advanced Helix Project to In Progress.');
+ const {data:deliveryReadiness,error:deliveryReadinessError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projectId});
+ assert.equal(deliveryReadinessError,null);
+ console.log('HELIX PARTNER DELIVERY READINESS '+JSON.stringify(deliveryReadiness));
+ assert.equal(deliveryReadiness.stage,'in_progress');
+ assert.equal(deliveryReadiness.ready,true,
+  'Partner completed real delivery but governed Internal Review transition is blocked: '+JSON.stringify(deliveryReadiness.reasons));
+ await control.goto(projectPath);
+ const reviewTransition=control.locator('form:has(input[name="target_stage"][value="internal_review"])');
+ assert.equal(await reviewTransition.count(),1,'Partner-delivered Project must expose a governed Internal Review transition');
+ await Promise.all([
+  control.waitForURL(u=>u.pathname===projectPath&&(u.searchParams.has('advanced')||u.searchParams.has('error')),{timeout:30000}),
+  reviewTransition.getByRole('button').first().click()
+ ]);
+ const internalReviewUrl=new URL(control.url());
+ assert.equal(internalReviewUrl.searchParams.get('error'),null,
+  'Operator Internal Review transition was blocked: '+internalReviewUrl.searchParams.get('error'));
+ const {data:reviewStage,error:reviewStageError}=await admin.from('projects')
+  .select('project_stage').eq('organisation_id',orgId).eq('id',projectId).single();
+ assert.equal(reviewStageError,null);
+ assert.equal(reviewStage.project_stage,'internal_review');
+ console.log('PASS browser: real operator advanced physical Partner engineering delivery to governed Internal Review.');
  return assignments[0].id;
 }
