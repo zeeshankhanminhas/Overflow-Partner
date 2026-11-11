@@ -87,6 +87,8 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
  // The assigned Partner now uses a real signed workspace link, not an admin
  // insertion of a commencement row or a project-stage write.
  await control.goto(projectPath+'/execution');
+ // Assignment setup is intentionally secondary and collapsed once configured.
+ await control.locator('#execution-setup > summary').click();
  const invite=control.getByRole('button',{name:'Create Partner access link'});
  assert.equal(await invite.count(),1,'Ready-to-execute Project must offer governed Partner access');
  await Promise.all([
