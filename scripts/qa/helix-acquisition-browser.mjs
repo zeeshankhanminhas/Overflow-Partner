@@ -1,5 +1,6 @@
 // Browser-only acquisition setup: all business records originate from real forms.
 import assert from 'node:assert/strict';
+import {createHelixDraftQuoteThroughCase360} from './helix-case-browser.mjs';
 
 export async function createHelixAcquisitionThroughWorkspace(control,admin,organisationId){
  const clientName='Helix E2E Engineering Client';
@@ -160,5 +161,6 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
  assert.equal(caseError,null);
  assert.equal(caseRow.organisation_id,organisationId);
  console.log('PASS browser: partner-approved Go / No-Go converted Helix prospect into Case 360.');
+ await createHelixDraftQuoteThroughCase360(control,admin,organisationId,caseId);
  return {companyId,contactId,prospectId,caseId,partnerId:partners[0].id};
 }
