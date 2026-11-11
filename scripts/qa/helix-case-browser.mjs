@@ -25,10 +25,12 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
   await act('Create technical scope');
  }
  await approveHelixCaseEvidence(control,admin,orgId,caseId,'client-requirements');
- if(await control.locator('#record-next-action').getByRole('button',{name:'Approve technical scope'}).count()){
-  await act('Approve technical scope');
- }
  await approveHelixCaseEvidence(control,admin,orgId,caseId,'partner-technical-assessment-report');
+ // Both controlled evidence documents must be approved before the operator
+ // can perform the governed Technical Scope approval.
+ assert.equal(await control.locator('#record-next-action').getByRole('button',{name:'Approve technical scope'}).count(),1,
+  'Both approved document records must expose the actual technical approval');
+ await act('Approve technical scope');
  const [intake,partnerQuotes,reviews,controlled]=await Promise.all([
   admin.from('technical_intakes').select('id,status').eq('organisation_id',orgId).eq('lead_id',caseId),
   admin.from('partner_quotes').select('id,status,price,partner_review_request_id').eq('organisation_id',orgId).eq('lead_id',caseId),
