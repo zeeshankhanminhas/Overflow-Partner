@@ -94,7 +94,11 @@ try{
   assert.equal(after.due_date,due);
   assert.equal(after.project_stage,'mobilisation','Mobilisation action cannot skip downstream partner and QA gates');
   console.log('PASS browser: Helix mobilisation controls saved through operator UI; project remains governed.');
-  const {data:readiness,error:readinessError}=await admin.rpc('op_project_stage_readiness',{p_project_id:projects[0].id});
+  const operatorDb=createClient('http://127.0.0.1:54321',process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,{
+   auth:{persistSession:false,autoRefreshToken:false}});
+  const {error:operatorLoginError}=await operatorDb.auth.signInWithPassword({email,password});
+  assert.equal(operatorLoginError,null,'Readiness check must use real Helix operator login');
+  const {data:readiness,error:readinessError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projects[0].id});
   assert.equal(readinessError,null);
   assert.equal(readiness.stage,'mobilisation');
   assert.ok(Array.isArray(readiness.reasons));
