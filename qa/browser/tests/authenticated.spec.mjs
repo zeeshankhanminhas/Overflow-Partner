@@ -34,16 +34,20 @@ for(const identity of identities){
    if(identity.account)await expect(page.getByText(identity.account,{exact:false}).first()).toBeVisible();
    await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0);
    // Confirm role boundaries as rendered by the authenticated app.
+   const mustBeDenied=async path=>{
+    await page.goto(path);
+    const denied=page.getByText('This sign-in does not have access',{exact:false});
+    const login=page.getByLabel('Password',{exact:true});
+    await expect.poll(async()=>await denied.count()>0 || await login.count()>0).toBe(true);
+    await expect(page.getByRole('link',{name:/Open project handover|Review your drawings|Review your quotation/})).toHaveCount(0);
+   };
    if(identity.role==='Controller'){
-    await page.goto('/portal/client');
-    await expect(page.getByRole('heading',{name:'Your engineering projects',exact:true})).toHaveCount(0);
-    await page.goto('/portal/partner');
-    await expect(page.getByRole('heading',{name:'Your engineering work',exact:true})).toHaveCount(0);
+    await mustBeDenied('/portal/client');
+    await mustBeDenied('/portal/partner');
    }else{
     await page.goto('/opos-next');
     await expect(page.getByRole('heading',{name:'Mission Control',exact:true})).toHaveCount(0);
-    await page.goto(identity.role==='Client'?'/portal/partner':'/portal/client');
-    await expect(page.getByRole('heading',{name:identity.role==='Client'?'Your engineering work':'Your engineering projects',exact:true})).toHaveCount(0);
+    await mustBeDenied(identity.role==='Client'?'/portal/partner':'/portal/client');
    }
   }finally{
    await context.close();
