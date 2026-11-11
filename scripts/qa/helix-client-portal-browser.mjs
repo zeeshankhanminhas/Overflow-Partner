@@ -67,7 +67,7 @@ try{
    control.getByRole('button',{name:'Enter Workspace'}).click()
   ]);
   await control.goto('/workspace/projects/'+projects[0].id);
-  await control.locator('section[aria-label="Authoritative project next action"]').waitFor();
+  await control.locator('#record-next-action').waitFor();
   const projectCopy=await control.locator('body').innerText();
   assert.match(projectCopy,/Mobilisation/i,'Helix opens in actual operator mobilisation workspace');
   assert.doesNotMatch(projectCopy,/Project closed.*Delivery is complete/s,
