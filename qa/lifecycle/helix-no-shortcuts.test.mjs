@@ -51,3 +51,10 @@ test('client transmittal and reminder send a signed review portal route instead 
  assert.doesNotMatch(delivery,/scenario:'client_delivery\.issued'[^\n]*actionUrl:appUrl\(\)/);
  assert.doesNotMatch(delivery,/scenario:'client_delivery\.review_reminder'[^\n]*actionUrl:appUrl\(\)/);
 });
+
+test('partner setup is available before partner execution, but only during governed setup stages',()=>{
+ const page=read('app/workspace/projects/[id]/execution/page.tsx');
+ assert.match(page,/const canConfigureAssignment=\['mobilisation','ready_for_execution'\]/);
+ assert.match(page,/disabled=\{noCommercialPartner\|\|partnerMismatch\|\|documents\.length===0\|\|!canConfigureAssignment\}/);
+ assert.doesNotMatch(page,/disabled=\{noCommercialPartner\|\|partnerMismatch\|\|documents\.length===0\|\|!executionActive\}/);
+});
