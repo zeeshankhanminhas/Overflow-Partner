@@ -1,5 +1,6 @@
 // Governed Case 360 progression: only rendered operator server actions.
 import assert from 'node:assert/strict';
+import {approveHelixCaseEvidence} from './helix-document-browser.mjs';
 
 export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,caseId){
  const path='/workspace/leads/'+caseId;
@@ -23,9 +24,11 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  if(await control.locator('#record-next-action').getByRole('button',{name:'Create technical scope'}).count()){
   await act('Create technical scope');
  }
+ await approveHelixCaseEvidence(control,admin,orgId,caseId,'client-requirements');
  if(await control.locator('#record-next-action').getByRole('button',{name:'Approve technical scope'}).count()){
   await act('Approve technical scope');
  }
+ await approveHelixCaseEvidence(control,admin,orgId,caseId,'partner-technical-assessment-report');
  assert.equal(await control.locator('#record-next-action').getByRole('button',{name:'Set commercial position'}).count(),1,
   'Approved inherited partner feasibility and scope must enable commercial pricing');
  await act('Set commercial position');
