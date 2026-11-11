@@ -17,7 +17,7 @@ jobs:
     env:
       CI: 'true'
       OPOS_AUTH_QA_APPROVED: 'true'
-      OPOS_QA_BASE_URL: https://overflow-partner-9621nvpda-zeeshankhanminhas-projects.vercel.app
+      OPOS_QA_BASE_URL: https://overflow-partner-cp1nauyty-zeeshankhanminhas-projects.vercel.app
     steps:
       - name: Checkout trusted main code
         uses: actions/checkout@v4
