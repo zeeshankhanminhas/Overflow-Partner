@@ -27,13 +27,14 @@ test('three credential-backed identities have independent browser contexts',()=>
  assert.doesNotMatch(source,/writeFileSync|console\.log\(.*PASSWORD/);
 });
 
+
 test('project detail browser QA is read-only and checks deep-link isolation',()=>{
  const source=read('qa/browser/tests/project-details.spec.mjs');
  const config=read('qa/browser/authenticated.config.mjs');
- assert.match(config,/project-details\\.spec\\.mjs/);
+ assert.match(config,/project-details\.spec\.mjs/);
  assert.match(source,/Authoritative project next action/);
  assert.match(source,/Lifecycle evidence/);
- assert.match(source,/page\\.goto\\('\/portal\/'\\+role\\.wrong/);
- assert.doesNotMatch(source,/page\\.request\\.|fetch\\(|\.request\\.post\\(|\.request\\.patch\\(|\.request\\.delete\\(/);
- assert.doesNotMatch(source,/storageState\\s*:|page\\.screenshot\\(/);
+ assert.match(source,/page\.goto\('\/portal\/'\+role\.wrong/);
+ assert.doesNotMatch(source,/page\.request\.|fetch\(|\.request\.post\(|\.request\.patch\(|\.request\.delete\(/);
+ assert.doesNotMatch(source,/storageState\s*:|page\.screenshot\(/);
 });
