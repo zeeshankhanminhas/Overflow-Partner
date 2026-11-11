@@ -96,7 +96,7 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
   const submittedBody=await submittedResponse.text();
   assert.equal(submittedResponse.status(),200,
    'Client intake POST rejected: '+submittedResponse.status()+' '+submittedBody.slice(0,800));
-  await intake.getByText('Technical intake submitted successfully.',{exact:false}).waitFor({timeout:15000});
+  await intake.getByRole('heading',{name:'Technical requirement submitted.'}).waitFor({timeout:15000});
  } finally { await clientContext.close(); }
  const {count:submittedIntakes,error:intakeError}=await admin.from('intake_submissions')
   .select('*',{count:'exact',head:true}).eq('organisation_id',organisationId);
