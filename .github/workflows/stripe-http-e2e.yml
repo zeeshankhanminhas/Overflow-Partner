@@ -51,6 +51,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3211'
       NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3211'
+      OP_CONTRACTUAL_RELEASE_ENABLED: 'true'
+      OP_QA_RESEND_ENDPOINT: 'http://127.0.0.1:3411/emails'
+      RESEND_API_KEY: 'qa-local-resend-test-key'
+      RESEND_FROM_EMAIL: 'qa-opos@example.invalid'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,6 +102,13 @@ jobs:
           docker exec -i supabase_db_opos_ephemeral_ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/qa/stripe-http-second-org-fixture.sql
       - name: Check local two-tenant QA scenario syntax
         run: node --check scripts/qa/stripe-http-e2e.mjs && node --check scripts/qa/stripe-http-second-org-e2e.mjs
+      - name: Start isolated HTTP mail provider contract fixture
+        shell: bash
+        run: |
+          node scripts/qa/helix-resend-fixture-server.mjs > "$RUNNER_TEMP/opos-qa-email-provider.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opos-qa-email-provider.pid"
+          for n in {1..30}; do curl -fsS http://127.0.0.1:3411/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:3411/health
       - name: Start real Next.js webhook HTTP server
         shell: bash
         run: |
@@ -118,5 +129,8 @@ jobs:
         run: |
           if test -f "$RUNNER_TEMP/opos-next-server.pid"; then
             kill "$(cat "$RUNNER_TEMP/opos-next-server.pid")" || true
+          fi
+          if test -f "$RUNNER_TEMP/opos-qa-email-provider.pid"; then
+            kill "$(cat "$RUNNER_TEMP/opos-qa-email-provider.pid")" || true
           fi
           supabase stop --no-backup || true

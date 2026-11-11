@@ -61,5 +61,32 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  assert.equal(controlledQuote.status,'approved');
  assert.ok(controlledQuote.signed_by&&controlledQuote.approved_by);
  console.log('PASS browser: actual Client Quote independently governed document approved before issue.');
+ await control.goto(path);
+ const issueForm=control.locator('#record-next-action form:has(select[name="contract_release_basis"])');
+ assert.equal(await issueForm.count(),1,'Approved quotation must offer governed client issue');
+ assert.equal(await issueForm.locator('select[name="contract_release_basis"]').inputValue(),'deposit');
+ await Promise.all([
+  control.waitForURL(u=>u.pathname===path&&(u.searchParams.has('success')||u.searchParams.has('error')),{timeout:30000}),
+  issueForm.getByRole('button',{name:'Send Client Quote by email'}).click()
+ ]);
+ const issueUrl=new URL(control.url());
+ assert.equal(issueUrl.searchParams.get('error'),null,'Actual quotation issue blocked: '+issueUrl.searchParams.get('error'));
+ const {data:issuedQuote,error:issuedQuoteError}=await admin.from('quotes')
+  .select('status').eq('organisation_id',orgId).eq('id',quotes[0].id).single();
+ assert.equal(issuedQuoteError,null);
+ assert.equal(issuedQuote.status,'issued','Client Quote must issue only after mail provider acceptance');
+ const {data:outbox,error:outboxError}=await admin.from('notification_outbox')
+  .select('status,provider_message_id,payload').eq('organisation_id',orgId)
+  .eq('entity_id',quotes[0].id).eq('event_key','quote.issued').single();
+ assert.equal(outboxError,null);
+ assert.equal(outbox.status,'sent');
+ assert.match(outbox.provider_message_id,/^qa-local-provider-/);
+ const response=await fetch('http://127.0.0.1:3411/messages');
+ assert.equal(response.status,200);
+ const {messages}=await response.json();
+ assert.equal(messages.length,1);
+ assert.match(messages[0].html,/quote-response\?token=/);
+ assert.ok(messages[0].attachments?.some(x=>x.filename?.endsWith('.pdf')&&x.content?.length>100));
+ console.log('PASS browser: Client Quote issued through governed UI; local HTTP provider accepted PDF and signed response links.');
  return quotes[0];
 }
