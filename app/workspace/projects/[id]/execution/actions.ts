@@ -1,5 +1,6 @@
 'use server';
 
+import {workspaceLinkOrigin} from '@/lib/qa/publicOrigin';
 import { createHash, randomBytes } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
@@ -87,7 +88,7 @@ export async function generateExecutionLinkAction(formData: FormData) {
     const {error:tokenError}=await supabase.from('partner_execution_sessions').update({token_hash:signedHash}).eq('id',session.id);if(tokenError)throw new Error(tokenError.message);
     const now=new Date().toISOString();const {error:releaseError}=await supabase.from('project_execution_assignments').update({execution_state:assignment.execution_state==='not_released'?'awaiting_acknowledgement':assignment.execution_state,released_at:now}).eq('organisation_id',organisationId).eq('id',assignment.id);if(releaseError)throw new Error(releaseError.message);
     await audit(supabase,organisationId,user.id,projectId,'partner_execution.secure_link_issued',{assignmentId:assignment.id,sessionId:session.id,recipientEmail:assignment.partner_contact_email,scopeDocumentId:assignment.scope_document_id,expiresAt:expiresAt.toISOString(),canonicalLifecycle:true,reopenableSignedLink:true});
-    const baseUrl=(process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');const link=`${baseUrl}/execution/${signedToken}`;
+    const baseUrl=workspaceLinkOrigin(process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://overflow-partner.vercel.app').replace(/\/$/,'');const link=`${baseUrl}/execution/${signedToken}`;
     await queueLifecycleEmail(supabase,{organisationId,scenario:'partner_work.released',recipientEmail:assignment.partner_contact_email,recipientName:assignment.partner_contact_name||partner?.contact_name||partner?.company_name,actionUrl:link,payload:{company:partner?.company_name,reference:project?.project_number,project:project?.title,dueDate:assignment.committed_due_date},entityType:'project',entityId:projectId,idempotencyKey:`partner-work:released:${session.id}`,subject:`Work package released · ${project?.project_number||'Overflow Partner'}`}).catch(()=>null);
     refresh(projectId);destination=executionUrl(projectId,{success:'Secure Partner Execution link generated and email queued.',execution_link:link});
   }catch(error){destination=executionUrl(projectId,{error:error instanceof Error?error.message:'Execution link could not be generated.'});}

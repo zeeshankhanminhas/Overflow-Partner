@@ -5,6 +5,8 @@ import { stripeRuntimeMode, checkoutOrigin } from '@/lib/payments/stripeEnvironm
 
 import { redirect } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
+import {clientProjectEntitled} from '@/lib/portals/clientEntitlement';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 
 /** QA-only final-balance Checkout. Never enable with the shared live Supabase project. */
@@ -49,18 +51,19 @@ export async function createFinalStripeCheckout(formData:FormData) {
     .eq('quote_id',quote.id).maybeSingle();
   if(!project || !['client_review','completion'].includes(String(project.project_stage)))
     throw new Error('Project client review must be complete before requesting final payment.');
-  const {data:review}=await db.from('project_client_reviews').select('outcome')
-    .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
-    .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
-  if(!review || !['accepted','accepted_with_comments'].includes(String(review.outcome)))
+  if(!await clientProjectEntitled(issue.organisation_id,project.id))
+    throw new Error('A signed-in, authorised Client Workspace account is required before final payment.');
+  if(!['client_review','completion','closed'].includes(project.project_stage) ||
+     !await hasCurrentClientAcceptance(db,issue.organisation_id,project.id))
     throw new Error('Latest client review must be accepted.');
   const {data:opening}=await db.from('quote_payment_confirmations').select('amount,payment_method,payment_reference')
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!opening || opening.payment_method!=='stripe'||Number(opening.amount)<Number(contract.opening_amount))
     throw new Error('The opening payment has not been reconciled.');
-  const {data:paid}=await db.from('op_project_final_settlements').select('project_id')
-    .eq('project_id',project.id).maybeSingle();
-  if(paid)throw new Error('Final payment is already confirmed. Do not pay twice.');
+  const {data:paid,error:paidError}=await db.from('op_project_final_settlements').select('project_id,verified_at')
+    .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
+  if(paidError)throw new Error('Final settlement status could not be verified. Please do not retry payment yet.');
+  if(paid?.verified_at)throw new Error('Final payment is already confirmed. Do not pay twice.');
   const params=new URLSearchParams();
   params.set('mode','payment');
   params.set('payment_method_types[0]','card');
@@ -73,8 +76,11 @@ export async function createFinalStripeCheckout(formData:FormData) {
   params.set('metadata[organisation_id]',issue.organisation_id);
   params.set('metadata[project_id]',project.id);
   params.set('metadata[payment_stage]','final');
-  params.set('success_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=success`);
-  params.set('cancel_url',`${site}/project-final-payment?token=${encodeURIComponent(token)}&stripe_return=cancelled`);
+  // Return to the same independently authenticated project, not the older
+  // token-only payment page. A Checkout return never proves that money cleared.
+  const returnPage=`${site}/portal/client/projects/${project.id}/tasks/final-settlement`;
+  params.set('success_url',`${returnPage}?stripe_return=success`);
+  params.set('cancel_url',`${returnPage}?stripe_return=cancelled`);
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/x-www-form-urlencoded',
       'Idempotency-Key':`op-${mode}-final-${project.id}-r${quote.revision}-${remaining}`},

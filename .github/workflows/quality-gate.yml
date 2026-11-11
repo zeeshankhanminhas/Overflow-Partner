@@ -35,6 +35,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Unified lifecycle action and ownership regression
+        run: node --test scripts/qa/current-action.test.mjs scripts/qa/workspace-routing.test.mjs scripts/qa/portal-final-action.test.mjs scripts/qa/portal-dashboard-qa-isolation.test.mjs scripts/qa/work-order-evidence.test.mjs scripts/qa/client-settlement-parity.test.mjs scripts/qa/workspace-approved-ui.test.mjs scripts/qa/controller-ui-contract.test.mjs scripts/qa/document-library-ia.test.mjs scripts/qa/authenticated-lifecycle-evidence.test.mjs
+
       - name: Phase 3 release contracts
         run: npm run phase3:check
 
@@ -62,5 +65,53 @@ jobs:
       - name: Production Stripe release-mode readiness (offline)
         run: npm run stripe-live:check
 
+      - name: Parse authenticated Playwright files without exposing credentials
+        run: node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs
+
       - name: Production build
         run: npx next build
+
+  browser-smoke:
+    # Never run this against production or on forks. Authenticated QA is separate.
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/opos-production-hardening-2026-11-09'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      CI: 'true'
+      # Explicit QA preview only. Update the variable after future QA deploys.
+      # CI bypass secret is scoped to this read-only QA job only.
+      OPOS_QA_BASE_URL: ${{ vars.OPOS_QA_BASE_URL || 'https://overflow-partner-9621nvpda-zeeshankhanminhas-projects.vercel.app' }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install project dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install pinned Playwright runner
+        run: npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser QA smoke (no login or writes)
+        run: npx playwright test --config=qa/browser/playwright.config.mjs
+
+      - name: Upload browser report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: opos-browser-qa-report
+          path: |
+            playwright-report/
+            qa/browser/playwright-report/
+            test-results/
+            qa/browser/test-results/
+          retention-days: 7
+          if-no-files-found: warn

@@ -62,10 +62,11 @@ check('Manual project release compares chosen basis to accepted terms',actions.i
 check('Checkout requires frozen deposit or full-payment terms',checkout.includes("['payment','deposit'].includes")&&checkout.includes('openingPayment(quotedTotal)'));
 check('Opening Stripe checkout uses the contract amount, never total by assumption',checkout.includes('Math.round(openingAmount*100)')&&checkout.includes("metadata[payment_stage]"));
 check('Stripe webhook validates opening deposit and signatory',webhook.includes('quote_client_signatory_attestations')&&webhook.includes('openingPayment(Number(quote.total))')&&webhook.includes("metadata?.payment_stage"));
-check('Payment never redirects QA Stripe Sandbox to production fallback',
+check('QA Stripe Checkout returns to validated stable Preview alias, never a stale deployment or production fallback',
   checkout.includes('checkoutOrigin(mode)') &&
-  read('lib/payments/stripeEnvironment.ts').includes("const host=process.env.VERCEL_URL") &&
-  read('lib/payments/stripeEnvironment.ts').includes("return 'https://'+host;") &&
+  read('lib/payments/stripeEnvironment.ts').includes('return qaPublicOrigin();') &&
+  read('lib/qa/publicOrigin.ts').includes('VERCEL_BRANCH_URL') &&
+  read('lib/qa/publicOrigin.ts').includes('Stable QA origin does not match the preview branch alias.') &&
   !checkout.includes("NEXT_PUBLIC_APP_URL || 'https://overflow-partner.vercel.app'"));
 check('Quote expiry remains valid until end of date',actions.includes('T23:59:59.999Z')&&checkout.includes('T23:59:59.999Z'));
 
@@ -145,6 +146,30 @@ const finalContracts=read('supabase/migrations/20261021060000_final_payment_and_
 const stagedDepositFinalizer=read('supabase/migrations/20261021054100_verified_deposit_stripe_release.sql');
 const finalPage=read('app/client-final-files/page.tsx');
 const finalCheckout=read('app/project-final-payment/stripe-action.ts');
+const finalPaymentPage=read('app/project-final-payment/page.tsx');
+const entitlementHelper=read('lib/portals/clientEntitlement.ts');
+const finalReleaseHelper=read('lib/portals/clientFinalRelease.ts');
+check('Final checkout and payment display independently require authenticated Client Workspace membership',
+  finalCheckout.includes('clientProjectEntitled(issue.organisation_id,project.id)') &&
+  finalPaymentPage.includes('clientProjectEntitled(issue.organisation_id,project.id)') &&
+  entitlementHelper.includes("portal_my_projects") &&
+  entitlementHelper.includes("p_kind:'client'") &&
+  entitlementHelper.includes("item.organisation_id===organisationId && item.project_id===projectId"));
+check('Direct final-file token route requires Client membership and currently issued Handover Pack',
+  read('app/client-final-files/page.tsx').includes('clientProjectEntitled(issue.organisation_id,project.id)') &&
+  read('app/client-final-files/page.tsx').includes('clientFinalFilesReady(db,issue.organisation_id,project.id)') &&
+  finalReleaseHelper.includes("document_type','handover-pack'") &&
+  finalReleaseHelper.includes("['issued','published']"));
+check('Final Stripe success returns inside authenticated project and cannot request repeat payment before verification',
+  finalCheckout.includes("/portal/client/projects/${project.id}/tasks/final-settlement") &&
+  finalCheckout.includes("stripe_return=success") &&
+  finalCheckout.includes("if(paidError)throw") &&
+  finalPaymentPage.includes("stripe_return==='success'") &&
+  finalPaymentPage.includes("please do not pay again") &&
+  read('app/portal/[kind]/projects/[projectId]/tasks/[task]/page.tsx').includes('stripe_return:returnStatus'));
+check('Historical quote token directs open projects to one secure Client Workspace',
+  read('app/client-portal/page.tsx').includes("href={'/portal/client/projects/'+project.id}") &&
+  read('app/client-portal/page.tsx').includes("Continue in your Client Workspace"));
 const finalOwnerAction=read('app/workspace/projects/[id]/final-release-action.ts');
 const projectPage=read('app/workspace/projects/[id]/page.tsx');
 const modeCode=read('lib/payments/stripeEnvironment.ts');
@@ -159,8 +184,15 @@ check('No live Stripe use without production flags, matching backend and checked
   read('lib/qa/isolation.ts').includes("url.hostname==='127.0.0.1'"));
 check('Deposit finalizer records only frozen opening amount',stagedDepositFinalizer.includes('v_contract.opening_amount')
   &&stagedDepositFinalizer.includes('op_accept_quote_create_project_with_acceptance_core'));
-check('Client final payment requires current accepted review and existing project',finalCheckout.includes("project_client_reviews")
-  &&finalCheckout.includes('accepted_with_comments')&&finalCheckout.includes("from('projects')"));
+const currentAcceptance = read('lib/payments/currentClientAcceptance.ts');
+check('Client final payment requires current-cycle accepted review and existing project',
+  finalCheckout.includes("from('projects')")&&
+  finalCheckout.includes('hasCurrentClientAcceptance(db,issue.organisation_id,project.id)')&&
+  finalCheckout.includes("from('op_project_final_settlements')")&&
+  currentAcceptance.includes("from('project_execution_assignments')")&&
+  currentAcceptance.includes("from('project_client_reviews')")&&
+  currentAcceptance.includes(".eq('execution_cycle',cycle)")&&
+  currentAcceptance.includes("'accepted_with_comments'"));
 check('Signed webhook discriminates opening and final events',webhook.includes("paymentStage==='final'")
   &&webhook.includes('op_record_verified_project_final_settlement')&&webhook.includes("metadata?.payment_stage"));
 check('Final settlement RPC requires independently paid Stripe event and amount',finalContracts.includes('op_record_verified_project_final_settlement')

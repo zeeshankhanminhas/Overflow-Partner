@@ -62,8 +62,6 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
     finalSettlementVerified=!settled.error && Boolean(settled.data);
     finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data) && finalSettlementVerified;
   }
-  const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
-  const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
     <section style={container}>
@@ -82,10 +80,17 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
       {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
-      {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
-      {finalReviewAccepted&&!finalSettlementVerified ? <p><Link href={finalBalanceHref}>Pay your final engineering balance →</Link></p>:null}
-      {finalSettlementVerified&&!finalReleaseApproved ? <p>Final payment received. Your approved engineering files await Overflow Partner’s manual release approval.</p>:null}
-      {finalReleaseApproved ? <p><Link href={finalFilesHref}>Download approved final engineering files →</Link></p>:null}
+      {project?.id ? <section aria-label="Your one next step" style={{border:'1px solid #d3ded5',background:'#f0f4f0',borderRadius:10,padding:20,margin:'20px 0'}}>
+        <p style={{...caption,margin:'0 0 8px'}}>NEXT STEP · SECURE PROJECT WORKSPACE</p>
+        <h2 style={{margin:'0 0 8px',fontSize:20}}>Continue in your Client Workspace</h2>
+        <p style={{fontSize:14,margin:'0 0 14px'}}>Your quotation has become a project. The secure project account now owns drawing review, final settlement and approved file handover. Sign in as the authorised Client; if access has not been activated, contact Overflow Partner.</p>
+        <Link href={'/portal/client/projects/'+project.id} style={{display:'inline-block',padding:'12px 16px',borderRadius:8,background:'#171b19',color:'#fff',fontWeight:650,textDecoration:'none'}}>Open secure project →</Link>
+      </section> : <>
+        {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
+        {finalReviewAccepted&&!finalSettlementVerified ? <p>The final balance will be handled in your Client Workspace after an accepted review.</p>:null}
+        {finalSettlementVerified&&!finalReleaseApproved ? <p>Your verified final payment awaits separate Overflow Partner release approval.</p>:null}
+        {finalReleaseApproved ? <p>Approved final files are available only from the authenticated Client Workspace.</p>:null}
+      </>}
       {canDecide ? <div style={{borderTop:'1px solid #e5e4df',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#d74c2c':'#eeede9',color:response==='accepted'?'white':'#172521',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
       <p style={{...caption,marginTop:28}}>This page updates as your quotation progresses. Keep your secure link private. For a copy of your approved PDF, payment instructions or a fresh link, reply to the quotation email.</p>
     </section>

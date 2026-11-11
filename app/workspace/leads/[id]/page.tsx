@@ -1,3 +1,4 @@
+import LifecycleProgress from '@/components/workspace/LifecycleProgress';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
@@ -22,7 +23,7 @@ const dateTime=(value:string|null|undefined)=>value?new Intl.DateTimeFormat('en-
 const money=(currency:string|null|undefined,amount:number|string|null|undefined)=>amount===null||amount===undefined?'Not recorded':new Intl.NumberFormat('en-GB',{style:'currency',currency:currency||'GBP'}).format(Number(amount));
 function Fact({label,value}:{label:string;value:React.ReactNode}){return <div className="vp-fact"><small>{label}</small><strong>{value??'Not recorded'}</strong></div>}
 
-const caseStages=['Technical scope','Partner assessment','Commercial position','Client Quote','Handoff'] as const;
+
 
 export default async function Case360Page({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|string[]|undefined>>}){
   const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId}=await requireUserContext();
@@ -79,7 +80,7 @@ export default async function Case360Page({params,searchParams}:{params:Promise<
 
   const notices=<>{success?<ProductNotice title={String(success)} tone="complete"><p>{presentation.state} · {presentation.nextAction.label}.</p></ProductNotice>:null}{displayOperatorError?<ProductNotice title={displayOperatorError.title} tone="blocked"><p>{displayOperatorError.message}</p></ProductNotice>:null}</>;
   const header=<div style={{display:'flex',justifyContent:'space-between',gap:24,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/leads">← Back to cases</Link><p className="vp-kicker">Case 360 · {caseReference}</p><h1>{workflow.lead.title||workflow.lead.company_name}</h1><p className="vp-subtitle">{workflow.lead.company_name}{workflow.lead.contact_name?` · ${workflow.lead.contact_name}`:''}</p></div></div>;
-  const stateStrip=<div><div className="case360-stage-strip">{caseStages.map((label,index)=><div className="case360-stage-step" key={label} style={{borderTop:`2px solid ${index===stageIndex?'var(--op-accent)':index<stageIndex?'rgba(255,255,255,.38)':'var(--op-line)'}`,opacity:index>stageIndex?.55:1}}><small style={{display:'block',color:'var(--op-muted)'}}>{index<stageIndex?'Complete':index===stageIndex?(caseIsHistorical?'Handed off':'Current'):'Future'}</small><strong>{label}</strong></div>)}</div></div>;
+  const stateStrip=<LifecycleProgress phase={caseIsHistorical?'mobilisation':quote?.status==='accepted'?'contractual_commitment':stageIndex>=2?'commercial_offer':stageIndex===1?'feasibility':'requirements'}/>;
 
   const readiness=<div>{caseIsHistorical?null:integrityBlocked?<div className="vp-callout"><strong>Partner evidence needs attention</strong><p>{blocker}</p><p>Fix the Acquisition record or missing link before continuing.</p></div>:actionState.permitted?<div className="vp-callout"><strong>Ready for current decision</strong></div>:<div className="vp-callout"><strong>Not ready yet</strong><p>{actionState.message}</p>{evidenceBlockers.length?<p>{evidenceBlockers.length} document requirement{evidenceBlockers.length===1?'':'s'} remain unresolved.</p>:null}</div>}<div className="vp-facts" style={{marginTop:14}}><Fact label="Technical scope" value={workflow.technicalIntake?workspaceLabel(workflow.technicalIntake.status,'technicalIntake'):'Not created'}/><Fact label="Partner assessment" value={review?workspaceLabel(review.status,'partnerReview'):'Missing'}/><Fact label="Partner price" value={workflow.partnerQuote?money(workflow.partnerQuote.currency,workflow.partnerQuote.price):'Missing'}/><Fact label="Commercial position" value={workflow.commercialReview?'Recorded':'Not recorded'}/>{quote?<Fact label="Client Quote" value={workspaceLabel(quoteDocumentStatus,'document')}/>:null}</div></div>;
 

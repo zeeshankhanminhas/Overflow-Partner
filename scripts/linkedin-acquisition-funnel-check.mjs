@@ -144,7 +144,10 @@ const governedRecord=readFileSync(new URL('app/workspace/acquisition/[id]/page.t
 assert.match(governedRecord,/LinkedIn conversation history/, 'Converted CRM Prospect links back to its original Outreach history');
 assert.match(outreachLayout,/requireUserContext/, 'Outreach requires authentication');
 assert.doesNotMatch(outreachLayout,/LifecycleSidebar|WorkspaceShellActions|MobileWorkspaceNav/, 'Outreach avoids the crowded OPOS chrome');
-assert.match(outreachProxy,/\/outreach\/:path\*/, 'Session refresh covers outreach routes');
+assert.ok(outreachProxy.includes('/outreach/:path*') ||
+  (outreachProxy.includes('matcher: ["/((?!_next/static|_next/image') &&
+   outreachProxy.includes('await supabase.auth.getUser()')),
+  'Session refresh covers outreach routes, including the all-route release preview isolation guard');
 assert.match(legacyFunnel,/redirect\('\/outreach'/, 'Old LinkedIn bookmarks redirect');
 assert.match(outreachList,/href=\{\`\/outreach\/\$\{item.id\}\`\}/, 'Outreach list opens a pre-CRM conversation');
 assert.ok(outreachNav.indexOf('<NavSection title="Outreach">') < outreachNav.indexOf('<NavSection title="Home">'),'Outreach is visibly above the OS in desktop navigation');

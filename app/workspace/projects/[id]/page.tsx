@@ -1,3 +1,10 @@
+import ProjectLifecycleEvidence from '@/components/workspace/ProjectLifecycleEvidence';
+import WorkRecordV2 from '@/app/opos-next/WorkRecordV2';
+import {isWorkspaceTwoPreview} from '@/lib/qa/isolation';
+import {classifyClientFeedbackAction,reconcileProtectedClientReviewAction} from './delivery-actions';
+import DeliveryDecision,{deliveryTitle,type DeliveryGate} from './DeliveryDecision';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import LifecycleProgress, {phaseForProject} from '@/components/workspace/LifecycleProgress';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
@@ -6,7 +13,7 @@ import { isRecordNotFoundError } from '@/lib/repositories/errors';
 import { workspaceLabel } from '@/lib/presentation/vocabulary';
 import { humaniseOperatingReason } from '@/lib/presentation/operatingState';
 import { resolveProjectJourneyPresentation } from '@/lib/presentation/projectOperatingState';
-import { deliveryHealthLabel, projectPhaseForStage, projectPhaseMeta, projectPhaseOrder } from '@/lib/presentation/projectJourney';
+import { deliveryHealthLabel } from '@/lib/presentation/projectJourney';
 import { normaliseProjectStage, projectStageMeta } from '@/lib/projects/stages';
 import { getProjectDocumentRequirements } from '@/lib/projects/documentRequirements';
 import { resolveActionState, resolveEvidenceState } from '@/lib/workspace/state';
@@ -28,7 +35,7 @@ function stateLabel(input:unknown){return String(input||'not_released').replaceA
 type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number;activityOpen:number;approvedDocuments?:number;issuedDocuments?:number;executionMode?:string;partnerCommencement?:boolean;deliveryItems?:number;deliveryWorkOpen?:number;deliveryCloseOpen?:number;openPartnerExceptions?:number;executionCycle?:number;clientTransmittals?:number;clientOutcome?:string|null};
 
 export default async function ProjectWorkspacePage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|undefined>>}){
-  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
+  const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user,profile}=await requireUserContext();
   let project;try{project=await getProjectById(supabase,organisationId,id)}catch(error){if(isRecordNotFoundError(error))notFound();throw error;}
 
   const [tasksResult,documentsResult,activityResult,membersResult,readinessResult,financialGateResult,executionAssignmentResult]=await Promise.all([
@@ -56,7 +63,7 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
     executionPartner=partnerResult.data;commencement=commencementResult.data;latestPartnerProgress=progressResult.data;currentCycleDelivery=deliveryResult.data;
   }
 
-  const projectRecord=project as typeof project&{project_stage?:string};const stage=normaliseProjectStage(projectRecord.project_stage);const stageMeta=projectStageMeta[stage];const currentPhase=projectPhaseForStage(stage);const phaseIndex=projectPhaseOrder.indexOf(currentPhase);
+  const projectRecord=project as typeof project&{project_stage?:string};const stage=normaliseProjectStage(projectRecord.project_stage);const stageMeta=projectStageMeta[stage];
   const lead=project.lead as Record<string,unknown>|null|undefined;const quote=project.quote as Record<string,unknown>|null|undefined;const manager=project.project_manager as Record<string,unknown>|null|undefined;const clientCompany=project.client_company as Record<string,unknown>|null|undefined;const clientContact=project.client_contact as Record<string,unknown>|null|undefined;
   const tasks=tasksResult.data??[];const documents=documentsResult.data??[];const events=activityResult.data??[];const members=membersResult.data??[];
   const readiness=(readinessResult.data||{ready:false,stage,reasons:['Project stage readiness is not available yet.'],activityTotal:tasks.length,activityOpen:tasks.filter(t=>!['completed','cancelled'].includes(t.status)).length}) as Readiness;
@@ -82,7 +89,7 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
 
   const notices=<>{query.created?<ProductNotice title={String(query.created)} tone="complete" />:null}{query.advanced?<ProductNotice title="Delivery stage advanced" tone="complete"><span>The project is now at {projectStageMeta[normaliseProjectStage(query.advanced)].label}.</span></ProductNotice>:null}{query.updated?<ProductNotice title={String(query.updated)} tone="complete" />:null}{operatorError?<ProductNotice title={operatorError.title} tone="blocked"><span>{operatorError.message}</span></ProductNotice>:null}</>;
   const header=<div style={{display:'flex',justifyContent:'space-between',gap:20,width:'100%',alignItems:'flex-start',flexWrap:'wrap'}}><div><Link href="/workspace/projects" className="project-os-back">← Projects</Link><p className="project-os-reference">Project 360 · {project.project_number}</p><h1>{project.title}</h1><div className="project-os-meta"><span>{clientCompany?.id?<Link href={`/workspace/companies/${clientCompany.id}`}>{clientName}</Link>:clientName}</span></div><div style={{marginTop:10}}>{clientContext}</div></div></div>;
-  const stateStrip=<div className="project-os-progress-card" style={{margin:0,border:0,padding:0,background:'transparent'}}><div className="project-os-progress-scroll"><ol className="project-os-progress">{projectPhaseOrder.map((item,index)=>{const state=index===phaseIndex?'current':'future';return <li key={item} className={state}><div className="project-os-node"><span>{index+1}</span></div><strong>{projectPhaseMeta[item].label}</strong>{state==='current'?<small>Current</small>:null}</li>})}</ol></div></div>;
+  const stateStrip=<LifecycleProgress phase={phaseForProject(String(projectRecord.project_stage))}/>;
 
   const displayReadinessReasons=nonDocumentReasons.filter(reason=>!reason.toLowerCase().includes('execution partner exception')&&!reason.toLowerCase().includes('delivery control')&&!reason.toLowerCase().includes('delivery submission')&&!reason.toLowerCase().includes('delivery files'));
   const readinessPanel=<div className="stack" style={{gap:10}}>{stage==='mobilisation'?<><div className="project-os-check-row"><span className={`project-os-check-icon ${project.project_manager_id?'':'missing'}`}>{project.project_manager_id?'✓':'!'}</span><div><strong>Project manager</strong><small>{project.project_manager_id?value(manager,'full_name'):'Assign a project manager'}</small></div><span>{project.project_manager_id?'Complete':'Required'}</span></div><div className="project-os-check-row"><span className={`project-os-check-icon ${project.start_date&&project.due_date?'':'missing'}`}>{project.start_date&&project.due_date?'✓':'!'}</span><div><strong>Programme dates</strong><small>{formatDate(project.start_date)} → {formatDate(project.due_date)}</small></div><span>{project.start_date&&project.due_date?'Complete':'Required'}</span></div></>:null}{resolvedEvidence.length>0?<div className="project-os-check-row"><span className={`project-os-check-icon ${evidenceBlockers.length?'missing':''}`}>{evidenceBlockers.length?'!':'✓'}</span><div><strong>Required documents</strong><small>{resolvedEvidence.filter(item=>item.satisfied).length} of {resolvedEvidence.length} complete</small></div><Link href={documentsHref}>{evidenceBlockers.length?'Resolve':'Open'}</Link></div>:null}{stage==='mobilisation'?<div className="project-os-check-row"><span className={`project-os-check-icon ${financialGate.authorised?'':'missing'}`}>{financialGate.authorised?'✓':'!'}</span><div><strong>Payment & commercial approval</strong><small>{financialGate.reason}</small></div><Link href={financeHref}>{financialGate.authorised?'Review':'Resolve'}</Link></div>:null}{partnerControlled&&['ready_for_execution','in_progress'].includes(stage)?<div className="project-os-check-row"><span className={`project-os-check-icon ${commencement?'':'missing'}`}>{commencement?'✓':'!'}</span><div><strong>Partner start confirmation</strong><small>{value(executionPartner,'company_name','Execution Partner')} · {commencement?`Confirmed ${formatDate(commencement.submitted_at)}`:'Awaiting Partner confirmation'}</small></div><Link href={executionHref}>{commencement?'Open':'Open workspace'}</Link></div>:null}{partnerControlled&&['in_progress','partner_correction'].includes(stage)?<div className="project-os-check-row"><span className={`project-os-check-icon ${currentCycleDelivery?'':'missing'}`}>{currentCycleDelivery?'✓':'·'}</span><div><strong>{stage==='partner_correction'?'Revised Partner delivery':'Partner delivery'}</strong><small>{currentCycleDelivery?`Received ${formatDate(currentCycleDelivery.submitted_at)}`:stage==='partner_correction'?'Awaiting revised delivery package':'Awaiting delivery package'}</small></div><Link href={executionHref}>Open</Link></div>:null}{(readiness.openPartnerExceptions||0)>0?<div className="project-os-check-row"><span className="project-os-check-icon missing">!</span><div><strong>Partner exceptions</strong><small>{readiness.openPartnerExceptions} unresolved</small></div><Link href={executionHref}>Resolve</Link></div>:null}{(readiness.deliveryItems||0)>0?<div className="project-os-check-row"><span className={`project-os-check-icon ${(readiness.deliveryWorkOpen||0)>0?'missing':''}`}>{(readiness.deliveryWorkOpen||0)>0?'!':'✓'}</span><div><strong>Delivery work</strong><small>{readiness.deliveryItems} item{readiness.deliveryItems===1?'':'s'} · {readiness.deliveryWorkOpen||0} active/blocked</small></div><Link href={deliveryHref}>Open</Link></div>:null}{displayReadinessReasons.map(reason=><div className="project-os-check-row" key={reason}><span className="project-os-check-icon missing">!</span><div><strong>{humaniseOperatingReason(reason)}</strong></div><span>Outstanding</span></div>)}{stage==='mobilisation'?<details className="vp-disclosure" open={!mobilisationControlsComplete}><summary>{mobilisationControlsComplete?'Edit mobilisation controls':'Complete mobilisation controls'}</summary><form action={updateProjectMobilisationAction} className="stack" style={{paddingTop:16}}><input type="hidden" name="project_id" value={id}/><label>Project manager<select name="project_manager_id" required defaultValue={String(project.project_manager_id||'')}><option value="">Select manager</option>{members.map(member=><option key={member.id} value={member.id}>{member.full_name||member.role}</option>)}</select></label><div className="grid gap-4 md:grid-cols-2"><label>Start date<input name="start_date" type="date" required defaultValue={project.start_date?String(project.start_date).slice(0,10):''}/></label><label>Due date<input name="due_date" type="date" required defaultValue={project.due_date?String(project.due_date).slice(0,10):''}/></label></div><button className="button">Save mobilisation controls</button></form></details>:null}</div>;
@@ -155,5 +162,45 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const metadata=<dl className="project-os-summary" style={{margin:0}}><div><dt>Project ID</dt><dd>{project.id}</dd></div><div><dt>Created</dt><dd>{formatDate(project.created_at)}</dd></div><div><dt>Updated</dt><dd>{formatDate(project.updated_at)}</dd></div>{project.lead_id?<div><dt>Source Case</dt><dd><Link href={`/workspace/leads/${project.lead_id}`}>Open Case 360</Link></dd></div>:null}{readiness.clientOutcome?<div><dt>Client outcome</dt><dd>{stateLabel(readiness.clientOutcome)}</dd></div>:null}</dl>;
   const audit=<div className="stack"><Link href={documentsHref}>Document register →</Link><Link href={paymentsHref}>Payments →</Link><Link href={financeHref}>Commercial control →</Link>{partnerControlled?<Link href={executionHref}>Partner execution →</Link>:null}</div>;
 
-  return <RecordWorkspace focusMode className="project-os-page" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readinessPanel} nextAction={nextAction} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>;
+  const governedDelivery=isKnownIsolatedQaBackend()&&['internal_review','ready_for_client_issue'].includes(stage);
+  const deliveryResult=governedDelivery?await supabase.rpc('op_qa_delivery_gate',{p_project_id:id}):null;
+  const gate=(deliveryResult?.error?null:deliveryResult?.data) as DeliveryGate|null;
+  const title=governedDelivery?deliveryTitle(gate,stage):null;
+  if(title) nextAction=<DeliveryDecision gate={gate} projectId={id} role={profile.role} stage={stage}/>;
+  let reviewTitle:string|null=null;
+  if(isKnownIsolatedQaBackend() && stage==='client_review' && !readiness.clientOutcome) {
+    const result=await supabase.rpc('op_qa_staff_client_review_state',{p_project_id:id});
+    const review=result.error?null:result.data;
+    const accepted=['accepted','accepted_with_comments'].includes(review?.decision);
+    const feedback=['changes_requested','rejected'].includes(review?.decision);
+    reviewTitle='Await verified client review';
+    nextAction=<p>{review?.issued?'The assigned client can respond in their workspace.':'The current client issue could not be verified.'}</p>;
+    if(review?.decisionId && review.opReconciliationRequired && accepted){
+      reviewTitle='Reconcile the client’s acceptance';
+      nextAction=['owner','admin','operator','engineering'].includes(profile.role)?<form action={reconcileProtectedClientReviewAction}><input type="hidden" name="project_id" value={id}/><p>{review.decisionComments}</p><button className="button">Record verified acceptance</button></form>:<p>Awaiting an authorised operator.</p>;
+    } else if(review?.decisionId && feedback){
+      reviewTitle=review.feedbackClassification?'Await the classified correction or variation':'Classify the client’s feedback';
+      nextAction=review.feedbackClassification?<p>{String(review.feedbackClassification).replaceAll('_',' ')}</p>:
+        ['owner','admin'].includes(profile.role)?<form action={classifyClientFeedbackAction}><input type="hidden" name="project_id" value={id}/><p>{review.decisionComments}</p>
+        <label>Classification<select name="classification" required defaultValue=""><option disabled value="">Select</option><option value="included_correction">Included correction</option><option value="partner_defect">Partner defect</option><option value="variation">Commercial variation</option></select></label>
+        <label>Scope rationale<textarea name="rationale" minLength={25} required/></label><label>Partner instruction for corrective work<textarea name="partner_instruction"/></label>
+        <label><input required type="checkbox" name="classification_authorised" value="yes"/> I confirm the scope classification.</label><button className="button">Record classification</button></form>:<p>Awaiting the release owner.</p>;
+    }
+  }
+  const currentTitle=reviewTitle||title;
+  const currentPresentation=currentTitle?{...presentation,nextAction:{...presentation.nextAction,label:currentTitle,reason:'The current submission and its recorded approvals determine this step.'}}:presentation;
+  if (isWorkspaceTwoPreview()) return <>
+    {notices}
+    <WorkRecordV2 eyebrow={'WORK / PROJECT 360 / '+project.project_number} title={project.title}
+      subtitle={clientName} state={stageMeta.label} owner="Overflow Partner"
+      nextTitle={currentPresentation.nextAction.label} nextDescription={currentPresentation.nextAction.reason || currentPresentation.summary}
+      stages={[]} stageIndex={0} evidence={[]} facts={[]} previous="/opos-next/projects"
+      governedHref="#project-controls" actionLabel="View current controls" showDecision={false} />
+    {stateStrip}
+    <ProjectLifecycleEvidence actor="operator" projectId={id}/>
+    <section id="project-controls" className="stack">{nextAction}</section>
+    <details id="record-readiness"><summary>Readiness and evidence</summary>{readinessPanel}{evidence}</details>
+    <details><summary>Project details and history</summary>{summary}{activities}{history}{metadata}{communications}{audit}</details>
+  </>;
+  return <RecordWorkspace focusMode className="project-os-page" header={header} notices={notices} stateStrip={stateStrip} presentation={currentPresentation} readiness={readinessPanel} nextAction={nextAction} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>;
 }

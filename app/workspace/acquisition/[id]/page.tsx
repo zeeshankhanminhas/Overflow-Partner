@@ -1,3 +1,4 @@
+import LifecycleProgress from '@/components/workspace/LifecycleProgress';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUserContext } from '@/lib/auth/context';
@@ -175,6 +176,7 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
     />;
   }
   return <>
+    <LifecycleProgress phase={submission?'feasibility':session?'requirements':'opportunity'}/>
     {prospect.source==='linkedin' && conversationPanel?<div className={flowStyles.record}>{conversationPanel}</div>:null}
     <RecordWorkspace className="opportunity-reference-workspace" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readiness} nextAction={nextActionPanel} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>
   </>;

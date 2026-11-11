@@ -1,5 +1,6 @@
 'use server';
 
+import {workspaceLinkOrigin} from '@/lib/qa/publicOrigin';
 import { redirect } from 'next/navigation';
 import { randomUUID } from 'crypto';
 import { classifyClientFeedback, type ClientFeedbackCategory } from '@/lib/lifecycle/voiceAgreedContract';
@@ -15,7 +16,7 @@ const roles=['owner','admin','operator','engineering','commercial'] as const;
 function required(formData:FormData,key:string){const value=String(formData.get(key)||'').trim();if(!value)throw new Error(`${key.replaceAll('_',' ')} is required.`);return value;}
 function projectUrl(projectId:string,params:Record<string,string>){return `/workspace/projects/${projectId}?${new URLSearchParams(params).toString()}`;}
 function refresh(projectId:string){revalidatePath(`/workspace/projects/${projectId}`);revalidatePath(`/workspace/projects/${projectId}/execution`);revalidatePath(`/workspace/projects/${projectId}/delivery`);revalidatePath('/workspace/projects');revalidatePath('/workspace/documents');}
-function appUrl(){return (process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app').replace(/\/$/,'');}
+function appUrl(){return workspaceLinkOrigin(process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://overflow-partner.vercel.app').replace(/\/$/,'');}
 
 export async function recordClientTransmittalAction(formData:FormData){
   const projectId=required(formData,'project_id');let destination=`/workspace/projects/${projectId}`;

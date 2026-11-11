@@ -1,0 +1,465 @@
+{
+  "observed_at": "2026-11-09",
+  "production": {
+    "project_ref": "klricctsxiifuduxpmzd",
+    "access": "read-only comparison",
+    "migrations": 108,
+    "tables": 75,
+    "functions": 144,
+    "policies": 117
+  },
+  "qa": {
+    "project_ref": "ukcamenuxhdznxaxpyis",
+    "access": "authorised implementation and scenario target",
+    "migrations": 142,
+    "tables": 94,
+    "functions": 186,
+    "policies": 130
+  },
+  "qa_only_tables": [
+    {
+      "rls": true,
+      "name": "external_portal_memberships",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_partner_internal_approvals",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_partner_nda_verifications",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_client_correction_classifications",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_client_review_decisions",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_client_review_issues",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_engineering_reviews",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_manifest_verifications",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_northfield_addendum_acceptances",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_northfield_replay",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "op_qa_release_authorisations",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "partner_execution_agreement_evidence",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "partner_work_order_acceptances",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "partner_work_orders",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "project_work_order_handoffs",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "prospect_conversation_imports",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "prospect_conversation_messages",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "public_intake_pending",
+      "force_rls": false
+    },
+    {
+      "rls": true,
+      "name": "public_intake_rate_events",
+      "force_rls": false
+    }
+  ],
+  "qa_only_functions": [
+    {
+      "name": "op_approve_partner_governed(p_organisation_id uuid, p_partner_id uuid, p_capability_evidence_reference text, p_decision_note text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_freeze_issued_partner_assignment()",
+      "security_definer": false
+    },
+    {
+      "name": "op_guard_execution_partner_agreement()",
+      "security_definer": false
+    },
+    {
+      "name": "op_guard_partner_work_order_issue()",
+      "security_definer": false
+    },
+    {
+      "name": "op_guard_project_prequotation_lineage()",
+      "security_definer": true
+    },
+    {
+      "name": "op_guard_work_order_acceptance_partner_agreement()",
+      "security_definer": false
+    },
+    {
+      "name": "op_partner_prequote_governance_ready(p_organisation_id uuid, p_partner_id uuid, p_quoted_at timestamp with time zone)",
+      "security_definer": true
+    },
+    {
+      "name": "op_preproject_lineage_readiness(p_organisation_id uuid, p_quote_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_prevent_issued_partner_wo_mutation()",
+      "security_definer": false
+    },
+    {
+      "name": "op_public_intake_claim_confirmation(p_token_hash text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_public_intake_claim_quota(p_ip_hash text, p_email_hash text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_public_intake_complete(p_id uuid, p_prospect_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_assign_northfield_client_invite(p_project_id uuid, p_auth_user_id uuid, p_expected_email text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_authorise_review_release(p_project_id uuid, p_note text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_classify_and_resolve_client_feedback(p_project_id uuid, p_classification text, p_rationale text, p_partner_instruction text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_client_review_position(p_project_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_delivery_gate(p_project_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_engineering_decision(p_project_id uuid, p_submission_id uuid, p_decision text, p_findings text, p_checklist jsonb)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_guard_closeout_document()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_guard_final_invoice_settlement()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_guard_handover_pack()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_guard_synthetic_partner_payable()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_guard_synthetic_partner_payment()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_issue_existing_northfield_review(p_request_id uuid, p_token_hash text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_issue_final_invoice(p_project_id uuid)",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_issue_northfield_partner_review(p_token_hash text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_issue_protected_client_review(p_project_id uuid, p_note text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_northfield_client_recipient_state(p_project_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_protect_final_invoice()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_reconcile_client_review_decision(p_project_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_reconcile_paid_final_invoice()",
+      "security_definer": false
+    },
+    {
+      "name": "op_qa_record_client_review_decision(p_project_id uuid, p_outcome text, p_comments text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_staff_client_review_state(p_project_id uuid)",
+      "security_definer": true
+    },
+    {
+      "name": "op_qa_verify_manifest(p_project_id uuid, p_confirmed boolean)",
+      "security_definer": true
+    },
+    {
+      "name": "op_record_partner_work_order_acceptance(p_assignment_id uuid, p_session_id uuid, p_accepted_by_name text, p_accepted_by_role text)",
+      "security_definer": true
+    },
+    {
+      "name": "op_require_work_order_acceptance_before_commencement()",
+      "security_definer": false
+    },
+    {
+      "name": "op_require_work_order_acceptance_before_execution_stage()",
+      "security_definer": false
+    },
+    {
+      "name": "op_validate_external_portal_membership()",
+      "security_definer": false
+    },
+    {
+      "name": "op_verify_partner_nda(p_organisation_id uuid, p_partner_id uuid, p_evidence_reference text, p_signed_by_name text, p_signed_at timestamp with time zone)",
+      "security_definer": true
+    },
+    {
+      "name": "portal_my_projects(p_kind text)",
+      "security_definer": true
+    },
+    {
+      "name": "portal_my_quotations()",
+      "security_definer": true
+    },
+    {
+      "name": "portal_my_workspaces()",
+      "security_definer": true
+    }
+  ],
+  "changed_functions": [
+    "op_accept_quote_create_project_with_release_evidence(p_organisation_id uuid, p_user_id uuid, p_quote_id uuid, p_acceptance_basis text, p_evidence_reference text, p_accepted_by_name text, p_accepted_by_email text, p_notes text, p_release_basis text, p_release_reference text, p_release_note text, p_payment_method text, p_payment_reference text, p_payment_confirmed_at timestamp with time zone)",
+    "op_advance_project_stage(p_project_id uuid, p_target_stage text, p_actor_id uuid, p_note text)",
+    "op_finalize_verified_stripe_quote_payment(p_session_id text)",
+    "op_guard_project_client_acceptance()",
+    "op_guard_project_execution_assignment()",
+    "op_integrity_guard_invoice()",
+    "op_project_stage_readiness_core(p_project_id uuid)",
+    "op_record_client_review_outcome_core(p_organisation_id uuid, p_user_id uuid, p_project_id uuid, p_outcome text, p_evidence_basis text, p_evidence_reference text, p_comments text)"
+  ],
+  "qa_only_migrations": [
+    {
+      "version": "20261030175247",
+      "name": "prospect_conversation_import"
+    },
+    {
+      "version": "20261030175256",
+      "name": "linkedin_precrm_outreach"
+    },
+    {
+      "version": "20261030175903",
+      "name": "qa_quote_provider_payment_schema_parity"
+    },
+    {
+      "version": "20261031022526",
+      "name": "qa_northfield_isolated_partner_review_draft"
+    },
+    {
+      "version": "20261031023537",
+      "name": "qa_northfield_controlled_assessment_issuance"
+    },
+    {
+      "version": "20261102002318",
+      "name": "governed_partner_work_order_acceptance_qa_20261102"
+    },
+    {
+      "version": "20261102002606",
+      "name": "partner_wo_acceptance_member_read_qa_20261102"
+    },
+    {
+      "version": "20261102003012",
+      "name": "execution_partner_agreement_evidence_gate_qa_20261102"
+    },
+    {
+      "version": "20261102005043",
+      "name": "payment_triggered_partner_work_order_qa_20261102"
+    },
+    {
+      "version": "20261102005259",
+      "name": "work_order_handoff_state_and_finance_assignment_guard_qa_20261102"
+    },
+    {
+      "version": "20261102005933",
+      "name": "immutable_issued_assignment_and_contract_clauses_qa_20261102"
+    },
+    {
+      "version": "20261102010153",
+      "name": "inherit_partner_from_approved_commercial_review_qa_20261102"
+    },
+    {
+      "version": "20261102175406",
+      "name": "qa_preproject_lineage_and_checkout_gate_20261102"
+    },
+    {
+      "version": "20261102181923",
+      "name": "qa_partner_nda_and_internal_approval_evidence_20261102"
+    },
+    {
+      "version": "20261102181944",
+      "name": "qa_prequotation_partner_approval_temporal_gate_20261102"
+    },
+    {
+      "version": "20261102184803",
+      "name": "qa_block_historic_vat_conflict_prepayment_20261102"
+    },
+    {
+      "version": "20261102215558",
+      "name": "northfield_qa_rehearsal_simulated_evidence_20261102"
+    },
+    {
+      "version": "20261102231354",
+      "name": "northfield_qa_stripe_finalizer_allowlist_20261102"
+    },
+    {
+      "version": "20261103151642",
+      "name": "partner_commencement_canonical_stage_context_20261103"
+    },
+    {
+      "version": "20261103162019",
+      "name": "external_account_portals_20261103"
+    },
+    {
+      "version": "20261104094145",
+      "name": "qa_engineering_manifest_release_separation"
+    },
+    {
+      "version": "20261104094610",
+      "name": "qa_stop_legacy_internal_review_document_autocreation"
+    },
+    {
+      "version": "20261104094949",
+      "name": "qa_tighten_review_rls_scope"
+    },
+    {
+      "version": "20261104155130",
+      "name": "qa_protected_client_review_exchange"
+    },
+    {
+      "version": "20261104155234",
+      "name": "qa_external_attestation_activity_fix"
+    },
+    {
+      "version": "20261104155801",
+      "name": "qa_block_unclassified_client_correction"
+    },
+    {
+      "version": "20261104175809",
+      "name": "qa_protected_review_canonical_outcome_guard"
+    },
+    {
+      "version": "20261104180222",
+      "name": "qa_external_client_identity_separation"
+    },
+    {
+      "version": "20261104180256",
+      "name": "qa_northfield_client_recipient_invitation"
+    },
+    {
+      "version": "20261104211507",
+      "name": "qa_governed_client_feedback_classification"
+    },
+    {
+      "version": "20261104211602",
+      "name": "qa_staff_review_classification_projection"
+    },
+    {
+      "version": "20261104212535",
+      "name": "qa_reuse_canonical_client_correction_entitlement"
+    },
+    {
+      "version": "20261105234559",
+      "name": "northfield_qa_review_issue_fail_closed_20261105"
+    },
+    {
+      "version": "20261107131837",
+      "name": "qa_service_role_claim_delivery_gate_20261107"
+    },
+    {
+      "version": "20261107164137",
+      "name": "qa_final_invoice_linkage"
+    },
+    {
+      "version": "20261107164604",
+      "name": "qa_final_invoice_integrity"
+    },
+    {
+      "version": "20261108114838",
+      "name": "public_intake_security_20261108"
+    }
+  ],
+  "production_only_migrations": [
+    {
+      "version": "20261016012837",
+      "name": "quote_provider_payment_requests"
+    },
+    {
+      "version": "20261017001706",
+      "name": "purge_labeled_qa_cases_retry"
+    },
+    {
+      "version": "20261022235800",
+      "name": "20261022235800_linkedin_precrm_outreach"
+    }
+  ],
+  "limitations": [
+    "Metadata and definition fingerprints only; not a database backup, full schema export or migration replay.",
+    "Migration names do not prove content equality. Grants, triggers and storage require further review.",
+    "No row data or credentials included."
+  ]
+}

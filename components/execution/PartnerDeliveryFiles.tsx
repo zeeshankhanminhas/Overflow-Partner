@@ -9,23 +9,23 @@ type PreparedUpload={path:string;token:string;bucket:string;filename:string;size
 const ACCEPT='.pdf,.png,.jpg,.jpeg,.zip,.docx,.xlsx,.xls,.csv,.txt,.step,.stp,.iges,.igs,.x_t,.x_b,.sldprt,.sldasm,.ipt,.iam,.dwg,.dxf,.stl,.obj,.3mf,.nc,.ncc,.cnc,.tap,.gcode,.prt';
 function fileSize(bytes:number){if(bytes<1024)return`${bytes} B`;if(bytes<1024*1024)return`${(bytes/1024).toFixed(1)} KB`;return`${(bytes/(1024*1024)).toFixed(1)} MB`;}
 
-export default function PartnerDeliveryFiles({token,onStateChange}:{token:string;onStateChange?:(state:{count:number;locked:boolean;cycle:number})=>void}){
+export default function PartnerDeliveryFiles({endpoint,onStateChange}:{endpoint:string;onStateChange?:(state:{count:number;locked:boolean;cycle:number})=>void}){
   const inputRef=useRef<HTMLInputElement>(null);const[files,setFiles]=useState<DeliveryFile[]>([]);const[busy,setBusy]=useState(false);const[message,setMessage]=useState('');const[locked,setLocked]=useState(false);const[cycle,setCycle]=useState(1);const[loading,setLoading]=useState(true);
 
   const load=useCallback(async()=>{
-    const response=await fetch(`/api/execution/${token}/files`,{cache:'no-store'});const body=await response.json();
+    const response=await fetch(`${endpoint}/files`,{cache:'no-store'});const body=await response.json();
     if(!response.ok)throw new Error(body.message||'Unable to load delivery files.');
     const nextFiles=(body.files||[]) as DeliveryFile[];const nextLocked=Boolean(body.locked);const nextCycle=Number(body.execution_cycle||1);
     setFiles(nextFiles);setLocked(nextLocked);setCycle(nextCycle);onStateChange?.({count:nextFiles.length,locked:nextLocked,cycle:nextCycle});setLoading(false);
-  },[token,onStateChange]);
+  },[endpoint,onStateChange]);
   useEffect(()=>{load().catch(error=>{setMessage(error instanceof Error?error.message:'Unable to load delivery files.');setLoading(false);});},[load]);
 
   async function prepare(file:File):Promise<PreparedUpload>{
-    const response=await fetch(`/api/execution/${token}/files`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'prepare',filename:file.name,size:file.size,mimeType:file.type||'application/octet-stream'})});
+    const response=await fetch(`${endpoint}/files`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'prepare',filename:file.name,size:file.size,mimeType:file.type||'application/octet-stream'})});
     const body=await response.json();if(!response.ok||!body.upload)throw new Error(body.message||`Unable to prepare ${file.name}.`);return body.upload as PreparedUpload;
   }
   async function finalize(upload:PreparedUpload):Promise<DeliveryFile>{
-    const response=await fetch(`/api/execution/${token}/files`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'finalize',...upload})});
+    const response=await fetch(`${endpoint}/files`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'finalize',...upload})});
     const body=await response.json();if(!response.ok||!body.file)throw new Error(body.message||`Unable to register ${upload.filename}.`);return body.file as DeliveryFile;
   }
   async function uploadSelected(event:ChangeEvent<HTMLInputElement>){
@@ -37,7 +37,7 @@ export default function PartnerDeliveryFiles({token,onStateChange}:{token:string
     setMessage(lastError||`${uploaded} file${uploaded===1?'':'s'} uploaded securely.`);setBusy(false);if(inputRef.current)inputRef.current.value='';
   }
   async function removeFile(file:DeliveryFile){
-    setBusy(true);setMessage('');try{const response=await fetch(`/api/execution/${token}/files`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileId:file.id})});const body=await response.json();if(!response.ok)throw new Error(body.message||'Unable to remove the file.');setFiles(current=>{const next=current.filter(item=>item.id!==file.id);onStateChange?.({count:next.length,locked:false,cycle});return next;});setMessage(`${file.original_filename} removed.`);}catch(error){setMessage(error instanceof Error?error.message:'Unable to remove the file.');}setBusy(false);
+    setBusy(true);setMessage('');try{const response=await fetch(`${endpoint}/files`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileId:file.id})});const body=await response.json();if(!response.ok)throw new Error(body.message||'Unable to remove the file.');setFiles(current=>{const next=current.filter(item=>item.id!==file.id);onStateChange?.({count:next.length,locked:false,cycle});return next;});setMessage(`${file.original_filename} removed.`);}catch(error){setMessage(error instanceof Error?error.message:'Unable to remove the file.');}setBusy(false);
   }
 
   const totalBytes=files.reduce((sum,file)=>sum+Number(file.size_bytes||0),0);

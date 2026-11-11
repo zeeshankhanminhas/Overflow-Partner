@@ -1,4 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {hasCurrentClientAcceptance} from '@/lib/payments/currentClientAcceptance';
+import {clientProjectEntitled} from '@/lib/portals/clientEntitlement';
 import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { stripeRuntimeMode } from '@/lib/payments/stripeEnvironment';
 import { createFinalStripeCheckout } from './stripe-action';
@@ -6,8 +8,8 @@ import { createFinalStripeCheckout } from './stripe-action';
 export const dynamic='force-dynamic';
 export const metadata={title:'Final settlement | Overflow Partner',robots:{index:false,follow:false}};
 
-export default async function FinalPaymentPage({searchParams}:{searchParams:Promise<{token?:string}>}) {
-  const {token=''}=await searchParams;
+export default async function FinalPaymentPage({searchParams}:{searchParams:Promise<{token?:string;stripe_return?:string}>}) {
+  const {token='',stripe_return=''}=await searchParams;
   const access=token?verifyClientPortalToken(token):null;
   if(!access)return <main><h1>Secure link unavailable</h1><p>Contact Overflow Partner for a fresh client portal link.</p></main>;
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL||process.env.SUPABASE_URL;
@@ -26,12 +28,12 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!project||!contract||!['deposit','payment'].includes(String(contract.release_basis)))
     return <main><h1>Final settlement terms unavailable</h1><p>Contact Overflow Partner.</p></main>;
-  const {data:review}=await db.from('project_client_reviews').select('outcome')
-    .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
-    .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
-  if(!review||!['accepted','accepted_with_comments'].includes(String(review.outcome)))
+  if(!await clientProjectEntitled(issue.organisation_id,project.id))
+    return <main><h1>Client Workspace sign-in required</h1><p>Sign in to your authorised project account before viewing or paying the final balance.</p></main>;
+  if(!['client_review','completion','closed'].includes(project.project_stage) ||
+     !await hasCurrentClientAcceptance(db,issue.organisation_id,project.id))
     return <main><h1>Awaiting your final review</h1><p>Final payment is requested only after your engineering review has been accepted.</p></main>;
-  const {data:settlement}=await db.from('op_project_final_settlements').select('verified_at')
+  const {data:settlement,error:settlementError}=await db.from('op_project_final_settlements').select('verified_at')
     .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
   const {data:release}=await db.from('op_project_final_release_approvals').select('approved_at')
     .eq('organisation_id',issue.organisation_id).eq('project_id',project.id).maybeSingle();
@@ -47,8 +49,11 @@ export default async function FinalPaymentPage({searchParams}:{searchParams:Prom
     <p>Project {project.project_number} · Quotation {quote.quote_number}</p>
     <p>Opening payment: {money(Number(contract.opening_amount))}</p>
     <h2>Final balance: {money(remaining)}</h2>
-    {settlement ? <p>Final payment verified. {release?'The engineering package has been approved for release.':'Overflow Partner will complete the final manual handover approval.'}</p> :
+    {settlementError ? <p role="alert">Payment verification is temporarily unavailable. Please do not attempt another payment until Overflow Partner has confirmed the current position.</p> :
+      settlement?.verified_at ? <p>Final payment verified. {release?.approved_at?'The engineering package has been approved for release.':'Overflow Partner will complete the final manual handover approval.'}</p> :
+      stripe_return==='success' ? <p role="status">Stripe Checkout returned successfully. Your payment is awaiting independent verification; please do not pay again. This screen will show the final receipt once reconciled.</p> :
       remaining>0 ? <><p>The final balance is due after your review and before the editable engineering package is released. Payment alone never automatically releases the files.</p>
+        {stripe_return==='cancelled'?<p role="status">Checkout was cancelled; no successful payment can be inferred from the cancelled session.</p>:null}
         {checkoutAvailable?<form action={createFinalStripeCheckout}><input type="hidden" name="token" value={token}/><button>Pay final balance securely with Stripe</button></form>:
           <p>Online final settlement is not enabled for this account yet. Please contact Overflow Partner to arrange a verified bank transfer.</p>}</> :
       <p>No final payment is due under this accepted quotation.</p>}

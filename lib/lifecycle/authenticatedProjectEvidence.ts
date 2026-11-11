@@ -1,0 +1,354 @@
+import 'server-only';
+import {createClient as createPrivilegedClient} from '@supabase/supabase-js';
+import {createClient} from '@/lib/supabase/server';
+import {isKnownIsolatedQaBackend} from '@/lib/qa/isolation';
+import {lifecycleGates,resolveCurrentAction,type GateKey,type GateEvidence,type ActionCapability,type WorkspaceActor} from './currentAction';
+const stageName=(value:unknown)=>String(value||'');
+
+
+/**
+ * Read-only 28-gate evidence projection for an exact authenticated project.
+ * This never grants action capability: the owning transaction service must
+ * independently authorise it. Unmapped historic gates remain UNKNOWN, not true.
+ *
+ * Isolation: only the explicitly verified OPOS-QA backend may use the private
+ * evidence reader while the production migrations and RLS audit are incomplete.
+ */
+export async function authenticatedProjectLifecycle(actor:WorkspaceActor,projectId:string){
+ const db=await createClient();
+ const identity=await db.auth.getUser();
+ if(identity.error||!identity.data.user)return null;
+ if(!/^[0-9a-f-]{36}$/i.test(projectId))return null;
+
+ let organisationId:string|undefined;
+ let internalRole:string|undefined;
+ let entitledExternalAccountId:string|undefined;
+ if(actor==='operator'){
+  const {data,error}=await db.from('profiles').select('organisation_id,is_active,role')
+   .eq('id',identity.data.user.id).maybeSingle();
+  if(error||!data?.is_active||!data.organisation_id)return null;
+  organisationId=data.organisation_id;
+  internalRole=data.role;
+ }else{
+  const {data,error}=await db.rpc('portal_my_projects',{p_kind:actor});
+  const match=!error&&Array.isArray(data)?data.find(
+   (p:{project_id:string;organisation_id:string;portal_kind:string})=>
+    p.project_id===projectId&&p.portal_kind===actor):null;
+  if(!match)return null;
+  organisationId=match.organisation_id;
+  entitledExternalAccountId=match.account_id;
+ }
+ if(!organisationId)return null;
+ const empty=Object.fromEntries(lifecycleGates.map(g=>[g.key,{state:'unknown'}])) as Record<GateKey,GateEvidence>;
+ empty.opportunity_qualified={state:'unknown',reason:'The source opportunity qualification or matching conversion record has not been verified.'};
+ empty.confidentiality_confirmed={state:'unknown',reason:'Confidentiality and authorised technical sharing have no complete, project-linked verification record.'};
+ empty.controlled_documents_approved={state:'unknown',reason:'The approved current engineering document set could not be established.'};
+ const unavailable=()=>({
+  action:resolveCurrentAction({actor,phase:'mobilisation',evidence:empty,capabilities:{}}),
+  evidence:empty,ready:false,known:0,total:lifecycleGates.length,
+ });
+ if(!isKnownIsolatedQaBackend())return unavailable();
+ const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
+ const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ if(!url||!key)return unavailable();
+ const trusted=createPrivilegedClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+ // Recheck exact project organisation before reading private records.
+ const project=await trusted.from('projects')
+  .select('id,organisation_id,project_stage,lead_id,quote_id')
+  .eq('organisation_id',organisationId).eq('id',projectId).maybeSingle();
+ if(project.error||!project.data)return null;
+ const p=project.data;
+ const evidence={...empty};
+ const capabilities:Partial<Record<GateKey,ActionCapability>>={};
+ const verified=(gate:GateKey,ok:boolean,available=true,reason?:string)=>{
+  evidence[gate]={state:!available?'unknown':ok?'verified':'missing',
+   ...(!ok&&reason?{reason}:{})};
+ };
+ const read=async(table:string,select:string,filters:Record<string,string|number|boolean|null>,
+  order?:string)=>{
+  let q=trusted.from(table).select(select).eq('organisation_id',organisationId!);
+  for(const [key,val] of Object.entries(filters)){
+   if(val===null)q=q.is(key,null);
+   else q=q.eq(key,val);
+  }
+  if(order)q=q.order(order,{ascending:false});
+  const result=await q.limit(1).maybeSingle();
+  return {row:result.error?null:result.data as Record<string,unknown>|null,
+   available:!result.error};
+ };
+ const check=(gate:GateKey,value:{row:Record<string,unknown>|null;available:boolean},predicate:(r:Record<string,unknown>)=>boolean,reason?:string)=>{
+  verified(gate,Boolean(value.row&&predicate(value.row)),value.available,reason);
+ };
+ // Existing project existence is an independent fact, not stage-derived.
+ verified('project_created',true);
+ const quote=p.quote_id?String(p.quote_id):'';
+ const lead=p.lead_id?String(p.lead_id):'';
+ let openingBasis:'advance'|'approved_no_advance'='advance';
+ if(lead){
+  const [opportunity,intake,scope,terms]=await Promise.all([
+   read('leads','id,status,prospect_id',{id:lead}),
+   read('technical_intakes','id,submitted_at,reviewed_at,status',{lead_id:lead},'created_at'),
+   read('documents','id,document_type,approved_at,is_current_revision',{lead_id:lead,document_type:'client-requirements',is_current_revision:true},'approved_at'),
+   read('commercial_terms','id,authorised_at,authorisation_basis',{project_id:projectId}),
+  ]);
+  // Lead status alone does not prove formal qualification; preserve unknown.
+  if(opportunity.row?.prospect_id){
+   const prospectId=String(opportunity.row.prospect_id);
+   const conversion=await read('activity_events','id,event_data,created_at',
+    {entity_type:'prospect',entity_id:prospectId,event_type:'prospect_converted'},'created_at');
+   check('opportunity_qualified',conversion,r=>(
+    (r.event_data as {leadId?:string}|null)?.leadId===lead));
+   const feasibility=await read('prospect_technical_reviews',
+    'id,approved_at,status,decision',{prospect_id:String(opportunity.row.prospect_id)},'approved_at');
+   check('feasibility_approved',feasibility,r=>Boolean(r.approved_at&&['approved','feasible'].includes(String(r.decision))));
+  }
+  const request=await read('partner_review_requests','id,lead_id,prospect_id',{lead_id:lead},'created_at');
+  if(request.row?.id){
+   const decision=await read('partner_review_internal_decisions',
+    'id,decision,approved_at',{partner_review_request_id:String(request.row.id)},'approved_at');
+   check('partner_terms_approved',decision,r=>r.decision==='approved'&&Boolean(r.approved_at));
+  }
+  // A formally approved technical intake proves its own approval; a reviewed
+  // but unapproved intake does not.
+  check('requirements_approved',intake,r=>r.status==='approved'&&Boolean(r.reviewed_at));
+  if(scope.row?.approved_at)verified('requirements_approved',true);
+  // Commercial terms do not prove a historic mobilisation-stage approval.
+  void terms;
+ }
+ if(quote){
+  // This existing governed pre-quotation validator checks current technical
+  // requirements, partner scope/pricing and signed partner NDA at quote issue.
+  // The Northfield simulation branch is never proof of real confidentiality.
+  const lineage=await trusted.rpc('op_preproject_lineage_readiness',{
+   p_organisation_id:organisationId,p_quote_id:quote,
+  });
+  const lineageState=!lineage.error&&lineage.data&&typeof lineage.data==='object'?
+   lineage.data as {ready?:boolean;reason?:string;simulation?:boolean}:null;
+  const realLineage=lineageState?.ready===true&&
+   lineageState.reason==='approved_prequotation_lineage'&&lineageState.simulation!==true;
+  if(realLineage){
+   verified('confidentiality_confirmed',true);
+  }else if(lineageState?.simulation===true){
+   evidence.confidentiality_confirmed={state:'unknown',
+    reason:'This QA rehearsal uses a simulated pre-quotation lineage; it is not independent confidentiality evidence.'};
+  }
+  const [offer,accept,openingInvoice,openingReceipt,releaseContract,quoteRecord]=await Promise.all([
+   read('quote_issue_records','id,issued_at,quote_revision',{quote_id:quote},'issued_at'),
+   read('quote_acceptance_records','id,accepted_at',{quote_id:quote},'accepted_at'),
+   read('invoices','id,issued_at,invoice_type',{quote_id:quote,invoice_type:'deposit'},'issued_at'),
+   read('quote_payment_provider_confirmations','id,paid_at,livemode,quote_revision,amount,currency',{quote_id:quote},'paid_at'),
+   read('quote_release_contracts','quote_id,quote_revision,release_basis,opening_amount,currency,approved_at',{quote_id:quote}),
+   read('quotes','id,revision,currency,total,commercial_review_id,issued_at',{id:quote}),
+  ]);
+  const q=quoteRecord.row;
+  if(q?.commercial_review_id){
+   const commercial=await read('commercial_reviews','id,status,approved_at,lead_id',
+    {id:String(q.commercial_review_id)});
+   check('commercial_approved',commercial,r=>Boolean(
+    r.status==='approved'&&r.approved_at&&r.lead_id===lead&&
+    q.issued_at&&new Date(String(r.approved_at)).getTime()<=new Date(String(q.issued_at)).getTime()));
+  }
+  check('offer_issued',offer,r=>Boolean(r.issued_at&&q&&
+    Number(r.quote_revision)===Number(q.revision)));
+  check('contract_accepted',accept,r=>Boolean(r.accepted_at&&offer.row?.issued_at&&
+    new Date(String(r.accepted_at)).getTime()>=new Date(String(offer.row.issued_at)).getTime()));
+  check('opening_invoice_issued',openingInvoice,r=>Boolean(r.issued_at));
+  // A provider record must reconcile the approved release contract,
+  // quote revision, currency, and minimum authorised opening amount.
+  // Never infer settlement from a checkout redirect or unverified receipt.
+  const contract=releaseContract.row;
+  if(contract?.release_basis==='approved_no_advance'&&contract.approved_at&&q&&
+    Number(contract.opening_amount)===0&&
+    String(contract.currency).toUpperCase()===String(q.currency).toUpperCase()&&
+    Number(contract.quote_revision)===Number(q.revision))
+   openingBasis='approved_no_advance';
+  if(openingBasis==='advance'){
+   if(!contract||!q)verified('opening_payment_verified',false,false);
+   else check('opening_payment_verified',openingReceipt,r=>Boolean(
+    r.paid_at&&Number(r.quote_revision)===Number(q.revision)&&
+    Number(r.quote_revision)===Number(contract.quote_revision)&&
+    String(r.currency).toUpperCase()===String(contract.currency).toUpperCase()&&
+    Number(r.amount)>=Number(contract.opening_amount)&&
+    Number(contract.opening_amount)>0),
+    'The original opening receipt has not been reconciled to the approved amount, currency and quotation revision.');
+  }
+ }
+ const assignment=await read('project_execution_assignments','id,execution_cycle,partner_id,execution_state',{project_id:projectId},'created_at');
+ const assignmentId=assignment.row?.id?String(assignment.row.id):'';
+ let currentSubmissionId:string|undefined;
+ const cycle=Number(assignment.row?.execution_cycle);
+ if(assignment.available){
+  if(!assignmentId){
+   ['work_order_issued','work_order_accepted','commencement_confirmed',
+    'delivery_submitted'].forEach(k=>verified(k as GateKey,false));
+  }else if(Number.isInteger(cycle)&&cycle>0){
+   const [order,acceptance,commencement,submission]=await Promise.all([
+    read('partner_work_orders','id,issued_at,status,scope_revision_code',{project_id:projectId,assignment_id:assignmentId},'issued_at'),
+    read('partner_work_order_acceptances','id,accepted_at,scope_revision_code',{project_id:projectId,assignment_id:assignmentId},'accepted_at'),
+    read('partner_commencement_declarations','id,submitted_at',{project_id:projectId,assignment_id:assignmentId},'submitted_at'),
+    read('partner_delivery_submissions','id,submitted_at,review_status,execution_cycle',{project_id:projectId,assignment_id:assignmentId,execution_cycle:cycle},'submitted_at'),
+   ]);
+   check('work_order_issued',order,r=>Boolean(r.issued_at));
+   check('work_order_accepted',acceptance,r=>Boolean(r.accepted_at&&order.row?.issued_at&&r.scope_revision_code===order.row.scope_revision_code));
+   check('commencement_confirmed',commencement,r=>Boolean(r.submitted_at));
+   check('delivery_submitted',submission,r=>Boolean(r.submitted_at));
+   // The authenticated membership RPC must identify exactly this assigned
+   // partner. Existing Partner Work API independently validates every mutation.
+   const entitledPartner=actor==='partner'&&Boolean(entitledExternalAccountId)&&
+    assignment.row?.partner_id===entitledExternalAccountId;
+   const taskTarget='/portal/partner/projects/'+projectId;
+   if(entitledPartner&&order.available&&acceptance.available&&
+      order.row?.issued_at&&
+      ['mobilisation','ready_for_execution'].includes(String(p.project_stage))&&
+      assignment.row?.execution_state==='awaiting_acknowledgement'&&
+      evidence.work_order_accepted.state==='missing'){
+    capabilities.work_order_accepted={permitted:true,target:taskTarget,
+     completionEvent:'partner_work_order.accepted'};
+   }
+   if(entitledPartner&&acceptance.available&&commencement.available&&
+      evidence.work_order_accepted.state==='verified'&&
+      evidence.commencement_confirmed.state==='missing'&&
+      p.project_stage==='ready_for_execution'){
+    capabilities.commencement_confirmed={permitted:true,target:taskTarget,
+     completionEvent:'partner_execution.commencement_declared'};
+   }
+   if(entitledPartner&&commencement.available&&submission.available&&
+      evidence.commencement_confirmed.state==='verified'&&
+      evidence.delivery_submitted.state==='missing'&&
+      ['in_progress','partner_correction'].includes(String(p.project_stage))){
+    capabilities.delivery_submitted={permitted:true,target:taskTarget,
+     completionEvent:'partner_execution.delivery_submitted'};
+   }
+   if(submission.row?.id){
+    const submissionId=String(submission.row.id);
+    currentSubmissionId=submissionId;
+    verified('engineering_approved',submission.row.review_status==='accepted',submission.available);
+    const [manifest,clientIssue]=await Promise.all([
+     read('op_qa_manifest_verifications','id,submission_id,verified_at',{project_id:projectId,submission_id:submissionId},'verified_at'),
+     read('op_qa_client_review_issues','id,issued_at,submission_id,execution_cycle,transmittal_id',{project_id:projectId,submission_id:submissionId,execution_cycle:cycle},'issued_at'),
+    ]);
+    check('manifest_verified',manifest,r=>Boolean(r.verified_at));
+    // Only the protected, recipient-bound current-cycle issue is evidence of
+    // an externally actionable review, not merely a project stage/transmittal.
+    check('client_review_issued',clientIssue,r=>Boolean(r.issued_at&&r.transmittal_id));
+    if(clientIssue.row?.id){
+     // This RPC checks the active client membership and current protected issue.
+     // Stage or a generic project record alone cannot enable drawing decisions.
+     if(actor==='client'&&evidence.client_review_issued.state==='verified'){
+      const externalReview=await db.rpc('op_qa_client_review_position',{p_project_id:projectId});
+      const review=externalReview.data as {projectId?:string;canRespond?:boolean}|null;
+      if(!externalReview.error&&review?.projectId===projectId&&review.canRespond){
+       capabilities.client_review_accepted={permitted:true,
+        target:'/portal/client/projects/'+projectId,
+        completionEvent:'client_review.client_attested'};
+      }
+     }
+     const [clientDecision,internalDecision]=await Promise.all([
+      read('op_qa_client_review_decisions','id,outcome,decided_at,decided_by',{project_id:projectId,issue_id:String(clientIssue.row.id)},'decided_at'),
+      read('project_client_reviews','id,outcome,recorded_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'recorded_at'),
+     ]);
+     verified('client_review_accepted',Boolean(
+      clientDecision.available&&internalDecision.available&&
+      clientDecision.row?.decided_at&&clientDecision.row?.decided_by&&
+      internalDecision.row?.recorded_at&&
+      ['accepted','accepted_with_comments'].includes(String(clientDecision.row?.outcome))&&
+      clientDecision.row?.outcome===internalDecision.row?.outcome),
+      clientDecision.available&&internalDecision.available);
+    }
+
+   }
+  }
+ }
+ // A stage label alone is not historical gate evidence. Governed transitions
+ // are recorded as immutable organisation-scoped activity events.
+ const history=await trusted.from('activity_events').select('new_value,event_data')
+  .eq('organisation_id',organisationId).eq('entity_type','project')
+  .eq('entity_id',projectId).eq('event_type','project.stage_advanced')
+  .order('created_at',{ascending:true}).limit(100);
+ if(!history.error){
+  const advanced=(to:string)=>(history.data||[]).some(event=>
+   (event.new_value as {project_stage?:string}|null)?.project_stage===to&&
+   (event.event_data as {canonicalLifecycle?:boolean}|null)?.canonicalLifecycle===true);
+  verified('mobilisation_approved',advanced('ready_for_execution'));
+  verified('closure_approved',stageName(p.project_stage)==='closed'&&advanced('closed'));
+ }
+ // Operator QA capability comes from the same authenticated delivery gate
+ // and role policy as the existing engineering/manifest server actions.
+ // A project stage alone never authorises an approval.
+ if(actor==='operator'&&['internal_review','ready_for_client_issue'].includes(String(p.project_stage))){
+  const allowedEngineering=['owner','admin','engineering'].includes(String(internalRole));
+  const allowedManifest=['owner','admin','operator','engineering'].includes(String(internalRole));
+  const allowedIssue=['owner','admin'].includes(String(internalRole));
+  const {data:quality,error:qualityError}=await db.rpc('op_qa_delivery_gate',{p_project_id:projectId});
+  const gate=!qualityError?quality as {submission_id?:string;storage_complete?:boolean;
+    engineering_accepted?:boolean;manifest_verified?:boolean;release_authorised?:boolean;
+    files?:{filename:string}[]}|null:null;
+  if(gate?.submission_id&&gate.submission_id===currentSubmissionId&&gate.storage_complete&&
+    Array.isArray(gate.files)&&gate.files.length){
+   const target='/opos-next/projects/'+projectId;
+   if(String(p.project_stage)==='internal_review'&&allowedEngineering&&
+      !gate.engineering_accepted&&evidence.engineering_approved.state==='missing')
+    capabilities.engineering_approved={permitted:true,target,
+     completionEvent:'engineering.qa_decided'};
+   if(String(p.project_stage)==='internal_review'&&allowedManifest&&
+      gate.engineering_accepted&&!gate.manifest_verified&&
+      evidence.manifest_verified.state==='missing')
+    capabilities.manifest_verified={permitted:true,target,
+     completionEvent:'delivery.manifest_verified'};
+   if(String(p.project_stage)==='ready_for_client_issue'&&allowedIssue&&
+      gate.engineering_accepted&&gate.manifest_verified&&gate.release_authorised&&
+      gate.files.some(file=>file.filename.toLowerCase().endsWith('.pdf'))&&
+      evidence.client_review_issued.state==='missing')
+    capabilities.client_review_issued={permitted:true,target,
+     completionEvent:'client_review.protected_issued'};
+  }
+ }
+ const [controlledRegister,approvedTechnical,finalScope,finalStatement]=await Promise.all([
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'document-register',is_current_revision:true},'approved_at'),
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'technical-review',is_current_revision:true},'approved_at'),
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'scope-of-work',is_current_revision:true},'approved_at'),
+  read('documents','id,status,approved_at,is_current_revision',{project_id:projectId,document_type:'statement-of-work',is_current_revision:true},'approved_at'),
+ ]);
+ const controlled=[controlledRegister,approvedTechnical,finalScope,finalStatement];
+ verified('controlled_documents_approved',controlled.every(item=>
+  Boolean(item.row?.approved_at&&['approved','issued','published'].includes(String(item.row.status)))),
+  controlled.every(item=>item.available));
+ const [transmittal,finalInvoice,settlement,release,handover,payable]=await Promise.all([
+  Number.isInteger(cycle)&&cycle>0?read('project_client_transmittals','id,issued_at,execution_cycle',{project_id:projectId,execution_cycle:cycle},'issued_at'):Promise.resolve({row:null,available:false}),
+  read('invoices','id,issued_at,invoice_type',{project_id:projectId,invoice_type:'final'},'issued_at'),
+  read('op_project_final_settlements','project_id,verified_at',{project_id:projectId}),
+  read('op_project_final_release_approvals','project_id,approved_at,submission_id',{project_id:projectId}),
+  read('documents','id,issued_at,approved_at,is_current_revision,status,storage_path',{project_id:projectId,document_type:'handover-pack',is_current_revision:true},'issued_at'),
+  read('partner_payables','id,status,invoice_reference,evidence_confirmed,approved_at',{project_id:projectId},'approved_at'),
+ ]);
+ // Issued transmittal alone is insufficient proof of protected portal access.
+ // Its gate remains unknown until generic recipient-scoped issuance is wired.
+ void transmittal;
+ check('final_invoice_issued',finalInvoice,r=>Boolean(r.issued_at));
+ check('final_payment_verified',settlement,r=>Boolean(r.verified_at));
+ check('owner_release_approved',release,r=>Boolean(r.approved_at&&currentSubmissionId&&r.submission_id===currentSubmissionId));
+ check('handover_issued',handover,r=>Boolean(r.issued_at&&r.approved_at&&r.storage_path&&r.is_current_revision&&
+  release.row?.approved_at&&release.row?.submission_id===currentSubmissionId&&
+  ['issued','published'].includes(String(r.status))));
+ // Partner invoice and its matched transfer are independent evidence.
+ check('partner_invoice_verified',payable,r=>Boolean(r.approved_at&&r.evidence_confirmed&&r.invoice_reference));
+ if(payable.row?.id){
+  const payment=await read('partner_payments','id,status,paid_at,payable_id,reference,payment_method',
+   {project_id:projectId,payable_id:String(payable.row.id)},'paid_at');
+  // A self-reported or QA-simulated transfer is NOT independent bank evidence.
+  // Until a generic reconciled bank confirmation service exists, this gate
+  // stays unknown even when someone manually marked the payment as cleared.
+  evidence.partner_payment_verified={state:'unknown',
+   reason:payment.row?.payment_method==='qa_simulated_bank_transfer'?
+    'The partner transfer is a synthetic QA simulation, not real settlement.':
+    'A real partner bank transfer requires independently reconciled settlement evidence.'};
+ }
+ const stage=String(p.project_stage||'');
+ const phase=stage==='closed'?'closure':stage==='completion'?'payment_settlement':
+  ['client_review','issued_to_client','ready_for_client_issue'].includes(stage)?'delivery':
+  stage==='internal_review'?'quality_assurance':
+  ['in_progress','partner_correction','ready_for_execution'].includes(stage)?'execution':'mobilisation';
+ const action=resolveCurrentAction({actor,phase,evidence,capabilities,openingBasis});
+ return {action,evidence,ready:true,
+  known:Object.values(evidence).filter(e=>e.state!=='unknown').length,total:lifecycleGates.length};
+}
