@@ -75,9 +75,10 @@ jobs:
     timeout-minutes: 14
     env:
       CI: 'true'
-      # This bootstrap preview is QA-only; override with the current QA URL
-      # through repository Actions variable OPOS_QA_BASE_URL when available.
-      OPOS_QA_BASE_URL: ${{ vars.OPOS_QA_BASE_URL || 'https://overflow-partner-lb8vfl6fv-zeeshankhanminhas-projects.vercel.app' }}
+      # Explicit QA preview only. Update the variable after future QA deploys.
+      # CI bypass secret is scoped to this read-only QA job only.
+      OPOS_QA_BASE_URL: ${{ vars.OPOS_QA_BASE_URL || 'https://overflow-partner-9621nvpda-zeeshankhanminhas-projects.vercel.app' }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
