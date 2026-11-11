@@ -62,7 +62,7 @@ jobs:
       - name: Install Chromium for real client portal QA
         run: |
           npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - uses: supabase/setup-cli@v3
         with:
           version: 2.84.2
