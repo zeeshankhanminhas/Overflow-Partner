@@ -80,9 +80,11 @@ jobs:
           set +a
           test "${API_URL:-}" = 'http://127.0.0.1:54321'
           test -n "${SERVICE_ROLE_KEY:-}"
+          test -n "${ANON_KEY:-}"
           echo "::add-mask::$SERVICE_ROLE_KEY"
           {
             echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
       - name: Seed approved synthetic quotation (local Postgres only)
