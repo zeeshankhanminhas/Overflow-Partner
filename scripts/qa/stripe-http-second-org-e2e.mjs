@@ -2,7 +2,6 @@
 // Only ephemeral CI: no cloud Supabase, live Stripe, or customer messages.
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
 import {createClient} from '@supabase/supabase-js';
 const endpoint='http://127.0.0.1:3211/api/stripe/webhook', localDb='http://127.0.0.1:54321';
 assert.equal(process.env.CI,'true');
@@ -52,20 +51,6 @@ async function post(event,expected,label){
  }
  verified(response.status,expected,label+' (HTTP '+response.status+')');
 }
-function recordSyntheticAcceptance(projectId){
- assert.match(projectId,/^[0-9a-f-]{36}$/i);
- const sql=[
- 'begin;',
- 'alter table public.project_client_reviews disable trigger user;',
- 'insert into public.project_client_reviews(organisation_id,project_id,outcome,evidence_basis,evidence_reference,recorded_by) values (',
- "'"+second.org+"','"+projectId+"','accepted','client_portal','QA-HELIX-LOCAL-REVIEW-ACCEPTED','"+second.actor+"');",
- 'alter table public.project_client_reviews enable trigger user;',
- 'commit;'
- ].join('\n');
- execFileSync('docker',['exec','-i','supabase_db_opos_ephemeral_ci','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1'],{
-  input:sql,stdio:['pipe','pipe','pipe'],timeout:20000
- });
-}
 verified(await count('projects',{organisation_id:first.org,quote_id:first.quote}),1,'first customer still has one project');
 verified(await count('projects',{organisation_id:second.org,quote_id:second.quote}),0,'second has no project before payment');
 verified(await count('quote_payment_confirmations',{organisation_id:second.org,quote_id:second.quote}),0,'no opening receipt for second customer');
@@ -109,17 +94,15 @@ const final=paymentEvent('evt_helix_final','cs_helix_final','final',168000,{proj
 await post(final,503,'paid final event does not settle before client review acceptance');
 verified(await count('op_project_final_settlements',{organisation_id:second.org,project_id:projectId}),0,
  'premature final attempt leaves settlement empty');
-recordSyntheticAcceptance(projectId);
-await post(final,200,'same paid final event reconciles after synthetic authorised QA acceptance');
-verified(await count('op_project_final_settlements',{organisation_id:second.org,project_id:projectId}),1,
- 'exactly one £1,680 settlement bound to second tenant');
-await post(final,200,'same final delivery replay is idempotent');
-await post(paymentEvent('evt_helix_competing_final','cs_helix_competing_final','final',168000,{project_id:projectId}),409,
- 'competing final payment cannot replace original receipt');
-verified(await count('op_project_final_settlements',{organisation_id:second.org,project_id:projectId}),1,
- 'final settlement remains singular after retries');
+// Intentionally never fabricate a customer review. The final payment remains
+// blocked until the client completes the governed portal action after controlled
+// partner delivery and operator QA. This payment-only smoke test MUST NOT pass
+// itself off as a complete project lifecycle.
+await post(final,503,'replayed final event stays blocked without client acceptance');
+verified(await count('op_project_final_settlements',{organisation_id:second.org,project_id:projectId}),0,
+ 'no final settlement can be manufactured by a replay');
 verified(await count('op_project_final_release_approvals',{organisation_id:second.org,project_id:projectId}),0,
  'paid final balance alone never releases editable engineering files');
 verified(await count('projects',{organisation_id:first.org,quote_id:first.quote}),1,
  'first organisation remains unchanged throughout');
-console.log('SUCCESS: '+checks+' second-organisation real HTTP/local DB checks; no persistent QA data.');
+console.log('SUCCESS: '+checks+' second-organisation payment-boundary checks (NOT a full lifecycle); no persistent QA data.');

@@ -2,37 +2,44 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 
-/**
- * This is a RED acceptance gate until the real client-approved lifecycle is
- * implemented. Passing payment integration alone is NOT a full Helix E2E.
- * Run only with synthetic local QA data; no hosted secrets.
- */
-const read = path => readFileSync(new URL('../../'+path,import.meta.url),'utf8');
+const read=path=>readFileSync(new URL('../../'+path,import.meta.url),'utf8');
 
-test('Helix final acceptance is not injected directly into SQL', () => {
-  const scenario = read('scripts/qa/stripe-http-second-org-e2e.mjs');
-  assert.doesNotMatch(scenario,/recordSyntheticAcceptance\s*\(/,
-    'The Helix scenario still calls a synthetic SQL acceptance helper.');
-  assert.doesNotMatch(scenario,/project_client_reviews\s+disable\s+trigger|insert\s+into\s+public\.project_client_reviews/i,
-    'Direct SQL client acceptance is not proof of a client action.');
-  assert.doesNotMatch(scenario,/execFileSync\s*\(\s*['"]docker['"]/,
-    'Lifecycle approval must not be supplied using Docker psql.');
+test('Helix payment smoke test never fabricates a client review',()=>{
+ const scenario=read('scripts/qa/stripe-http-second-org-e2e.mjs');
+ assert.doesNotMatch(scenario,/recordSyntheticAcceptance|disable trigger|insert\s+into\s+public\.project_client_reviews/i);
+ assert.doesNotMatch(scenario,/execFileSync\s*\(\s*['"]docker['"]/);
+ assert.match(scenario,/replayed final event stays blocked without client acceptance/);
 });
 
-test('client portal exposes a governed project delivery review action', () => {
-  const page = read('app/client-portal/page.tsx');
-  assert.match(page,/project_client_reviews/,
-    'The portal must be aware of client review state.');
-  assert.match(page,/Record project review|Submit project review|Accept engineering deliverables/i,
-    'The client portal needs a real, client-authorised review submission UI.');
-  assert.match(page,/action=|action\s*=/,
-    'The client needs an actual UI-bound server action, not an informational status.');
+test('client portal binds a review submission to an explicit authorised recipient',()=>{
+ const page=read('app/client-portal/page.tsx');
+ const action=read('app/client-portal/review-action.ts');
+ assert.match(page,/Submit project review/);
+ assert.match(page,/action=\{submitClientProjectReview\}/);
+ assert.match(page,/authority_attested/);
+ assert.match(action,/verifyClientPortalToken\(token\)/);
+ assert.match(action,/op_record_attested_client_portal_review/);
+ assert.match(action,/p_quote_id:access.quoteId/);
+ assert.match(action,/p_transmittal_id:transmittalId/);
 });
 
-test('operator-entered client evidence is not misrepresented as client-authenticated review', () => {
-  const operator = read('app/workspace/projects/[id]/client-actions.ts');
-  assert.match(operator,/recordClientReviewOutcomeAction/);
-  const scenario = read('scripts/qa/stripe-http-second-org-e2e.mjs');
-  assert.doesNotMatch(scenario,/recordClientReviewOutcomeAction|client-actions\.ts/,
-    'A server-side operator action does not prove the client accepted deliverables.');
+test('DB enforces current-cycle transmittal, recipient, quote and project gates',()=>{
+ const sql=read('supabase/migrations/20261111143500_attested_client_portal_review.sql');
+ assert.match(sql,/security definer/);
+ assert.match(sql,/service_role/);
+ assert.match(sql,/grant execute.*op_record_attested_client_portal_review/s);
+ assert.match(sql,/v_project\.project_stage<>'client_review'/);
+ assert.match(sql,/execution_cycle=v_cycle/);
+ assert.match(sql,/v_tx\.recipient_email/);
+ assert.match(sql,/p_quote_revision/);
+ assert.match(sql,/document_type='handover-pack'/);
+ assert.match(sql,/client_submitted_by_email/);
+ assert.match(sql,/already recorded for this cycle/);
+});
+
+test('operator evidence does not count as proof of client interaction',()=>{
+ const operator=read('app/workspace/projects/[id]/client-actions.ts');
+ assert.match(operator,/recordClientReviewOutcomeAction/);
+ const scenario=read('scripts/qa/stripe-http-second-org-e2e.mjs');
+ assert.doesNotMatch(scenario,/recordClientReviewOutcomeAction|client-actions\.ts/);
 });
