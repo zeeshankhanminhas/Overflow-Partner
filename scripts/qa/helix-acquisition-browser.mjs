@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {createHelixDraftQuoteThroughCase360} from './helix-case-browser.mjs';
 
-export async function createHelixAcquisitionThroughWorkspace(control,admin,organisationId){
+export async function createHelixAcquisitionThroughWorkspace(control,admin,organisationId,operatorDb){
  const clientName='OP QA TEST Helix Engineering Client';
  await control.goto('/workspace/acquisition');
  await control.getByRole('button',{name:'1 · Add company'}).click();
@@ -161,6 +161,6 @@ export async function createHelixAcquisitionThroughWorkspace(control,admin,organ
  assert.equal(caseError,null);
  assert.equal(caseRow.organisation_id,organisationId);
  console.log('PASS browser: partner-approved Go / No-Go converted Helix prospect into Case 360.');
- await createHelixDraftQuoteThroughCase360(control,admin,organisationId,caseId);
+ await createHelixDraftQuoteThroughCase360(control,admin,organisationId,caseId,partners[0].id,operatorDb);
  return {companyId,contactId,prospectId,caseId,partnerId:partners[0].id};
 }

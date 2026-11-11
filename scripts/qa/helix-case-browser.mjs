@@ -2,8 +2,9 @@
 import assert from 'node:assert/strict';
 import {approveHelixCaseEvidence} from './helix-document-browser.mjs';
 import {verifyHelixOpeningPayment} from './helix-opening-payment.mjs';
+import {mobiliseHelixNewProject} from './helix-project-browser.mjs';
 
-export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,caseId){
+export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,caseId,partnerId,operatorDb){
  const path='/workspace/leads/'+caseId;
  const open=async()=>{
   await control.goto(path);
@@ -131,6 +132,7 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  assert.equal(createdProject.quote_id,quotes[0].id);
  assert.equal(createdProject.lead_id,caseId);
  console.log('PASS browser: new client-originated Helix Project 360 is visible to operator at governed mobilisation stage.');
+ await mobiliseHelixNewProject(control,admin,operatorDb,orgId,projectId,partnerId);
 
  return quotes[0];
 }

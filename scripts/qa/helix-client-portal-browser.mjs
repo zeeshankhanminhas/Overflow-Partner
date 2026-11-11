@@ -104,7 +104,7 @@ try{
   assert.equal(readiness.stage,'mobilisation');
   assert.ok(Array.isArray(readiness.reasons));
   console.log('HELIX MOBILISATION READINESS: '+JSON.stringify(readiness.reasons));
-  await createHelixAcquisitionThroughWorkspace(control,admin,'00000000-0000-4000-8000-000000009932');
+  await createHelixAcquisitionThroughWorkspace(control,admin,'00000000-0000-4000-8000-000000009932',operatorDb);
 
 
  }finally{await operator.close();}
