@@ -58,3 +58,10 @@ test('partner setup is available before partner execution, but only during gover
  assert.match(page,/disabled=\{noCommercialPartner\|\|partnerMismatch\|\|documents\.length===0\|\|!canConfigureAssignment\}/);
  assert.doesNotMatch(page,/disabled=\{noCommercialPartner\|\|partnerMismatch\|\|documents\.length===0\|\|!executionActive\}/);
 });
+
+test('accepted client intake becomes the canonical prospect requirement without SQL fixture shortcuts',()=>{
+ const handler=read('app/api/intake/[token]/route.ts');
+ assert.match(handler,/requirement_summary: payload\.description/);
+ assert.match(handler,/\.eq\('organisation_id', session\.organisation_id\)\.eq\('id', session\.prospect_id\)/);
+ assert.match(handler,/if \(summaryError\) throw summaryError/);
+});
