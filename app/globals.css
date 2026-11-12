@@ -130,5 +130,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: #ffffff;
 }
 #contact-form {scroll-margin-top:112px;}
+/* Keep enquiry controls and focus indication readable on the charcoal panel. */
+#contact-form .field_input { border-bottom-color: rgba(255,255,255,.55); }
+#contact-form .field_input:focus-visible { outline: 2px solid #ff9c65; outline-offset: 4px; }
+#contact-form .field_input::placeholder { color: rgba(255,255,255,.65); }
+#contact-form select[name='project_type'] { min-height: 48px; }
+html { scroll-padding-top: 5rem; }
 @media(max-width:640px){.op-cta{width:auto;max-width:100%}.section_cta .form_enquiry{min-width:0}.section_cta .form_enquiry input,.section_cta .form_enquiry select,.section_cta .form_enquiry textarea{min-width:0;font-size:16px}.section_cta .form_enquiry input[type="checkbox"]{width:18px;min-width:18px;height:18px;flex:0 0 18px;}}
 @media(prefers-reduced-motion:reduce){.op-cta:hover{transform:none}}
