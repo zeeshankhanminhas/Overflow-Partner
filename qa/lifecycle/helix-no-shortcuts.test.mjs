@@ -80,9 +80,9 @@ test('internal Technical Review is an active Project QA record and not a Partner
  const adapter=read('components/workspace/documents/documentAdapter.ts');
  assert.match(registry,/slug: 'technical-review', title: 'Internal Technical Review', dataStatus: 'live-backed', lifecycle: active/);
  assert.doesNotMatch(registry,/'technical-review': 'partner-technical-assessment-report'/);
- assert.match(actions,/const projectDocuments:[\\s\\S]*?'technical-review'/);
- assert.doesNotMatch(actions,/const caseDocuments:[^\\n]*'technical-review'/);
- assert.match(contracts,/'technical-review': contract\\('internal', \\['project', 'documentControl', 'deliveryEvidence'\\]\\)/);
+ assert.match(actions,/const projectDocuments:[\s\S]*?'technical-review'/);
+ assert.doesNotMatch(actions,/const caseDocuments:[^\n]*'technical-review'/);
+ assert.match(contracts,/'technical-review': contract\('internal', \['project', 'documentControl', 'deliveryEvidence'\]\)/);
  assert.match(adapter,/partner_delivery_submission_files/);
  assert.match(adapter,/completedPartnerSubmission/);
 });
