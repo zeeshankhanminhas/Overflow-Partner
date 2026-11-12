@@ -24,6 +24,9 @@ check(!api.includes('Workspace ownership is not configured.')&&!api.includes('Pr
 check(css.includes('.op-cta')&&css.includes('@media(max-width:640px)'),'Shared brand buttons and mobile form styles');
 check(!sitemap.includes('/demonstrations')&&sitemap.includes('services.map'),'Draft demonstrations absent from sitemap');
 check(sitemap.includes('/assurance')&&read('components/CookieConsent.tsx').includes("'/assurance'"),'Assurance is indexed and public-only analytics choice applies');
+check(existsSync('app/assurance/templates/page.tsx')&&existsSync('components/assurance/BrandedTemplates.tsx')&&existsSync('app/assurance/templates/template.css'),'Branded React A4 template viewer available');
+check(read('components/assurance/BrandedTemplates.tsx').includes('window.print()')&&read('components/assurance/BrandedTemplates.tsx').includes('download'),'React templates offer print/save-PDF and server PDF download');
+check(sitemap.includes('/assurance/templates')&&read('components/CookieConsent.tsx').includes("'/assurance/templates'"),'Template viewer is indexed and marketing consent applies');
 check(home.includes('<AssurancePreview/>')&&read('app/assurance/page.tsx').includes('Illustrative'),'Homepage and page disclose illustrative content');
 check(read('lib/public-assurance-pdf.ts').includes('NOT APPROVED FOR MANUFACTURE')&&read('lib/public-assurance-pdf.ts').includes('not client work'),'Template PDF explicitly excludes real client-project claims');
 for(const file of ['public/demos/indexing-clamping-fixture.scad','public/demos/roller-support-assembly.scad'])check(!existsSync(file),'Unreviewed CAD asset removed: '+file);
