@@ -5,7 +5,10 @@ const pages=['app/services/page.tsx','app/services/[slug]/page.tsx','app/about/p
 for(const page of pages)check(existsSync(page),'Marketing route: '+page);
 const services=read('lib/marketing.ts');const proof=read('components/ProofOfWork.tsx');const home=read('app/page.tsx');const faq=read('components/FAQ.tsx');const header=read('components/Header.tsx');const form=read('components/EnquiryForm.tsx');const css=read('app/globals.css');const sitemap=read('app/sitemap.ts');const api=read('app/api/intake/route.ts');
 check((services.match(/slug:'/g)||[]).length>=6,'Dedicated engineering service catalogue');
-check(!existsSync('components/EngineeringShowcase.tsx')&&!existsSync('app/demonstrations/page.tsx')&&!existsSync('app/demonstrations/[slug]/page.tsx'),'Unverified demonstrations removed from public site');
+check(!existsSync('components/EngineeringShowcase.tsx') && existsSync('app/demonstrations/page.tsx') && existsSync('app/demonstrations/[slug]/page.tsx'),'Demo preview routes exist without legacy unverified showcase');
+const demoIndex=read('app/demonstrations/page.tsx');const demoDetail=read('app/demonstrations/[slug]/page.tsx');const demoData=read('lib/engineeringStudies.ts');
+check(demoIndex.includes('index:false') && demoDetail.includes('index:false') && !sitemap.includes('/demonstrations'), 'Development studies remain noindex and absent from sitemap');
+check(demoData.includes('not approved for manufacture') && demoDetail.includes('Independent technical approval has not been obtained'), 'Demonstration status and independent-review limitations are explicit');
 check(!home.includes('<EngineeringShowcase/>')&&home.indexOf('<FAQ/>')<home.indexOf('<CTA/>'),'Unverified showcase absent; FAQ before enquiry');
 check(!proof.includes('DrawingPreview')&&!proof.includes('OP-PRJ-001'),'No misleading sample drawing on homepage');
 check(faq.includes('faqs.slice(0,8)')&&faq.includes('<details'),'Eight expandable questions on homepage');
