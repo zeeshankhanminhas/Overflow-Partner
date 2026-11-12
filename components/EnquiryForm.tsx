@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { submitNativeIntake } from '@/components/formSubmission';
+import { services } from '@/lib/marketing';
 
 const fieldClass =
   'field_input border-0 border-b border-white/40 bg-transparent px-0 py-3 text-white outline-none transition placeholder:text-white focus:!border-white focus:!shadow-[0_1px_0_rgba(255,255,255,0.9)] disabled:text-white';
@@ -9,6 +10,8 @@ const labelClass = 'field_group grid gap-2 text-xs font-medium uppercase text-wh
 
 export default function EnquiryForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [submissionRef, setSubmissionRef] = useState('');
+  const [emailPending, setEmailPending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
@@ -16,6 +19,8 @@ export default function EnquiryForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(false);
+    setSubmissionRef('');
+    setEmailPending(false);
     setErrorMessage('');
     setIsSubmitting(true);
 
@@ -39,7 +44,8 @@ export default function EnquiryForm() {
       });
 
       // Keep the existing acknowledgement reference; Step 2 is invitation-only after interest.
-      void result;
+      setSubmissionRef(result.submissionId);
+      setEmailPending(result.acknowledgement !== 'queued' || result.step2?.emailStatus !== 'queued');
       setSubmitted(true);
       form.reset();
     } catch (error) {
@@ -59,7 +65,7 @@ export default function EnquiryForm() {
       </div>
       <div className="grid gap-8 md:grid-cols-2">
         <label className={labelClass} htmlFor="company">Company<input className={fieldClass} id="company" name="company" type="text" minLength={2} required disabled={isSubmitting} /></label>
-        <label className={labelClass} htmlFor="project-type">Project Type<select className={fieldClass} id="project-type" name="project_type" required defaultValue="" disabled={isSubmitting}><option value="" disabled>Choose a service</option><option>Overflow CAD drafting support</option><option>Manufacturing-ready CAM assistance</option><option>Engineering documentation handoff</option><option>Other CAD/CAM requirement</option></select></label>
+        <label className={labelClass} htmlFor="project-type">Project Type<select className={fieldClass} id="project-type" name="project_type" required defaultValue="" disabled={isSubmitting}><option value="" disabled>Choose a service</option>{services.map(service => <option key={service.slug} value={service.title}>{service.title}</option>)}<option>Other engineering requirement</option></select></label>
       </div>
       <label className={labelClass} htmlFor="brief-requirement">What would you like help with?<textarea className={`${fieldClass} field_textarea min-h-24 resize-y`} id="brief-requirement" name="brief_requirement" placeholder="Describe the work, drawings or deliverables you have in mind." minLength={10} maxLength={4000} required disabled={isSubmitting} /></label>
       <label className="flex max-w-xl items-start gap-3 text-sm leading-6 text-white">
@@ -70,7 +76,7 @@ export default function EnquiryForm() {
         <button className="button_primary min-h-12 bg-[#ef6c24] px-7 py-3 text-sm font-semibold uppercase tracking-wider text-white transition-colors hover:bg-[#b74a0f] disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending' : 'Send enquiry'}</button>
         <p className="text_body text-sm text-white">We’ll confirm your enquiry here and follow up by email.</p>
       </div>
-      {submitted ? <p className="text_success rounded-md border border-white bg-white p-4 text-sm text-black" role="status">Thanks — your enquiry has been received. We’ll be in touch by email with the next steps.</p> : null}
+      {submitted ? <p className="text_success rounded-md border border-white bg-white p-4 text-sm text-black" role="status">Your enquiry has been recorded. Reference: {submissionRef}. {emailPending ? "Email confirmation is pending; please keep this reference for follow-up." : "We have queued your confirmation email and next steps."}</p> : null}
       {errorMessage ? <p className="text_error rounded-md border border-white/15 p-4 text-sm text-white" role="alert">{errorMessage}</p> : null}
     </form>
   );
