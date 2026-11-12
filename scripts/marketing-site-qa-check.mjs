@@ -11,6 +11,13 @@ check(!proof.includes('DrawingPreview')&&!proof.includes('OP-PRJ-001'),'No misle
 check(faq.includes('faqs.slice(0,8)')&&faq.includes('<details'),'Eight expandable questions on homepage');
 for(const path of ['/services','/process','/about','/faq'])check(header.includes(path),'Header navigation '+path);
 check(form.includes("name=\"nurture_consent\"")&&form.includes('submitNativeIntake'),'Original client intake workflow and opt-in retained');
+check(form.includes('services.map(service =>') && !form.includes('Manufacturing-ready CAM assistance</option>'), 'Enquiry service options derive from marketing catalogue');
+check(api.includes('OP_PUBLIC_INTAKE_ORGANISATION_ID') && api.includes('organisations.size !== 1'), 'Public intake is tenant-deterministic or fails closed');
+const cookie=read('components/CookieConsent.tsx');
+const rootLayout=read('app/layout.tsx');
+check(cookie.includes('isMarketingRoute') && cookie.includes('!isMarketing || !ready'), 'Cookie banner and analytics excluded from workspaces');
+check(cookie.includes("choice === 'accepted'") && !rootLayout.includes('<Analytics />'), 'Marketing analytics gated by affirmative choice');
+check(read('components/Footer.tsx').includes('CookiePreferencesButton'), 'Footer allows reopening privacy preferences');
 check(!form.includes('Technical intake follows')&&!form.includes('Step 2.')&&!form.includes('Submission ID:'),'No internal workflow terms in public form');
 check(!api.includes('Workspace ownership is not configured.')&&!api.includes('Preview intake is disabled until'),'Internal server configuration suppressed in public error');
 check(css.includes('.op-cta')&&css.includes('@media(max-width:640px)'),'Shared brand buttons and mobile form styles');
