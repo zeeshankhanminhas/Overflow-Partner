@@ -102,8 +102,21 @@ export async function createPartnerPayableAction(formData:FormData){
     const {supabase,user,profile,organisationId}=await requireUserContext();assertRole(profile.role,[...financeRoles]);
     await assertCanCreatePayable(supabase,organisationId,projectId);
     const subtotal=numeric(formData,'subtotal');const vat=numeric(formData,'vat');const total=Number((subtotal+vat).toFixed(2));if(total<=0)throw new Error('Partner payable total must be greater than zero.');
+    // Derive liability lineage from the Project's accepted commercial position.
+    // The UI cannot safely supply an arbitrary Partner Quote UUID.
+    const partnerId=required(formData,'partner_id');
+    const {data:project,error:projectError}=await supabase.from('projects').select('quote_id').eq('organisation_id',organisationId).eq('id',projectId).single();
+    if(projectError||!project?.quote_id)throw new Error(projectError?.message||'Accepted Project quotation is required.');
+    const {data:quote,error:quoteError}=await supabase.from('quotes').select('commercial_review_id').eq('organisation_id',organisationId).eq('id',project.quote_id).single();
+    if(quoteError||!quote?.commercial_review_id)throw new Error(quoteError?.message||'Approved commercial position is required.');
+    const {data:commercial,error:commercialError}=await supabase.from('commercial_reviews').select('partner_quote_id').eq('organisation_id',organisationId).eq('id',quote.commercial_review_id).single();
+    if(commercialError||!commercial?.partner_quote_id)throw new Error(commercialError?.message||'Accepted Partner quotation is required.');
+    const {data:partnerQuote,error:partnerQuoteError}=await supabase.from('partner_quotes').select('partner_id').eq('organisation_id',organisationId).eq('id',commercial.partner_quote_id).single();
+    if(partnerQuoteError||partnerQuote?.partner_id!==partnerId)throw new Error('Partner must match the accepted commercial quotation.');
+    const submittedPartnerQuote=String(formData.get('partner_quote_id')||'');
+    if(submittedPartnerQuote&&submittedPartnerQuote!==commercial.partner_quote_id)throw new Error('Partner quotation differs from accepted commercial position.');
     const {data:number,error:numberError}=await supabase.rpc('op_next_financial_number',{p_organisation_id:organisationId,p_kind:'payable'});if(numberError)throw new Error(numberError.message);
-    const {data:payable,error}=await supabase.from('partner_payables').insert({organisation_id:organisationId,project_id:projectId,partner_id:required(formData,'partner_id'),partner_quote_id:String(formData.get('partner_quote_id')||'')||null,payable_number:number,invoice_reference:String(formData.get('invoice_reference')||'').trim()||null,status:'received',description:String(formData.get('description')||'').trim()||null,subtotal,vat,total,currency:String(formData.get('currency')||'GBP'),due_date:String(formData.get('due_date')||'')||null,evidence_confirmed:formData.get('evidence_confirmed')==='on',created_by:user.id}).select('id,payable_number').single();if(error||!payable)throw new Error(error?.message||'Partner payable could not be created.');
+    const {data:payable,error}=await supabase.from('partner_payables').insert({organisation_id:organisationId,project_id:projectId,partner_id:partnerId,partner_quote_id:commercial.partner_quote_id,payable_number:number,invoice_reference:String(formData.get('invoice_reference')||'').trim()||null,status:'received',description:String(formData.get('description')||'').trim()||null,subtotal,vat,total,currency:String(formData.get('currency')||'GBP'),due_date:String(formData.get('due_date')||'')||null,evidence_confirmed:formData.get('evidence_confirmed')==='on',created_by:user.id}).select('id,payable_number').single();if(error||!payable)throw new Error(error?.message||'Partner payable could not be created.');
     await audit(supabase,organisationId,user.id,'project',projectId,'partner_payable_received',{payableId:payable.id,payableNumber:payable.payable_number,total,invariant:'DELIVERY_EVIDENCE_REQUIRED'});refresh(projectId);destination=url({project:projectId,created:`Partner payable ${payable.payable_number} recorded.`,focus:`payable-${payable.id}`});
   }catch(error){destination=url({project:projectId,error:error instanceof Error?error.message:'Partner payable could not be recorded.',focus:'payables'});}redirect(destination);
 }

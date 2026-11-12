@@ -73,7 +73,7 @@ export async function finishJourney({control,db,orgId,project,step,expect}){
   const {data:assignment,error}=await db.from('project_execution_assignments').select('partner_id').eq('project_id',project.id).eq('organisation_id',orgId).single();assert.equal(error,null);
   await form.locator('select[name="partner_id"]').selectOption(assignment.partner_id);
   await form.locator('input[name="invoice_reference"]').fill('SIMULATED-QA-PARTNER-INVOICE');await form.locator('input[name="subtotal"]').fill('1600');await form.locator('input[name="evidence_confirmed"]').check();
-  await Promise.all([control.waitForURL(u=>u.searchParams.has('updated')||u.searchParams.has('error')),form.getByRole('button',{name:'Record Partner payable'}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
+  await Promise.all([control.waitForURL(u=>u.searchParams.has('created')||u.searchParams.has('error')),form.getByRole('button',{name:'Record Partner payable'}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
   await control.getByRole('button',{name:'Approve',exact:true}).click();
   await Promise.all([control.waitForURL(u=>u.searchParams.has('updated')||u.searchParams.has('error')),control.getByRole('button',{name:'Confirm approval',exact:true}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
   await control.goto('/workspace/payments?project='+project.id);

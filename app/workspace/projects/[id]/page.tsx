@@ -26,7 +26,7 @@ function value(record:Record<string,unknown>|null|undefined,key:string,fallback=
 function money(amount:unknown,currency:unknown){const number=Number(amount??0);try{return new Intl.NumberFormat('en-GB',{style:'currency',currency:String(currency||'GBP')}).format(number)}catch{return `${String(currency||'GBP')} ${number.toFixed(2)}`}}
 function formatDate(input:unknown,fallback='Not set'){if(!input)return fallback;const date=new Date(String(input));return Number.isNaN(date.getTime())?String(input):date.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
 function stateLabel(input:unknown){return String(input||'not_released').replaceAll('_',' ').replace(/\b\w/g,m=>m.toUpperCase())}
-type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number;activityOpen:number;approvedDocuments?:number;issuedDocuments?:number;executionMode?:string;partnerCommencement?:boolean;deliveryItems?:number;deliveryWorkOpen?:number;deliveryCloseOpen?:number;openPartnerExceptions?:number;executionCycle?:number;clientTransmittals?:number;clientOutcome?:string|null};
+type Readiness={ready:boolean;stage:string;reasons:string[];activityTotal:number;activityOpen:number;approvedDocuments?:number;issuedDocuments?:number;executionMode?:string;partnerCommencement?:boolean;deliveryItems?:number;deliveryWorkOpen?:number;deliveryCloseOpen?:number;openPartnerExceptions?:number;executionCycle?:number;clientTransmittals?:number;clientOutcome?:string|null;currentCycleClientOutcome?:string|null};
 
 export default async function ProjectWorkspacePage({params,searchParams}:{params:Promise<{id:string}>;searchParams?:Promise<Record<string,string|undefined>>}){
   const {id}=await params;const query=searchParams?await searchParams:{};const {supabase,organisationId,user}=await requireUserContext();
@@ -61,6 +61,8 @@ export default async function ProjectWorkspacePage({params,searchParams}:{params
   const lead=project.lead as Record<string,unknown>|null|undefined;const quote=project.quote as Record<string,unknown>|null|undefined;const manager=project.project_manager as Record<string,unknown>|null|undefined;const clientCompany=project.client_company as Record<string,unknown>|null|undefined;const clientContact=project.client_contact as Record<string,unknown>|null|undefined;
   const tasks=tasksResult.data??[];const documents=documentsResult.data??[];const events=activityResult.data??[];const members=membersResult.data??[];
   const readiness=(readinessResult.data||{ready:false,stage,reasons:['Project stage readiness is not available yet.'],activityTotal:tasks.length,activityOpen:tasks.filter(t=>!['completed','cancelled'].includes(t.status)).length}) as Readiness;
+  // Prefer the cycle-scoped database projection; never reuse a prior review.
+  if('currentCycleClientOutcome' in readiness)readiness.clientOutcome=readiness.currentCycleClientOutcome;
   const financialGate=resolveFinancialGate(financialGateResult.data);const mobilisationControlsComplete=Boolean(project.project_manager_id&&project.start_date&&project.due_date);const partnerControlled=Boolean(executionAssignment);const partnerCommencementPending=partnerControlled&&stage==='ready_for_execution'&&!commencement;
   const financeHref=`/workspace/commercial-control?project=${id}&focus=financial-gate`;const deliveryHref=`/workspace/projects/${id}/delivery`;const executionHref=`/workspace/projects/${id}/execution`;const documentsHref=`/workspace/documents?project=${id}`;const paymentsHref=`/workspace/payments?project=${id}`;
 
