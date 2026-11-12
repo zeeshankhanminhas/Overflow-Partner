@@ -3,13 +3,14 @@ const read=(file)=>readFileSync(file,'utf8');const checks=[];
 const check=(condition,label)=>checks.push({ok:Boolean(condition),label});
 const pages=['app/services/page.tsx','app/services/[slug]/page.tsx','app/about/page.tsx','app/process/page.tsx','app/contact/page.tsx','app/faq/page.tsx'];
 for(const page of pages)check(existsSync(page),'Marketing route: '+page);
+for(const file of ['app/assurance/page.tsx','components/AssurancePreview.tsx','lib/public-assurance-pdf.ts','app/api/public/capability-statement/route.ts','app/api/public/sample-handover/route.ts'])check(existsSync(file),'Engineering assurance asset: '+file);
 const services=read('lib/marketing.ts');const proof=read('components/ProofOfWork.tsx');const home=read('app/page.tsx');const faq=read('components/FAQ.tsx');const header=read('components/Header.tsx');const form=read('components/EnquiryForm.tsx');const css=read('app/globals.css');const sitemap=read('app/sitemap.ts');const api=read('app/api/intake/route.ts');
 check((services.match(/slug:'/g)||[]).length>=6,'Dedicated engineering service catalogue');
 check(!existsSync('components/EngineeringShowcase.tsx')&&!existsSync('app/demonstrations/page.tsx')&&!existsSync('app/demonstrations/[slug]/page.tsx'),'Unverified demonstrations removed from public site');
 check(!home.includes('<EngineeringShowcase/>')&&home.indexOf('<FAQ/>')<home.indexOf('<CTA/>'),'Unverified showcase absent; FAQ before enquiry');
 check(!proof.includes('DrawingPreview')&&!proof.includes('OP-PRJ-001'),'No misleading sample drawing on homepage');
 check(faq.includes('faqs.slice(0,8)')&&faq.includes('<details'),'Eight expandable questions on homepage');
-for(const path of ['/services','/process','/about','/faq'])check(header.includes(path),'Header navigation '+path);
+for(const path of ['/services','/process','/assurance','/about','/faq'])check(header.includes(path),'Header navigation '+path);
 check(form.includes("name=\"nurture_consent\"")&&form.includes('submitNativeIntake'),'Original client intake workflow and opt-in retained');
 check(form.includes('services.map(service =>') && !form.includes('Manufacturing-ready CAM assistance</option>'), 'Enquiry service options derive from marketing catalogue');
 check(api.includes('OP_PUBLIC_INTAKE_ORGANISATION_ID') && api.includes('organisations.size !== 1'), 'Public intake is tenant-deterministic or fails closed');
@@ -22,6 +23,9 @@ check(!form.includes('Technical intake follows')&&!form.includes('Step 2.')&&!fo
 check(!api.includes('Workspace ownership is not configured.')&&!api.includes('Preview intake is disabled until'),'Internal server configuration suppressed in public error');
 check(css.includes('.op-cta')&&css.includes('@media(max-width:640px)'),'Shared brand buttons and mobile form styles');
 check(!sitemap.includes('/demonstrations')&&sitemap.includes('services.map'),'Draft demonstrations absent from sitemap');
+check(sitemap.includes('/assurance')&&read('components/CookieConsent.tsx').includes("'/assurance'"),'Assurance is indexed and public-only analytics choice applies');
+check(home.includes('<AssurancePreview/>')&&read('app/assurance/page.tsx').includes('Illustrative'),'Homepage and page disclose illustrative content');
+check(read('lib/public-assurance-pdf.ts').includes('NOT APPROVED FOR MANUFACTURE')&&read('lib/public-assurance-pdf.ts').includes('not client work'),'Template PDF explicitly excludes real client-project claims');
 for(const file of ['public/demos/indexing-clamping-fixture.scad','public/demos/roller-support-assembly.scad'])check(!existsSync(file),'Unreviewed CAD asset removed: '+file);
 let fails=0;for(const c of checks){console.log((c.ok?'PASS ':'FAIL ')+c.label);if(!c.ok)fails++;}
 console.log(`Marketing QA: ${checks.length-fails}/${checks.length} passed`);if(fails)process.exit(1);
