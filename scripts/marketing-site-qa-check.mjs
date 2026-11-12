@@ -8,7 +8,7 @@ check((services.match(/slug:'/g)||[]).length>=6,'Dedicated engineering service c
 check(!existsSync('components/EngineeringShowcase.tsx') && existsSync('app/demonstrations/page.tsx') && existsSync('app/demonstrations/[slug]/page.tsx'),'Demo preview routes exist without legacy unverified showcase');
 const demoIndex=read('app/demonstrations/page.tsx');const demoDetail=read('app/demonstrations/[slug]/page.tsx');const demoData=read('lib/engineeringStudies.ts');
 check(demoIndex.includes('index:false') && demoDetail.includes('index:false') && !sitemap.includes('/demonstrations'), 'Development studies remain noindex and absent from sitemap');
-check(demoData.includes('not approved for manufacture') && demoDetail.includes('Independent technical approval has not been obtained'), 'Demonstration status and independent-review limitations are explicit');
+check(demoData.includes('not approved for manufacture') && demoDetail.includes('No independent sign-off'), 'Demonstration status and independent-review limitations are explicit');
 check(!home.includes('<EngineeringShowcase/>')&&home.indexOf('<FAQ/>')<home.indexOf('<CTA/>'),'Unverified showcase absent; FAQ before enquiry');
 check(!proof.includes('DrawingPreview')&&!proof.includes('OP-PRJ-001'),'No misleading sample drawing on homepage');
 check(faq.includes('faqs.slice(0,8)')&&faq.includes('<details'),'Eight expandable questions on homepage');
