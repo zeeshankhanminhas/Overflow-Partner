@@ -18,8 +18,9 @@ expect(workspacePage.includes('getWorkspaceChromeData'),'Mission Control reuses 
 expect(!workspacePage.includes('getOperationalExceptions(supabase'),'Mission Control does not duplicate exception queries');
 expect(!workspacePage.includes('getApprovalQueue(supabase'),'Mission Control does not duplicate approval queries');
 expect((dashboard.match(/\.limit\(/g)||[]).length>=9,'Mission Control collections are bounded');
-expect(layout.includes('<Analytics />'),'Vercel Web Analytics is mounted');
-expect(layout.includes('<SpeedInsights />'),'Vercel Speed Insights is mounted');
+const consent=read('components/CookieConsent.tsx');
+expect(layout.includes('<CookieConsent />') && consent.includes("choice === 'accepted'") && consent.includes('<Analytics />'),'Vercel Web Analytics loads only after public-page consent');
+expect(consent.includes('<SpeedInsights />') && consent.includes('!isMarketing || !ready'),'Speed Insights excluded from workspace routes and gated by consent');
 expect(!workspaceLayout.includes("'./mission-control-v2.css'"),'Mission Control CSS is route scoped');
 expect(!workspaceLayout.includes("'./project-desktop-canonical.css'"),'Project CSS is route scoped');
 
