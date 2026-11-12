@@ -26,7 +26,7 @@ export default function ProofOfWork(){return <>
   <div className="grid gap-14 lg:grid-cols-[.85fr_1.15fr]"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-[#b74a0f]">Engineering handover</p>
    <h2 className="mt-5 text-4xl font-medium leading-tight tracking-tight md:text-5xl">Clear deliverables. Controlled revisions.</h2>
    <p className="mt-7 max-w-xl text-base leading-7 text-black/65">A well-structured engineering handover makes drawings, models and the decisions behind them easier to review and use. The exact documents depend on the agreed scope.</p>
-   <p className="mt-5 max-w-xl text-sm leading-6 text-black/55">Detailed engineering demonstrations are undergoing technical development and independent review before publication. We do not present unapproved concept drawings as manufacturing-ready work.</p>
+   <p className="mt-5 max-w-xl text-sm leading-6 text-black/55">Engineering demonstrations are in technical development and internal checking and are not yet publicly released. Draft concept drawings are not presented as manufacturing-ready engineering work.</p>
    <Link href="/contact" className="op-cta mt-8">Discuss your requirements →</Link>
   </div><div className="border-t border-black/15">{records.map(([number,title,description])=><div className="grid gap-3 border-b border-black/15 py-6 sm:grid-cols-[52px_1fr] sm:gap-6" key={number}><span className="font-mono text-sm text-[#b74a0f]">{number}</span><div><h3 className="text-xl font-semibold">{title}</h3><p className="mt-2 max-w-xl text-sm leading-6 text-black/65">{description}</p></div></div>)}</div></div>
  </div></section>
