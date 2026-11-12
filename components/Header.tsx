@@ -6,7 +6,6 @@ import OverflowPartnerBrand from '@/components/brand/OverflowPartnerBrand';
 const links = [
   { label: 'Services', href: '/services' },
   { label: 'How it works', href: '/process' },
-  { label: 'Demonstrations', href: '/#demonstrations' },
   { label: 'About', href: '/about' },
   { label: 'FAQs', href: '/faq' },
 ];
