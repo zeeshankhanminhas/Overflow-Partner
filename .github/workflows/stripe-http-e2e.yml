@@ -79,7 +79,7 @@ jobs:
           test -z "$SUPABASE_ACCESS_TOKEN"
           test -z "$DATABASE_URL"
           sed -i '1i project_id = "opos_ephemeral_ci"' supabase/config.toml
-          supabase start -x studio,mailpit,logflare,vector,edge-runtime,realtime,storage-api,imgproxy,postgres-meta
+          supabase start -x studio,mailpit,logflare,vector,edge-runtime,realtime,imgproxy,postgres-meta
           supabase status -o env > "$RUNNER_TEMP/opos-supabase-local.env"
           set -a
           source "$RUNNER_TEMP/opos-supabase-local.env"
@@ -93,6 +93,13 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
+          # Partner delivery must use the real, private local Storage API.
+          # Catch accidental -x storage-api exclusions before the browser test.
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            "$API_URL/storage/v1/bucket/partner-delivery" > "$RUNNER_TEMP/opos-local-storage-bucket.json"
+          grep -q '"id":"partner-delivery"' "$RUNNER_TEMP/opos-local-storage-bucket.json"
       - name: Seed approved synthetic quotation (local Postgres only)
         shell: bash
         run: |
