@@ -93,7 +93,7 @@ export async function createCapabilityStatementPdf():Promise<Uint8Array>{
   });
   section(p1,'Engagement approach',38,286,fonts);
   let y=261;
-  for(const step of capabilitySteps){y=bullet(p1,38,y,step.title.replace(/^\\d+ \\/ /,''),step.detail,fonts);}
+  for(const step of capabilitySteps){y=bullet(p1,38,y,step.title.split(' / ')[1] || step.title,step.detail,fonts);}
 
   const p2=brandedPage(pdf,fonts,2,2,'Capability statement | Delivery controls');
   section(p2,'Engineering assurance',38,740,fonts);
@@ -105,7 +105,8 @@ export async function createCapabilityStatementPdf():Promise<Uint8Array>{
   const checkpoints=capabilityControls.map(x=>[x.title,x.detail] as const);
   for(const c of checkpoints){y2=bullet(p2,38,y2,c[0],c[1],fonts);}
   section(p2,'Typical handover records (where agreed)',38,288,fonts);
-  capabilityRecords.forEach((row,i)=>labelValue(p2,38,266-i*29,row.name,row.detail,fonts,207));
+  const shortRecordDescriptions=['Document IDs and revisions','Item numbers, quantities and materials','Technical comments and dispositions','Issued files and release status'];
+  capabilityRecords.forEach((row,i)=>labelValue(p2,38,266-i*29,row.name,shortRecordDescriptions[i],fonts,207));
   p2.drawRectangle({x:38,y:77,width:W-76,height:59,color:paper});
   txt(p2,'START A CONVERSATION',52,116,9.1,fonts.bold,orange);
   txt(p2,'overflow-partner.vercel.app/contact',52,94,12,fonts.bold,ink);
