@@ -164,14 +164,14 @@ export async function createSampleHandoverPdf():Promise<Uint8Array>{
     ['DWG-EX-003','Detail part B','--','Sample'],
     ['DWG-EX-004','Interface / installation','--','Sample'],
   ];
-  let y=573;
-  for(const r of drawings){tableRow(p2,y,[[52,r[0]],[194,r[1]],[406,r[2]],[463,r[3]]],fonts);y-=39;}
+  let rowY=573;
+  for(const r of drawings){tableRow(p2,rowY,[[52,r[0]],[194,r[1]],[406,r[2]],[463,r[3]]],fonts);rowY-=39;}
   section(p2,'Bill of materials',38,379,fonts);
   paragraph(p2,'Items and material descriptions below illustrate a field structure only, not an engineered assembly.',38,356,500,fonts.regular,9.8,15,muted);
   tableHeader(p2,327,[[52,'ITEM'],[112,'PART NO.'],[249,'DESCRIPTION'],[466,'QTY']],fonts);
   const bom=[['01','PART-EX-A','Example fabricated plate','1'],['02','PART-EX-B','Example machined spacer','2'],['03','HARDWARE-EX','Specified fastener (TBC)','4']];
-  y=278;
-  for(const r of bom){tableRow(p2,y,[[52,r[0]],[112,r[1]],[249,r[2]],[466,r[3]]],fonts);y-=39;}
+  rowY=278;
+  for(const r of bom){tableRow(p2,rowY,[[52,r[0]],[112,r[1]],[249,r[2]],[466,r[3]]],fonts);rowY-=39;}
   p2.drawRectangle({x:38,y:75,width:W-76,height:55,color:paper});
   paragraph(p2,'Example release fields: material / standard, finishing, inspection, revision, file format, checked-by, approval record and outstanding exceptions.',50,111,480,fonts.regular,9.2,14,ink);
 
