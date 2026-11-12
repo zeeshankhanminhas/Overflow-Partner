@@ -23,10 +23,11 @@ async function maybeOne(supabase: SupabaseClient, table: string, organisationId:
   const { data } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
   return (data ?? null) as Row | null;
 }
-async function many(supabase: SupabaseClient, table: string, organisationId: string, filters: Record<string,string>) {
+async function many(supabase: SupabaseClient, table: string, organisationId: string, filters: Record<string,string>, orderBy = 'created_at') {
   let query = supabase.from(table).select('*').eq('organisation_id', organisationId);
   for (const [key, value] of Object.entries(filters)) query = query.eq(key, value);
-  const { data } = await query.order('created_at', { ascending: true });
+  const { data, error } = await query.order(orderBy, { ascending: true });
+  if (error) throw new Error('Unable to retrieve '+table+' evidence: '+error.message);
   return (data ?? []) as Row[];
 }
 const joined = (rows: Row[], field: string, fallback = 'None recorded') => rows.map(row => text(row[field], '')).filter(Boolean).join('\n') || fallback;
@@ -54,7 +55,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     lead.owner_id ? maybeOne(supabase, 'profiles', input.organisationId, { id: String(lead.owner_id) }) : null,
     projectId ? many(supabase, 'documents', input.organisationId, { project_id: projectId }) : many(supabase, 'documents', input.organisationId, { lead_id: leadId }),
     projectId ? many(supabase, 'project_delivery_items', input.organisationId, { project_id: projectId }) : [],
-    projectId ? many(supabase, 'partner_delivery_submissions', input.organisationId, { project_id: projectId }) : [],
+    projectId ? many(supabase, 'partner_delivery_submissions', input.organisationId, { project_id: projectId }, 'submitted_at') : [],
     projectId ? many(supabase, 'project_client_transmittals', input.organisationId, { project_id: projectId }) : [],
     projectId ? many(supabase, 'invoices', input.organisationId, { project_id: projectId }) : [],
   ]);

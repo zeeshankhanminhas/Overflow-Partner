@@ -86,3 +86,11 @@ test('internal Technical Review is an active Project QA record and not a Partner
  assert.match(adapter,/partner_delivery_submission_files/);
  assert.match(adapter,/completedPartnerSubmission/);
 });
+
+test('internal document evidence reads submitted-at Partner packages and surfaces query failures',()=>{
+ const source=read('components/workspace/documents/documentAdapter.ts');
+ assert.ok(source.includes("{ project_id: projectId }, 'submitted_at'"));
+ assert.ok(source.includes('if (error) throw new Error'));
+ assert.ok(source.includes('partner_delivery_submission_files'));
+ assert.ok(source.includes('Boolean(completedPartnerSubmission)'));
+});
