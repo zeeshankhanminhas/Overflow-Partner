@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {approveHelixProjectEvidence} from './helix-document-browser.mjs';
 
-export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,projectId,expectedPartnerId){
+export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,projectId,expectedPartnerId,onStage=async()=>{}){
  const projectPath='/workspace/projects/'+projectId;
  await control.goto(projectPath);
  await control.locator('#record-next-action').waitFor({timeout:30000});
@@ -82,6 +82,7 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
   .eq('organisation_id',orgId).eq('id',projectId).single();
  assert.equal(afterError,null);
  assert.equal(after.project_stage,'ready_for_execution');
+ await onStage('ready_for_execution',projectId);
  console.log('PASS browser: new Project 360 advanced to Ready for Execution by operator stage action.');
 
  // The assigned Partner now uses a real signed workspace link, not an admin
@@ -172,6 +173,7 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
  assert.equal(progressError,null);
  assert.equal(inProgress.project_stage,'in_progress',
   'Only the genuine Partner commencement transaction may start project execution');
+ await onStage('in_progress',projectId);
  console.log('PASS browser: signed Partner workspace and attested start automatically advanced Helix Project to In Progress.');
  const {data:deliveryReadiness,error:deliveryReadinessError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projectId});
  assert.equal(deliveryReadinessError,null);
@@ -193,6 +195,7 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
   .select('project_stage').eq('organisation_id',orgId).eq('id',projectId).single();
  assert.equal(reviewStageError,null);
  assert.equal(reviewStage.project_stage,'internal_review');
+ await onStage('internal_review',projectId);
  console.log('PASS browser: real operator advanced physical Partner engineering delivery to governed Internal Review.');
  const {data:unreviewed,error:unreviewedError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projectId});
  assert.equal(unreviewedError,null);
@@ -221,6 +224,7 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
   .select('project_stage').eq('organisation_id',orgId).eq('id',projectId).single();
  assert.equal(clientReadyError,null);
  assert.equal(clientReady.project_stage,'ready_for_client_issue');
+ await onStage('ready_for_client_issue',projectId);
  console.log('PASS browser: approved Technical Review plus Document Register unlocked actual operator client-release transition.');
  return assignments[0].id;
 }

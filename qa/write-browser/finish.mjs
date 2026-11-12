@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {approveHelixProjectEvidence} from '../../scripts/qa/helix-document-browser.mjs';
 
-export async function finishJourney({control,db,operatorDb,orgId,project,step,expect}){
+export async function finishJourney({control,db,orgId,project,step,expect}){
  const path='/workspace/projects/'+project.id;
  const stage=async target=>{
   await control.goto(path);
@@ -35,7 +35,7 @@ export async function finishJourney({control,db,operatorDb,orgId,project,step,ex
  });
  await step('Gate 8: completion and governed final release',async()=>{
   await stage('completion');
-  await document('completion-report',true);await document('invoice',true);
+  await document('completion-report',true);
   await control.goto(path);
   await expect(control.getByRole('button',{name:'Approve final engineering file release'})).toBeDisabled();
   const {data:quote,error:qe}=await db.from('quotes').select('id,revision,total,currency').eq('id',project.quote_id).eq('organisation_id',orgId).single();assert.equal(qe,null);
@@ -45,11 +45,25 @@ export async function finishJourney({control,db,operatorDb,orgId,project,step,ex
   const timestamp=Math.floor(Date.now()/1000),signature=createHmac('sha256',process.env.STRIPE_WEBHOOK_SECRET).update(timestamp+'.'+body).digest('hex');
   const response=await fetch('http://127.0.0.1:3211/api/stripe/webhook',{method:'POST',headers:{'content-type':'application/json','stripe-signature':'t='+timestamp+',v1='+signature},body});
   assert.equal(response.status,200,'Synthetic final webhook rejected: '+await response.text());
+  // Build the invoice through commercial UI, then record the synthetic
+  // provider receipt in the ledger. This is bookkeeping, never a second charge.
+  await control.goto('/workspace/commercial-control?project='+project.id);
+  await control.getByRole('button',{name:'Create invoice',exact:true}).click();
+  const invoice=control.locator('form:has(select[name="invoice_type"])');
+  await invoice.locator('select[name="invoice_type"]').selectOption('final');await invoice.locator('input[name="subtotal"]').fill(String(quote.total));await invoice.locator('input[name="vat_rate"]').fill('0');await invoice.locator('input[name="due_date"]').fill(new Date().toISOString().slice(0,10));
+  await Promise.all([control.waitForURL(u=>u.searchParams.has('created')||u.searchParams.has('error')),invoice.getByRole('button',{name:'Create invoice',exact:true}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
+  await control.getByRole('button',{name:'Issue',exact:true}).click();
+  await Promise.all([control.waitForURL(u=>u.searchParams.has('updated')||u.searchParams.has('error')),control.getByRole('button',{name:'Confirm issue',exact:true}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
+  await document('invoice',true);
+  await control.goto('/workspace/payments?project='+project.id);
+  await control.getByRole('button',{name:'Record payment',exact:true}).click();
+  const receipt=control.locator('form:has(input[name="invoice_id"])');await receipt.locator('input[name="reference"]').fill('SIMULATED-PROVIDER-RECEIPTS-'+project.id);
+  await Promise.all([control.waitForURL(u=>u.searchParams.has('updated')||u.searchParams.has('error')),receipt.getByRole('button',{name:'Confirm client payment'}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
   await control.goto(path);const release=control.getByRole('button',{name:'Approve final engineering file release'});await expect(release).toBeEnabled();
   await Promise.all([control.waitForURL(u=>u.searchParams.has('updated')||u.searchParams.has('error')),release.click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
   const {data:notice,error:ne}=await db.from('notification_outbox').select('payload').eq('organisation_id',orgId).eq('entity_id',project.id).eq('event_key','client_delivery.final_released').single();assert.equal(ne,null);
   const ctx=await control.context().browser().newContext({serviceWorkers:'block',acceptDownloads:true});
-  try{const client=await ctx.newPage();await client.goto(notice.payload.actionUrl);await expect(client.getByRole('link',{name:/helix-qa-pump-assembly-evidence/})).toHaveCount(1);}finally{await ctx.close();}
+  try{const client=await ctx.newPage();await client.goto(notice.payload.actionUrl);const file=client.getByRole('link',{name:/helix-qa-pump-assembly-evidence/});await expect(file).toHaveCount(1);await file.click();await expect(client.locator('body')).toContainText('Disposable QA engineering package');}finally{await ctx.close();}
  });
  await step('Gate 9: simulated Partner settlement and governed closure',async()=>{
   // This exercises bookkeeping only. SIMULATED reference is never bank evidence.

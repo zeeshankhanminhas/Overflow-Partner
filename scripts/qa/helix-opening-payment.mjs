@@ -22,9 +22,9 @@ export async function verifyHelixOpeningPayment(admin,orgId,quote,caseId){
   note:'Disposable CI quote; explicitly authorised signed local test event'
  });
  assert.equal(permitError,null,'Synthetic payment must have explicit QA-only authorisation');
- const event=(id,cents)=>({id,livemode:false,type:'checkout.session.completed',data:{object:{
-  object:'checkout.session',id:'cs_'+id,livemode:false,mode:'payment',
-  payment_status:'paid',currency:'gbp',amount_total:cents,payment_intent:'pi_'+id,
+ const event=(id,cents)=>({id:id+'_'+quote.id,livemode:false,type:'checkout.session.completed',data:{object:{
+  object:'checkout.session',id:'cs_'+id+'_'+quote.id,livemode:false,mode:'payment',
+  payment_status:'paid',currency:'gbp',amount_total:cents,payment_intent:'pi_'+id+'_'+quote.id,
   metadata:{quote_id:quote.id,organisation_id:orgId,
    quote_revision:String(quote.revision),payment_stage:'opening'}
  }}});

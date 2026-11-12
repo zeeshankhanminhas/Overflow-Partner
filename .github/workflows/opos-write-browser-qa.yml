@@ -87,7 +87,7 @@ jobs:
             "$API_URL/storage/v1/bucket/partner-delivery" > "$RUNNER_TEMP/opos-local-storage-bucket.json"
           grep -q '"id":"partner-delivery"' "$RUNNER_TEMP/opos-local-storage-bucket.json"
       - name: Verify browser policy and preserve protected read-only tests
-        run: node --test qa/browser/authenticated-policy.test.mjs
+        run: node --test qa/browser/authenticated-policy.test.mjs qa/write-browser/policy.test.mjs
       - name: Start isolated HTTP mail provider contract fixture
         shell: bash
         run: |
@@ -110,8 +110,8 @@ jobs:
           name: disposable-browser-gates
           path: |
             qa/write-browser/results.json
-            test-results/**/attachments/*.json
-          if-no-files-found: warn
+            qa/write-browser/artifacts/**/attachments/*.json
+          if-no-files-found: error
       - name: Diagnostic Next.js logs on failure
         if: failure()
         shell: bash

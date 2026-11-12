@@ -4,7 +4,7 @@ import {approveHelixCaseEvidence} from './helix-document-browser.mjs';
 import {verifyHelixOpeningPayment} from './helix-opening-payment.mjs';
 import {mobiliseHelixNewProject} from './helix-project-browser.mjs';
 
-export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,caseId,partnerId,operatorDb){
+export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,caseId,partnerId,operatorDb,onStage=async()=>{}){
  const path='/workspace/leads/'+caseId;
  const open=async()=>{
   await control.goto(path);
@@ -86,9 +86,10 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  const response=await fetch('http://127.0.0.1:3411/messages');
  assert.equal(response.status,200);
  const {messages}=await response.json();
- assert.equal(messages.length,1);
- assert.match(messages[0].html,/quote-response\?token=/);
- assert.ok(messages[0].attachments?.some(x=>x.filename?.endsWith('.pdf')&&x.content?.length>100));
+ const delivered=messages.find(x=>x.id===outbox.provider_message_id);
+ assert.ok(delivered,'Provider acknowledgement must identify this customer quotation');
+ assert.match(delivered.html,/quote-response\?token=/);
+ assert.ok(delivered.attachments?.some(x=>x.filename?.endsWith('.pdf')&&x.content?.length>100));
  console.log('PASS browser: Client Quote issued through governed UI; local HTTP provider accepted PDF and signed response links.');
  const acceptUrl=outbox.payload?.actions?.find(action=>action.label==='Accept and proceed')?.url;
  assert.ok(acceptUrl?.includes('/quote-response?token='),'Mail payload must contain signed client acceptance action');
@@ -132,7 +133,8 @@ export async function createHelixDraftQuoteThroughCase360(control,admin,orgId,ca
  assert.equal(createdProject.quote_id,quotes[0].id);
  assert.equal(createdProject.lead_id,caseId);
  console.log('PASS browser: new client-originated Helix Project 360 is visible to operator at governed mobilisation stage.');
- await mobiliseHelixNewProject(control,admin,operatorDb,orgId,projectId,partnerId);
+ await onStage('mobilisation',projectId);
+ await mobiliseHelixNewProject(control,admin,operatorDb,orgId,projectId,partnerId,onStage);
 
  return quotes[0];
 }
