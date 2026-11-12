@@ -52,7 +52,7 @@ test('one governed project remains consistent across client and partner browser 
     for(const entry of opened){
       const wrong=entry.role.kind==='client'?'partner':'client';
       await entry.page.goto('/portal/'+wrong+'/projects/'+entry.projectId);
-      await expect(entry.page).toHaveURL(/\\/login\\?next=/);
+      await expect(entry.page).toHaveURL(url=>url.pathname==='/login' && url.searchParams.has('next'));
       await expect(entry.page.getByLabel('Password',{exact:true})).toBeVisible();
       await expect(entry.page.locator('section[aria-label="Authoritative project next action"]')).toHaveCount(0);
     }
