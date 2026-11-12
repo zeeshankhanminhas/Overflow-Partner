@@ -3,6 +3,7 @@ import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import PageShell from '@/components/marketing/PageShell';
 import StudySketch from '@/components/demonstrations/StudySketch';
+import CadEvidenceGallery from '@/components/demonstrations/CadEvidenceGallery';
 import {studies,findStudy} from '@/lib/engineeringStudies';
 
 type Props={params:Promise<{slug:string}>};
@@ -32,8 +33,7 @@ export default async function StudyPage({params}:Props){
    <div className="border-t border-white/25 pt-6 text-sm text-white/70 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0"><p className="text-xs font-semibold uppercase tracking-widest text-white">Engineering status</p><p className="mt-3 font-medium text-[#ffb58c]">{s.status}</p><p className="mt-3 leading-7">Original internal demonstration. No customer attribution, no manufacturing approval and no independent validation claimed.</p></div></div>
   </div></section>
   <section className="bg-[#f4f3ee] pb-20"><div className="container_large padding_global">
-   <div className="-mt-1 overflow-hidden border border-black/10 shadow-sm"><StudySketch roller={!isFixture}/></div>
-   <p className="mt-4 text-xs leading-6 text-black/55">Visual above is an explanatory schematic rather than the actual D03 CAD rendering. Actual CAD views will replace it once the source assets have been integrated and presentation-checked.</p>
+   {isFixture?<><div className="pt-10"><p className="mb-5 text-xs font-semibold uppercase tracking-[.2em] text-[#b74a0f]">Actual development CAD / D02 and D03</p><CadEvidenceGallery/></div><p className="mt-5 text-xs leading-6 text-black/60">Images above are authentic renders of the D02 and D03 development geometry. They do not establish a complete functional pneumatic mechanism, verified performance, or manufacturing approval.</p></>:<><div className="-mt-1 overflow-hidden border border-black/10 shadow-sm"><StudySketch roller/></div><p className="mt-4 text-xs leading-6 text-black/55">Illustrative D00 concept schematic. Detailed CAD documentation and independent verification have not been completed for this study.</p></>}
    <div className="mt-14 grid gap-8 border-b border-black/15 pb-12 md:grid-cols-[1fr_2fr]"><div><p className="text-xs font-semibold uppercase tracking-widest text-[#b74a0f]">01 / Design intent</p><h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">The engineering challenge</h2></div><p className="max-w-3xl text-lg leading-9 text-black/70">{isFixture?'Explore a mechanical architecture that positions a rotary workholding element and studies opposed clamp motion. The engineering problem includes shaft support, indexing accuracy, load transmission, retention and reliable actuator control.':'Explore a modular roller-support concept intended to carry a conveyor roller and permit installation adjustment. The engineering problem includes support stiffness, shaft and bearing suitability, load distribution and a practical manufacturing arrangement.'}</p></div>
    <div className="mt-12 grid gap-5 sm:grid-cols-2">{engineeringFocus.map(([title,detail],i)=><article key={title} className="border-t-2 border-[#20372a] bg-white p-7"><span className="text-xs font-semibold uppercase tracking-widest text-[#b74a0f]">Design focus / 0{i+1}</span><h3 className="mt-5 text-xl font-semibold">{title}</h3><p className="mt-4 text-sm leading-7 text-black/65">{detail}</p></article>)}</div>
   </div></section>
