@@ -37,10 +37,21 @@ export async function POST(request: Request) {
   try {
     const payload = intakeSchema.parse(await request.json());
     const supabase = getAdminClient();
-    const { data: owners, error: ownerError } = await supabase.from('profiles')
-      .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true).limit(2);
+    // Public enquiries must never go to an arbitrary tenant's first administrator.
+    // Production may opt into a specific organisation; legacy single-tenant setups
+    // remain supported only when there is exactly one eligible organisation.
+    const targetOrganisation = process.env.OP_PUBLIC_INTAKE_ORGANISATION_ID?.trim();
+    let ownerQuery = supabase.from('profiles')
+      .select('id, organisation_id, role').in('role', ['owner', 'admin']).eq('is_active', true);
+    if (targetOrganisation) ownerQuery = ownerQuery.eq('organisation_id', targetOrganisation);
+    const { data: owners, error: ownerError } = await ownerQuery.order('id', { ascending: true }).limit(1000);
     if (ownerError) throw ownerError;
-    const owner = owners?.[0];
+    const organisations = new Set((owners || []).map(profile => profile.organisation_id));
+    if (!owners?.length || organisations.size !== 1 || owners.length === 1000) {
+      console.error('Public intake requires exactly one eligible organisation; configure OP_PUBLIC_INTAKE_ORGANISATION_ID for multi-tenant use.');
+      return NextResponse.json({ success: false, message: 'Enquiries are temporarily unavailable. Please try again later.' }, { status: 503 });
+    }
+    const owner = [...owners].sort((a, b) => Number(b.role === 'owner') - Number(a.role === 'owner') || a.id.localeCompare(b.id))[0];
     if (!owner?.id || !owner.organisation_id) {
       return NextResponse.json({ success: false, message: 'Enquiries are temporarily unavailable. Please try again later.' }, { status: 503 });
     }
