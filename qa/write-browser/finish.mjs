@@ -38,7 +38,7 @@ export async function finishJourney({control,db,orgId,project,step,expect}){
   await document('completion-report',true);
   await control.goto(path);
   await expect(control.getByRole('button',{name:'Approve final engineering file release'})).toBeDisabled();
-  const {data:quote,error:qe}=await db.from('quotes').select('id,revision,total,currency').eq('id',project.quote_id).eq('organisation_id',orgId).single();assert.equal(qe,null);
+  const {data:quote,error:qe}=await db.from('quotes').select('id,revision,subtotal,vat,total,currency').eq('id',project.quote_id).eq('organisation_id',orgId).single();assert.equal(qe,null);
   const {data:terms,error:te}=await db.from('quote_release_contracts').select('opening_amount').eq('quote_id',quote.id).eq('organisation_id',orgId).single();assert.equal(te,null);
   const eventId='evt_browser_final_'+project.id;
   const body=JSON.stringify({id:eventId,livemode:false,type:'checkout.session.completed',data:{object:{object:'checkout.session',id:'cs_'+eventId,livemode:false,mode:'payment',payment_status:'paid',currency:quote.currency.toLowerCase(),amount_total:Math.round((Number(quote.total)-Number(terms.opening_amount))*100),payment_intent:'pi_'+eventId,metadata:{quote_id:quote.id,organisation_id:orgId,quote_revision:String(quote.revision),project_id:project.id,payment_stage:'final'}}}});
@@ -50,7 +50,7 @@ export async function finishJourney({control,db,orgId,project,step,expect}){
   await control.goto('/workspace/commercial-control?project='+project.id);
   await control.getByRole('button',{name:'Create invoice',exact:true}).click();
   const invoice=control.locator('form:has(select[name="invoice_type"])');
-  await invoice.locator('select[name="invoice_type"]').selectOption('final');await invoice.locator('input[name="subtotal"]').fill(String(quote.total));await invoice.locator('input[name="vat_rate"]').fill('0');await invoice.locator('input[name="due_date"]').fill(new Date().toISOString().slice(0,10));
+  await invoice.locator('select[name="invoice_type"]').selectOption('final');await invoice.locator('input[name="subtotal"]').fill(String(quote.subtotal));await invoice.locator('input[name="vat_rate"]').fill(String(Math.round(Number(quote.vat)/Number(quote.subtotal)*10000)/100));await invoice.locator('input[name="due_date"]').fill(new Date().toISOString().slice(0,10));
   await Promise.all([control.waitForURL(u=>u.searchParams.has('created')||u.searchParams.has('error')),invoice.getByRole('button',{name:'Create invoice',exact:true}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);
   await control.getByRole('button',{name:'Issue',exact:true}).click();
   await Promise.all([control.waitForURL(u=>u.searchParams.has('updated')||u.searchParams.has('error')),control.getByRole('button',{name:'Confirm issue',exact:true}).click()]);assert.equal(new URL(control.url()).searchParams.get('error'),null);

@@ -33,7 +33,8 @@ for(const tenant of ['00000000-0000-4000-8000-000000009932','00000000-0000-4000-
    assert.equal(gate,5);
   });
   const {data:projects,error}=await db.from('projects').select('id,quote_id,project_stage').eq('organisation_id',orgId);assert.equal(error,null);assert.equal(projects.length,1);
-  await finishJourney({control,db,operatorDb,orgId,project:projects[0],step:test.step,expect});
+  await finishJourney({control,db,orgId,project:projects[0],step:test.step,expect});
+  const {data:foreign,error:foreignError}=await operatorDb.from('projects').select('id').neq('organisation_id',orgId);assert.equal(foreignError,null);assert.deepEqual(foreign,[],'Authenticated operator must never see the other synthetic customer tenant');
  }catch(error){
   // Synthetic-only diagnostics: no HTML, signed URLs, cookies or credentials.
   const {data:projects}=await db.from('projects').select('id,project_stage').eq('organisation_id',orgId);
