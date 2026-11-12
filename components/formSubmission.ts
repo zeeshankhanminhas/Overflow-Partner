@@ -3,6 +3,8 @@ export const REQUEST_TIMEOUT_MS = 120000;
 export type SubmitResult = {
   submissionId: string;
   timestamp: string;
+  acknowledgement?: 'queued' | 'suppressed' | 'failed';
+  step2?: { created: boolean; emailStatus: 'queued' | 'failed' };
 };
 
 function withTimeout(ms: number): AbortSignal {
@@ -33,6 +35,8 @@ export async function submitNativeIntake(payload: Record<string, string>): Promi
     message?: string;
     submissionId?: string;
     timestamp?: string;
+    acknowledgement?: 'queued' | 'suppressed' | 'failed';
+    step2?: { created: boolean; emailStatus: 'queued' | 'failed' };
   };
 
   if (!response.ok || json.success !== true) {
@@ -42,6 +46,8 @@ export async function submitNativeIntake(payload: Record<string, string>): Promi
   return {
     submissionId: json.submissionId || `overflow-partner-${Date.now()}`,
     timestamp: json.timestamp || new Date().toISOString(),
+    acknowledgement: json.acknowledgement,
+    step2: json.step2,
   };
 }
 
