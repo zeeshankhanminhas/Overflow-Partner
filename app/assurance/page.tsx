@@ -31,10 +31,10 @@ export default function AssurancePage() {
         <h1 className="mt-6 max-w-5xl text-5xl font-medium leading-[1.06] tracking-[-.045em] md:text-7xl">Engineering support that your team can follow and control.</h1>
         <p className="mt-8 max-w-3xl text-lg leading-8 text-white/75">An overflow engineering partner for defined CAD, drawing and technical documentation work packages. We focus on clear scope, transparent review responsibilities and controlled handover.</p>
         <div className="mt-10 flex flex-wrap gap-3">
-          <a href="/api/public/capability-statement" className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#ff9c65] px-5 py-3 text-sm font-semibold text-[#151b17] hover:bg-[#ffc09e]">Download capability statement (PDF) <span className="ml-2" aria-hidden="true">↓</span></a>
+          <Link href="/assurance/templates" className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#ff9c65] px-5 py-3 text-sm font-semibold text-[#151b17] hover:bg-[#ffc09e]">Preview branded templates <span className="ml-2" aria-hidden="true">↗</span></Link>
           <a href="/api/public/sample-handover" className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/40 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10">Sample handover pack (PDF) <span className="ml-2" aria-hidden="true">↓</span></a>
         </div>
-        <p className="mt-6 max-w-2xl text-xs leading-6 text-white/60">The sample pack contains illustrative document structures, not an actual client project or manufacturing-approved engineering deliverables.</p>
+        <p className="mt-6 max-w-2xl text-xs leading-6 text-white/60">Preview printable, React-rendered A4 documents or download ready-made PDFs. All sample records are illustrative, not actual client projects or manufacturing-approved deliverables.</p>
       </div>
     </section>
 
@@ -79,7 +79,7 @@ export default function AssurancePage() {
             <h2 id="sample-records" className="mt-5 text-4xl font-semibold tracking-tight">See the structure of a controlled handover.</h2>
             <p className="mt-4 max-w-2xl leading-8 text-black/65">Preview the register and review record formats used to communicate what a technical delivery should contain.</p>
           </div>
-          <a href="/api/public/sample-handover" className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-md border border-[#101311] px-5 py-3 text-sm font-semibold hover:bg-[#101311] hover:text-white">Download sample pack (PDF) ↓</a>
+          <Link href="/assurance/templates" className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-md border border-[#101311] px-5 py-3 text-sm font-semibold hover:bg-[#101311] hover:text-white">Preview document templates ↗</Link>
         </div>
         <div className="mt-10 overflow-x-auto border border-black/15 bg-white">
           <table className="w-full min-w-[730px] border-collapse text-left text-sm">

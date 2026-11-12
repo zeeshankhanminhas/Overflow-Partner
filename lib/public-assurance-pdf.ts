@@ -1,3 +1,4 @@
+import {capabilityServices,capabilityControls,capabilitySteps,capabilityRecords,handoverIndex,drawingRegister,sampleBOM,sampleReview,releaseChecklist} from './assurance-template-data';
 import {PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage} from 'pdf-lib';
 
 const W=595.28, H=841.89;
@@ -84,14 +85,7 @@ export async function createCapabilityStatementPdf():Promise<Uint8Array>{
   txt(p1,'Organised around your team.',38,670,28,fonts.regular,ink);
   paragraph(p1,'Additional engineering execution capacity for defined design, CAD, drawing and documentation work packages. Clear scope, review responsibilities and controlled handover are built into the proposed delivery approach.',38,634,508,fonts.regular,11.1,17,muted);
   section(p1,'Areas of support',38,553,fonts);
-  const serviceBoxes=[
-    ['3D CAD modelling','Part and assembly modelling to agreed design inputs.'],
-    ['Production drawings','Controlled technical drawing and revision packages.'],
-    ['Reverse engineering','Reconstruction from suitable measured references.'],
-    ['Technical documentation','Registers, BOMs and technical handover records.'],
-    ['Drawing conversion','Legacy drawing updates and format migration.'],
-    ['Overflow engineering support','Defined work packages alongside existing teams.'],
-  ] as const;
+  const serviceBoxes=capabilityServices.map(s=>[s.name,s.detail] as const);
   serviceBoxes.forEach((item,i)=>{
     const x=i%2===0?38:302;
     const y=532-Math.floor(i/2)*76;
@@ -99,10 +93,7 @@ export async function createCapabilityStatementPdf():Promise<Uint8Array>{
   });
   section(p1,'Engagement approach',38,286,fonts);
   let y=261;
-  y=bullet(p1,38,y,'Clarify','Establish outcome, design inputs, constraints and acceptance criteria.',fonts);
-  y=bullet(p1,38,y,'Agree','Confirm the scope, responsible parties, delivery dates and commercial terms.',fonts);
-  y=bullet(p1,38,y,'Execute and review','Work to agreed standards with defined technical decision points.',fonts);
-  bullet(p1,38,y,'Handover','Release the agreed files, identified revisions and supporting records.',fonts);
+  for(const step of capabilitySteps){y=bullet(p1,38,y,step.title.split(' / ')[1] || step.title,step.detail,fonts);}
 
   const p2=brandedPage(pdf,fonts,2,2,'Capability statement | Delivery controls');
   section(p2,'Engineering assurance',38,740,fonts);
@@ -111,18 +102,11 @@ export async function createCapabilityStatementPdf():Promise<Uint8Array>{
   paragraph(p2,'A practical control framework for work packages. Exact technical responsibilities and review requirements are agreed with each client; they are not represented here as independently certified performance.',38,637,503,fonts.regular,10.5,16,muted);
   section(p2,'Delivery checkpoints',38,575,fonts);
   let y2=548;
-  const checkpoints=[
-    ['Scope control','Requirements, source data, boundaries and acceptance conditions are recorded.'],
-    ['Information protection','Confidentiality and sharing arrangements are confirmed before sensitive data transfer.'],
-    ['Technical review','Clarifications, comments and revisions follow an agreed review responsibility.'],
-    ['Release control','Files, drawing numbers and revisions are identified in the handover index.'],
-  ] as const;
+  const checkpoints=capabilityControls.map(x=>[x.title,x.detail] as const);
   for(const c of checkpoints){y2=bullet(p2,38,y2,c[0],c[1],fonts);}
   section(p2,'Typical handover records (where agreed)',38,288,fonts);
-  labelValue(p2,38,266,'Document register','Drawing / document numbers and revisions',fonts,207);
-  labelValue(p2,38,237,'Bill of materials','Part references, quantities and material fields',fonts,207);
-  labelValue(p2,38,208,'Technical review log','Findings, responsible parties and dispositions',fonts,207);
-  labelValue(p2,38,179,'Handover index','Issued file inventory and acceptance record',fonts,207);
+  const shortRecordDescriptions=['Document IDs and revisions','Item numbers, quantities and materials','Technical comments and dispositions','Issued files and release status'];
+  capabilityRecords.forEach((row,i)=>labelValue(p2,38,266-i*29,row.name,shortRecordDescriptions[i],fonts,207));
   p2.drawRectangle({x:38,y:77,width:W-76,height:59,color:paper});
   txt(p2,'START A CONVERSATION',52,116,9.1,fonts.bold,orange);
   txt(p2,'overflow-partner.vercel.app/contact',52,94,12,fonts.bold,ink);
@@ -141,13 +125,7 @@ export async function createSampleHandoverPdf():Promise<Uint8Array>{
   txt(p1,'SAMPLE ONLY - NOT APPROVED FOR MANUFACTURE OR CLIENT RELEASE',50,512,10.0,fonts.bold,orange);
   section(p1,'Example handover index',38,455,fonts);
   tableHeader(p1,432,[[52,'REFERENCE'],[178,'DOCUMENT'],[389,'STATUS']],fonts);
-  const rows=[
-    ['SAMPLE-INDEX-001','Handover index','Template'],
-    ['SAMPLE-DWG-001','Drawing register','Template'],
-    ['SAMPLE-BOM-001','Bill of materials','Template'],
-    ['SAMPLE-REV-001','Technical review log','Template'],
-    ['SAMPLE-CHK-001','Release checklist','Template'],
-  ];
+  const rows=handoverIndex.map(row=>[row.ref,row.title,row.status] as const);
   let y=380;
   for(const r of rows){tableRow(p1,y,[[52,r[0]],[178,r[1]],[389,r[2]]],fonts);y-=40;}
   section(p1,'Handover metadata fields',38,157,fonts);
@@ -158,18 +136,13 @@ export async function createSampleHandoverPdf():Promise<Uint8Array>{
   txt(p2,'Drawing register',38,699,26,fonts.bold,ink);
   paragraph(p2,'The example uses neutral placeholder identifiers. Real drawings require client-specific information, approved revisions and a defined release status.',38,667,505,fonts.regular,10,16,muted);
   tableHeader(p2,622,[[52,'DRAWING NO.'],[194,'TITLE'],[406,'REV.'],[463,'STATE']],fonts);
-  const drawings=[
-    ['DWG-EX-001','Assembly arrangement','--','Sample'],
-    ['DWG-EX-002','Detail part A','--','Sample'],
-    ['DWG-EX-003','Detail part B','--','Sample'],
-    ['DWG-EX-004','Interface / installation','--','Sample'],
-  ];
+  const drawings=drawingRegister.map(row=>[row.ref,row.title,row.rev,row.status] as const);
   let rowY=573;
   for(const r of drawings){tableRow(p2,rowY,[[52,r[0]],[194,r[1]],[406,r[2]],[463,r[3]]],fonts);rowY-=39;}
   section(p2,'Bill of materials',38,379,fonts);
   paragraph(p2,'Items and material descriptions below illustrate a field structure only, not an engineered assembly.',38,356,500,fonts.regular,9.8,15,muted);
   tableHeader(p2,327,[[52,'ITEM'],[112,'PART NO.'],[249,'DESCRIPTION'],[466,'QTY']],fonts);
-  const bom=[['01','PART-EX-A','Example fabricated plate','1'],['02','PART-EX-B','Example machined spacer','2'],['03','HARDWARE-EX','Specified fastener (TBC)','4']];
+  const bom=sampleBOM.map(row=>[row.item,row.ref,row.description,row.qty] as const);
   rowY=278;
   for(const r of bom){tableRow(p2,rowY,[[52,r[0]],[112,r[1]],[249,r[2]],[466,r[3]]],fonts);rowY-=39;}
   p2.drawRectangle({x:38,y:75,width:W-76,height:55,color:paper});
@@ -179,23 +152,12 @@ export async function createSampleHandoverPdf():Promise<Uint8Array>{
   section(p3,'Traceability templates',38,740,fonts);
   txt(p3,'Technical review log',38,700,27,fonts.bold,ink);
   paragraph(p3,'Issues should be assigned and resolved against a controlled file revision before a technical release. Entries here are instructions, not evidence of completed checks.',38,665,505,fonts.regular,10.3,16,muted);
-  const findings=[
-    ['REVIEW-01','Input dimensions confirmed','Owner / evidence','Open'],
-    ['REVIEW-02','Critical interfaces evaluated','Owner / evidence','Open'],
-    ['REVIEW-03','Drawing notes and revisions checked','Owner / evidence','Open'],
-  ];
+  const findings=sampleReview.map(row=>[row.ref,row.requirement,'Owner / evidence',row.status] as const);
   tableHeader(p3,605,[[52,'REF.'],[140,'REVIEW REQUIREMENT'],[455,'STATE']],fonts);
   let y3=556;
   for(const r of findings){tableRow(p3,y3,[[52,r[0]],[140,r[1]],[455,r[3]]],fonts);y3-=40;}
   section(p3,'Sample handover readiness checklist',38,400,fonts);
-  const checks=[
-    'Scope and agreed deliverable schedule referenced',
-    'Drawing and native / neutral file revisions matched',
-    'Technical review comments and exceptions recorded',
-    'Client-facing release package identified',
-    'Outstanding assumptions and exclusions disclosed',
-    'Release owner and recipient recorded',
-  ];
+  const checks=releaseChecklist;
   let cy=366;
   for(const item of checks){
     p3.drawRectangle({x:41,y:cy-3,width:11,height:11,borderWidth:1,borderColor:muted});
