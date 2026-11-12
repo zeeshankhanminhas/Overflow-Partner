@@ -58,6 +58,8 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     projectId ? many(supabase, 'project_client_transmittals', input.organisationId, { project_id: projectId }) : [],
     projectId ? many(supabase, 'invoices', input.organisationId, { project_id: projectId }) : [],
   ]);
+  const partnerDeliveryFiles = projectId ? await many(supabase, 'partner_delivery_submission_files', input.organisationId, { project_id: projectId }) : [];
+  const completedPartnerSubmission = submissions.find(item => partnerDeliveryFiles.some(file => String(file.submission_id || '') === String(item.id)));
   const response = reviewRequest?.id ? await maybeOne(supabase, 'partner_review_responses', input.organisationId, { partner_review_request_id: String(reviewRequest.id) }) : null;
   let partnerQuote = reviewRequest?.id ? await maybeOne(supabase, 'partner_quotes', input.organisationId, { partner_review_request_id: String(reviewRequest.id) }) : null;
   if (!partnerQuote && commercial?.partner_quote_id) partnerQuote = await maybeOne(supabase, 'partner_quotes', input.organisationId, { id: String(commercial.partner_quote_id) });
@@ -73,7 +75,18 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
     : [{ title: 'Record identity', facts: common }];
 
   if (['client-requirements','requirement-sheet','scope-of-work','statement-of-work','proposal'].includes(slug)) sections.push({ title: 'Agreed technical basis', facts: scope });
-  if (['partner-technical-assessment-report','technical-review','commercial-qualification-record','commercial-approval'].includes(slug)) sections.push({ title: 'Technical assessment', facts: [fact('Feasibility', response?.feasibility), fact('Confidence', response?.confidence_percent !== undefined ? `${response.confidence_percent}%` : null), fact('Capability', response?.capability_status), fact('Capacity', response?.capacity_status), fact('Earliest start', date(response?.earliest_start_date)), fact('Estimated hours', response?.estimated_engineering_hours), fact('Lead time', response?.estimated_lead_time_days !== undefined ? `${response.estimated_lead_time_days} days` : null), fact('Assumptions', response?.assumptions), fact('Technical risks', response?.technical_risks), fact('Missing information', response?.missing_information), fact('Exclusions', response?.exclusions)] });
+  if (['partner-technical-assessment-report','commercial-qualification-record','commercial-approval'].includes(slug)) sections.push({ title: 'Technical assessment', facts: [fact('Feasibility', response?.feasibility), fact('Confidence', response?.confidence_percent !== undefined ? `${response.confidence_percent}%` : null), fact('Capability', response?.capability_status), fact('Capacity', response?.capacity_status), fact('Earliest start', date(response?.earliest_start_date)), fact('Estimated hours', response?.estimated_engineering_hours), fact('Lead time', response?.estimated_lead_time_days !== undefined ? `${response.estimated_lead_time_days} days` : null), fact('Assumptions', response?.assumptions), fact('Technical risks', response?.technical_risks), fact('Missing information', response?.missing_information), fact('Exclusions', response?.exclusions)] });
+  if (slug === 'technical-review') sections.push({ title: 'Internal technical QA evidence', facts: [
+    fact('Project number', project?.project_number),
+    fact('Project stage', status(project?.project_stage)),
+    fact('Controlled project documents', documents.length),
+    fact('Current delivery submission', completedPartnerSubmission?.id),
+    fact('Partner delivery summary', completedPartnerSubmission?.delivery_summary),
+    fact('Partner review state', status(completedPartnerSubmission?.review_status)),
+    fact('Attached engineering evidence', partnerDeliveryFiles.filter(file => String(file.submission_id || '') === String(completedPartnerSubmission?.id || '')).map(file => text(file.original_filename)).join(', ') || 'No submitted files'),
+    fact('Engineering file count', partnerDeliveryFiles.filter(file => String(file.submission_id || '') === String(completedPartnerSubmission?.id || '')).length),
+    fact('Approval basis', 'Technical adequacy, revision compliance and deliverable completeness require authorised reviewer signature and approval')
+  ] });
   if (['rfq-response','commercial-approval','commercial-qualification-record'].includes(slug)) sections.push({ title: 'Commercial evidence', facts: [fact('Partner quote reference', partnerQuote?.quote_reference), fact('Partner price', money(partnerQuote?.price, partnerQuote?.currency || quote?.currency)), fact('Partner lead time', partnerQuote?.lead_time_days !== undefined ? `${partnerQuote.lead_time_days} days` : null), fact('Partner quote validity', date(partnerQuote?.valid_until)), fact('Payment terms', partnerQuote?.payment_terms), fact('Commercial assumptions', partnerQuote?.commercial_assumptions), fact('Commercial exclusions', partnerQuote?.commercial_exclusions)] });
   if (['commercial-approval','commercial-qualification-record'].includes(slug)) sections.push({ title: 'Approved pricing', facts: [fact('Partner cost', money(commercial?.cost_price, quote?.currency)), fact('Client price', money(commercial?.client_price, quote?.currency)), fact('Margin amount', money(commercial?.margin_amount, quote?.currency)), fact('Margin', commercial?.margin_percent !== undefined ? `${number(commercial.margin_percent).toFixed(1)}%` : null), fact('Approval state', status(commercial?.status)), fact('Approved at', date(commercial?.approved_at))] });
   if (slug === 'client-quote') {
@@ -99,7 +112,7 @@ export async function buildDocumentAdapter(supabase: SupabaseClient, slug: Works
   const evidence: Record<DocumentEvidenceKey, boolean> = {
     clientIdentity: recorded(lead, 'company_name', 'contact_name'), technicalIntake: recorded(intake, 'description', 'deliverables'), partnerAssessment: recorded(response, 'feasibility'), partnerQuote: recorded(partnerQuote, 'price', 'currency'),
     commercialApproval: Boolean(commercial && commercial.status === 'approved' && !absent(commercial.client_price)), clientQuote: recorded(quote, 'quote_number', 'total', 'currency', 'valid_until'), acceptedQuote: Boolean((quote && ['accepted','paid'].includes(String(quote.status))) || quote?.accepted_at),
-    project: recorded(project, 'project_number'), deliveryEvidence: deliverables.length > 0 && (submissions.length > 0 || transmittals.length > 0), documentControl: documents.length > 0,
+    project: recorded(project, 'project_number'), deliveryEvidence: (deliverables.length > 0 && (submissions.length > 0 || transmittals.length > 0)) || Boolean(completedPartnerSubmission), documentControl: documents.length > 0,
     invoice: recorded(invoice, 'invoice_number', 'due_date') && !absent(invoice?.total || invoice?.amount_due),
   };
   const contract = documentDataContracts[slug];

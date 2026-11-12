@@ -72,3 +72,17 @@ test('Project 360 exposes governed document generation rather than dead preview-
  assert.match(source,/items=\{documentRequirements\}/);
  assert.doesNotMatch(source,/href=\{\`\/workspace\/documents\/templates\/\$\{item\.key\}\?project=\$\{id\}\`\}/);
 });
+
+test('internal Technical Review is an active Project QA record and not a Partner Assessment alias',()=>{
+ const registry=read('components/workspace/documents/documentRegistry.ts');
+ const actions=read('app/workspace/documents/generate-actions.ts');
+ const contracts=read('components/workspace/documents/documentDataContracts.ts');
+ const adapter=read('components/workspace/documents/documentAdapter.ts');
+ assert.match(registry,/slug: 'technical-review', title: 'Internal Technical Review', dataStatus: 'live-backed', lifecycle: active/);
+ assert.doesNotMatch(registry,/'technical-review': 'partner-technical-assessment-report'/);
+ assert.match(actions,/const projectDocuments:[\\s\\S]*?'technical-review'/);
+ assert.doesNotMatch(actions,/const caseDocuments:[^\\n]*'technical-review'/);
+ assert.match(contracts,/'technical-review': contract\\('internal', \\['project', 'documentControl', 'deliveryEvidence'\\]\\)/);
+ assert.match(adapter,/partner_delivery_submission_files/);
+ assert.match(adapter,/completedPartnerSubmission/);
+});

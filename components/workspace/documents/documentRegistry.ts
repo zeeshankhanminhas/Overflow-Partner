@@ -42,6 +42,7 @@ export const workspaceDocuments: WorkspaceDocumentItem[] = [
   { slug: 'vendor-safe-package', title: 'Partner-Safe Package Cover Sheet', dataStatus: 'preview-only', lifecycle: 'dormant', dormantReason, description: `Controlled index of technical information and files released to an assigned Delivery Partner. ${dormantReason}` },
   { slug: 'vendor-instructions', title: 'Delivery Partner Instructions', dataStatus: 'preview-only', lifecycle: active, description: `Working, communication, information-security and submission rules for Delivery Partners. ${previewOnly}` },
   { slug: 'rfq-response', title: 'Delivery Partner Quotation', dataStatus: 'preview-only', lifecycle: active, description: `Partner price, lead time, validity and terms for internal commercial review. ${previewOnly}` },
+  { slug: 'technical-review', title: 'Internal Technical Review', dataStatus: 'live-backed', lifecycle: active, description: 'Controlled internal engineering QA review of the submitted Partner deliverables, attached file evidence and project scope.' },
   { slug: 'document-register', title: 'Document Register', dataStatus: 'preview-only', lifecycle: active, description: `Controlled index of documents, revisions, status, owners and authorised recipients. ${previewOnly}` },
   { slug: 'commercial-qualification-record', title: 'Commercial Qualification Record', dataStatus: 'live-backed', lifecycle: active, description: 'Live internal decision record built from the Case, Technical Intake and Partner Technical Assessment.' },
   { slug: 'capability-statement', title: 'Capability Statement', dataStatus: 'preview-only', lifecycle: active, description: `Overview of Overflow Partner services and delivery model. ${previewOnly}` },
@@ -58,7 +59,6 @@ export function isDormantWorkspaceDocument(slug: string) {
 
 export const legacyDocumentAliases: Partial<Record<WorkspaceDocumentSlug, WorkspaceDocumentSlug>> = {
   'requirement-sheet': 'client-requirements',
-  'technical-review': 'partner-technical-assessment-report',
   quote: 'client-quote',
 };
 
