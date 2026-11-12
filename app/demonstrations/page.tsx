@@ -2,6 +2,8 @@ import type {Metadata} from 'next';
 import Link from 'next/link';
 import PageShell from '@/components/marketing/PageShell';
 import StudySketch from '@/components/demonstrations/StudySketch';
+import Image from 'next/image';
+import {cadDataUri} from '@/lib/demonstrationCadPreviews';
 import {studies} from '@/lib/engineeringStudies';
 
 export const metadata:Metadata={title:'Engineering Development Portfolio | Overflow Partner',description:'Explore original mechanical engineering development studies, their scope and documented technical review status.',robots:{index:false,follow:false}};
@@ -20,9 +22,9 @@ export default function DemonstrationsPage(){return <PageShell>
    </div>
  </div></section>
  <section className="bg-[#f4f3ee] py-20 md:py-24"><div className="container_large padding_global">
-   <div className="mb-10 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-[#b74a0f]">Selected studies</p><h2 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">Two different engineering challenges.</h2></div><span className="text-sm text-[#59645c]">Portfolio preview / revision controlled</span></div>
+   <div className="mb-10 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-[#b74a0f]">Selected studies</p><h2 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">Two engineering studies, documented.</h2></div><span className="text-sm text-[#59645c]">Portfolio preview / revision controlled</span></div>
    <div className="grid gap-8 lg:grid-cols-2">{studies.map((s,i)=><article key={s.id} className="group overflow-hidden border border-black/15 bg-white">
-     <Link href={`/demonstrations/${s.slug}`} className="block focus-visible:outline-offset-[-5px]" aria-label={`View ${s.title} engineering study`}><StudySketch roller={i===1}/></Link>
+     <Link href={`/demonstrations/${s.slug}`} className="block focus-visible:outline-offset-[-5px]" aria-label={`View ${s.title} engineering study`}>{i===0?<div className="flex min-h-[285px] items-center justify-center bg-[#121b19] p-6"><Image src={cadDataUri("d03Assembly")} alt="Actual D03 indexing spindle CAD subassembly render" width={430} height={290} unoptimized className="max-h-72 w-full object-contain"/></div>:<StudySketch roller/>}</Link>
      <div className="p-7 md:p-10"><div className="flex flex-wrap items-center justify-between gap-3 text-xs font-semibold uppercase tracking-widest"><span className="text-[#b74a0f]">{s.id}</span><span className="border border-[#d6d7d0] px-3 py-1 text-[#556158]">Revision {s.revision}</span></div>
       <h3 className="mt-6 text-3xl font-semibold leading-tight tracking-tight">{s.title}</h3><p className="mt-4 text-base leading-7 text-black/65">{s.description}</p>
       <p className="mt-6 border-l-2 border-[#b74a0f] pl-3 text-sm font-medium text-[#79421f]">{s.status}</p>
