@@ -9,7 +9,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 const KEY = 'overflow_partner_cookie_consent';
 const EVENT = 'overflow-partner:open-cookie-preferences';
 type Choice = 'accepted' | 'rejected';
-const marketingPages = new Set(['/', '/services', '/process', '/about', '/faq', '/contact', '/privacy', '/terms', '/cookie-policy']);
+const marketingPages = new Set(['/', '/services', '/process', '/assurance', '/about', '/faq', '/contact', '/privacy', '/terms', '/cookie-policy']);
 
 function isMarketingRoute(pathname: string): boolean {
   const path = pathname.replace(/\/$/, '') || '/';
