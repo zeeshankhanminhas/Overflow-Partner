@@ -194,5 +194,33 @@ export async function mobiliseHelixNewProject(control,admin,operatorDb,orgId,pro
  assert.equal(reviewStageError,null);
  assert.equal(reviewStage.project_stage,'internal_review');
  console.log('PASS browser: real operator advanced physical Partner engineering delivery to governed Internal Review.');
+ const {data:unreviewed,error:unreviewedError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projectId});
+ assert.equal(unreviewedError,null);
+ assert.equal(unreviewed.stage,'internal_review');
+ assert.equal(unreviewed.ready,false,'Submitted delivery alone must not authorise client release');
+ assert.ok(unreviewed.reasons.some(x=>x.includes('Technical Review')),'Missing Technical Review must block client release');
+ assert.ok(unreviewed.reasons.some(x=>x.includes('Document Register')),'Missing Document Register must block client release');
+ console.log('PASS browser: no client release until technical QA and controlled register are both approved.');
+ await approveHelixProjectEvidence(control,admin,orgId,projectId,'technical-review');
+ await approveHelixProjectEvidence(control,admin,orgId,projectId,'document-register');
+ const {data:qaReady,error:qaError}=await operatorDb.rpc('op_project_stage_readiness',{p_project_id:projectId});
+ assert.equal(qaError,null);
+ console.log('HELIX TECHNICAL QA READINESS '+JSON.stringify(qaReady));
+ assert.equal(qaReady.stage,'internal_review');
+ assert.equal(qaReady.ready,true,'Internal QA missing controlled approval evidence: '+JSON.stringify(qaReady.reasons));
+ await control.goto(projectPath);
+ const approveForClient=control.locator('form:has(input[name="target_stage"][value="ready_for_client_issue"])');
+ assert.equal(await approveForClient.count(),1,'Approved QA must show operator client-release action');
+ await Promise.all([
+  control.waitForURL(u=>u.pathname===projectPath&&(u.searchParams.has('advanced')||u.searchParams.has('error')),{timeout:30000}),
+  approveForClient.getByRole('button',{name:'Approve for client release'}).click()
+ ]);
+ const clientReadyUrl=new URL(control.url());
+ assert.equal(clientReadyUrl.searchParams.get('error'),null,'Client release approval failed: '+clientReadyUrl.searchParams.get('error'));
+ const {data:clientReady,error:clientReadyError}=await admin.from('projects')
+  .select('project_stage').eq('organisation_id',orgId).eq('id',projectId).single();
+ assert.equal(clientReadyError,null);
+ assert.equal(clientReady.project_stage,'ready_for_client_issue');
+ console.log('PASS browser: approved Technical Review plus Document Register unlocked actual operator client-release transition.');
  return assignments[0].id;
 }
