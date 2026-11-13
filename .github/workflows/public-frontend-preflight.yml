@@ -1,0 +1,86 @@
+name: OPOS Public Frontend Preflight (no credentials)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'public/**'
+      - 'qa/marketing/**'
+      - 'scripts/marketing-site-qa-check.mjs'
+      - '.github/workflows/public-frontend-preflight.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-frontend-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPOS_MARKETING_BASE_URL: http://127.0.0.1:3100
+    steps:
+      - name: Checkout source without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install project dependencies
+        run: npm ci --ignore-scripts
+      - name: Install pinned Chromium browser runner (isolated)
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.65.0
+          npx playwright install --with-deps chromium
+      - name: Static marketing QA contracts
+        run: npm run marketing:check
+      - name: Compile and build public website
+        run: npx next build
+      - name: Start isolated HTTP server
+        shell: bash
+        run: |
+          PORT=3100 npm run start > "$RUNNER_TEMP/opos-public-site.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opos-public-site.pid"
+          node --input-type=module <<'NODE'
+          let ready = false;
+          for (let attempt = 0; attempt < 75; attempt++) {
+            try {
+              const response = await fetch('http://127.0.0.1:3100/', {signal: AbortSignal.timeout(3000)});
+              if (response.ok) { ready = true; break; }
+            } catch { /* Server starting. */ }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          if (!ready) { console.error('Local public site did not become ready.'); process.exit(1); }
+          NODE
+      - name: Chromium browser, form mocks and PDF checks
+        run: node qa/marketing/public-front-end-smoke.mjs
+      - name: Live public homepage availability (read-only; manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          node --input-type=module <<'NODE'
+          const response = await fetch('https://overflow-partner.vercel.app/', {
+            redirect:'manual',
+            signal:AbortSignal.timeout(15000),
+            headers: { 'User-Agent':'OPOS-public-launch-readiness/1.0' }
+          });
+          console.log('Uncredentialed public homepage HTTP status:', response.status);
+          if (response.status !== 200) throw new Error('Public website is not anonymously accessible.');
+          const text = await response.text();
+          if (/vercel authentication|sign in to vercel|authentication required|deployment protection/i.test(text)) {
+            throw new Error('Deployment protection appears to block the public homepage.');
+          }
+          if (!/Overflow Partner/i.test(text)) throw new Error('Public homepage is not OPOS marketing content.');
+          console.log('Public unauthenticated homepage served OPOS content.');
+          NODE
