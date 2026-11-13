@@ -81,11 +81,13 @@ try {
       assert.equal(await nav.isVisible(), true, 'Mobile nav should expand');
       assert.ok(await nav.getByRole('link', {name:/Sign In/}).isVisible(), 'Mobile nav should include secure Sign In');
       await nav.getByRole('link', {name:/Sign In/}).click();
+      await page.waitForURL('**/login', {timeout:10000});
       assert.equal(new URL(page.url()).pathname, '/login');
     } else {
       const signIn = header.getByRole('link', {name:'Sign In',exact:true});
       assert.equal(await signIn.isVisible(), true);
       await signIn.click();
+      await page.waitForURL('**/login', {timeout:10000});
       assert.equal(new URL(page.url()).pathname, '/login');
     }
     assert.equal(await page.getByRole('heading', {name:'Sign In'}).isVisible(), true, 'Branded login should have a heading');
@@ -118,7 +120,8 @@ try {
   await form.getByLabel('Project Type').selectOption({index:1});
   await form.getByLabel('What would you like help with?').fill('Synthetic requirement for frontend preflight only; no real enquiry.');
   await form.getByRole('button', {name:'Send enquiry'}).click();
-  await form.getByRole('status').getByText(/TEST-MOCK-001/).waitFor();
+  await form.getByRole('status').waitFor();
+  assert.match(await form.getByRole('status').innerText(), /TEST-MOCK-001/);
   assert.equal(requests, 1);
   report('Mock enquiry success and acknowledgement reference (NO real lead/email)');
 
@@ -131,7 +134,8 @@ try {
   await form.getByLabel('Project Type').selectOption({index:1});
   await form.getByLabel('What would you like help with?').fill('Second synthetic requirement to verify error feedback.');
   await form.getByRole('button', {name:'Send enquiry'}).click();
-  await form.getByRole('alert').getByText(/temporarily unavailable/).waitFor();
+  await form.getByRole('alert').waitFor();
+  assert.match(await form.getByRole('alert').innerText(), /temporarily unavailable/);
   report('Mock enquiry 503 displays accessible error (NO production write)');
   await context.close();
   console.log('Public frontend isolated smoke: ' + passed + ' checks passed');
