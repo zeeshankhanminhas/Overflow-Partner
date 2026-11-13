@@ -370,10 +370,10 @@ export function resolveProjectPresentation(input: ProjectPresentationInput): Ope
       ...base,
       state: 'Sent to client',
       headline: 'Controlled delivery is with the client',
-      summary: 'No internal progression is due until the client review begins or a response is received.',
+      summary: 'Open the controlled review stage so the authorised client can submit their decision.',
       tone: 'waiting',
       waitingOn: { actor: 'client', label: 'Client' },
-      nextAction: { label: 'Await client review', available: false, kind: 'wait' },
+      nextAction: { label: 'Open client review', available: blockers.length === 0, kind: 'record', reason: blockers[0] },
       primaryActions: [],
     };
   }

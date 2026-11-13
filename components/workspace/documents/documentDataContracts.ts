@@ -31,7 +31,7 @@ export const documentDataContracts: Record<WorkspaceDocumentSlug, DocumentDataCo
   'invoice': contract('finance', ['clientIdentity', 'project', 'invoice']),
   'document-register': contract('internal', ['documentControl']),
   'requirement-sheet': contract('internal', ['technicalIntake'], false),
-  'technical-review': contract('internal', ['partnerAssessment'], false),
+  'technical-review': contract('internal', ['project', 'documentControl', 'deliveryEvidence']),
   'quote': contract('client', ['clientQuote'], false),
   'email-templates': contract('internal', []),
 };

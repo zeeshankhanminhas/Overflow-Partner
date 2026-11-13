@@ -192,7 +192,11 @@ async function sendClientQuoteEmail({ supabase, organisationId, quoteId, leadId,
       subject, template_key: 'quote', payload: { actionLabel: 'Reply about this quotation', actionUrl: publicSiteUrl(), ...payload },
     });
     try {
-      const response = await fetch('https://api.resend.com/emails', {
+      const qaEmailEndpoint=process.env.OP_ISOLATED_QA_BACKEND==='true' &&
+        process.env.OP_LOCAL_HTTP_QA_ENABLED==='true' ? process.env.OP_QA_RESEND_ENDPOINT : undefined;
+      if(qaEmailEndpoint && qaEmailEndpoint!=='http://127.0.0.1:3411/emails')
+        throw new Error('Only the isolated local QA mail contract is permitted');
+      const response = await fetch(qaEmailEndpoint || 'https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `overflow-partner-${outboxId}` },
         body: JSON.stringify({
