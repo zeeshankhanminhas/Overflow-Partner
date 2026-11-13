@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import {submitClientProjectReview} from './review-action';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { verifyClientPortalToken, createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quotes/clientResponseToken';
@@ -14,8 +15,8 @@ function displayMoney(amount: number, currency: string) {
 function unavailable() {
   return <main style={{ minHeight: '100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#1e2926' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
 }
-export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string}>}) {
-  const { token = '' } = await searchParams;
+export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string;review_result?:string}>}) {
+  const { token = '', review_result } = await searchParams;
   const access = token ? verifyClientPortalToken(token) : null;
   if (!access) return unavailable();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -45,6 +46,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   ];
   const canPay = accepted && !paid && !released && !project && !contractResult.error && ['payment','deposit'].includes(String(contractResult.data?.release_basis)) && process.env.OP_PACKAGE01_PAYMENTS_ENABLED === 'true';
   const paymentHref = `/quote-payment?token=${encodeURIComponent(createClientPortalToken(quote.id, quote.revision))}`;
+  let clientReviewTransmittal:{id:string;recipient_email:string;review_due_at:string|null}|null=null;
   let finalReviewAccepted=false;
   let finalSettlementVerified=false;
   let finalReleaseApproved=false;
@@ -61,6 +63,17 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
     finalReviewAccepted=!review.error && ['accepted','accepted_with_comments'].includes(String(review.data?.outcome));
     finalSettlementVerified=!settled.error && Boolean(settled.data);
     finalReleaseApproved=!releaseApproval.error && Boolean(releaseApproval.data) && finalSettlementVerified;
+  }
+  if(project?.id && process.env.OP_VOICE_FINAL_RELEASE_ENABLED==='true' && !finalReviewAccepted){
+    const {data:state}=await db.from('projects').select('project_stage').eq('id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle();
+    if(state?.project_stage==='client_review'){
+      const {data:tx}=await db.from('project_client_transmittals')
+        .select('id,recipient_email,review_due_at')
+        .eq('organisation_id',issue.organisation_id).eq('project_id',project.id)
+        .order('issued_at',{ascending:false}).limit(1).maybeSingle();
+      if(tx && tx.recipient_email && (!tx.review_due_at || new Date(tx.review_due_at).getTime()>Date.now()))
+        clientReviewTransmittal=tx;
+    }
   }
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
@@ -79,6 +92,22 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
         <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
+      {review_result==='recorded'?<p role="status">Your engineering review decision has been recorded.</p>:null}
+      {review_result==='unavailable'?<p role="alert">The project review could not be recorded. Please contact Overflow Partner before attempting payment.</p>:null}
+      {clientReviewTransmittal&&project?.id?<section aria-label="Client project review" style={{borderTop:'1px solid #e5e4df',paddingTop:20,marginTop:20}}>
+        <h2>Accept engineering deliverables</h2>
+        <p>Review the controlled engineering package issued to you before accepting it. Editable files remain withheld pending verified final payment and separate Overflow Partner owner approval.</p>
+        <form action={submitClientProjectReview} style={{display:'grid',gap:12}}>
+          <input type="hidden" name="token" value={token}/>
+          <input type="hidden" name="project_id" value={project.id}/>
+          <input type="hidden" name="transmittal_id" value={clientReviewTransmittal.id}/>
+          <label>Recipient email<input name="client_email" type="email" required defaultValue={clientReviewTransmittal.recipient_email} style={{display:'block',padding:10,width:'100%'}}/></label>
+          <label>Decision<select name="outcome" required defaultValue="accepted"><option value="accepted">Accept engineering deliverables</option><option value="accepted_with_comments">Accept with comments</option></select></label>
+          <label>Review comments<textarea name="comments" rows={3} placeholder="Required if accepting with comments"/></label>
+          <label><input type="checkbox" name="authority_attested" value="yes" required/> I confirm I am the authorised recipient of this controlled review package, have reviewed its content, and am authorised to submit this decision on behalf of the customer.</label>
+          <button type="submit" style={{padding:12}}>Submit project review</button>
+        </form>
+      </section>:null}
       {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
       {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
