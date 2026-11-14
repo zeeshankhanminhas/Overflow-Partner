@@ -46,7 +46,15 @@ jobs:
       OP_QA_SUPABASE_PROJECT_REF: 'opos_ephemeral_ci'
       VERCEL_ENV: 'local-qa'
       STRIPE_WEBHOOK_SECRET: 'whsec_qa_http_disposable_20261021'
+      QUOTE_RESPONSE_SECRET: 'qa_local_client_portal_disposable_20261111'
+      OP_VOICE_FINAL_RELEASE_ENABLED: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3211'
+      NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3211'
+      OP_CONTRACTUAL_RELEASE_ENABLED: 'true'
+      OP_QA_RESEND_ENDPOINT: 'http://127.0.0.1:3411/emails'
+      RESEND_API_KEY: 'qa-local-resend-test-key'
+      RESEND_FROM_EMAIL: 'qa-opos@example.invalid'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,6 +65,10 @@ jobs:
           cache: npm
       - name: Install app dependencies
         run: npm ci
+      - name: Install Chromium for real client portal QA
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+          npx playwright install chromium
       - uses: supabase/setup-cli@v3
         with:
           version: 2.84.2
@@ -67,24 +79,43 @@ jobs:
           test -z "$SUPABASE_ACCESS_TOKEN"
           test -z "$DATABASE_URL"
           sed -i '1i project_id = "opos_ephemeral_ci"' supabase/config.toml
-          supabase start -x studio,inbucket,analytics,vector,edge-runtime,realtime,storage,imgproxy
+          supabase start -x studio,mailpit,logflare,vector,edge-runtime,realtime,imgproxy,postgres-meta
           supabase status -o env > "$RUNNER_TEMP/opos-supabase-local.env"
           set -a
           source "$RUNNER_TEMP/opos-supabase-local.env"
           set +a
           test "${API_URL:-}" = 'http://127.0.0.1:54321'
           test -n "${SERVICE_ROLE_KEY:-}"
+          test -n "${ANON_KEY:-}"
           echo "::add-mask::$SERVICE_ROLE_KEY"
           {
             echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
+          # Partner delivery must use the real, private local Storage API.
+          # Catch accidental -x storage-api exclusions before the browser test.
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            "$API_URL/storage/v1/bucket/partner-delivery" > "$RUNNER_TEMP/opos-local-storage-bucket.json"
+          grep -q '"id":"partner-delivery"' "$RUNNER_TEMP/opos-local-storage-bucket.json"
       - name: Seed approved synthetic quotation (local Postgres only)
         shell: bash
         run: |
           set -euo pipefail
           docker ps --format '{{.Names}}' | grep -x 'supabase_db_opos_ephemeral_ci'
           docker exec -i supabase_db_opos_ephemeral_ci psql -U postgres -d postgres             -v ON_ERROR_STOP=1 < scripts/qa/stripe-http-fixture.sql
+          docker exec -i supabase_db_opos_ephemeral_ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/qa/stripe-http-second-org-fixture.sql
+      - name: Check local two-tenant QA scenario syntax
+        run: node --check scripts/qa/stripe-http-e2e.mjs && node --check scripts/qa/stripe-http-second-org-e2e.mjs
+      - name: Start isolated HTTP mail provider contract fixture
+        shell: bash
+        run: |
+          node scripts/qa/helix-resend-fixture-server.mjs > "$RUNNER_TEMP/opos-qa-email-provider.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opos-qa-email-provider.pid"
+          for n in {1..30}; do curl -fsS http://127.0.0.1:3411/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:3411/health
       - name: Start real Next.js webhook HTTP server
         shell: bash
         run: |
@@ -92,7 +123,9 @@ jobs:
           npm run dev -- -H 127.0.0.1 -p 3211 > "$RUNNER_TEMP/opos-webhook-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/opos-next-server.pid"
       - name: Signed HTTP webhook and stateful database integration
-        run: node scripts/qa/stripe-http-e2e.mjs
+        run: node scripts/qa/stripe-http-e2e.mjs && node scripts/qa/stripe-http-second-org-e2e.mjs
+      - name: Real Chromium client portal boundary (disposable)
+        run: node scripts/qa/helix-client-portal-browser.mjs
       - name: Diagnostic Next.js logs on failure
         if: failure()
         shell: bash
@@ -103,5 +136,8 @@ jobs:
         run: |
           if test -f "$RUNNER_TEMP/opos-next-server.pid"; then
             kill "$(cat "$RUNNER_TEMP/opos-next-server.pid")" || true
+          fi
+          if test -f "$RUNNER_TEMP/opos-qa-email-provider.pid"; then
+            kill "$(cat "$RUNNER_TEMP/opos-qa-email-provider.pid")" || true
           fi
           supabase stop --no-backup || true

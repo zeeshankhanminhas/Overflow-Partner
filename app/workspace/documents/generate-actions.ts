@@ -9,11 +9,11 @@ import { getWorkflowCase } from '@/lib/orchestration/service';
 const roles = ['owner','admin','operator','engineering','commercial','business_development'] as const;
 
 const caseDocuments: WorkspaceDocumentSlug[] = [
-  'client-requirements','partner-technical-assessment-report','vendor-instructions','rfq-response','client-quote','commercial-qualification-record','proposal','quote','technical-review','requirement-sheet',
+  'client-requirements','partner-technical-assessment-report','vendor-instructions','rfq-response','client-quote','commercial-qualification-record','proposal','quote','requirement-sheet',
 ];
 
 const projectDocuments: WorkspaceDocumentSlug[] = [
-  'statement-of-work','handover-pack','completion-report','invoice','document-register',
+  'statement-of-work','handover-pack','completion-report','invoice','document-register','technical-review',
 ];
 
 const documentPrefixes: Partial<Record<WorkspaceDocumentSlug,string>> = {
