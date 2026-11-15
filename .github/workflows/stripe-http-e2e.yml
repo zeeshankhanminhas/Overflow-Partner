@@ -85,6 +85,9 @@ jobs:
           set -euo pipefail
           docker ps --format '{{.Names}}' | grep -x 'supabase_db_opos_ephemeral_ci'
           docker exec -i supabase_db_opos_ephemeral_ci psql -U postgres -d postgres             -v ON_ERROR_STOP=1 < scripts/qa/stripe-http-fixture.sql
+          docker exec -i supabase_db_opos_ephemeral_ci psql -U postgres -d postgres -v ON_ERROR_STOP=1 < scripts/qa/stripe-http-second-org-fixture.sql
+      - name: Check local two-tenant QA scenario syntax
+        run: node --check scripts/qa/stripe-http-e2e.mjs && node --check scripts/qa/stripe-http-second-org-e2e.mjs
       - name: Start real Next.js webhook HTTP server
         shell: bash
         run: |
@@ -92,7 +95,7 @@ jobs:
           npm run dev -- -H 127.0.0.1 -p 3211 > "$RUNNER_TEMP/opos-webhook-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/opos-next-server.pid"
       - name: Signed HTTP webhook and stateful database integration
-        run: node scripts/qa/stripe-http-e2e.mjs
+        run: node scripts/qa/stripe-http-e2e.mjs && node scripts/qa/stripe-http-second-org-e2e.mjs
       - name: Diagnostic Next.js logs on failure
         if: failure()
         shell: bash
