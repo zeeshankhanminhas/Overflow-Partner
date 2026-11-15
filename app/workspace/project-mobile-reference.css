@@ -4,15 +4,15 @@
 
 @media (max-width: 720px) {
   .workspace.op-shell {
-    --op-mobile-bg: #f7f7f4;
-    --op-mobile-surface: #ffffff;
-    --op-mobile-text: #171717;
-    --op-mobile-muted: #73777f;
-    --op-mobile-line: #e8e8e4;
-    --op-mobile-red: #e5483f;
-    --op-mobile-green: #297a36;
-    --op-mobile-orange: #b96500;
-    --op-mobile-violet: #4c2dc7;
+    --op-mobile-bg: #08090a;
+    --op-mobile-surface: #111214;
+    --op-mobile-text: #f3f3f4;
+    --op-mobile-muted: #b6b9bf;
+    --op-mobile-line: #303238;
+    --op-mobile-red: #ff8787;
+    --op-mobile-green: #55d49b;
+    --op-mobile-orange: #f1c376;
+    --op-mobile-violet: #c4b5fd;
   }
 
   /* App shell: bright, compact and intentionally mobile. */
@@ -26,7 +26,7 @@
     min-height: 68px !important;
     padding: max(10px, env(safe-area-inset-top)) 16px 10px !important;
     border-bottom: 1px solid var(--op-mobile-line) !important;
-    background: rgba(255,255,255,.97) !important;
+    background: var(--op-mobile-surface) !important;
     color: var(--op-mobile-text) !important;
     box-shadow: none !important;
   }
@@ -56,7 +56,7 @@
     padding: 8px 8px max(8px, env(safe-area-inset-bottom)) !important;
     border-top: 1px solid var(--op-mobile-line) !important;
     border-radius: 22px 22px 0 0;
-    background: rgba(255,255,255,.98) !important;
+    background: var(--op-mobile-surface) !important;
     box-shadow: 0 -8px 28px rgba(23,23,23,.06) !important;
   }
 
@@ -282,11 +282,11 @@
     height: 32px;
     transform: translateY(-50%);
     border-radius: 999px;
-    background: #fff0ee;
+    background: #341b20;
   }
-  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(2)::before { background:#f0f3f8; }
-  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(3)::before { background:#fff2dc; }
-  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(4)::before { background:#f2efff; }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(2)::before { background:#192a3e; }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(3)::before { background:#302619; }
+  .project-os-page .operating-work-summary > .vp-facts > .vp-fact:nth-child(4)::before { background:#27213a; }
 
   .project-os-page .operating-work-summary > .vp-facts small {
     margin-bottom: 4px !important;
@@ -403,12 +403,12 @@
     height: 34px !important;
     border: 0 !important;
     border-radius: 999px !important;
-    background: #edf7eb !important;
+    background: #152b22 !important;
     color: var(--op-mobile-green) !important;
     font-size: 15px !important;
   }
   .project-os-page .record-workspace__slot--evidence .project-os-check-icon.missing {
-    background: #fff1df !important;
+    background: #302619 !important;
     color: var(--op-mobile-orange) !important;
   }
 
