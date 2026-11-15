@@ -26,9 +26,15 @@ export default function MobileWorkspaceNav(){
     :href==='/workspace/opportunities'
       ? pathname===href||pathname.startsWith('/workspace/acquisition')||pathname.startsWith('/workspace/leads')||pathname.startsWith('/workspace/quotes')
     :href==='/workspace/more'
-      ? pathname===href||pathname.startsWith('/workspace/payments')||pathname.startsWith('/workspace/documents')
-        ||pathname.startsWith('/workspace/approvals')||pathname.startsWith('/workspace/settings')
-        ||pathname.startsWith('/workspace/companies')||pathname.startsWith('/workspace/contacts')
+      ? pathname===href||[
+          '/workspace/payments','/workspace/commercial-control','/workspace/documents',
+          '/workspace/approvals','/workspace/attention','/workspace/tasks',
+          '/workspace/exceptions','/workspace/companies','/workspace/contacts',
+          '/workspace/partners','/workspace/assessments','/workspace/communications',
+          '/workspace/intelligence','/workspace/risk','/workspace/activity',
+          '/workspace/settings','/workspace/knowledge','/workspace/notifications',
+          '/workspace/search',
+        ].some(route=>pathname===route||pathname.startsWith(route+'/'))
       :pathname===href||pathname.startsWith(href+'/');
   return <nav className="midts-mobile-nav op-mobile-nav op-mobile-nav--clear" aria-label="Mobile workspace navigation">
     {options.map(item=><Link key={item.href} href={item.href}
