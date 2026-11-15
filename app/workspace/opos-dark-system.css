@@ -55,19 +55,7 @@
   box-shadow:none;
 }
 .workspace.op-shell :where(input,textarea)::placeholder {color:var(--op-dim);}
-.workspace.op-shell :where(.button,button[type=submit]) {
-  background:#e9e9eb;
-  border:1px solid #e9e9eb;
-  color:#101113;
-  border-radius:9px;
-  font-weight:600;
-  box-shadow:none;
-}
-.workspace.op-shell :where(.button.secondary,button.secondary) {
-  background:#17181a;
-  color:var(--op-text);
-  border-color:var(--op-line);
-}
+/* All action colours are defined exactly once in the semantic contract below. */
 .workspace.op-shell :where(.button,button):focus-visible,
 .workspace.op-shell :where(a,input,select,textarea):focus-visible {
   outline:2px solid #9ca3af;
@@ -101,7 +89,12 @@
    The A4 print media remains intentionally white for engineering documents. */
 .workspace.op-shell {
  --op-canvas:#08090a;--op-panel-subtle:#181a1d;--op-line-soft:#292b30;
- --op-subtle:#989da5;--op-accent:#e5e7eb;
+ --op-subtle:#989da5;--op-accent:#ef6c24;
+ --op-action-primary:#ef6c24;--op-action-primary-ink:#101113;
+ --op-action-secondary:#181a1d;--op-action-secondary-ink:#f3f3f4;
+ --op-action-success-bg:#143b2a;--op-action-success-ink:#9df1bd;
+ --op-action-warning-bg:#473016;--op-action-warning-ink:#ffce8a;
+ --op-action-danger-bg:#451c22;--op-action-danger-ink:#ffabb3;
  --surface-bg:#08090a;--surface-panel:#111214;--surface-text:#f3f3f4;
  --surface-muted:#b6b9bf;--surface-line:#303238;
  --m-bg:#08090a;--m-surface:#111214;--m-text:#f3f3f4;--m-muted:#b6b9bf;--m-line:#303238;
@@ -135,8 +128,53 @@ body:has(.workspace.op-shell){background:#08090a;color:#f3f3f4;color-scheme:dark
 .workspace.op-shell :where(.vp-subtitle,.vp-kicker,.product-description,.product-help){color:var(--op-muted)}
 .workspace.op-shell :where(input:not([type=checkbox]):not([type=radio]),select,textarea,option){background:#181a1d;color:#f3f3f4;border-color:#4a4d53}
 .workspace.op-shell :where(input,textarea)::placeholder{color:#a8abb2}
-.workspace.op-shell :where(.button.secondary,button.secondary,.workspace-shell-action,.workspace-module-tool,.workspace-module-links a){background:#181a1d;color:#f3f3f4;border-color:#3d4045}
-.workspace.op-shell :where(.button:not(.secondary),button[type=submit]):not(.product-action--destructive){background:#e5e7eb;color:#101113;border-color:#e5e7eb}
+/* ACTION COLOUR CONTRACT — single authoritative source for every workspace role.
+   An action's class expresses its business meaning; hover/focus never changes that meaning.
+   Keep selectors scoped to interactive chrome, never printed document sheets. */
+.workspace.op-shell .op-content :where(.button:not(.secondary):not(.product-action--secondary):not(.product-action--approve):not(.product-action--warning):not(.product-action--destructive),button[type=submit]:not(.secondary):not(.product-action--approve):not(.product-action--warning):not(.product-action--destructive),.product-action--primary),
+.workspace.op-shell :where(.op-topbar,.op-mobile-header) .button:not(.secondary) {
+  background:var(--op-action-primary)!important;
+  border:1px solid var(--op-action-primary)!important;
+  color:var(--op-action-primary-ink)!important;
+}
+.workspace.op-shell .op-content :where(.button.secondary,button.secondary,.product-action--secondary),
+.workspace.op-shell :where(.op-sidebar-footer .button,.workspace-shell-action,.workspace-module-tool,.workspace-module-links a){
+  background:var(--op-action-secondary)!important;
+  border:1px solid #4a4d53!important;
+  color:var(--op-action-secondary-ink)!important;
+}
+.workspace.op-shell .op-content :where(.product-action--approve,.button.product-action--approve,button.product-action--approve){
+  background:var(--op-action-success-bg)!important;
+  border:1px solid #358b5e!important;
+  color:var(--op-action-success-ink)!important;
+}
+.workspace.op-shell .op-content :where(.product-action--warning,.button.product-action--warning,button.product-action--warning){
+  background:var(--op-action-warning-bg)!important;
+  border:1px solid #9e6925!important;
+  color:var(--op-action-warning-ink)!important;
+}
+.workspace.op-shell .op-content :where(.product-action--destructive,.button.product-action--destructive,button.product-action--destructive){
+  background:var(--op-action-danger-bg)!important;
+  border:1px solid #a94c5a!important;
+  color:var(--op-action-danger-ink)!important;
+}
+.workspace.op-shell .op-content :where(a.button,button,.product-action--primary,.product-action--secondary,.product-action--approve,.product-action--warning,.product-action--destructive) :where(span,small,strong,em,svg){
+  color:inherit!important;
+}
+.workspace.op-shell .op-content :where(.button,button):not(:disabled):not([aria-disabled="true"]):hover,
+.workspace.op-shell :where(.op-sidebar-footer .button,.workspace-shell-action):hover{
+  filter:brightness(1.12);
+}
+.workspace.op-shell :where(.button,button,[role=button]):focus-visible{
+  outline:3px solid #ffb17f!important;
+  outline-offset:3px;
+}
+.workspace.op-shell .op-content :where(.button,button):is(:disabled,[aria-disabled="true"]){
+  opacity:.5;
+  cursor:not-allowed;
+  filter:none;
+}
+
 .workspace.op-shell :where(.button,.workspace-shell-action,button,input,select,textarea,a,summary):focus-visible{outline:2px solid #e5e7eb;outline-offset:3px}
 .workspace.op-shell .op-content table thead th{background:#181a1d!important;color:#f3f3f4}
 .workspace.op-shell .op-content table tbody td{background:#111214!important;color:#f3f3f4}
