@@ -28,7 +28,7 @@ export default async function QuoteResponsePage({ searchParams }: { searchParams
     }
   }
   const decision = payload ? decisionCopy[payload.response] : null;
-  return <main style={{ minHeight: '100vh', background: '#08090a', padding: '48px 18px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#f3f3f4' }}>
+  return <main className="op-secure-dark" style={{ minHeight: '100vh', background: '#08090a', padding: '48px 18px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#f3f3f4' }}>
     <section style={{ maxWidth: 620, margin: '0 auto', padding: 32, background: '#111214', border: '1px solid #303238', borderTop: '5px solid #e95d2a' }}>
       <p style={{ margin: 0, color: '#b6b9bf', fontSize: 12, letterSpacing: 2, fontWeight: 700 }}>OVERFLOW PARTNER · CLIENT QUOTE</p>
       {result === 'recorded' ? <><h1>Response recorded</h1><p>Thank you. Your response has been added to the quotation record. If you accepted, project setup remains subject to confirmation of the agreed opening payment or purchase order.</p></> : null}

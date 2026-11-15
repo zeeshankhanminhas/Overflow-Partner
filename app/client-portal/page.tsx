@@ -12,7 +12,7 @@ function displayMoney(amount: number, currency: string) {
   catch { return amount.toFixed(2) + ' ' + currency; }
 }
 function unavailable() {
-  return <main style={{ minHeight: '100vh', background:'#08090a', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#f3f3f4' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
+  return <main className="op-secure-dark" style={{ minHeight: '100vh', background:'#08090a', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#f3f3f4' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
 }
 export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string}>}) {
   const { token = '' } = await searchParams;
@@ -65,7 +65,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
-  return <main style={{ minHeight:'100vh', background:'#08090a', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#f3f3f4' }}>
+  return <main className="op-secure-dark" style={{ minHeight:'100vh', background:'#08090a', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#f3f3f4' }}>
     <section style={container}>
       <p style={{...caption,letterSpacing:2,fontWeight:700}}>OVERFLOW PARTNER · CLIENT PORTAL</p>
       <h1 style={{marginBottom:8}}>Your quotation and project</h1>

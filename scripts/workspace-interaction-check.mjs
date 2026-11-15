@@ -67,6 +67,18 @@ expect(signInDark.includes('bg-[#08090a]')&&!signInDark.includes('bg-white'),'OP
 expect(outreachDark.includes('background:#08090a')&&outreachDark.includes('color-scheme:dark'),'Outreach remains dark outside CRM');
 expect(clientDark.includes("background:'#08090a'"),'Client portal uses dark canvas');
 
+
+const secureCSS=read('app/globals.css');
+const securePartner=read('app/partner-review/[token]/page.tsx');
+const secureIntake=read('app/intake/[token]/page.tsx');
+const secureExecution=read('components/execution/PartnerWorkSurface.tsx');
+expect(secureCSS.includes('main.op-secure-dark')&&secureCSS.includes('color-scheme:dark'),
+  'Secure product journeys inherit the dark palette');
+for(const [source,name] of [[securePartner,'Partner review'],[secureIntake,'Technical intake'],[secureExecution,'Partner execution']]){
+  expect(source.includes('op-secure-dark')&&!source.includes('bg-[#f5f4ef]')&&!source.includes('bg-white/50'),
+    name+' uses dark product surfaces');
+}
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
