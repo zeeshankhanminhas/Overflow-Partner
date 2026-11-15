@@ -56,6 +56,7 @@ export default async function PartnerExecutionControlPage({ params, searchParams
   const partnerName=commercialPartner?.company_name||'Execution Partner';
   const deliverySubmitted=assignment?.execution_state==='delivery_submitted';
   const executionActive=Boolean(assignment&&!partnerMismatch&&!noCommercialPartner&&['ready_for_execution','in_progress','partner_correction'].includes(String(project.project_stage))&&!deliverySubmitted);
+  const canConfigureAssignment=['mobilisation','ready_for_execution'].includes(String(project.project_stage)) && (!assignment||['not_released','awaiting_acknowledgement'].includes(String(assignment.execution_state)));
   const sessionUsable=Boolean(session&&!['expired','revoked'].includes(String(session.status))&&new Date(session.expires_at).getTime()>Date.now());
   const baseUrl=process.env.NEXT_PUBLIC_APP_URL||process.env.NEXT_PUBLIC_SITE_URL||'https://overflow-partner.vercel.app';
   let currentExecutionLink:string|null=null;
@@ -118,7 +119,7 @@ export default async function PartnerExecutionControlPage({ params, searchParams
             <label>Approved Statement of Work<select name="scope_document_id" required defaultValue={assignment?.scope_document_id||''}><option value="" disabled>Select approved Statement of Work</option>{documents.map(doc=><option key={doc.id} value={doc.id}>{doc.reference} · {doc.title} · {String(doc.status).replaceAll('_',' ')}</option>)}</select><small>The current approved Statement of Work controls responsibilities, deliverables, milestones and change control.</small></label>
             <div className="grid gap-4 md:grid-cols-3"><label>Planned start<input name="planned_start_date" type="date" defaultValue={assignment?.planned_start_date||project.start_date||''}/></label><label>Committed due<input name="committed_due_date" type="date" defaultValue={assignment?.committed_due_date||project.due_date||''}/></label><label>Reporting cadence<select name="reporting_cadence" defaultValue={assignment?.reporting_cadence||'milestone'}><option value="milestone">Milestone only</option><option value="daily">Daily</option><option value="every_2_business_days">Every 2 business days</option><option value="weekly">Weekly</option><option value="on_change">On change / exception</option></select></label></div>
             <label>Partner instructions<textarea name="release_notes" rows={4} defaultValue={assignment?.release_notes||''} placeholder="Instructions visible to the Partner."/></label>
-            <button className="button" type="submit" disabled={noCommercialPartner||partnerMismatch||documents.length===0||!executionActive}>{assignment?'Save Partner setup':'Set up Partner work'}</button>
+            <button className="button" type="submit" disabled={noCommercialPartner||partnerMismatch||documents.length===0||!canConfigureAssignment}>{assignment?'Save Partner setup':'Set up Partner work'}</button>
           </form>
         </article>
 

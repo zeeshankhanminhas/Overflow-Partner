@@ -8,6 +8,7 @@ import { requireUserContext, assertRole } from '@/lib/auth/context';
 import { cancelEntityReminders } from '@/lib/notifications/queue';
 import { queueLifecycleEmail } from '@/lib/notifications/scenarios';
 import { createExecutionSessionToken } from '@/lib/execution/sessionToken';
+import { createClientPortalToken } from '@/lib/quotes/clientPortalToken';
 import { buildDocumentAdapter } from '@/components/workspace/documents/documentAdapter';
 import { createControlledPdf, pdfEmailAttachment } from '@/lib/notifications/controlledPdf';
 
@@ -29,6 +30,21 @@ export async function recordClientTransmittalAction(formData:FormData){
     const deliveryKey=`client-delivery:${projectId}:cycle:${assignment?.execution_cycle||1}`;
     const {data:handover}=await supabase.from('documents').select('id,reference,version,status').eq('organisation_id',organisationId).eq('project_id',projectId).eq('document_type','handover-pack').eq('is_current_revision',true).in('status',['issued','published']).order('created_at',{ascending:false}).limit(1).maybeSingle();
     if(!handover)throw new Error('An issued Handover Pack is required before client delivery.');
+    // Link the actual controlled review email to the client's signed portal,
+    // never to the marketing homepage. The client portal remains read-only
+    // until the canonical lifecycle reaches Client Review.
+    if(!project?.quote_id)throw new Error('An accepted quoted project is required for client delivery.');
+    const {data:quote,error:quoteError}=await supabase.from('quotes')
+      .select('id,revision').eq('organisation_id',organisationId).eq('id',project.quote_id).maybeSingle();
+    if(quoteError||!quote)throw new Error('Project quotation and revision are unavailable.');
+    const {data:issued}=await supabase.from('quote_issue_records')
+      .select('client_response,recipient_email').eq('organisation_id',organisationId)
+      .eq('quote_id',quote.id).eq('quote_revision',quote.revision).maybeSingle();
+    if(issued?.client_response!=='accepted')throw new Error('An accepted client quotation is required for review issue.');
+    if(String(issued.recipient_email||'').trim().toLowerCase()!==recipientEmail)
+      throw new Error('Review recipient must match the authorised quote recipient until formal reviewer delegation is supported.');
+    const reviewUrl=appUrl()+'/client-portal?token='+
+      encodeURIComponent(createClientPortalToken(quote.id,Number(quote.revision)));
     const adapted=await buildDocumentAdapter(supabase,'handover-pack',{organisationId,projectId,caseId:project?.lead_id,quoteId:project?.quote_id});
     const handoverPdf=await createControlledPdf('Client Handover Pack',adapted);
     // CLIENT REVIEW ONLY: no signed URLs for editable partner source files at this stage.
@@ -37,17 +53,18 @@ export async function recordClientTransmittalAction(formData:FormData){
     const deliveryPayload={
       ...payload,
       heading:'Your controlled engineering review package',
+      actionLabel:'Review engineering deliverables',
       message:'Please review the attached controlled PDF. This is a review issue only; editable engineering source files will be made available separately after final settlement and Overflow Partner release approval.',
       actions:[],
       emailAttachments:[pdfEmailAttachment(`${handover.reference||reference}-R${handover.version||1}-Review-Handover-Pack.pdf`,handoverPdf)],
     };
-    const queued=await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.issued',recipientEmail,recipientName,actionUrl:appUrl(),payload:deliveryPayload,entityType:'project',entityId:projectId,idempotencyKey:`${deliveryKey}:issued`});
+    const queued=await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.issued',recipientEmail,recipientName,actionUrl:reviewUrl,payload:deliveryPayload,entityType:'project',entityId:projectId,idempotencyKey:`${deliveryKey}:issued`});
     if(!queued)throw new Error('Client email could not be queued; the Project remains at Ready for client issue.');
     const {error}=await supabase.rpc('op_record_client_transmittal_and_issue',{p_organisation_id:organisationId,p_user_id:user.id,p_project_id:projectId,p_recipient_name:recipientName,p_recipient_email:recipientEmail,p_delivery_method:deliveryMethod,p_note:note||null});
     if(error)throw new Error(error.message);
     let communicationError='';
     try{
-      await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.review_reminder',recipientEmail,recipientName,actionUrl:appUrl(),payload,entityType:'project',entityId:projectId,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`${deliveryKey}:review-reminder`});
+      await queueLifecycleEmail(supabase,{organisationId,scenario:'client_delivery.review_reminder',recipientEmail,recipientName,actionUrl:reviewUrl,payload,entityType:'project',entityId:projectId,scheduledFor:new Date(Date.now()+3*24*60*60*1000).toISOString(),idempotencyKey:`${deliveryKey}:review-reminder`});
     }catch(emailError){communicationError=emailError instanceof Error?emailError.message:'Client notification could not be queued.';}
     refresh(projectId);
     destination=communicationError?projectUrl(projectId,{advanced:'issued_to_client',error:`Delivery was recorded, but the client email with the Handover Pack PDF could not be queued for ${recipientName} (${recipientEmail}): ${communicationError}`,focus:'record-next-action'}):projectUrl(projectId,{advanced:'issued_to_client',updated:`Client review-only email queued with the controlled PDF for ${recipientName} · ${recipientEmail}${reference?` · ${reference}`:''}`,focus:'record-next-action'});
