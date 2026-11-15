@@ -5,14 +5,14 @@ import { createClientResponseToken, type ClientQuoteResponse } from '@/lib/quote
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Client Portal | Overflow Partner', robots: { index: false, follow: false } };
-const container = { maxWidth: 760, margin: '48px auto', padding: 28, background: '#fff', border: '1px solid #e2dfd8', borderRadius: 12 } as const;
-const caption = { color: '#68665f', fontSize: 14 } as const;
+const container = { maxWidth: 760, margin: '48px auto', padding: 28, background: '#101113', border: '1px solid #34363a', borderRadius: 12 } as const;
+const caption = { color: '#b3b5bb', fontSize: 14 } as const;
 function displayMoney(amount: number, currency: string) {
   try { return new Intl.NumberFormat('en-GB',{style:'currency',currency}).format(amount); }
   catch { return amount.toFixed(2) + ' ' + currency; }
 }
 function unavailable() {
-  return <main style={{ minHeight: '100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#1e2926' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
+  return <main style={{ minHeight: '100vh', background:'#090a0b', padding:'24px 16px', fontFamily:'Arial,sans-serif', color:'#f1f1f3' }}><section style={container}><p style={caption}>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Portal access unavailable</h1><p>This link may have expired or been replaced. Please reply to the original quotation email to request a fresh secure link.</p></section></main>;
 }
 export default async function ClientPortal({searchParams}:{searchParams:Promise<{token?:string}>}) {
   const { token = '' } = await searchParams;
@@ -65,7 +65,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
-  return <main style={{ minHeight:'100vh', background:'#f6f5f2', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#1e2926' }}>
+  return <main style={{ minHeight:'100vh', background:'#090a0b', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#f1f1f3' }}>
     <section style={container}>
       <p style={{...caption,letterSpacing:2,fontWeight:700}}>OVERFLOW PARTNER · CLIENT PORTAL</p>
       <h1 style={{marginBottom:8}}>Your quotation and project</h1>
@@ -76,8 +76,8 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <p style={{margin:0,fontSize:14}}>{project ? 'Your project has been opened. We will share delivery details as they are agreed.' : released ? 'The verified contractual release condition has been confirmed.' : paid ? 'Your opening payment has been recorded. Project setup is the next step.' : accepted ? 'Thank you for accepting. Your secure opening payment instructions are now available. Project setup follows only after your payment has been verified.' : 'You can review your quote and respond while it remains valid.'}</p>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:22}}>
-        <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
-        <div style={{border:'1px solid #e5e4df',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
+        <div style={{border:'1px solid #34363a',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
+        <div style={{border:'1px solid #34363a',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
       {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
@@ -86,7 +86,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
       {finalReviewAccepted&&!finalSettlementVerified ? <p><Link href={finalBalanceHref}>Pay your final engineering balance →</Link></p>:null}
       {finalSettlementVerified&&!finalReleaseApproved ? <p>Final payment received. Your approved engineering files await Overflow Partner’s manual release approval.</p>:null}
       {finalReleaseApproved ? <p><Link href={finalFilesHref}>Download approved final engineering files →</Link></p>:null}
-      {canDecide ? <div style={{borderTop:'1px solid #e5e4df',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#d74c2c':'#eeede9',color:response==='accepted'?'white':'#172521',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
+      {canDecide ? <div style={{borderTop:'1px solid #34363a',paddingTop:20}}><h2 style={{fontSize:19}}>Respond to your quotation</h2><div style={{display:'flex',gap:10,flexWrap:'wrap'}}>{actions.map(({label,response})=><Link key={response} href={`/quote-response?token=${encodeURIComponent(createClientResponseToken({quoteId:quote.id,revision:quote.revision,response,exp:dueDate}))}`} style={{padding:'12px 16px',borderRadius:8,background:response==='accepted'?'#e7e7e9':'#26282c',color:response==='accepted'?'#101113':'#f1f1f3',textDecoration:'none',fontWeight:600}}>{label}</Link>)}</div></div> : null}
       <p style={{...caption,marginTop:28}}>This page updates as your quotation progresses. Keep your secure link private. For a copy of your approved PDF, payment instructions or a fresh link, reply to the quotation email.</p>
     </section>
   </main>;

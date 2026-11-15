@@ -55,7 +55,7 @@ export default function RecordWorkspace({
   audit,
   notices,
   className = '',
-  focusMode = false,
+  focusMode = true,
 }: RecordWorkspaceProps) {
   const hasCurrentWork = Boolean(activities);
   const hasContext = Boolean(communications || history || olderDocuments || metadata || audit);
@@ -73,6 +73,7 @@ export default function RecordWorkspace({
       {notices ? <div id="record-feedback" className="record-workspace__notices" data-continuity-notice>{notices}</div> : null}
 
       <div className="op-focus__body">
+        <div className="op-focus__journey" aria-label="Current lifecycle progress">{stateStrip}</div>
         <section className="op-focus__decision" aria-labelledby="op-focus-title">
           <p className="op-focus__eyebrow">What needs to happen next</p>
           <h2 id="op-focus-title">{presentation ? commercialCopy(presentation.nextAction.label) : 'Next action'}</h2>
@@ -101,7 +102,7 @@ export default function RecordWorkspace({
         <details className="op-focus__disclosure">
           <summary><span>Stage, key facts and history</span><span className="op-focus__disclosure-hint">Supporting context</span></summary>
           <div className="op-focus__detail-body op-focus__context">
-            <div id="record-state">{stateStrip}</div>
+            <div id="record-state"><p className="op-focus__eyebrow">Lifecycle progress appears above the current action</p></div>
             <div id="record-summary">{summary}</div>
             {hasContext ? <ContextActions>
               {communications ? <WorkspaceDrawer triggerLabel="Messages" eyebrow="Record context" title="Messages">{communications}</WorkspaceDrawer> : null}
