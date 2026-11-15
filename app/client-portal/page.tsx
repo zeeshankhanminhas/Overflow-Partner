@@ -64,22 +64,32 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   }
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
+  // Presentation only: actual scope and payment/document permissions stay enforced server-side.
+  const activeClientAccess = Boolean(project && (paid || released));
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main className="op-secure-dark" style={{ minHeight:'100vh', background:'#08090a', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#f3f3f4' }}>
     <section style={container}>
       <p style={{...caption,letterSpacing:2,fontWeight:700}}>OVERFLOW PARTNER · CLIENT PORTAL</p>
       <h1 style={{marginBottom:8}}>Your quotation and project</h1>
       <p style={caption}>Quotation {quote.quote_number} · Revision {quote.revision}</p>
-      <div style={{padding:20,background:'#152b22',borderRadius:9,margin:'24px 0'}}>
+      <nav aria-label="Client portal navigation" style={{display:'flex',flexWrap:'wrap',gap:10,borderBottom:'1px solid #303238',padding:'18px 0',margin:'20px 0'}}>
+        <a href="#client-overview" style={{color:'#f3f3f4',padding:'8px 10px'}}>Status</a>
+        <a href="#client-quotation" style={{color:'#f3f3f4',padding:'8px 10px'}}>Quotation</a>
+        {activeClientAccess ? <a href="#client-project" style={{color:'#f3f3f4',padding:'8px 10px'}}>My project</a> : null}
+        {canPay ? <Link href={paymentHref} style={{color:'#f3f3f4',padding:'8px 10px'}}>Opening payment</Link> : null}
+        {finalReviewAccepted&&!finalSettlementVerified ? <Link href={finalBalanceHref} style={{color:'#f3f3f4',padding:'8px 10px'}}>Final payment</Link> : null}
+        {finalReleaseApproved ? <Link href={finalFilesHref} style={{color:'#f3f3f4',padding:'8px 10px'}}>Final files</Link> : null}
+      </nav>
+      <div id="client-overview" style={{padding:20,background:'#152b22',borderRadius:9,margin:'24px 0'}}>
         <p style={{...caption,margin:'0 0 8px'}}>CURRENT STATUS</p>
         <h2 style={{margin:'0 0 8px',fontSize:21}}>{status}</h2>
         <p style={{margin:0,fontSize:14}}>{project ? 'Your project has been opened. We will share delivery details as they are agreed.' : released ? 'The verified contractual release condition has been confirmed.' : paid ? 'Your opening payment has been recorded. Project setup is the next step.' : accepted ? 'Thank you for accepting. Your secure opening payment instructions are now available. Project setup follows only after your payment has been verified.' : 'You can review your quote and respond while it remains valid.'}</p>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:22}}>
+      <div id="client-quotation" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:22}}>
         <div style={{border:'1px solid #303238',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
         <div style={{border:'1px solid #303238',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
-      {project ? <p><strong>Project reference:</strong> {project.project_number}</p> : null}
+      {project ? <p id="client-project"><strong>Project reference:</strong> {project.project_number}</p> : null}
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
       {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
       {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
