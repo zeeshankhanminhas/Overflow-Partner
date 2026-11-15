@@ -182,7 +182,7 @@ export default function TechnicalIntakePage() {
             </section>
 
             <section className="grid gap-6 border-t border-white/15 pt-8">
-              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center"><button className="min-h-12 bg-[var(--ink)] px-7 py-3 text-sm font-medium uppercase tracking-[0.08em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-neutral-500" type="submit" disabled={submitting}>{submitting ? 'Submitting' : 'Submit technical intake'}</button><p className="text-sm leading-6 text-[var(--subtle)]">This locks the written requirement and attached source evidence for internal technical review.</p></div>
+              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center"><button className="min-h-12 bg-[#e5e7eb] px-7 py-3 text-sm font-medium uppercase tracking-[0.08em] text-[#101113] transition hover:bg-white disabled:cursor-not-allowed disabled:bg-[#33363a] disabled:text-[#a8abb2]" type="submit" disabled={submitting}>{submitting ? 'Submitting' : 'Submit technical intake'}</button><p className="text-sm leading-6 text-[var(--subtle)]">This locks the written requirement and attached source evidence for internal technical review.</p></div>
               {result ? <p className="border border-white/15 bg-[#111214] p-4 text-sm leading-6 text-[var(--muted)]" role="status">{result}</p> : null}
             </section>
           </form>
