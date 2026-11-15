@@ -341,7 +341,7 @@
   min-height:40px;
   align-items:center;
   font-size:14px;
-  color:#454c46;
+  color:var(--op-muted);
   margin-bottom:9px;
 }
 .workspace .op-unified-page__search {
@@ -355,7 +355,7 @@
 .workspace .op-unified-page__search label {
   font-weight:620;
   font-size:14px;
-  color:#343a34;
+  color:var(--op-text);
 }
 .workspace .op-unified-page__search>div { display:flex;gap:10px;min-width:0; }
 .workspace .op-unified-page__search input {
@@ -363,7 +363,7 @@
   flex:1;
   width:100%;
   min-height:46px;
-  border:1px solid #c6cbc5;
+  border:1px solid var(--op-line-strong);
   border-radius:8px;
   padding:11px 13px;
   font-size:16px;
