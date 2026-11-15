@@ -54,6 +54,60 @@ expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus
 expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
 
+
+// Controller navigation release gates: role-neutral presentation only.
+// No payments, project creation or server-side business lifecycle transitions.
+const controllerNav=read('lib/presentation/navigationContract.ts');
+const controllerSidebar=read('app/workspace/LifecycleSidebar.tsx');
+const controllerMobile=read('components/workspace/MobileWorkspaceNav.tsx');
+const controllerOpportunities=read('app/workspace/opportunities/page.tsx');
+const controllerMore=read('app/workspace/more/page.tsx');
+const controllerAttention=read('app/workspace/attention/page.tsx');
+const controllerLayout=read('app/workspace/layout.tsx');
+for (const name of ['linkedinFunnel','missionControl','opportunities','projects','finance','documents']) {
+  const section=controllerNav.slice(controllerNav.indexOf('  '+name+': {'),controllerNav.indexOf('  },',controllerNav.indexOf('  '+name+': {')));
+  expect(section.includes("placement: 'primary'"), 'Controller primary navigation includes '+name);
+}
+expect(controllerSidebar.includes('lifecycle-nav--simplified') &&
+  controllerSidebar.includes('href={n.opportunities.href}') &&
+  controllerSidebar.includes('href={n.finance.href}') &&
+  controllerSidebar.includes('href={n.more.href}'),
+  'Desktop uses six main destinations and supporting More');
+expect(controllerSidebar.includes("aria-current={opportunitiesActive?'page':undefined}") &&
+  controllerSidebar.includes("aria-current={financeActive?'page':undefined}"),
+  'Desktop indicates active navigation to assistive technology');
+expect(controllerMobile.includes("href:'/workspace/opportunities'") &&
+  controllerMobile.includes("href:'/workspace/more'") &&
+  controllerMobile.includes("href:'/outreach'"),
+  'Mobile five-tab navigation matches simplified IA');
+expect(['/workspace/attention','/workspace/tasks','/workspace/exceptions',
+  '/workspace/commercial-control','/workspace/communications',
+  '/workspace/partners','/workspace/intelligence','/workspace/risk']
+  .every(route=>controllerMobile.includes("'"+route+"'")),
+  'Mobile More active state includes supporting routes');
+expect(controllerOpportunities.includes("from('prospects')") &&
+  controllerOpportunities.includes("rpc('op_case_queue'") &&
+  controllerOpportunities.includes("from('projects')") &&
+  !controllerOpportunities.includes('.insert(') &&
+  !controllerOpportunities.includes('.update('),
+  'Unified Opportunities is read-only over governed existing records');
+expect(controllerMore.includes('href:n.contacts.href') &&
+  controllerMore.includes('href:n.partners.href') &&
+  controllerMore.includes('href:n.finance.href'),
+  'More retains access to contextual registers');
+expect(controllerAttention.includes('buildMissionPriorityQueue') &&
+  controllerAttention.includes('const filtered=') &&
+  controllerAttention.includes('item.kind===view'),
+  'My Work filters existing priority order without changing authority');
+expect(controllerLayout.includes('<MobileWorkspaceNav />') &&
+  command.includes('title:n.opportunities.label') &&
+  command.includes('title:n.finance.label') &&
+  command.includes('title:n.more.label'),
+  'Workspace shell and command palette use the same destinations');
+expect(focusCss.includes('op-unified-page__directory') &&
+  focusCss.includes('op-mobile-nav--clear'),
+  'Unified pages and mobile navigation have styles');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);

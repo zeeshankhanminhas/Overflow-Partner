@@ -74,7 +74,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <div className="workspace midts-shell op-shell">
       <Suspense fallback={null}><WorkspaceContinuity /></Suspense>
       <aside className="midts-sidebar op-sidebar">
-        <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Mission Control"><OverflowPartnerBrand /></Link>
+        <Link href={n.missionControl.href} className="midts-brand op-brand" aria-label="Overflow Partner Home"><OverflowPartnerBrand /></Link>
         <LifecycleSidebar />
         <div className="midts-sidebar-footer op-sidebar-footer">
           <form action={signOut}><button className="button secondary" type="submit">Sign out</button></form>
@@ -95,13 +95,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <main className="midts-content op-content">{children}</main>
       </section>
 
-      <MobileWorkspaceNav
-        home={n.missionControl.href}
-        opportunities={n.enquiries.href}
-        projects={n.projects.href}
-        approvals={n.approvals.href}
-        documents={n.documents.href}
-      />
+      <MobileWorkspaceNav />
     </div>
   </WorkspaceInteractionProvider>;
 }
