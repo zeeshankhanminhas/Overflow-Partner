@@ -144,4 +144,20 @@ body:has(.workspace.op-shell){background:#08090a;color:#f3f3f4;color-scheme:dark
 body:has(.workspace.op-shell) :where(.workspace-overlay__frame,.workspace-overlay__header,.workspace-overlay__footer,.workspace-popover__panel,.operator-centre__hero,.operator-centre__panel,.workspace-quick-grid a,.workspace-module-rule,.workspace-module-links a){background:#111214;color:#f3f3f4;border-color:#303238}
 body:has(.workspace.op-shell) :where(.workspace-overlay__body,.workspace-overlay__close,.workspace-shell-action){background:#181a1d;color:#f3f3f4}
 body:has(.workspace.op-shell) :where(.workspace-overlay input,.workspace-overlay textarea,.workspace-overlay select){background:#181a1d;color:#f3f3f4;border-color:#4a4d53}
+
+/* Only document pages/previews inherit light paper tokens. Application chrome
+   (including the document library, toolbar and dialogs) remains monochrome. */
+.workspace.op-shell :where(.opds-document,.document-a4-preview,.midts-document-page,.tr-email-frame){
+  color-scheme:light;
+  --op-text:#111815;--op-fg:#111815;--op-muted:#4b5651;--op-dim:#737a76;
+  --opds-ink:#111815;--opds-black:#050705;--opds-paper:#f7f7f5;
+  --opds-panel:#ffffff;--opds-line:#d9d6ce;--opds-muted:#4b5651;
+  --opds-subtle:#737a76;
+  --surface-text:#111815;--surface-muted:#4b5651;
+  color:#111815;
+}
+.workspace.op-shell :where(.opds-document,.document-a4-preview,.midts-document-page,.tr-email-frame){
+  background-color:#fff;
+}
+
 @media print {body:has(.workspace.op-shell){background:#fff;color:#171717;color-scheme:light}}
