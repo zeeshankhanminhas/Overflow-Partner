@@ -138,3 +138,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 html { scroll-padding-top: 5rem; }
 @media(max-width:640px){.op-cta{width:auto;max-width:100%}.section_cta .form_enquiry{min-width:0}.section_cta .form_enquiry input,.section_cta .form_enquiry select,.section_cta .form_enquiry textarea{min-width:0;font-size:16px}.section_cta .form_enquiry input[type="checkbox"]{width:18px;min-width:18px;height:18px;flex:0 0 18px;}}
 @media(prefers-reduced-motion:reduce){.op-cta:hover{transform:none}}
+
+
+/* OPOS secure-product surfaces share the dark system without restyling public
+   marketing pages or altering any authenticated workflow/policy. */
+main.op-secure-dark {
+  --background:#08090a;--canvas:#08090a;--paper:#08090a;
+  --panel:#111214;--technical:#181a1d;--ink:#f3f3f4;
+  --foreground:#f3f3f4;--muted:#b6b9bf;--subtle:#989da5;
+  --line:#303238;--opds-ink:#f3f3f4;--opds-paper:#08090a;
+  --opds-panel:#111214;--opds-line:#303238;
+  --opds-muted:#b6b9bf;--opds-subtle:#989da5;
+  min-height:100dvh;background:#08090a!important;color:#f3f3f4;
+  color-scheme:dark;
+}
+body:has(main.op-secure-dark) {background:#08090a;color:#f3f3f4;color-scheme:dark;}
+main.op-secure-dark :where(h1,h2,h3,h4,strong){color:#f3f3f4}
+main.op-secure-dark :where(p,small,label,dt,dd){color:inherit}
+main.op-secure-dark :where(input:not([type=checkbox]):not([type=radio]),textarea,select,option,.field_input){
+  background:#181a1d;color:#f3f3f4;border-color:#4a4d53;
+}
+main.op-secure-dark :where(input,textarea)::placeholder{color:#a8abb2}
+main.op-secure-dark :where(.opds-panel,.card,.vp-card){background:#111214;color:#f3f3f4;border-color:#303238}
+main.op-secure-dark :where(button[type=submit]){background:#e5e7eb;color:#101113;border-color:#e5e7eb}
+main.op-secure-dark :where(a,button,input,select,textarea):focus-visible{outline:2px solid #e5e7eb;outline-offset:3px}

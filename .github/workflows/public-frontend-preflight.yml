@@ -9,6 +9,7 @@ on:
       - 'lib/**'
       - 'public/**'
       - 'qa/marketing/**'
+      - 'qa/visual/**'
       - 'scripts/marketing-site-qa-check.mjs'
       - '.github/workflows/public-frontend-preflight.yml'
       - 'package.json'
@@ -66,6 +67,20 @@ jobs:
           NODE
       - name: Chromium browser, form mocks and PDF checks
         run: node qa/marketing/public-front-end-smoke.mjs
+      - name: Anonymous OPOS dark workspace Chromium check at 390px and 1440px
+        env:
+          OPOS_VISUAL_EVIDENCE_DIR: ${{ runner.temp }}/opos-dark-public
+        run: node qa/visual/dark-workspace-smoke.mjs
+
+      - name: Upload anonymous synthetic visual evidence (never authenticated pages)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opos-dark-anonymous-${{ github.run_id }}
+          path: ${{ runner.temp }}/opos-dark-public/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: Live public homepage availability (read-only; manual run only)
         if: github.event_name == 'workflow_dispatch'
         run: |

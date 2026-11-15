@@ -28,7 +28,7 @@
   min-width: 132px;
   padding: 16px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--op-panel);
   color: var(--muted);
   font-size: 12px;
 }
@@ -79,7 +79,7 @@
 .tr-filters select {
   min-height: 44px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--op-panel);
   padding: 0 13px;
   color: var(--ink);
 }
@@ -88,7 +88,7 @@
   grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   min-height: 720px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--op-panel);
 }
 .tr-template-list {
   max-height: 820px;
@@ -103,7 +103,7 @@
   justify-content: space-between;
   padding: 16px 18px;
   border-bottom: 1px solid var(--line);
-  background: #f7f5f1;
+  background: var(--op-panel-2);
 }
 .tr-template-list > button {
   display: grid;
@@ -111,13 +111,13 @@
   gap: 6px;
   border: 0;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: var(--op-panel);
   padding: 17px 18px;
   text-align: left;
 }
 .tr-template-list > button:hover,
 .tr-template-list > button.is-selected {
-  background: #f7f5f1;
+  background: var(--op-panel-2);
 }
 .tr-template-list > button.is-selected {
   box-shadow: inset 4px 0 #d35331;
@@ -138,14 +138,14 @@
 }
 .tr-review-pane {
   min-width: 0;
-  background: #efede8;
+  background: var(--op-bg);
 }
 .tr-template-meta {
   display: flex;
   justify-content: space-between;
   gap: 24px;
   padding: 24px;
-  background: #fff;
+  background: var(--op-panel);
   border-bottom: 1px solid var(--line);
 }
 .tr-template-meta h2 {
@@ -169,6 +169,7 @@
   padding: 34px;
 }
 .tr-email-frame {
+  color: #1b251e;
   max-width: 640px;
   margin: auto;
   border: 1px solid #ded9d0;
@@ -262,7 +263,7 @@
   flex-direction: column;
   padding: 22px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--op-panel);
 }
 .tr-document-card > header {
   display: flex;
@@ -300,29 +301,29 @@
 }
 .tr-status--live-backed {
   border-color: #80a990;
-  background: #edf7f0;
-  color: #24543c;
+  background: #152b22;
+  color: #55d49b;
 }
 .tr-status--preview-only {
   border-color: #d9b576;
-  background: #fff8e8;
-  color: #79521b;
+  background: #302619;
+  color: #f1c376;
 }
 .tr-status--legacy-preview {
-  background: #f0efec;
-  color: #666;
+  background: var(--op-panel-2);
+  color: var(--op-muted);
 }
 .tr-status--dormant {
   border-color: #c9a0a0;
-  background: #f8eeee;
-  color: #763d3d;
+  background: #341b20;
+  color: #ff8787;
 }
 .tr-warning {
   margin: auto 0 18px;
   padding: 12px;
   border-left: 3px solid #b47421;
-  background: #fff8e8;
-  color: #684919;
+  background: #302619;
+  color: #f1c376;
   font-size: 12px;
   line-height: 1.5;
 }
@@ -383,3 +384,8 @@
     gap: 4px;
   }
 }
+
+/* The email/document preview is white paper; surrounding controls stay black. */
+.tr-email-frame :where(h1,h2,h3,h4,strong,dt,dd){color:#1b251e;}
+.tr-template-list > button{color:var(--op-text);}
+.tr-document-card,.tr-email-layout,.tr-template-meta{color:var(--op-text);}

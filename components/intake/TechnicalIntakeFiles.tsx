@@ -123,13 +123,13 @@ export default function TechnicalIntakeFiles({ token, initialFiles = [], disable
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-3 border border-dashed border-black/20 bg-white/40 p-6">
+      <div className="grid gap-3 border border-dashed border-white/20 bg-[#111214] p-6">
         <div className="grid gap-1">
           <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Technical source files</p>
           <p className="text-sm leading-6 text-[var(--muted)]">Attach drawings, CAD models, mark-ups, BOMs or reference packs. Up to 10 files, maximum 25 MB each.</p>
         </div>
         <div>
-          <label className={`inline-flex min-h-11 items-center border border-black/20 px-5 py-2.5 text-sm font-medium transition ${disabled || busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-black'}`}>
+          <label className={`inline-flex min-h-11 items-center border border-white/20 px-5 py-2.5 text-sm font-medium transition ${disabled || busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-black'}`}>
             {busy ? 'Uploading…' : 'Choose engineering files'}
             <input ref={inputRef} className="sr-only" type="file" multiple accept={ACCEPT} onChange={uploadSelected} disabled={disabled || busy} />
           </label>
@@ -138,14 +138,14 @@ export default function TechnicalIntakeFiles({ token, initialFiles = [], disable
       </div>
 
       {files.length > 0 ? (
-        <div className="grid border-t border-black/10">
+        <div className="grid border-t border-white/15">
           {files.map((file) => (
-            <div key={file.id} className="grid gap-3 border-b border-black/10 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div key={file.id} className="grid gap-3 border-b border-white/15 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-[var(--ink)]">{file.original_filename}</p>
                 <p className="mt-1 text-xs text-[var(--subtle)]">{fileSize(Number(file.size_bytes || 0))} · Secure technical intake evidence</p>
               </div>
-              {!disabled ? <button className="text-left text-xs font-medium uppercase tracking-[0.08em] text-[var(--muted)] hover:text-black sm:text-right" type="button" onClick={() => removeFile(file)} disabled={busy}>Remove</button> : null}
+              {!disabled ? <button className="text-left text-xs font-medium uppercase tracking-[0.08em] text-[var(--muted)] hover:text-[#f3f3f4] sm:text-right" type="button" onClick={() => removeFile(file)} disabled={busy}>Remove</button> : null}
             </div>
           ))}
         </div>

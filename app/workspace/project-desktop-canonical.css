@@ -4,17 +4,17 @@
 
 @media (min-width: 901px) {
   .project-os-page.record-workspace {
-    --pd-bg: #f6f6f3;
-    --pd-surface: #ffffff;
-    --pd-text: #171717;
-    --pd-muted: #71757b;
-    --pd-line: #e5e5df;
-    --pd-red: #df2b26;
-    --pd-red-soft: #fff1ef;
-    --pd-green: #3d7f44;
-    --pd-green-soft: #eef7ef;
-    --pd-amber: #a96b00;
-    --pd-amber-soft: #fff6e5;
+    --pd-bg: #08090a;
+    --pd-surface: #111214;
+    --pd-text: #f3f3f4;
+    --pd-muted: #b6b9bf;
+    --pd-line: #303238;
+    --pd-red: #ff8787;
+    --pd-red-soft: #341b20;
+    --pd-green: #55d49b;
+    --pd-green-soft: #152b22;
+    --pd-amber: #f1c376;
+    --pd-amber-soft: #302619;
     color: var(--pd-text) !important;
     width: min(1180px, calc(100vw - 330px));
     margin: 0 auto;
@@ -24,7 +24,7 @@
   }
 
   .op-content:has(.project-os-page) {
-    background: var(--pd-bg, #f6f6f3) !important;
+    background: var(--pd-bg, #08090a) !important;
   }
 
   .project-os-page .record-workspace__header {
@@ -55,7 +55,7 @@
     background: var(--pd-surface) !important;
     border: 1px solid var(--pd-line) !important;
     border-radius: 999px !important;
-    color: #62666c !important;
+    color: var(--pd-muted) !important;
     padding: 6px 10px !important;
     font-size: 11px !important;
     box-shadow: none !important;
@@ -99,8 +99,8 @@
     color: var(--pd-red) !important;
   }
   .project-os-page .project-os-node span {
-    background: #202020 !important;
-    color: #fff !important;
+    background: var(--pd-text) !important;
+    color: var(--pd-bg) !important;
     border: 0 !important;
   }
   .project-os-page .project-os-progress li.current .project-os-node span {
@@ -160,14 +160,14 @@
   .project-os-page .record-workspace__group-heading p,
   .project-os-page .record-workspace__eyebrow {
     margin: 0 !important;
-    color: #55595f !important;
+    color: var(--pd-muted) !important;
     font-size: 11px !important;
     font-weight: 760 !important;
     letter-spacing: .09em !important;
     text-transform: uppercase !important;
   }
   .project-os-page .record-workspace__group-heading span {
-    color: #92959a !important;
+    color: var(--pd-muted) !important;
     font-size: 11px !important;
   }
 
@@ -257,7 +257,7 @@
   .project-os-page #record-documents .vp-facts,
   .project-os-page #record-activities [class*="facts"],
   .project-os-page #record-documents [class*="facts"] {
-    background: #fafaf8 !important;
+    background: var(--pd-surface) !important;
     color: var(--pd-text) !important;
     border-top: 1px solid var(--pd-line) !important;
     border-bottom: 1px solid var(--pd-line) !important;

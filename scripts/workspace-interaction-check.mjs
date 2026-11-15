@@ -30,7 +30,7 @@ expect(css.includes(':focus-visible'),'Shared interaction surfaces have visible 
 expect(css.includes('prefers-reduced-motion'),'Interaction layer respects reduced motion');
 expect(css.includes('100dvh'),'Mobile work windows use viewport-safe full-screen treatment');
 expect(layout.includes("import './workspace-features.css';")&&css.includes('.workspace-shell-actions'),'Shared interaction styles are mounted through the workspace feature layer');
-expect((layout.match(/\.css';/g)||[]).length===4 && layout.indexOf("import './focus-first.css';")>layout.indexOf("import './workspace-surfaces.css';"),'Focus layer loads after the three shared workspace stylesheets');
+expect((layout.match(/\.css';/g)||[]).length===5 && layout.indexOf("import './opos-dark-system.css';")>layout.indexOf("import './focus-first.css';"),'Shared dark-theme layer loads after focus-first workspace styles');
 expect(productContracts.includes('# 7. System Feedback & Accessibility Contract'),'Seven-contract product standard is present');
 expect(!layout.includes('commercial-saas-ui.css'),'Legacy commercial SaaS layer is not loaded');
 expect(recordWorkspace.includes('showStatus={false}')&&recordWorkspace.includes('showActionSummary={false}')&&!recordWorkspace.includes('href={primaryHref}'),'Record state summary does not repeat its status badge or next-action control');
@@ -53,6 +53,76 @@ expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus
        'Focus-first UI remains responsive with visible keyboard controls');
 expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
+
+const dark=read('app/workspace/opos-dark-system.css');
+const baseDark=read('app/workspace/workspace-base.css');
+const mobileDark=read('app/workspace/workspace-surfaces.css');
+const signInDark=read('app/login/page.tsx');
+const outreachDark=read('app/outreach/outreach.module.css');
+const clientDark=read('app/client-portal/page.tsx');
+expect(dark.includes('color-scheme: dark') && dark.includes('--op-bg:#08090a'),'Dark theme uses canonical black canvas');
+expect(baseDark.includes('--op-sidebar:#0c0d0e') && baseDark.includes('--op-panel:#111214'),'Desktop shell defaults are dark');
+expect(mobileDark.includes('--m-bg:#08090a') && mobileDark.includes('--m-surface:#111214'),'Mobile shell defaults are dark');
+expect(signInDark.includes('bg-[#08090a]')&&!signInDark.includes('bg-white'),'OPOS Sign In does not show light surfaces');
+expect(outreachDark.includes('background:#08090a')&&outreachDark.includes('color-scheme:dark'),'Outreach remains dark outside CRM');
+expect(clientDark.includes("background:'#08090a'"),'Client portal uses dark canvas');
+
+
+const secureCSS=read('app/globals.css');
+const securePartner=read('app/partner-review/[token]/page.tsx');
+const secureIntake=read('app/intake/[token]/page.tsx');
+const secureExecution=read('components/execution/PartnerWorkSurface.tsx');
+expect(secureCSS.includes('main.op-secure-dark')&&secureCSS.includes('color-scheme:dark'),
+  'Secure product journeys inherit the dark palette');
+for(const [source,name] of [[securePartner,'Partner review'],[secureIntake,'Technical intake'],[secureExecution,'Partner execution']]){
+  expect(source.includes('op-secure-dark')&&!source.includes('bg-[#f5f4ef]')&&!source.includes('bg-white/50'),
+    name+' uses dark product surfaces');
+}
+
+
+const visualSpec=read('docs/VISUAL_FOUNDATION_SPECIFICATION.md');
+const journalStyles=read('app/workspace/acquisition/LinkedInFlow.module.css');
+expect(visualSpec.includes('Current OPOS monochrome foundation') &&
+  !visualSpec.includes('background: white'),'Visual contract no longer mandates white panels');
+expect(!journalStyles.includes('background:#fff;color:var(--op-ink'),
+  'Outreach conversation textarea has no old white surface');
+
+
+/* Full Workspace 2.0 dark-theme regression coverage.
+   White is intentionally retained ONLY inside printable/document preview content. */
+const missionVisual=read('app/workspace/mission-control-v2.css');
+const projectDesktopVisual=read('app/workspace/project-desktop-canonical.css');
+const projectMobileVisual=read('app/workspace/project-mobile-reference.css');
+const registerVisual=read('app/workspace/document-register-canonical.css');
+const templateVisual=read('app/workspace/template-review/template-review.css');
+const acquisitionVisual=read('app/workspace/acquisition-layout.css');
+expect(!/background:#(?:fff|fafaf7)\b/.test(missionVisual),
+  'Mission Control panels and metrics no longer restore light cards');
+expect(projectDesktopVisual.includes('--pd-bg: #08090a') &&
+       projectDesktopVisual.includes('--pd-surface: #111214') &&
+       !projectDesktopVisual.includes('--pd-text: #171717'),
+  'Desktop Project 360 inherits the dark page, panels and readable text');
+expect(projectMobileVisual.includes('--op-mobile-bg: #08090a') &&
+       projectMobileVisual.includes('--op-mobile-surface: #111214') &&
+       !projectMobileVisual.includes('background: rgba(255,255,255,.97)'),
+  'Mobile Project 360 header, dock and cards use dark surfaces');
+expect(!registerVisual.includes('background:#fff') &&
+       !registerVisual.includes('background:rgba(255,255,255,.97)'),
+  'Document register chrome and popovers are dark, not the documents');
+expect(templateVisual.includes('background: #fff;') &&
+       templateVisual.includes('color: #1b251e;') &&
+       templateVisual.includes('.tr-template-list > button{color:var(--op-text);}') &&
+       templateVisual.includes('.tr-document-card,.tr-email-layout,.tr-template-meta{color:var(--op-text);}'),
+  'Only the email/document preview remains white in template review');
+expect(dark.includes('.opds-document,.document-a4-preview,.midts-document-page,.tr-email-frame') &&
+       dark.includes('--opds-ink:#111815;') && dark.includes('color-scheme:light;'),
+  'White document sheets keep dark ink without making their surrounding UI light');
+expect(!acquisitionVisual.includes('background:#f7f7f3'),
+  'Acquisition duplicate confirmation does not restore a light panel');
+expect(css.includes('.workspace-overlay{color-scheme:dark;') &&
+       css.includes('--op-text:#f3f3f4;--op-muted:#b6b9bf;') &&
+       css.includes('background:#e5e7eb;color:#101113;'),
+  'Portal-mounted dialogs, popovers and actions have explicit dark-theme contrast');
 
 let failed=0;
 for(const check of checks){

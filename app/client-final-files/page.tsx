@@ -5,7 +5,7 @@ import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 export const dynamic='force-dynamic';
 export const metadata={title:'Final engineering files | Overflow Partner',robots:{index:false,follow:false}};
 
-const denied=(message:string)=><main style={{maxWidth:720,margin:'3rem auto',padding:24}}>
+const denied=(message:string)=><main className="op-secure-dark" style={{maxWidth:720,margin:'3rem auto',padding:24}}>
   <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Final files not available</h1><p>{message}</p>
 </main>;
 
@@ -60,7 +60,7 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
     if(signError||!signed?.signedUrl)return denied('A secure file link could not be created. Please try again.');
     links.push({id:file.id,name:file.original_filename,url:signed.signedUrl});
   }
-  return <main style={{maxWidth:740,margin:'3rem auto',padding:24}}>
+  return <main className="op-secure-dark" style={{maxWidth:740,margin:'3rem auto',padding:24}}>
     <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
     <h1>Final engineering package</h1>
     <p>Project {project.project_number} · Quotation {quote.quote_number}</p>
