@@ -1,0 +1,49 @@
+name: OPOS Browser Lifecycle Handoff QA (protected)
+
+# Never run credential-bearing tests on unreviewed pull requests.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-handoff:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: opos-qa-auth
+    env:
+      CI: 'true'
+      OPOS_AUTH_QA_APPROVED: 'true'
+      OPOS_QA_BASE_URL: https://overflow-partner-cp1nauyty-zeeshankhanminhas-projects.vercel.app
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install application dependencies
+        run: npm ci --ignore-scripts
+      - name: Install pinned Playwright
+        run: npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+      - name: Install Chromium on GitHub runner
+        run: npx playwright install --with-deps chromium
+      - name: Validate source and protected configuration
+        run: |
+          node --check qa/browser/tests/lifecycle-handoff.spec.mjs
+          node --check qa/browser/lifecycle-handoff.config.mjs
+          node --test qa/browser/authenticated-policy.test.mjs
+      - name: Browser continuity across client and partner
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.OPOS_QA_VERCEL_AUTOMATION_BYPASS_SECRET }}
+          OPOS_QA_CONTROLLER_EMAIL: ${{ secrets.OPOS_QA_CONTROLLER_EMAIL }}
+          OPOS_QA_CONTROLLER_PASSWORD: ${{ secrets.OPOS_QA_CONTROLLER_PASSWORD }}
+          OPOS_QA_CLIENT_EMAIL: ${{ secrets.OPOS_QA_CLIENT_EMAIL }}
+          OPOS_QA_CLIENT_PASSWORD: ${{ secrets.OPOS_QA_CLIENT_PASSWORD }}
+          OPOS_QA_PARTNER_EMAIL: ${{ secrets.OPOS_QA_PARTNER_EMAIL }}
+          OPOS_QA_PARTNER_PASSWORD: ${{ secrets.OPOS_QA_PARTNER_PASSWORD }}
+        run: npx playwright test --config=qa/browser/lifecycle-handoff.config.mjs
