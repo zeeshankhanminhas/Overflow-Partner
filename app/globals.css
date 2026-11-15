@@ -160,5 +160,24 @@ main.op-secure-dark :where(input:not([type=checkbox]):not([type=radio]),textarea
 }
 main.op-secure-dark :where(input,textarea)::placeholder{color:#a8abb2}
 main.op-secure-dark :where(.opds-panel,.card,.vp-card){background:#111214;color:#f3f3f4;border-color:#303238}
-main.op-secure-dark :where(button[type=submit]){background:#e5e7eb;color:#101113;border-color:#e5e7eb}
+/* Secure-link journeys share OPOS action semantics without granting workspace permissions. */
+main.op-secure-dark {
+  --op-action-primary:#ef6c24;
+  --op-action-primary-ink:#101113;
+  --op-action-secondary:#181a1d;
+  --op-action-secondary-ink:#f3f3f4;
+}
+main.op-secure-dark :where(button[type=submit]:not(.secondary),.op-secure-primary){
+  background:var(--op-action-primary)!important;
+  color:var(--op-action-primary-ink)!important;
+  border-color:var(--op-action-primary)!important;
+}
+main.op-secure-dark :where(.op-secure-secondary){
+  background:var(--op-action-secondary)!important;
+  color:var(--op-action-secondary-ink)!important;
+  border-color:#4a4d53!important;
+}
+main.op-secure-dark :where(button,.op-secure-primary,.op-secure-secondary):not(:disabled):hover{filter:brightness(1.1)}
+main.op-secure-dark :where(button,.op-secure-primary,.op-secure-secondary):is(:disabled,[aria-disabled=true]){opacity:.52;cursor:not-allowed;filter:none}
+
 main.op-secure-dark :where(a,button,input,select,textarea):focus-visible{outline:2px solid #e5e7eb;outline-offset:3px}
