@@ -310,7 +310,7 @@
 .op-nav-label{margin:0 0 7px;padding:0 8px;font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#92959a}
 .op-sidebar-footer{margin-top:auto;border-top:1px solid var(--op-line);padding:16px 4px 0}
 .op-sidebar-footer p{margin:0 0 10px;font-size:9px;font-weight:760;letter-spacing:.12em;text-transform:uppercase;color:#96999d}
-.op-sidebar-footer .button{width:100%;min-height:40px;border:1px solid var(--op-line)!important;border-radius:10px!important;background:var(--op-panel)!important;color:#4f5358!important}
+.op-sidebar-footer .button{width:100%;min-height:40px;border-radius:10px}
 
 .op-main{min-width:0;background:var(--op-bg)}
 .op-topbar{position:sticky;top:0;z-index:30;min-height:56px;border-bottom:1px solid var(--op-line);background:var(--op-sidebar);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-between;padding:0 28px}
@@ -330,13 +330,10 @@
 .op-content p,.op-content span,.op-content time,.op-content label{color:var(--op-muted)}
 .op-content a{color:inherit;text-decoration:none}
 .op-content input,.op-content select,.op-content textarea{width:100%;min-width:0;border:1px solid var(--op-line)!important;border-radius:10px!important;background:var(--op-panel)!important;color:var(--op-text)!important;padding:10px 11px;font-family:var(--font-ui);box-shadow:none!important}
-.op-content input:focus,.op-content select:focus,.op-content textarea:focus{outline:3px solid rgba(223,43,38,.1);border-color:rgba(223,43,38,.45)!important}
+.op-content input:focus,.op-content select:focus,.op-content textarea:focus{outline:3px solid rgba(239,108,36,.14);border-color:rgba(239,108,36,.65)!important}
 .op-content option{background:var(--op-panel);color:var(--op-text)}
 .op-content .button,.op-content button{width:auto;max-width:100%;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:10px!important;padding:8px 13px;font-family:var(--font-ui);font-size:12px;font-weight:680;line-height:1.2;white-space:normal;text-align:center;box-shadow:none!important;overflow-wrap:anywhere}
-.op-content .button:not(.secondary),.op-content button[type=submit]{background:var(--op-red)!important;color:#fff!important;border:1px solid var(--op-red)!important}
-.op-content .button:not(.secondary) *,.op-content button[type=submit] *{color:inherit!important}
-.op-content .button.secondary{border:1px solid var(--op-line)!important}
-.op-content .button.secondary *{color:inherit!important}
+/* Button colours and semantic states are owned only by opos-dark-system.css. */
 .op-content button:disabled,.op-content .button[aria-disabled=true]{cursor:not-allowed!important;opacity:.48!important;filter:saturate(.55);transform:none!important}
 .op-content form:not(.stack)>.button:only-child,.op-content form:not(.stack)>button:only-child{width:auto}
 .op-content .vp-action .button,.op-content .vp-action button,.op-content .op-next-action .button,.op-content .op-next-action button{width:100%}
