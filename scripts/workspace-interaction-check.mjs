@@ -114,6 +114,9 @@ expect(templateVisual.includes('background: #fff;') &&
        templateVisual.includes('.tr-template-list > button{color:var(--op-text);}') &&
        templateVisual.includes('.tr-document-card,.tr-email-layout,.tr-template-meta{color:var(--op-text);}'),
   'Only the email/document preview remains white in template review');
+expect(dark.includes('.opds-document,.document-a4-preview,.midts-document-page,.tr-email-frame') &&
+       dark.includes('--opds-ink:#111815;') && dark.includes('color-scheme:light;'),
+  'White document sheets keep dark ink without making their surrounding UI light');
 expect(!acquisitionVisual.includes('background:#f7f7f3'),
   'Acquisition duplicate confirmation does not restore a light panel');
 expect(css.includes('.workspace-overlay{color-scheme:dark;') &&
