@@ -78,6 +78,14 @@ for (const key of ['linkedinFunnel','missionControl','opportunities','projects',
     'Current primary destination remains authoritative: '+key);
 }
 
+expect(sidebar.includes("aria-current={opportunitiesActive?'page':undefined}") &&
+  sidebar.includes("aria-current={financeActive?'page':undefined}") &&
+  sidebar.includes("aria-current={docsActive?'page':undefined}"),
+  'Primary desktop navigation announces the active destination for assistive technology');
+expect(['/workspace/attention','/workspace/tasks','/workspace/exceptions',
+  '/workspace/commercial-control','/workspace/communications','/workspace/partners',
+  '/workspace/risk','/workspace/intelligence'].every(route=>mobileNav.includes("'"+route+"'")),
+  'Mobile More stays active across supporting operational modules');
 expect(sidebar.includes("lifecycle-nav--simplified") &&
   sidebar.includes('href={n.opportunities.href}') &&
   sidebar.includes('href={n.myWork.href}') &&
