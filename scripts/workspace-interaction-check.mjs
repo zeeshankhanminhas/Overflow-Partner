@@ -30,7 +30,7 @@ expect(css.includes(':focus-visible'),'Shared interaction surfaces have visible 
 expect(css.includes('prefers-reduced-motion'),'Interaction layer respects reduced motion');
 expect(css.includes('100dvh'),'Mobile work windows use viewport-safe full-screen treatment');
 expect(layout.includes("import './workspace-features.css';")&&css.includes('.workspace-shell-actions'),'Shared interaction styles are mounted through the workspace feature layer');
-expect((layout.match(/\.css';/g)||[]).length===5 && layout.indexOf("import './opos-dark-system.css';")>layout.indexOf("import './focus-first.css';"),'Shared dark-theme layer loads after focus-first workspace styles');
+expect((layout.match(/\.css';/g)||[]).length===5 && layout.indexOf("import './opos-dark-system.css';")>layout.indexOf("import './focus-first.css';"),'Focus layer loads after the three shared workspace stylesheets');
 expect(productContracts.includes('# 7. System Feedback & Accessibility Contract'),'Seven-contract product standard is present');
 expect(!layout.includes('commercial-saas-ui.css'),'Legacy commercial SaaS layer is not loaded');
 expect(recordWorkspace.includes('showStatus={false}')&&recordWorkspace.includes('showActionSummary={false}')&&!recordWorkspace.includes('href={primaryHref}'),'Record state summary does not repeat its status badge or next-action control');
@@ -53,6 +53,60 @@ expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus
        'Focus-first UI remains responsive with visible keyboard controls');
 expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
+
+
+// Controller navigation release gates: role-neutral presentation only.
+// No payments, project creation or server-side business lifecycle transitions.
+const controllerNav=read('lib/presentation/navigationContract.ts');
+const controllerSidebar=read('app/workspace/LifecycleSidebar.tsx');
+const controllerMobile=read('components/workspace/MobileWorkspaceNav.tsx');
+const controllerOpportunities=read('app/workspace/opportunities/page.tsx');
+const controllerMore=read('app/workspace/more/page.tsx');
+const controllerAttention=read('app/workspace/attention/page.tsx');
+const controllerLayout=read('app/workspace/layout.tsx');
+for (const name of ['linkedinFunnel','missionControl','opportunities','projects','finance','documents']) {
+  const section=controllerNav.slice(controllerNav.indexOf('  '+name+': {'),controllerNav.indexOf('  },',controllerNav.indexOf('  '+name+': {')));
+  expect(section.includes("placement: 'primary'"), 'Controller primary navigation includes '+name);
+}
+expect(controllerSidebar.includes('lifecycle-nav--simplified') &&
+  controllerSidebar.includes('href={n.opportunities.href}') &&
+  controllerSidebar.includes('href={n.finance.href}') &&
+  controllerSidebar.includes('href={n.more.href}'),
+  'Desktop uses six main destinations and supporting More');
+expect(controllerSidebar.includes("aria-current={opportunitiesActive?'page':undefined}") &&
+  controllerSidebar.includes("aria-current={financeActive?'page':undefined}"),
+  'Desktop indicates active navigation to assistive technology');
+expect(controllerMobile.includes("href:'/workspace/opportunities'") &&
+  controllerMobile.includes("href:'/workspace/more'") &&
+  controllerMobile.includes("href:'/outreach'"),
+  'Mobile five-tab navigation matches simplified IA');
+expect(['/workspace/attention','/workspace/tasks','/workspace/exceptions',
+  '/workspace/commercial-control','/workspace/communications',
+  '/workspace/partners','/workspace/intelligence','/workspace/risk']
+  .every(route=>controllerMobile.includes("'"+route+"'")),
+  'Mobile More active state includes supporting routes');
+expect(controllerOpportunities.includes("from('prospects')") &&
+  controllerOpportunities.includes("rpc('op_case_queue'") &&
+  controllerOpportunities.includes("from('projects')") &&
+  !controllerOpportunities.includes('.insert(') &&
+  !controllerOpportunities.includes('.update('),
+  'Unified Opportunities is read-only over governed existing records');
+expect(controllerMore.includes('href:n.contacts.href') &&
+  controllerMore.includes('href:n.partners.href') &&
+  controllerMore.includes('href:n.finance.href'),
+  'More retains access to contextual registers');
+expect(controllerAttention.includes('buildMissionPriorityQueue') &&
+  controllerAttention.includes('const filtered=') &&
+  controllerAttention.includes('item.kind===view'),
+  'My Work filters existing priority order without changing authority');
+expect(controllerLayout.includes('<MobileWorkspaceNav />') &&
+  command.includes('title:n.opportunities.label') &&
+  command.includes('title:n.finance.label') &&
+  command.includes('title:n.more.label'),
+  'Workspace shell and command palette use the same destinations');
+expect(focusCss.includes('op-unified-page__directory') &&
+  focusCss.includes('op-mobile-nav--clear'),
+  'Unified pages and mobile navigation have styles');
 
 const dark=read('app/workspace/opos-dark-system.css');
 const baseDark=read('app/workspace/workspace-base.css');
@@ -123,6 +177,7 @@ expect(css.includes('.workspace-overlay{color-scheme:dark;') &&
        css.includes('--op-text:#f3f3f4;--op-muted:#b6b9bf;') &&
        css.includes('background:#e5e7eb;color:#101113;'),
   'Portal-mounted dialogs, popovers and actions have explicit dark-theme contrast');
+
 
 let failed=0;
 for(const check of checks){
