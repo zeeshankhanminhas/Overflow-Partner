@@ -87,6 +87,40 @@ expect(visualSpec.includes('Current OPOS monochrome foundation') &&
 expect(!journalStyles.includes('background:#fff;color:var(--op-ink'),
   'Outreach conversation textarea has no old white surface');
 
+
+/* Full Workspace 2.0 dark-theme regression coverage.
+   White is intentionally retained ONLY inside printable/document preview content. */
+const missionVisual=read('app/workspace/mission-control-v2.css');
+const projectDesktopVisual=read('app/workspace/project-desktop-canonical.css');
+const projectMobileVisual=read('app/workspace/project-mobile-reference.css');
+const registerVisual=read('app/workspace/document-register-canonical.css');
+const templateVisual=read('app/workspace/template-review/template-review.css');
+const acquisitionVisual=read('app/workspace/acquisition-layout.css');
+expect(!/background:#(?:fff|fafaf7)\b/.test(missionVisual),
+  'Mission Control panels and metrics no longer restore light cards');
+expect(projectDesktopVisual.includes('--pd-bg: #08090a') &&
+       projectDesktopVisual.includes('--pd-surface: #111214') &&
+       !projectDesktopVisual.includes('--pd-text: #171717'),
+  'Desktop Project 360 inherits the dark page, panels and readable text');
+expect(projectMobileVisual.includes('--op-mobile-bg: #08090a') &&
+       projectMobileVisual.includes('--op-mobile-surface: #111214') &&
+       !projectMobileVisual.includes('background: rgba(255,255,255,.97)'),
+  'Mobile Project 360 header, dock and cards use dark surfaces');
+expect(!registerVisual.includes('background:#fff') &&
+       !registerVisual.includes('background:rgba(255,255,255,.97)'),
+  'Document register chrome and popovers are dark, not the documents');
+expect(templateVisual.includes('background: #fff;') &&
+       templateVisual.includes('color: #1b251e;') &&
+       templateVisual.includes('.tr-template-list > button{color:var(--op-text);}') &&
+       templateVisual.includes('.tr-document-card,.tr-email-layout,.tr-template-meta{color:var(--op-text);}'),
+  'Only the email/document preview remains white in template review');
+expect(!acquisitionVisual.includes('background:#f7f7f3'),
+  'Acquisition duplicate confirmation does not restore a light panel');
+expect(css.includes('.workspace-overlay{color-scheme:dark;') &&
+       css.includes('--op-text:#f3f3f4;--op-muted:#b6b9bf;') &&
+       css.includes('background:#e5e7eb;color:#101113;'),
+  'Portal-mounted dialogs, popovers and actions have explicit dark-theme contrast');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
