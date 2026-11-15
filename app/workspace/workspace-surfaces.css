@@ -10,7 +10,7 @@
   --surface-text:#f3f3f4;
   --surface-muted:#b6b9bf;
   --surface-line:#303238;
-  --surface-accent:#df2b26;
+  --surface-accent:#ef6c24;
   width:100%;min-width:0;color:var(--surface-text);
 }
 :where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page:has(> .product-page-header),.acquisition-workspace,.approvals-workspace) :where(h1,h2,h3,strong){color:var(--surface-text)}
@@ -88,7 +88,7 @@
 /* DECISION — approvals and bounded authority surfaces. */
 :where(.op-surface--decision,.approvals-workspace){display:grid;gap:18px}
 :where(.op-surface--decision,.approvals-workspace) :where(.op-ui-next-action,.op-ui-queue,.product-panel){background:var(--surface-panel);border-color:var(--surface-line);border-radius:16px;box-shadow:none}
-:where(.op-surface--decision,.approvals-workspace) .button:not(.secondary){background:var(--surface-accent)!important;border-color:var(--surface-accent)!important;color:#fff!important}
+/* Decision action colours follow the shared semantic action contract. */
 
 /* Interaction layers inherit the current surface; they never become another page type. */
 .workspace :where(.workspace-drawer,.interaction-drawer,.decision-dialog,.work-window){--surface-panel:#111214;--surface-line:#303238}
@@ -290,8 +290,8 @@
 
   /* Quick is the only filled action. */
   .op-mobile-header .workspace-shell-action:nth-child(1){
-    border-color:var(--op-accent,#df2b26)!important;
-    background:var(--op-accent,#df2b26)!important;
+    border-color:var(--op-accent,#ef6c24)!important;
+    background:var(--op-accent,#ef6c24)!important;
     background-image:none!important;
     color:#fff!important;
   }
@@ -323,7 +323,7 @@
     padding:0 4px!important;
     border:2px solid #fff!important;
     border-radius:999px!important;
-    background:var(--op-accent,#df2b26)!important;
+    background:var(--op-accent,#ef6c24)!important;
     color:#fff!important;
     font-size:9px!important;
     line-height:13px!important;
@@ -343,7 +343,7 @@
   --op-text:#f3f3f4;
   --op-muted:#b6b9bf;
   --op-subtle:#989da5;
-  --op-accent:#df2b26;
+  --op-accent:#ef6c24;
   --op-info:#365f91;
   --op-waiting:#9a6a17;
   --op-warning:#b15f16;
@@ -392,7 +392,7 @@
 .op-content table{width:100%;background:var(--op-panel);border-collapse:separate!important;border-spacing:0!important;font-variant-numeric:tabular-nums}.op-content table thead th{position:sticky!important;top:0!important;z-index:2;padding:9px 11px!important;background:var(--op-panel-2)!important;color:#73777b!important;border-bottom:1px solid var(--op-line)!important;text-align:left}.op-content table tbody td{padding:11px!important;border-top:1px solid var(--op-line-soft)!important;background:var(--op-panel);vertical-align:middle}.op-content table tbody tr:first-child td{border-top:0!important}.op-content table tbody tr:hover td{background:var(--op-panel)!important}.op-content table :where(td,th)[data-numeric='true'],.op-content table .is-numeric{text-align:right!important;font-variant-numeric:tabular-nums}
 
 /* ACTION CONTRACT */
-.op-content .button,.op-topbar .button{min-height:var(--op-control-h);border-radius:8px;font-weight:650}.op-content .button.secondary,.product-action--secondary{background:var(--op-panel)!important;border-color:var(--op-line)!important;color:#2a2a28!important}.op-content .button.secondary:hover,.product-action--secondary:hover{background:var(--op-panel-2)!important;border-color:#cfcfc8!important}.product-action--primary{background:var(--op-accent)!important;border-color:var(--op-accent)!important;color:#fff!important}.product-action--approve{background:var(--op-panel-2)!important;border-color:#bfd8c8!important;color:#245a3e!important}.product-action--warning{background:var(--op-panel-2)!important;border-color:#e6c88e!important;color:#7d5312!important}.product-action--destructive{background:var(--op-panel)!important;border-color:#e3b8b4!important;color:var(--op-danger)!important}.product-action--destructive:hover{background:var(--op-panel-2)!important}.op-content [aria-disabled='true'],.op-content button:disabled{opacity:.52;cursor:not-allowed}
+.op-content .button,.op-topbar .button{min-height:var(--op-control-h);border-radius:8px;font-weight:650} /* Colours, hover and state mapping: opos-dark-system.css */
 
 /* Status colours are semantic, restrained, and never colour-only. */
 .op-content .product-status{min-height:22px;padding:3px 7px;border:1px solid var(--op-line)!important;background:var(--op-panel);color:#575b5f}.op-content .product-status--active{background:var(--op-panel-2)!important;border-color:#ccd9e7!important;color:var(--op-info)!important}.op-content .product-status--waiting{background:var(--op-panel-2)!important;border-color:#e7d2a9!important;color:var(--op-waiting)!important}.op-content .product-status--attention{background:var(--op-panel-2)!important;border-color:#e5c39f!important;color:var(--op-warning)!important}.op-content .product-status--blocked,.op-content .product-status--critical{background:var(--op-panel-2)!important;border-color:#e3b8b4!important;color:var(--op-danger)!important}.op-content .product-status--complete{background:var(--op-panel-2)!important;border-color:#bfd8c8!important;color:var(--op-success)!important}
@@ -557,7 +557,7 @@
  --op-ui-muted:var(--op-muted,#5f6863);
  --op-ui-border:var(--op-line,#d9d6ce);
  --op-ui-border-strong:var(--op-line-strong,#bfc3bf);
- --op-ui-accent:var(--op-accent,#e64a35);
+ --op-ui-accent:var(--op-accent,#ef6c24);
  --op-ui-success:#18794e;
  --op-ui-warning:#9a6700;
  --op-ui-danger:#b42318;
