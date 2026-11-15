@@ -63,11 +63,11 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
         <ProductSectionHeader eyebrow="Money in" title="Client receivables" meta={`${visibleInvoices.length} record${visibleInvoices.length===1?'':'s'}`} />
         {visibleInvoices.length===0?<ProductEmptyState title="No client invoices in this view" description="Change the filter or create an invoice from Commercial control." />:<ProductRegister label="Client receivables">
           {visibleInvoices.map(({invoice,state},index)=>{const project=projectMap.get(invoice.project_id) as any;const client=leadMap.get(invoice.lead_id) as any;return <ProductRegisterRow id={`invoice-${invoice.id}`} key={invoice.id} serial={index+1}>
-            <div><strong>{invoice.invoice_number}</strong><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div>
+            <div><Link className="op-record-primary-link" href={`/workspace/commercial-control/invoices/${invoice.id}`}><strong>{invoice.invoice_number}</strong></Link><p>{client?.company_name||project?.title||'Client'} · {project?.project_number||'Project'}</p><small>Due {date(invoice.due_date)}</small></div>
             <ProductStatus tone={invoiceTone(state)}>{state.overdue?'Overdue':state.settled?'Settled':state.canRecordPayment?'Awaiting payment':'Working'}</ProductStatus>
             <div><strong>{money(state.balance,invoice.currency)} due</strong><small style={{display:'block'}}>{money(invoice.amount_paid,invoice.currency)} of {money(invoice.total,invoice.currency)} received</small></div>
             <ContextActions label={`Actions for ${invoice.invoice_number}`}>
-              <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Client receivable" title={invoice.invoice_number} description="Invoice and settlement context." footer={<><Link className="button" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project 360</Link>:null}</>}>
+              <WorkspaceDrawer triggerLabel="Details" eyebrow="Client receivable" title={invoice.invoice_number} description="Invoice and settlement context." footer={<><Link className="button" href={`/workspace/commercial-control/invoices/${invoice.id}`}>Open invoice</Link>{project?<Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project 360</Link>:null}</>}>
                 <InteractionFacts>
                   <InteractionFact label="Client">{client?.company_name||project?.title||'Client'}</InteractionFact>
                   <InteractionFact label="Project">{project?.project_number||'Not linked'}</InteractionFact>
@@ -101,7 +101,7 @@ export default async function PaymentsPage({searchParams}:{searchParams?:Promise
             <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
             <div><strong>{money(state.balance,payable.currency)} due</strong><small style={{display:'block'}}>{presentation.nextAction.label}</small></div>
             <ContextActions label={`Actions for ${payable.payable_number}`}>
-              <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Partner liability" title={payable.payable_number} description={presentation.summary} footer={project?<><Link className="button" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>Open commercial context</Link><Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project 360</Link></>:undefined}>
+              <WorkspaceDrawer triggerLabel="Details" eyebrow="Partner liability" title={payable.payable_number} description={presentation.summary} footer={project?<><Link className="button" href={`/workspace/commercial-control?project=${payable.project_id}&focus=payable-${payable.id}`}>Open commercial context</Link><Link className="button secondary" href={`/workspace/projects/${project.id}`}>Project 360</Link></>:undefined}>
                 <InteractionFacts>
                   <InteractionFact label="Partner">{partner?.company_name||'Partner'}</InteractionFact>
                   <InteractionFact label="Project">{project?.project_number||'Not linked'}</InteractionFact>

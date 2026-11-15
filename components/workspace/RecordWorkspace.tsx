@@ -74,6 +74,7 @@ export default function RecordWorkspace({
 
       <div className="op-focus__body">
         <section className="op-focus__decision" aria-labelledby="op-focus-title">
+          {presentation ? <p className="op-focus__stage">Current position · {commercialCopy(presentation.state)}</p> : null}
           <p className="op-focus__eyebrow">What needs to happen next</p>
           <h2 id="op-focus-title">{presentation ? commercialCopy(presentation.nextAction.label) : 'Next action'}</h2>
           {presentation ? <p className="op-focus__why">{commercialCopy(presentation.nextAction.reason || presentation.summary)}</p> : null}

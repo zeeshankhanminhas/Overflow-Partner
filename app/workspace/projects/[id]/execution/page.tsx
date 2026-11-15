@@ -69,7 +69,7 @@ export default async function PartnerExecutionControlPage({ params, searchParams
   const nextAction=partnerMismatch||noCommercialPartner?'Resolve Partner assignment':!assignment?'Complete Partner setup':partnerView.next;
   const nextSummary=partnerMismatch||noCommercialPartner?'Return to the commercial/project record before releasing more work.':!assignment?'Use the setup section below to create the Partner assignment.':openExceptions.length?`${openExceptions.length} Partner exception${openExceptions.length===1?'':'s'} need attention.`:deliverySubmitted?'Partner work is complete for now. Overflow Partner owns the review.':latestProgress?`Latest delivery health: ${deliveryHealthLabel(latestProgress.progress_state)}${latestProgress.percent_complete===null||latestProgress.percent_complete===undefined?'':` · ${latestProgress.percent_complete}% reported`}.`:'No operator action is required unless the Partner reports a change, exception or delivery.';
 
-  return <section className="stack" style={{gap:24,maxWidth:1180}}>
+  return <section className="stack op-child-workflow" style={{gap:24,maxWidth:1180}}>
     <div><Link href={`/workspace/projects/${id}`} className="project-os-back">← Project 360</Link><p className="eyebrow" style={{marginTop:18}}>Partner work</p><h1 style={{marginTop:8}}>{project.title}</h1><p className="lede">See who owns the work now, the latest Partner-reported health and the next hand-off. Setup stays secondary.</p></div>
 
     {query.success?<div className="card" style={{borderLeft:'3px solid var(--op-success)'}}><strong>{query.success}</strong></div>:null}

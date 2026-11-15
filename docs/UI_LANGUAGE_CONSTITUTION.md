@@ -1,6 +1,6 @@
 # Overflow Partner UI Language Constitution
 
-Status: Normative presentation-language standard
+Status: ACTIVE for business language; current navigation vocabulary follows [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md).
 
 Implementation: PR #18 — UI Language & Microcopy Lock
 
@@ -153,23 +153,9 @@ Avoid using internal implementation terms in button labels.
 
 ## 9. Navigation
 
-Navigation names the thing the operator wants to find, not its storage model.
+Current desktop labels are **Outreach, Home, Opportunities, Projects, Finance, Documents**, with My Work and More as secondary tools. Mobile is Outreach, Home, Opportunities, Projects, More.
 
-Use:
-
-- Enquiries
-- Cases
-- Partner assessments
-- Projects
-- Client quotes
-- Execution Partners
-- Issues
-- Actions
-- Documents
-- Messages
-- Executive view
-
-Technical route names may remain unchanged.
+**Opportunities** is a navigation grouping of existing Enquiry and Case records, not a new commercial stage or merged data source. **Outreach** is before CRM; a cold LinkedIn name is not called a Prospect until confirmed interest and explicit promotion. Enquiry, Case 360, Client Quote, Partner Assessment and other governed nouns remain correct within their owning context.
 
 ## 10. Error language
 

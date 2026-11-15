@@ -176,6 +176,6 @@ export default async function AcquisitionRecordPage({params,searchParams}:{param
   }
   return <>
     {prospect.source==='linkedin' && conversationPanel?<div className={flowStyles.record}>{conversationPanel}</div>:null}
-    <RecordWorkspace className="opportunity-reference-workspace" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readiness} nextAction={nextActionPanel} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>
+    <RecordWorkspace focusMode className="opportunity-reference-workspace" header={header} notices={notices} stateStrip={stateStrip} presentation={presentation} readiness={readiness} nextAction={nextActionPanel} summary={summary} evidence={evidence} activities={activities} communications={communications} history={history} metadata={metadata} audit={audit}/>
   </>;
 }

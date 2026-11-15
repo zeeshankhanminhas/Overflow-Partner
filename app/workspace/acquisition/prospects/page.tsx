@@ -39,7 +39,7 @@ export default async function ProspectRegisterPage(){
   const waiting=rows.filter(row=>row.presentation.tone==='waiting').length;const decisions=rows.filter(row=>row.presentation.approval?.required).length;const active=rows.filter(row=>!['complete','neutral'].includes(row.presentation.tone)).length;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Acquisition" title="Enquiries" description="Choose an enquiry from the register. Inspect its operating position in a drawer first; open the full Enquiry only when you need to perform work." actions={<Link className="button secondary" href="/workspace/acquisition">Acquisition overview</Link>} />
+    <ProductPageHeader eyebrow="Work · Acquisition" title="Enquiries" description="Open an enquiry directly to continue its governed work. Details are available without leaving the register." actions={<Link className="button secondary" href="/workspace/acquisition">Acquisition overview</Link>} />
     <ProductMetrics label="Enquiry summary">
       <ProductMetric label="Active work" value={active} detail="Internal work or evidence in progress" tone={active?'active':'neutral'} />
       <ProductMetric label="Waiting" value={waiting} detail="Client or Partner owns the next move" tone={waiting?'waiting':'complete'} />
@@ -50,11 +50,11 @@ export default async function ProspectRegisterPage(){
       <ProductSectionHeader eyebrow="Enquiry register" title="Active opportunities" />
       {rows.length===0?<ProductEmptyState title="No active enquiries" description="Capture an enquiry in Acquisition to start the governed intake workflow." action={<Link className="button secondary" href="/workspace/acquisition#manual-prospect">Add enquiry</Link>} />:<ProductRegister>
         {rows.map(({item,presentation,session,request})=><ProductRegisterRow key={item.id}>
-          <div><strong>{item.company_name}</strong><p>{item.contact_name||'Contact not recorded'} · {item.source}</p><small>{presentation.summary}</small></div>
+          <div><Link className="op-record-primary-link" href={`/workspace/acquisition/${item.id}`}><strong>{item.company_name}</strong></Link><p>{item.contact_name||'Contact not recorded'} · {item.source}</p><small>{presentation.summary}</small></div>
           <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
           <div><small>{presentation.waitingOn?'Waiting on':'Owner'}</small><strong style={{display:'block',marginTop:3}}>{presentation.waitingOn?.label||'Overflow Partner'}</strong></div>
           <ContextActions label={`Actions for ${item.company_name}`}>
-            <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Enquiry" title={item.company_name} description={presentation.summary} footer={<Link className="button" href={`/workspace/acquisition/${item.id}`}>Open Enquiry</Link>}>
+            <WorkspaceDrawer triggerLabel="Details" eyebrow="Enquiry" title={item.company_name} description={presentation.summary} footer={<Link className="button" href={`/workspace/acquisition/${item.id}`}>Open Enquiry</Link>}>
               <InteractionFacts>
                 <InteractionFact label="Operating state">{presentation.state}</InteractionFact>
                 <InteractionFact label="Owner / waiting on">{presentation.waitingOn?.label||'Overflow Partner'}</InteractionFact>
@@ -66,7 +66,6 @@ export default async function ProspectRegisterPage(){
               </InteractionFacts>
               <p className="interaction-summary__lead">{presentation.nextAction.reason||presentation.summary}</p>
             </WorkspaceDrawer>
-            <Link className="button secondary" href={`/workspace/acquisition/${item.id}`}>Open</Link>
           </ContextActions>
         </ProductRegisterRow>)}
       </ProductRegister>}

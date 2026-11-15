@@ -26,16 +26,16 @@ export default async function LeadsPage({searchParams}:{searchParams?:Promise<Re
   </WorkWindow> : <Link className="button secondary" href={`${pageHref(view,page)}${pageHref(view,page).includes('?')?'&':'?'}exception=1`}>Exceptional entry</Link>;
 
   return <section className="vp-page">
-    <ProductPageHeader eyebrow="Work · Cases" title={meta.title} description={`${meta.subtitle} Inspect a Case from the register before opening the full governed workspace.`} actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{approvals?` · ${approvals}`:''}</Link><Link className="button secondary" href="/workspace/assessments">Assessments</Link>{exceptionalEntry}</>} />
+    <ProductPageHeader eyebrow="Work · Cases" title={meta.title} description={`${meta.subtitle} Open the Case directly to act; optional details remain in the register.`} actions={<><Link className="button secondary" href="/workspace/approvals">Approvals{approvals?` · ${approvals}`:''}</Link><Link className="button secondary" href="/workspace/assessments">Assessments</Link>{exceptionalEntry}</>} />
     {params.created?<ProductNotice title="Case created" tone="complete"><p>The direct Case is now available in the operating register.</p></ProductNotice>:null}{params.converted?<ProductNotice title="Enquiry converted" tone="complete"><p>The qualified opportunity is now a governed Case.</p></ProductNotice>:null}{params.error?<ProductNotice title="Case action could not be completed" tone="blocked"><p>{String(params.error)}</p></ProductNotice>:null}
     <ProductMetrics label="Case queue summary"><ProductMetric label="Records in view" value={rows.length} detail="Visible on this page" /><ProductMetric label="Approvals" value={approvals} detail="Authority decisions due" tone={approvals?'waiting':'complete'} /><ProductMetric label="Needs attention" value={attention} detail="Integrity or evidence issues" tone={attention?'attention':'complete'} /><ProductMetric label="Waiting" value={waiting} detail="Normal external dependency" tone={waiting?'waiting':'neutral'} /></ProductMetrics>
     <ProductFilterBar>{(Object.keys(viewMeta) as View[]).map(key=><Link key={key} className={`button ${view===key?'':'secondary'}`} href={pageHref(key,1)}>{viewMeta[key].label}</Link>)}</ProductFilterBar>
     <section><ProductSectionHeader eyebrow="Operating register" title={`${total} Case${total===1?'':'s'}`} meta="Every row describes the operating state, not the underlying queue enum." />{rows.length===0?<ProductEmptyState title="No Cases in this view" description="The queue updates automatically as lifecycle ownership and state change." />:<ProductRegister>{rows.map(({row,presentation})=><ProductRegisterRow key={row.id}>
-      <div><strong>{row.title||row.company_name}</strong><p>{row.company_name}{row.contact_name?` · ${row.contact_name}`:''}</p><small>{presentation.summary}</small></div>
+      <div><Link className="op-record-primary-link" href={`/workspace/leads/${row.id}`}><strong>{row.title||row.company_name}</strong></Link><p>{row.company_name}{row.contact_name?` · ${row.contact_name}`:''}</p><small>{presentation.summary}</small></div>
       <ProductStatus tone={presentation.tone}>{presentation.state}</ProductStatus>
       <div><small>{presentation.waitingOn?'Waiting on':'Owner'}</small><strong style={{display:'block',marginTop:3}}>{presentation.waitingOn?.label||'Overflow Partner'}</strong></div>
       <ContextActions label={`Actions for ${row.title||row.company_name}`}>
-        <WorkspaceDrawer triggerLabel="Inspect" eyebrow="Case" title={row.title||row.company_name} description={presentation.summary} footer={<Link className="button" href={`/workspace/leads/${row.id}`}>Open Case 360</Link>}>
+        <WorkspaceDrawer triggerLabel="Details" eyebrow="Case" title={row.title||row.company_name} description={presentation.summary} footer={<Link className="button" href={`/workspace/leads/${row.id}`}>Open Case 360</Link>}>
           <InteractionFacts>
             <InteractionFact label="Operating state">{presentation.state}</InteractionFact>
             <InteractionFact label="Owner / waiting on">{presentation.waitingOn?.label||'Overflow Partner'}</InteractionFact>
@@ -46,7 +46,6 @@ export default async function LeadsPage({searchParams}:{searchParams?:Promise<Re
           </InteractionFacts>
           <p className="interaction-summary__lead">{presentation.nextAction.reason||presentation.summary}</p>
         </WorkspaceDrawer>
-        <Link className="button secondary" href={`/workspace/leads/${row.id}`}>Open</Link>
       </ContextActions>
     </ProductRegisterRow>)}</ProductRegister>}<ProductPagination page={page} totalPages={totalPages} href={(targetPage)=>pageHref(view,targetPage)} label="Case queue pages" /></section>
   </section>;

@@ -1,5 +1,7 @@
 # Overflow Partner — Sprint Zero Production Audit
 
+**Status: HISTORICAL audit snapshot, not current visual or IA authority.** Its earlier dark styles, tiny type scale, navigation structure and remediation layers must not override [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md). Actual security/business findings remain reviewable independently.
+
 Date: 7 Aug 2026
 Scope: Workspace architecture, business truth, UX/UI, language, process, notifications, search, finance, BI, risk/compliance, mobile, accessibility, performance and scale readiness.
 

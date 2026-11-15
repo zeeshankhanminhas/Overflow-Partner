@@ -1,19 +1,19 @@
 # Overflow Partner — Target Visual Foundation Specification
 
-Status: **Normative**
+Status: **ACTIVE as a compatible visual reference.** Current accessible UI defaults and IA are controlled by [OPOS Operator Experience Contract](OPOS_OPERATOR_EXPERIENCE_CONTRACT.md); historical small-control and tiny-copy numbers below have been retired.
 
 This specification turns the six Visual System Contracts into one finite target foundation. It governs the physical composition of every page, panel, card, table, register, drawer, dialog, work window, form control, status capsule, toolbar, navigation control and icon in the Overflow Partner workspace.
 
 The product contracts govern behaviour. This specification governs rendering.
 
-## Non-negotiable rules
+## Reusable principles — never override accessible operator defaults
 
-1. No page or feature may invent its own spacing, radius, typography, border, control height, capsule geometry or icon style.
-2. No new `*-polish.css`, `*-wave.css`, `*-parity.css`, `*-reference.css` or rescue override layer may be added.
-3. No legacy `--saas-*` presentation tokens may be introduced or retained in active workspace presentation code.
+1. Reuse shared spacing, radius, typography, colour and icon tokens wherever possible; accessibility, content and device geometry may require considered exceptions.
+2. Do not introduce competing rescue override layers; consolidate styles under existing ownership.
+3. Do not introduce new `--saas-*` presentation tokens; migrate existing inherited declarations deliberately and without visual regression.
 4. No hard-coded dark legacy islands are allowed inside JSX.
 5. No Unicode glyph may be used as a UI icon where a conventional SVG icon is required.
-6. Feature CSS may compose layouts, but visual primitive values come from the target foundation tokens only.
+6. Feature CSS composes layouts; shared primitives define defaults, including operator-experience accessibility minima. This target specification is not a hard-coded veto against necessary improvements.
 
 ---
 
@@ -30,7 +30,7 @@ The product contracts govern behaviour. This specification governs rendering.
 | `--op-space-5` | 24px | major section gap, drawer/modal body padding |
 | `--op-space-6` | 32px | desktop page gutter / major page separation |
 
-No new spacing value is allowed unless it solves a documented optical exception. Optical exceptions must not become layout tokens.
+Prefer the spacing scale; responsive composition, type legibility and safe touch targets take precedence over exact numeric spacing. Optical exceptions must not become layout tokens.
 
 ## Density targets
 
@@ -60,15 +60,15 @@ Use a small semantic scale rather than per-component tuning.
 | Record title / major heading | 24px | 1.15 | 650 | Aspekta/display font |
 | Section heading | 18px | 1.25 | 650 | Aspekta/display font |
 | Emphasised body | 14px | 1.45 | 650 | Key value / row primary text |
-| Body | 13px | 1.50 | 400–500 | Default operational copy |
-| Compact body | 12px | 1.45 | 400–600 | Tables, registers, secondary detail |
-| Label | 11px | 1.30 | 650 | Status, control label, metadata |
-| Micro | 10px | 1.30 | 650 | Eyebrow, tertiary metadata only |
+| Body | 14–16px | 1.55 | 400–500 | Default operational copy |
+| Compact body | 13–14px | 1.5 | 400–600 | Tables, registers, secondary detail |
+| Label | 12–13px | 1.4 | 650 | Status, control label, metadata |
+| Micro | 11–12px | 1.35 | 650 | Optional eyebrows, tertiary metadata only |
 
 Rules:
 
 - Eyebrows may be uppercase with modest letter spacing; body text must not be.
-- No 9px, 9.5px, 10.5px, 12.5px or other intermediary sizes in normal UI.
+- No tiny critical UI. Important text stays at least 14px; optional labels may use 11–12px when sufficiently legible.
 - Font weight choices are restricted to regular/body, medium and 650 semibold emphasis. Avoid 680/700/720/750/760/800 drift.
 - Table headers use **11px / 650**, not micro typography.
 - Supporting text must remain readable without relying on opacity alone.
@@ -87,7 +87,7 @@ Rules:
 | `--op-radius-overlay` | 12px | dialogs/work windows; drawers remain edge-bound |
 | `--op-radius-pill` | 999px | status capsules only |
 
-No 7, 9, 10, 14, 16 or 18px local radii in ordinary workspace components.
+Shared radius tokens are preferred. Responsive, accessible component patterns are not to be rejected merely because an earlier visual spec prohibited an intermediate radius.
 
 ## Border levels
 
@@ -112,19 +112,15 @@ Hard-coded `rgba(...)` border variants are not allowed in component CSS except o
 
 ## Control heights
 
-| Size | Height | Use |
-|---|---:|---|
-| Compact | 32px | table row secondary controls / tiny toolbar utilities |
-| Standard | 36px | default buttons, inputs, selects, top-bar controls |
-| Prominent | 40px | rare major CTA / mobile primary action |
+| Usage | Minimum target | Guidance |
+| --- | --- | --- |
+| Standard clickable control | **44px** | Navigation, actions, selects, buttons, disclosure rows |
+| Prominent action / mobile | **44–48px** | Clear next permitted action, safe spacing |
+| Compact desktop-only utility | 36px exception | Non-critical secondary controls with sufficient separation; never a mobile default |
 
-Rules:
-
-- Standard buttons and standard inputs share the same 36px baseline.
-- Button radius is always 8px.
-- Default horizontal padding is 12px; compact is 10px.
-- Button text is 12px/650; prominent action may be 13px/650.
-- Icons inside controls use 16px default size and an 8px gap.
+- Use 16px input text on mobile to avoid viewport zoom.
+- Button text must remain legible, normally 14px or more; keep semantic text with icons.
+- Old mandatory 32/36/40px interactive control targets are retired and must not be restored by CSS or tests.
 
 ## Status capsule geometry
 
@@ -178,8 +174,8 @@ Only three ordinary containment levels exist:
 - table header: 11px/650
 - cell padding: 12px
 - row separators: soft border
-- primary row text: 13–14px
-- secondary row text: 12px
+- primary row text: 14–16px
+- secondary row text: 12–13px
 - status and actions vertically centred against the row baseline
 - no local row height hacks; content determines height with a minimum comfortable density
 
@@ -263,4 +259,4 @@ Required migration method:
 4. verify the build;
 5. then migrate primitives to this target foundation.
 
-This specification is the target baseline. Feature work must not create exceptions casually.
+This is a target visual reference subordinate to the active operator-experience contract. Its original pre-consolidation migration checklist is historical and must not block removal of unused legacy layers or improvement of accessibility.

@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import ProspectForm from '@/components/workspace/ProspectForm';
-import { linkedInFunnelStage, isLinkedInFollowUpDue } from '@/lib/acquisition/linkedinFunnel';
 import CompanyForm from '@/components/workspace/CompanyForm';
 import ContactForm from '@/components/workspace/ContactForm';
 import { requireUserContext } from '@/lib/auth/context';
@@ -59,11 +58,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     return {prospect,session,presentation:resolveAcquisitionPresentation(state)};
   });
   const approvalCount=rows.filter(row=>row.presentation.approval?.required).length;
-  const now=Date.now();
-  const followUpsDue=prospects.filter((item:any)=>item.source==='linkedin' && isLinkedInFollowUpDue(item, linkedInFunnelStage(item, sessionByProspect.has(item.id)), now)).length;
-  const repliesWaiting=prospects.filter((item:any)=>item.outreach_status==='replied'&&item.response_outcome==='interested').length;
   const linksSent=(sessionsResult.data||[]).filter((item:any)=>item.sent_at).length;
-  const outreachStarted=prospects.filter((item:any)=>item.outreach_status&&item.outreach_status!=='not_contacted').length;
   const queueItems=rows.map(({prospect,session,presentation}:any)=>({
     id:prospect.id,
     label:presentation.state,
@@ -80,7 +75,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     <section className="saas-hero">
       <div className="saas-hero__inner">
         <div className="saas-hero__copy"><p className="vp-kicker">Opportunities</p><h1>Move incoming work forward.</h1><p className="vp-subtitle">See who owns the next step, what is waiting, and which opportunity can move now.</p></div>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/workspace/acquisition/funnel">LinkedIn funnel</Link><Link className="button secondary" href="/workspace/acquisition/prospects">All opportunities</Link><Link className="button secondary" href="/workspace/assessments?view=partner">Delivery reviews</Link><Link className="button secondary" href="/workspace/approvals">Approvals{approvalCount?` · ${approvalCount}`:''}</Link></div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><Link className="button secondary" href="/outreach">Outreach (before CRM)</Link><Link className="button secondary" href="/workspace/opportunities">All opportunities</Link><Link className="button secondary" href="/workspace/assessments?view=partner">Delivery reviews</Link><Link className="button secondary" href="/workspace/approvals">Approvals{approvalCount?` · ${approvalCount}`:''}</Link></div>
       </div>
     </section>
 
@@ -99,14 +94,13 @@ export default async function AcquisitionPage({ searchParams }: { searchParams?:
     </section>
 
     <SignalStrip items={[
-      {label:'Follow-ups due',value:followUpsDue,detail:'LinkedIn actions due now',tone:followUpsDue?'attention':'complete'},
-      {label:'Replies to progress',value:repliesWaiting,detail:'Interested replies awaiting action',tone:repliesWaiting?'active':'neutral'},
+      {label:'Active enquiries',value:prospects.length,detail:'Qualified records in CRM',tone:prospects.length?'active':'neutral'},
       {label:'Secure links sent',value:linksSent,detail:'Requirements requests created',tone:linksSent?'complete':'neutral'},
-      {label:'Outreach started',value:outreachStarted,detail:`${prospects.length} active opportunities`,tone:outreachStarted?'active':'neutral'},
+      {label:'Approval decisions',value:approvalCount,detail:'Governed decisions requiring attention',tone:approvalCount?'attention':'complete'},
     ]}/>
 
     <details id="manual-prospect" className="vp-disclosure" open={contactReady}><summary>Create prospect</summary><div>{!companyReady?<div className="vp-empty">Add a company above to begin.</div>:!contactReady?<div className="vp-empty">Now add a contact to that company using the action above.</div>:<ProspectForm companies={companies} contacts={companyContacts} defaultCompanyId={selectedCompanyId} defaultContactId={selectedContactId} />}</div></details>
 
-    <WorkQueue title="Opportunity queue" eyebrow="Active work" items={queueItems} empty="No active opportunities." viewAllHref="/workspace/acquisition/prospects" viewAllLabel="View all opportunities" />
+    <WorkQueue title="Opportunity queue" eyebrow="Active work" items={queueItems} empty="No active opportunities." viewAllHref="/workspace/opportunities" viewAllLabel="View all opportunities" />
   </section>;
 }
