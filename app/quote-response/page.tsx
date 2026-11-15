@@ -45,7 +45,7 @@ export default async function QuoteResponsePage({ searchParams }: { searchParams
             <label>Business email of authorised signatory<input name="signatory_email" type="email" required defaultValue={recipient?.email||''} style={{display:'block',width:'100%',padding:10}}/></label>
             <label style={{display:'flex',gap:10,alignItems:'start'}}><input type="checkbox" name="authority_attested" value="yes" required/>I confirm that I am authorised to accept this quotation, its specified scope, price and commercial release terms on behalf of the customer.</label>
           </div> : null}
-          <button type="submit" style={{ border: 0, borderRadius: 8, padding: '14px 20px', background: '#df2925', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>{decision.action}</button>
+          <button type="submit" style={{ border: 0, borderRadius: 8, padding: '14px 20px', background: '#ef6c24', color: '#101113', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>{decision.action}</button>
         </form>
         <p style={{ color: '#b6b9bf', fontSize: 13 }}>No response means the quotation stays awaiting your decision until its validity date.</p>
       </> : <><h1>Quotation response unavailable</h1><p>This link is invalid, expired, or no longer refers to an active quotation. Please reply to the quotation email for help.</p></>}
