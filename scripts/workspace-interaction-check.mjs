@@ -79,6 +79,14 @@ for(const [source,name] of [[securePartner,'Partner review'],[secureIntake,'Tech
     name+' uses dark product surfaces');
 }
 
+
+const visualSpec=read('docs/VISUAL_FOUNDATION_SPECIFICATION.md');
+const journalStyles=read('app/workspace/acquisition/LinkedInFlow.module.css');
+expect(visualSpec.includes('Current OPOS monochrome foundation') &&
+  !visualSpec.includes('background: white'),'Visual contract no longer mandates white panels');
+expect(!journalStyles.includes('background:#fff;color:var(--op-ink'),
+  'Outreach conversation textarea has no old white surface');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);

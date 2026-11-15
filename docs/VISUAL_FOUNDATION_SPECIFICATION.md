@@ -6,12 +6,28 @@ This specification turns the six Visual System Contracts into one finite target 
 
 The product contracts govern behaviour. This specification governs rendering.
 
+## Current OPOS monochrome foundation (15 November 2026)
+
+The approved product appearance is **dark only**, for Controller, Client, Partner, Outreach, login, and secure project/quotation interfaces. Do not introduce white/light backgrounds in normal application screens.
+
+| Purpose | Canonical dark value |
+|---|---|
+| Canvas | `--op-bg: #08090a` |
+| Sidebar/header | `--op-sidebar: #0c0d0e` |
+| Panel/card | `--op-panel: #111214` |
+| Raised/inset surface | `--op-panel-2: #181a1d` |
+| Normal text | `--op-text: #f3f3f4` |
+| Secondary text | `--op-muted: #b6b9bf` |
+| Lines/borders | `--op-line: #303238` |
+
+The shared workspace theme file is `app/workspace/opos-dark-system.css`; reuse its semantic variables instead of introducing per-page CSS overrides. Existing `--saas-*` names are temporary backward-compatible aliases only, not new styling authority. Print-ready A3/A4 engineering sheets and generated PDF document bodies intentionally use white paper and remain separate from the dark application chrome. **The public marketing site is a separate visual scope** and is not automatically changed by this application work.
+
 ## Non-negotiable rules
 
 1. No page or feature may invent its own spacing, radius, typography, border, control height, capsule geometry or icon style.
 2. No new `*-polish.css`, `*-wave.css`, `*-parity.css`, `*-reference.css` or rescue override layer may be added.
-3. No legacy `--saas-*` presentation tokens may be introduced or retained in active workspace presentation code.
-4. No hard-coded dark legacy islands are allowed inside JSX.
+3. Existing `--saas-*` aliases are transitional compatibility only; no new components may depend on them.
+4. No hard-coded light-background islands are permitted in product JSX; use the semantic dark surface tokens.
 5. No Unicode glyph may be used as a UI icon where a conventional SVG icon is required.
 6. Feature CSS may compose layouts, but visual primitive values come from the target foundation tokens only.
 
@@ -160,7 +176,7 @@ Only three ordinary containment levels exist:
 
 - radius: 12px
 - border: default
-- background: white
+- background: `var(--op-panel)` (`#111214`)
 - padding: 16px
 - internal gap: 12px or 16px depending content rhythm
 
@@ -168,7 +184,7 @@ Only three ordinary containment levels exist:
 
 - radius: 8px
 - border: soft
-- background: subtle neutral
+- background: `var(--op-panel-2)` (`#181a1d`)
 - padding: 12px
 - internal gap: 8px
 
@@ -187,12 +203,12 @@ Only three ordinary containment levels exist:
 
 - width: up to 520px desktop
 - full height
-- white surface
+- dark panel surface
 - header: 24px padding
 - body: 24px
 - footer: 16px 24px
 - mobile: 16px anatomy
-- no independent dark theme
+- inherits the same canonical dark surface as other workspaces
 
 ## Dialog
 
@@ -250,7 +266,7 @@ The existing Mobile Workspace Nav is the reference geometry.
 Before broad visual migration begins, active legacy presentation must be reduced to zero:
 
 - no active dark `interaction-surfaces.css` grammar
-- no `--saas-*` presentation fallbacks in active workspace styling
+- no newly authored `--saas-*` fallbacks; retire existing compatibility aliases progressively
 - no Command Palette dark inline visual system
 - no duplicate interaction layer ownership
 - no obsolete presentation file kept active merely because some selector may still depend on it
