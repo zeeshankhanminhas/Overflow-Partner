@@ -2,15 +2,19 @@ import './globals.css';
 import './opds.css';
 import './partner-execution-parity.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Outfit } from 'next/font/google';
 import CookieConsent from '@/components/CookieConsent';
-import { Analytics } from '@vercel/analytics/next';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
+});
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-outfit',
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://overflow-partner.vercel.app';
@@ -38,5 +42,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" className={inter.variable}><body>{children}<CookieConsent /><Analytics /><SpeedInsights /></body></html>;
+  return <html lang="en" className={`${inter.variable} ${outfit.variable}`}><body>{children}<CookieConsent /></body></html>;
 }

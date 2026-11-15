@@ -23,8 +23,8 @@ export default function CookiePolicyPage() {
                 <p className="text_body mt-4 text-base leading-7 text-[var(--muted)]">Essential cookies or browser storage may be used where needed for the website to operate, submit forms, remember a requested setting, protect services, or provide a function you have asked to use.</p>
               </section>
               <section className="cookie_policy_block">
-                <h2 className="heading_card text-xl font-semibold">Optional analytics cookies</h2>
-                <p className="text_body mt-4 text-base leading-7 text-[var(--muted)]">Optional analytics cookies would help Overflow Partner understand website usage and improve the site. No optional analytics cookies are loaded unless consented.</p>
+                <h2 className="heading_card text-xl font-semibold">Optional website analytics</h2>
+                <p className="text_body mt-4 text-base leading-7 text-[var(--muted)]">We offer optional Vercel Web Analytics and Speed Insights to understand aggregated visits and performance. Vercel Web Analytics is designed to operate without cookies. Our site only loads the optional analytics components after you choose Allow analytics. They are not loaded on authenticated workspace routes.</p>
               </section>
               <section className="cookie_policy_block">
                 <h2 className="heading_card text-xl font-semibold">Consent choice</h2>
@@ -32,7 +32,7 @@ export default function CookiePolicyPage() {
               </section>
               <section className="cookie_policy_block">
                 <h2 className="heading_card text-xl font-semibold">Changing your preference</h2>
-                <p className="text_body mt-4 text-base leading-7 text-[var(--muted)]">You can change your preference by clearing this website&apos;s localStorage entry for <code className="rounded bg-black/5 px-1 py-0.5">overflow_partner_cookie_consent</code>. The banner will appear again on your next visit.</p>
+                <p className="text_body mt-4 text-base leading-7 text-[var(--muted)]">Choose Cookie preferences in the public website footer at any time to reopen the choices. Your preference is saved in browser localStorage and can also be cleared from your browser settings.</p>
               </section>
               <section className="cookie_policy_block">
                 <h2 className="heading_card text-xl font-semibold">Browser controls</h2>
