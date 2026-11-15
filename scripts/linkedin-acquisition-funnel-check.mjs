@@ -147,7 +147,10 @@ assert.doesNotMatch(outreachLayout,/LifecycleSidebar|WorkspaceShellActions|Mobil
 assert.match(outreachProxy,/\/outreach\/:path\*/, 'Session refresh covers outreach routes');
 assert.match(legacyFunnel,/redirect\('\/outreach'/, 'Old LinkedIn bookmarks redirect');
 assert.match(outreachList,/href=\{\`\/outreach\/\$\{item.id\}\`\}/, 'Outreach list opens a pre-CRM conversation');
-assert.ok(outreachNav.indexOf('<NavSection title="Outreach">') < outreachNav.indexOf('<NavSection title="Home">'),'Outreach is visibly above the OS in desktop navigation');
+const outreachPosition = outreachNav.indexOf('href={n.linkedinFunnel.href}');
+const homePosition = outreachNav.indexOf('href={n.missionControl.href}');
+assert.ok(outreachPosition >= 0 && homePosition >= 0 && outreachPosition < homePosition,
+  'Outreach is visibly before Home in desktop navigation, independent of section headings');
 assert.doesNotMatch(outreachActions,/queueLifecycleEmail|functions\.invoke\(/, 'Cold outreach cannot send automatic communications');
 
 console.log('LinkedIn acquisition funnel: stage transitions and pre-enquiry boundaries passed.');
