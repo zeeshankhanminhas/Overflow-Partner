@@ -54,6 +54,19 @@ expect(focusCss.includes('@media(max-width:680px)') && focusCss.includes(':focus
 expect(!mobileMissionControl.includes('mobile-mission__work-grid')&&mobileMissionControl.includes('<h2>Other open work</h2>'),'Mobile Mission Control avoids a second set of overlapping work-count cards');
 expect(templateReview.includes('className="tr-email-action-preview"')&&!templateReview.includes('disabled title="Preview only'),'Email template preview presents inactive CTA art as non-interactive content');
 
+const dark=read('app/workspace/opos-dark-system.css');
+const baseDark=read('app/workspace/workspace-base.css');
+const mobileDark=read('app/workspace/workspace-surfaces.css');
+const signInDark=read('app/login/page.tsx');
+const outreachDark=read('app/outreach/outreach.module.css');
+const clientDark=read('app/client-portal/page.tsx');
+expect(dark.includes('color-scheme: dark') && dark.includes('--op-bg:#08090a'),'Dark theme uses canonical black canvas');
+expect(baseDark.includes('--op-sidebar:#0c0d0e') && baseDark.includes('--op-panel:#111214'),'Desktop shell defaults are dark');
+expect(mobileDark.includes('--m-bg:#08090a') && mobileDark.includes('--m-surface:#111214'),'Mobile shell defaults are dark');
+expect(signInDark.includes('bg-[#08090a]')&&!signInDark.includes('bg-white'),'OPOS Sign In does not show light surfaces');
+expect(outreachDark.includes('background:#08090a')&&outreachDark.includes('color-scheme:dark'),'Outreach remains dark outside CRM');
+expect(clientDark.includes("background:'#08090a'"),'Client portal uses dark canvas');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);

@@ -95,3 +95,53 @@
 .workspace.op-shell :where(.product-notice,.vp-stage-panel,.project-os-stage-card) {
   background:var(--op-panel);
 }
+
+
+/* Canonical dark product system: product surfaces inherit from a single palette.
+   The A4 print media remains intentionally white for engineering documents. */
+.workspace.op-shell {
+ --op-canvas:#08090a;--op-panel-subtle:#181a1d;--op-line-soft:#292b30;
+ --op-subtle:#989da5;--op-accent:#e5e7eb;
+ --surface-bg:#08090a;--surface-panel:#111214;--surface-text:#f3f3f4;
+ --surface-muted:#b6b9bf;--surface-line:#303238;
+ --m-bg:#08090a;--m-surface:#111214;--m-text:#f3f3f4;--m-muted:#b6b9bf;--m-line:#303238;
+ --m-red-soft:#341b20;--m-green-soft:#152b22;--m-amber-soft:#302619;--m-blue-soft:#192a3e;
+ --op-ui-background:#08090a;--op-ui-surface:#111214;--op-ui-surface-muted:#181a1d;
+ --op-ui-foreground:#f3f3f4;--op-ui-muted:#b6b9bf;--op-ui-border:#303238;
+ --op-ui-border-strong:#4a4d53;--op-ui-success:#55d49b;
+ --op-ui-warning:#f1c376;--op-ui-danger:#ff8787;--op-ui-info:#92bcfa;
+ --saas-surface:#111214;--saas-surface-hover:#181a1d;--saas-text:#f3f3f4;
+ --saas-muted:#b6b9bf;--saas-subtle:#989da5;--saas-line:#303238;--saas-line-strong:#4a4d53;
+ --opds-paper:#08090a;--opds-panel:#111214;--opds-line:#303238;
+ --opds-ink:#f3f3f4;--opds-muted:#b6b9bf;--opds-subtle:#989da5;
+}
+body:has(.workspace.op-shell){background:#08090a;color:#f3f3f4;color-scheme:dark}
+.workspace.op-shell :where(.op-surface,.mission-v2,.mobile-mission,.record-workspace,.vp-page,.acquisition-workspace,.approvals-workspace,.project-os-page){
+ --surface-bg:#08090a;--surface-panel:#111214;--surface-text:#f3f3f4;
+ --surface-muted:#b6b9bf;--surface-line:#303238;
+ --op-ui-surface:#111214;--op-ui-background:#08090a;
+ --op-ui-foreground:#f3f3f4;--op-ui-border:#303238;
+ color:var(--op-text)
+}
+.workspace.op-shell :where(.op-main,.op-content,.midts-main,.midts-content,.op-mobile-header,.op-sidebar,.op-topbar){background-color:var(--op-bg);color:var(--op-text)}
+.workspace.op-shell .op-mobile-header,.workspace.op-shell .op-topbar,.workspace.op-shell .op-mobile-nav {background:#0c0d0e!important;border-color:var(--op-line)}
+.workspace.op-shell .op-mobile-nav a,.workspace.op-shell .op-sidebar a{color:var(--op-muted)}
+.workspace.op-shell .op-mobile-nav a.is-active,.workspace.op-shell .op-sidebar a.active{background:var(--op-panel-2);color:var(--op-text)}
+.workspace.op-shell :where(.op-content,.record-workspace) :where(.vp-page,.vp-panel,.vp-card,.saas-panel,.product-panel,.product-register,.product-register-row,.product-metrics,.product-filter-bar,.product-toolbar,.project-os-summary,.project-os-stage-card,.project-os-node,.op-focus-home__primary,.op-focus-home__queue,.op-focus-home__waiting,.record-workspace__state,.record-workspace__slot,.record-workspace__disclosure,.record-workspace__disclosure-body,.governed-action,.opds-panel,.product-notice,.vp-facts,.vp-stage-panel){
+ background:var(--op-panel);color:var(--op-text);border-color:var(--op-line)
+}
+.workspace.op-shell .op-content :where(h1,h2,h3,h4,strong,th,td){color:var(--op-text)}
+.workspace.op-shell .op-content :where(p,small,label,dt,dd){color:var(--op-muted)}
+.workspace.op-shell :where(.vp-subtitle,.vp-kicker,.product-description,.product-help){color:var(--op-muted)}
+.workspace.op-shell :where(input:not([type=checkbox]):not([type=radio]),select,textarea,option){background:#181a1d;color:#f3f3f4;border-color:#4a4d53}
+.workspace.op-shell :where(input,textarea)::placeholder{color:#a8abb2}
+.workspace.op-shell :where(.button.secondary,button.secondary,.workspace-shell-action,.workspace-module-tool,.workspace-module-links a){background:#181a1d;color:#f3f3f4;border-color:#3d4045}
+.workspace.op-shell :where(.button:not(.secondary),button[type=submit]):not(.product-action--destructive){background:#e5e7eb;color:#101113;border-color:#e5e7eb}
+.workspace.op-shell :where(.button,.workspace-shell-action,button,input,select,textarea,a,summary):focus-visible{outline:2px solid #e5e7eb;outline-offset:3px}
+.workspace.op-shell .op-content table thead th{background:#181a1d!important;color:#f3f3f4}
+.workspace.op-shell .op-content table tbody td{background:#111214!important;color:#f3f3f4}
+.workspace.op-shell .op-content table tbody tr:hover td{background:#181a1d!important}
+body:has(.workspace.op-shell) :where(.workspace-overlay__frame,.workspace-overlay__header,.workspace-overlay__footer,.workspace-popover__panel,.operator-centre__hero,.operator-centre__panel,.workspace-quick-grid a,.workspace-module-rule,.workspace-module-links a){background:#111214;color:#f3f3f4;border-color:#303238}
+body:has(.workspace.op-shell) :where(.workspace-overlay__body,.workspace-overlay__close,.workspace-shell-action){background:#181a1d;color:#f3f3f4}
+body:has(.workspace.op-shell) :where(.workspace-overlay input,.workspace-overlay textarea,.workspace-overlay select){background:#181a1d;color:#f3f3f4;border-color:#4a4d53}
+@media print {body:has(.workspace.op-shell){background:#fff;color:#171717;color-scheme:light}}
