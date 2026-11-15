@@ -179,6 +179,42 @@ expect(css.includes('.workspace-overlay{color-scheme:dark;') &&
   'Portal-mounted dialogs, popovers and actions have explicit dark-theme contrast');
 
 
+// Stage-based launch portals remain purpose-limited, not universal dashboard membership.
+const stagePolicy=read('docs/OPOS_STAGE_ACCESS_AND_UNIFIED_NAVIGATION_2026-11-15.md');
+const stageClient=read('app/client-portal/page.tsx');
+const stagePartner=read('components/execution/PartnerWorkSurface.tsx');
+const reviewAPI=read('app/api/partner-review/[token]/route.ts');
+const intakeAPI=read('app/api/intake/[token]/route.ts');
+const executionAPI=read('app/api/execution/[token]/route.ts');
+expect(stagePolicy.includes('Not every prospect becomes a workspace user') &&
+  stagePolicy.includes('Pre-contract partner feasibility is not mobilisation') &&
+  stagePolicy.includes('Client project workspace opens only after authoritative project release') &&
+  stagePolicy.includes('Partner execution workspace opens only after separate mobilisation'),
+  'Launch stage-access policy is explicit about restricted prospects and governed project release');
+expect(stageClient.includes('activeClientAccess = Boolean(project && (paid || released))') &&
+  stageClient.includes('aria-label="Client portal navigation"') &&
+  stageClient.includes('{activeClientAccess ? <a href="#client-project"') &&
+  stageClient.includes('{canPay ? <Link href={paymentHref}') &&
+  stageClient.includes('{finalReleaseApproved ? <Link href={finalFilesHref}'),
+  'Client scoped navigation shows project/payment/final files only at their existing evidence gates');
+expect(stagePartner.includes('if(!state.execution||!state.project)return') &&
+  stagePartner.includes('aria-label="Partner work navigation"') &&
+  stagePartner.includes('href="#partner-next-action"') &&
+  !stagePartner.includes('/workspace/payments'),
+  'Execution Partner navigation stays scoped to a verified execution session and current assignment');
+expect(reviewAPI.includes("eq('token_hash', hashToken(token))") &&
+  reviewAPI.includes('show_client_identity ?') &&
+  !reviewAPI.includes("from('projects').select('*')"),
+  'Pre-payment feasibility link retains record-scoped review and controlled identity disclosure');
+expect(intakeAPI.includes("from('intake_sessions')") &&
+  intakeAPI.includes("token_hash") &&
+  !intakeAPI.includes("from('projects').select('*')"),
+  'Step 2 link remains intake-scoped, not project dashboard access');
+expect(executionAPI.includes('executionSessionIdFromToken(token)') &&
+  executionAPI.includes("from('project_execution_assignments')") &&
+  executionAPI.includes('assignment.session_id')===false,
+  'Execution links are bound to an assigned work session, not partner feasibility review');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
