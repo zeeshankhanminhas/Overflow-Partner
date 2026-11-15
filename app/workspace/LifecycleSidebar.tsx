@@ -56,21 +56,21 @@ export default function LifecycleSidebar(){
 
   return <nav aria-label="Workspace navigation" className="lifecycle-nav lifecycle-nav--simplified">
     <NavSection title="Find your work">
-      <Link href={n.linkedinFunnel.href} className={active(pathname,n.linkedinFunnel.href)?'active':''}>Outreach</Link>
-      <Link href={n.missionControl.href} className={active(pathname,n.missionControl.href)?'active':''}>Home</Link>
-      <Link href={n.opportunities.href} className={opportunitiesActive?'active':''}>Opportunities</Link>
-      <Link href={n.projects.href} className={active(pathname,n.projects.href)?'active':''}>Projects</Link>
-      <Link href={n.finance.href} className={financeActive?'active':''}>Finance</Link>
-      <Link href={n.documents.href} className={docsActive?'active':''}>Documents</Link>
+      <Link href={n.linkedinFunnel.href} className={active(pathname,n.linkedinFunnel.href)?'active':''} aria-current={active(pathname,n.linkedinFunnel.href)?'page':undefined}>Outreach</Link>
+      <Link href={n.missionControl.href} className={active(pathname,n.missionControl.href)?'active':''} aria-current={active(pathname,n.missionControl.href)?'page':undefined}>Home</Link>
+      <Link href={n.opportunities.href} className={opportunitiesActive?'active':''} aria-current={opportunitiesActive?'page':undefined}>Opportunities</Link>
+      <Link href={n.projects.href} className={active(pathname,n.projects.href)?'active':''} aria-current={active(pathname,n.projects.href)?'page':undefined}>Projects</Link>
+      <Link href={n.finance.href} className={financeActive?'active':''} aria-current={financeActive?'page':undefined}>Finance</Link>
+      <Link href={n.documents.href} className={docsActive?'active':''} aria-current={docsActive?'page':undefined}>Documents</Link>
     </NavSection>
     {context?<NavSection title="Current record">
       <Link href={backHref}>← {context.type==='project'?'All projects':'All opportunities'}</Link>
-      <Link href={recordHref} className={pathname===recordHref?'active':''}>Overview</Link>
+      <Link href={recordHref} className={pathname===recordHref?'active':''} aria-current={pathname===recordHref?'page':undefined}>Overview</Link>
       {context.type==='case'?<Link href={`/workspace/communications/lead/${context.id}`}>Messages</Link>:null}
     </NavSection>:null}
     <NavSection title="Supporting tools">
-      <Link href={n.myWork.href} className={workActive?'active':''}>My Work</Link>
-      <Link href={n.more.href} className={moreActive?'active':''}>More</Link>
+      <Link href={n.myWork.href} className={workActive?'active':''} aria-current={workActive?'page':undefined}>My Work</Link>
+      <Link href={n.more.href} className={moreActive?'active':''} aria-current={moreActive?'page':undefined}>More</Link>
     </NavSection>
   </nav>;
 }
