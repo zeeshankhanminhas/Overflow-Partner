@@ -35,9 +35,17 @@ async function screenshot(page,name,width){
  await mkdir(evidence,{recursive:true});
  await page.screenshot({path:join(evidence,name+'-'+width+'.png'),fullPage:true,animations:'disabled'});
 }
-async function noOverflow(page){
- const pixels=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
- expect(pixels,'Unexpected horizontal document overflow').toBeLessThanOrEqual(2);
+async function noOverflow(page,label='page'){
+ const detail=await page.evaluate(()=>{
+   const pixels=document.documentElement.scrollWidth-window.innerWidth;
+   const offenders=[...document.querySelectorAll('body *')]
+     .filter(el=>{const box=el.getBoundingClientRect();const style=getComputedStyle(el);
+       return box.width>0 && box.right>window.innerWidth+2 && style.position!=='fixed'
+         && style.visibility!=='hidden';})
+     .slice(0,5).map(el=>el.tagName.toLowerCase()+'.'+String(el.className||'').slice(0,70));
+   return {pixels,offenders};
+ });
+ expect(detail.pixels,label+' horizontal overflow; offenders='+detail.offenders.join(';')).toBeLessThanOrEqual(2);
 }
 for(const width of [390,1440]){
  test('Controller real signed-in visual navigation '+width,async({browser})=>{
@@ -54,7 +62,7 @@ for(const width of [390,1440]){
     await expect(page.locator('.op-content h1').first()).toBeVisible();
     await expect(page.getByRole('heading',{name:'Something went wrong'})).toHaveCount(0);
     if(path==='/workspace')await screenshot(page,'controller-home',width);
-    await noOverflow(page);
+    await noOverflow(page,label);
    }
    await page.goto('/workspace');
    const search=page.getByRole('button',{name:'Search workspace'}).last();
@@ -85,7 +93,7 @@ for(const width of [390,1440]){
    });
    expect(contrast(ratio.ink,ratio.background),'Orange CTA readable contrast').toBeGreaterThanOrEqual(4.5);
    await screenshot(page,'client-paid',width);
-   await noOverflow(page);
+   await noOverflow(page,'Client paid overview');
    await link.click();
    await expect(page).toHaveURL(new RegExp('/portal/client/projects/'+paidProject+'$'));
    await expect(page.getByText('Verified paid project',{exact:false})).toBeVisible();
