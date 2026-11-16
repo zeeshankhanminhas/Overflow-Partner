@@ -5,6 +5,7 @@ import './workspace-surfaces.css';
 import './focus-first.css';
 import './opos-dark-system.css';
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import OverflowPartnerBrand from '@/components/brand/OverflowPartnerBrand';
@@ -40,7 +41,14 @@ function ageLabel(minutes: number) {
 }
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const { context: { profile }, approvals: approvalQueue, exceptions: exceptionQueue } = await getWorkspaceChromeData();
+  const { context: { profile, supabase }, approvals: approvalQueue, exceptions: exceptionQueue } = await getWorkspaceChromeData();
+  // Prevent any external account from entering the Controller surface by
+  // deep link, even if an older QA profile exists on the same auth user.
+  if (profile.role === 'partner') redirect('/login?error=Use%20your%20secure%20partner%20invitation%20link.');
+  const {data: externalMemberships, error: externalMembershipError} = await supabase.rpc('portal_my_workspaces');
+  if (!externalMembershipError && Array.isArray(externalMemberships) && externalMemberships.length) {
+    redirect('/portal/' + (externalMemberships.some((m:{portal_kind:string})=>m.portal_kind==='client') ? 'client' : 'partner'));
+  }
   const n=primaryNavigation;
 
   const approvalAlerts: WorkspaceAlert[] = approvalQueue
