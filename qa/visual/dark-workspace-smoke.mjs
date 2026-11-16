@@ -78,6 +78,20 @@ try{
    console.log('PASS '+item.name+' '+width+'px: responsive dark canvas, heading contrast and no JS errors');
    checks++;
   }
+  // Explicit negative permission smoke: external dashboards stay locked by
+  // default until paid-only migration AND protected authenticated QA approval.
+  for(const protectedPath of [
+   '/portal/client','/portal/partner',
+   '/portal/client/projects/00000000-0000-4000-8000-000000000001',
+   '/portal/partner/projects/00000000-0000-4000-8000-000000000001'
+  ]){
+   const forbidden=await page.goto(new URL(protectedPath,base).toString(),{waitUntil:'domcontentloaded',timeout:20000});
+   assert.equal(forbidden?.status(),404,'Unauthorized external dashboard must be unavailable: '+protectedPath);
+   assert.equal(await page.getByRole('heading',{name:'Your engineering projects'}).count(),0,'No Client project content');
+   assert.equal(await page.getByRole('heading',{name:'Your engineering work'}).count(),0,'No Partner project content');
+   console.log('PASS anonymous external project access denied '+protectedPath+' at '+width+'px');
+   checks++;
+  }
   // Interaction: native form validation blocks blank login without server submission.
   let postCount=0;
   page.on('request',request=>{if(request.method()==='POST')postCount++;});
