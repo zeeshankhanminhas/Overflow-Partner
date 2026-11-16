@@ -38,3 +38,17 @@ test('project detail browser QA is read-only and checks deep-link isolation',()=
  assert.doesNotMatch(source,/page\.request\.|fetch\(|\.request\.post\(|\.request\.patch\(|\.request\.delete\(/);
  assert.doesNotMatch(source,/storageState\s*:|page\.screenshot\(/);
 });
+
+test('Controller visual regression uses protected read-only identities and never records private artifacts',()=>{
+ const source=read('qa/browser/tests/controller-visual.spec.mjs');
+ const config=read('qa/browser/authenticated.config.mjs');
+ assert.match(config,/controller-visual\.spec\.mjs/);
+ for(const route of ['/workspace','/workspace/opportunities','/workspace/projects','/workspace/payments','/workspace/documents','/workspace/attention']){
+   assert.ok(source.includes(route),'Missing Controller destination: '+route);
+ }
+ assert.match(source,/width:1440/);
+ assert.match(source,/width:390/);
+ assert.match(source,/low-contrast-control/);
+ assert.match(source,/Workspace command palette/);
+ assert.doesNotMatch(source,/page\.screenshot\(|storageState\s*:|page\.request\.|fetch\(|\.request\.post\(|\.request\.delete\(|writeFileSync|console\.log\(.*PASSWORD/);
+});
