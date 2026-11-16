@@ -188,15 +188,19 @@ const intakeAPI=read('app/api/intake/[token]/route.ts');
 const executionAPI=read('app/api/execution/[token]/route.ts');
 expect(stagePolicy.includes('Not every prospect becomes a workspace user') &&
   stagePolicy.includes('Pre-contract partner feasibility is not mobilisation') &&
-  stagePolicy.includes('Client project workspace opens only after authoritative project release') &&
-  stagePolicy.includes('Partner execution workspace opens only after separate mobilisation'),
-  'Launch stage-access policy is explicit about restricted prospects and governed project release');
-expect(stageClient.includes('activeClientAccess = Boolean(project && (paid || released))') &&
+  stagePolicy.includes('Client project workspace is paid-only') &&
+  stagePolicy.includes('Partner dashboard is paid-only and mobilisation-gated'),
+  'Launch stage-access policy is explicit about paid-only external dashboards and restricted prospects');
+expect(stageClient.includes('activeClientAccess = Boolean(project && paid)') &&
   stageClient.includes('aria-label="Client portal navigation"') &&
   stageClient.includes('{activeClientAccess ? <a href="#client-project"') &&
   stageClient.includes('{canPay ? <Link href={paymentHref}') &&
   stageClient.includes('{finalReleaseApproved ? <Link href={finalFilesHref}'),
-  'Client scoped navigation shows project/payment/final files only at their existing evidence gates');
+  'Client scoped navigation never grants project view on nonpayment commercial release');
+expect(stagePolicy.includes('Verified opening payment is mandatory for both role dashboards') &&
+  stagePolicy.includes('PO, credit or approved no-advance project release') &&
+  stagePolicy.includes('No backfilled or fake QA flag grants access'),
+  'Neither Client nor Partner dashboard can be unlocked by nonpayment exception or synthetic flag');
 expect(stagePartner.includes('if(!state.execution||!state.project)return') &&
   stagePartner.includes('aria-label="Partner work navigation"') &&
   stagePartner.includes('href="#partner-next-action"') &&
