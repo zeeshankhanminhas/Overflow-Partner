@@ -11,6 +11,18 @@ export default function PaidProjectDashboard({kind,projects,selected}:{
  const isClient=kind==='client';
  const account=projects[0]?.account_name|| (isClient?'Client':'Execution Partner');
  const active=selected?projects.find(x=>x.project_id===selected):null;
+ // Closed or cancelled records are historical, not a new work instruction.
+ const isClosed=(p:PaidPortalProject)=>['closed','completed','cancelled','canceled'].includes(p.project_stage?.toLowerCase()||'')||
+   ['closed','completed','cancelled','canceled'].includes(p.project_status?.toLowerCase()||'')||
+   (kind==='partner'&&['closed','completed','cancelled','canceled'].includes(p.partner_execution_state?.toLowerCase()||''));
+ const openProjects=projects.filter(p=>!isClosed(p));
+ const archivedProjects=projects.filter(p=>isClosed(p));
+ const projectCard=(p:PaidPortalProject)=><article key={p.project_id} style={{padding:20,background:panel,border:'1px solid '+border,borderRadius:12}}>
+       <p style={{color:muted,fontSize:12,margin:'0 0 10px'}}>{p.project_number}</p>
+       <h3 style={{fontSize:19,margin:'0 0 12px',fontWeight:700}}>{p.project_title}</h3>
+       <p style={{color:muted,margin:'0 0 15px'}}>{titleCase(p.project_stage)} · Due {date(p.due_date)}</p>
+       <Link className="op-secure-primary" href={'/portal/'+kind+'/projects/'+p.project_id} style={{display:'inline-block',padding:'12px 17px',borderRadius:8,background:'#ef6c24',color:'#101113',fontWeight:700}}>{isClosed(p)?'View closed project':'Open project'}</Link>
+      </article>;
  return <main className="op-secure-dark" style={{minHeight:'100vh',background:'#08090a',color:ink,padding:'26px 16px',fontFamily:'Arial,Helvetica,sans-serif'}}>
   <div style={{maxWidth:1060,margin:'0 auto'}}>
    <header style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'center',gap:16,paddingBottom:18,borderBottom:'1px solid '+border}}>
@@ -20,7 +32,7 @@ export default function PaidProjectDashboard({kind,projects,selected}:{
     <form action={signOut}><button type="submit" className="op-secure-secondary" style={{minHeight:44,padding:'10px 18px',borderRadius:8,border:'1px solid '+border,fontWeight:650}}>Sign out</button></form>
    </header>
    <nav aria-label={isClient?'Client workspace navigation':'Partner workspace navigation'} style={{display:'flex',flexWrap:'wrap',gap:12,padding:'18px 0'}}>
-    <Link href={'/portal/'+kind} className="op-secure-secondary" style={{border:'1px solid '+border,borderRadius:8,padding:'12px 16px',fontWeight:600}}>Home · My projects</Link>
+    <Link href={'/portal/'+kind} className="op-secure-secondary" style={{border:'1px solid '+border,borderRadius:8,padding:'12px 16px',fontWeight:600}}>My Projects</Link>
     {active?<Link href={'/portal/'+kind} style={{color:muted,padding:'12px 8px'}}>Back to projects</Link>:null}
    </nav>
    {active?<section style={{padding:24,background:panel,border:'1px solid '+border,borderRadius:12}}>
@@ -34,18 +46,20 @@ export default function PaidProjectDashboard({kind,projects,selected}:{
        {!isClient?<div><dt style={{color:muted}}>Work Order acceptance</dt><dd style={{margin:'6px 0',fontWeight:700}}>Accepted</dd></div>:null}
      </dl>
      <div style={{borderLeft:'3px solid #ef6c24',padding:16,background:'#181a1d'}}>
-       <strong>Next action</strong>
-       <p style={{lineHeight:1.6,margin:'8px 0 0',color:muted}}>Open your latest authorized secure invitation to {isClient?'review project documents, approve deliverables or make an agreed payment':'submit progress, report an issue or deliver authorized files'}. This dashboard does not bypass any document or financial release gate.</p>
+       <strong>{isClosed(active)?'Project closed — no pending actions':'Your next step'}</strong>
+       <p style={{lineHeight:1.6,margin:'8px 0 0',color:muted}}>{isClosed(active)
+         ? (isClient?'This project is closed. This is a read-only record; no new review or payment action is available here. For an authorized final handover, use the secure link issued by Overflow Partner.':'This Work Order is closed. No new progress reports, issues or file submissions are requested. This record is read-only. Contact Overflow Partner if a further action is required.')
+         : (isClient?'Use your current secure invitation for an authorized review, payment or approved file release. This dashboard does not grant those permissions by itself.':'Use your current authorized Work Order invitation to report progress, raise an issue or submit deliverables. The action remains governed by your assignment permissions.')}</p>
      </div>
    </section>:<section>
-      <p style={{color:muted,marginTop:0,lineHeight:1.6}}>Only projects with verified opening payments appear here. Other enquiries, quotations and feasibility requests remain accessible exclusively through their secure invitation links.</p>
-      <h2 style={{fontSize:20,margin:'24px 0 14px'}}>{isClient?'My paid projects':'My assigned paid projects'}</h2>
-      <div style={{display:'grid',gap:12}}>{projects.map(p=><article key={p.project_id} style={{padding:20,background:panel,border:'1px solid '+border,borderRadius:12}}>
-       <p style={{color:muted,fontSize:12,margin:'0 0 10px'}}>{p.project_number}</p>
-       <h3 style={{fontSize:19,margin:'0 0 12px'}}>{p.project_title}</h3>
-       <p style={{color:muted,margin:'0 0 15px'}}>{titleCase(p.project_stage)} · Due {date(p.due_date)}</p>
-       <Link className="op-secure-primary" href={'/portal/'+kind+'/projects/'+p.project_id} style={{display:'inline-block',padding:'12px 17px',borderRadius:8,background:'#ef6c24',color:'#101113',fontWeight:700}}>Open project</Link>
-      </article>)}</div>
+      <p style={{color:muted,marginTop:0,lineHeight:1.6}}>Only verified paid projects appear here. Earlier enquiries and feasibility work remain on secure links.</p>
+      <h2 style={{fontSize:20,margin:'24px 0 14px',fontWeight:700}}>{isClient?'Active projects':'Active assigned work'}</h2>
+      {openProjects.length?<div style={{display:'grid',gap:12}}>{openProjects.map(projectCard)}</div>
+       :<p style={{padding:'18px 20px',border:'1px solid '+border,borderRadius:10,color:muted}}>No active projects requiring attention.</p>}
+      {archivedProjects.length?<section aria-label="Closed projects" style={{marginTop:30}}>
+       <h2 style={{fontSize:20,margin:'0 0 14px',fontWeight:700}}>Completed and closed projects</h2>
+       <div style={{display:'grid',gap:12}}>{archivedProjects.map(projectCard)}</div>
+      </section>:null}
    </section>}
    <footer style={{color:muted,marginTop:30,paddingTop:18,borderTop:'1px solid '+border,fontSize:13}}>Access is limited to explicitly authorized paid projects. Keep all secure invitation links private.</footer>
   </div>
