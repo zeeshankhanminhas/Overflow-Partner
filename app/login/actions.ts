@@ -22,6 +22,10 @@ export async function signIn(formData: FormData) {
   // memberships with verified paid projects; otherwise secure links only.
   const { data: externalMemberships, error: externalError } = await supabase.rpc('portal_my_workspaces');
   if (!externalError && Array.isArray(externalMemberships) && externalMemberships.length) {
+    if(process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED!=='true') {
+      await supabase.auth.signOut();
+      redirect('/login?error='+encodeURIComponent('Continue through your secure invitation link until the paid project portal is activated.'));
+    }
     for (const kind of ['client', 'partner'] as const) {
       if (!externalMemberships.some((row: {portal_kind: string}) => row.portal_kind === kind)) continue;
       const { data: eligibleProjects, error: projectError } = await supabase.rpc('portal_my_projects', {p_kind: kind});
