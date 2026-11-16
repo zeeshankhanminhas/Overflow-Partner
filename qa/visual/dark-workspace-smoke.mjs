@@ -48,6 +48,20 @@ try{
    const heading=page.getByRole('heading',{level:1,name:item.heading}).first();
    await heading.waitFor({state:'visible',timeout:12000});
    if(item.alert)await page.getByRole('alert').getByText(item.alert).waitFor({state:'visible'});
+   if(item.name==='login'){
+     // OPOS orange CTA must have AA-readable label in both rest and hover states.
+     const action=page.getByRole('button',{name:/Enter Secure Workspace/i});
+     const contrastOf=async()=>{
+       const pair=await action.evaluate(el=>{const s=getComputedStyle(el);return [s.color,s.backgroundColor];});
+       const fg=rgb(pair[0]),bg=rgb(pair[1]);
+       return fg&&bg?(Math.max(luminance(fg),luminance(bg))+0.05)/(Math.min(luminance(fg),luminance(bg))+0.05):0;
+     };
+     assert.ok((await contrastOf())>=4.5,'Login orange CTA resting text contrast below 4.5:1');
+     await action.hover();
+     await page.waitForTimeout(220);
+     assert.ok((await contrastOf())>=4.5,'Login orange CTA hover text contrast below 4.5:1');
+   }
+
    const result=await page.evaluate(()=>{
     const main=document.querySelector('main');
     if(!main)return {missingMain:true};
