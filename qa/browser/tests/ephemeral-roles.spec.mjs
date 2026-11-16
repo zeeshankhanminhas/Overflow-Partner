@@ -62,6 +62,19 @@ for(const width of [390,1440]){
     await expect(page.locator('.op-content h1').first()).toBeVisible();
     await expect(page.getByRole('heading',{name:'Something went wrong'})).toHaveCount(0);
     if(path==='/workspace')await screenshot(page,'controller-home',width);
+    if(path==='/workspace/projects' && width===1440){
+     const register=page.locator('.project-portfolio-register');
+     await expect(register).toBeVisible();
+     const dimensions=await register.evaluate(el=>({
+       visibleWidth:el.getBoundingClientRect().width,
+       scrollWidth:el.scrollWidth,
+       width:el.clientWidth,
+       overflowX:getComputedStyle(el).overflowX
+     }));
+     expect(dimensions.overflowX).toBe('auto');
+     expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.width);
+     expect(dimensions.visibleWidth).toBeLessThan(1100);
+    }
     await noOverflow(page,label);
    }
    await page.goto('/workspace');
