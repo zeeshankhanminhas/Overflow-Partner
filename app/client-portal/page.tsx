@@ -89,7 +89,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <div style={{border:'1px solid #303238',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
         <div style={{border:'1px solid #303238',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
-      {activeClientAccess ? <p id="client-project"><strong>Project reference:</strong> {project.project_number}</p> : null}
+      {activeClientAccess && project ? <p id="client-project"><strong>Project reference:</strong> {project.project_number}</p> : null}
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
       {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
       {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
