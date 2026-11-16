@@ -219,6 +219,53 @@ expect(executionAPI.includes('executionSessionIdFromToken(token)') &&
   executionAPI.includes('assignment.session_id')===false,
   'Execution links are bound to an assigned work session, not partner feasibility review');
 
+// Strict paid-only Client and Partner account dashboards, distinct from token links.
+const paidPortalSql=read('supabase/migrations/20261116165000_paid_only_external_portals.sql');
+const portalAuth=read('app/login/actions.ts');
+const portalReader=read('lib/portal/paidProjects.ts');
+const controllerShell=read('app/workspace/layout.tsx');
+const portalClient=read('app/portal/client/page.tsx');
+const portalPartner=read('app/portal/partner/page.tsx');
+const portalClientProject=read('app/portal/client/projects/[id]/page.tsx');
+const portalPartnerProject=read('app/portal/partner/projects/[id]/page.tsx');
+expect(paidPortalSql.includes("payment.amount > 0") &&
+       paidPortalSql.includes("payment.confirmed_at is not null") &&
+       paidPortalSql.includes("payment.quote_id=pr.quote_id") &&
+       paidPortalSql.includes("payment.organisation_id=pr.organisation_id") &&
+       paidPortalSql.includes("payment.lead_id=pr.lead_id"),
+  'Every external dashboard record requires actual verified opening-payment evidence');
+expect(paidPortalSql.includes("m.auth_user_id=(select auth.uid())") &&
+       paidPortalSql.includes("l.company_id=m.company_id") &&
+       paidPortalSql.includes("a.partner_id=m.partner_id") &&
+       paidPortalSql.includes("pt.status::text='approved'"),
+  'External projects are scoped to the exact signed-in client or approved partner');
+expect(paidPortalSql.includes("a.released_at is not null") &&
+       paidPortalSql.includes("wo.issued_at is not null") &&
+       paidPortalSql.includes("public.partner_work_order_acceptances") &&
+       paidPortalSql.includes("acceptance.accepted_at is not null"),
+  'Partner workspace requires released assignment and accepted issued Work Order');
+expect(paidPortalSql.includes("revoke all on public.external_portal_memberships from public,anon,authenticated") &&
+       paidPortalSql.includes("grant select,insert,update,delete on public.external_portal_memberships to service_role"),
+  'External grants are private and only managed by service role');
+expect(portalAuth.includes("supabase.rpc('portal_my_workspaces')") &&
+       portalAuth.includes("supabase.rpc('portal_my_projects', {p_kind: kind})") &&
+       portalAuth.includes("eligibleProjects.length > 0") &&
+       portalAuth.includes("redirect('/portal/' + kind)"),
+  'Login refuses unpaid external dashboard access and selects verified role');
+expect(portalReader.includes("if(!rows.length)notFound()") &&
+       portalReader.includes("supabase.rpc('portal_my_projects'") &&
+       portalReader.includes("supabase.auth.getUser()") &&
+       !portalReader.includes("SUPABASE_SERVICE_ROLE_KEY"),
+  'External dashboard reads remain server-side and fail closed without paid projects');
+expect(controllerShell.includes("profile.role === 'partner'") &&
+       controllerShell.includes("externalMemberships.length"),
+  'Controller workspace blocks direct access by external memberships');
+expect(portalClient.includes("paidPortalProjects('client')") &&
+       portalPartner.includes("paidPortalProjects('partner')") &&
+       portalClientProject.includes("projects.some(p=>p.project_id===id)") &&
+       portalPartnerProject.includes("projects.some(p=>p.project_id===id)"),
+  'Client and Partner pages and deep links use exactly the same paid-scope filter');
+
 let failed=0;
 for(const check of checks){
   console.log(`${check.pass?'PASS':'FAIL'} ${check.label}`);
