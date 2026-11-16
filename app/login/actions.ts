@@ -18,9 +18,24 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
   }
 
+  // External users are not Controller profiles. Route only provisioned
+  // memberships with verified paid projects; otherwise secure links only.
+  const { data: externalMemberships, error: externalError } = await supabase.rpc('portal_my_workspaces');
+  if (!externalError && Array.isArray(externalMemberships) && externalMemberships.length) {
+    for (const kind of ['client', 'partner'] as const) {
+      if (!externalMemberships.some((row: {portal_kind: string}) => row.portal_kind === kind)) continue;
+      const { data: eligibleProjects, error: projectError } = await supabase.rpc('portal_my_projects', {p_kind: kind});
+      if (!projectError && Array.isArray(eligibleProjects) && eligibleProjects.length > 0) {
+        redirect('/portal/' + kind);
+      }
+    }
+    await supabase.auth.signOut();
+    redirect('/login?error=' + encodeURIComponent('Project dashboard access starts after verified opening payment. Please use your secure invitation links until then.'));
+  }
+
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, organisation_id, is_active")
+    .select("id, organisation_id, is_active, role")
     .eq("id", data.user.id)
     .maybeSingle();
 
@@ -44,6 +59,10 @@ export async function signIn(formData: FormData) {
     );
   }
 
+  if (profile.role === 'partner') {
+    await supabase.auth.signOut();
+    redirect('/login?error=' + encodeURIComponent('Use your assigned secure invitation link.'));
+  }
   redirect("/workspace");
 }
 
