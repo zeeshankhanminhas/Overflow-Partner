@@ -17,8 +17,14 @@ export const requireUserContext = cache(async function requireUserContext() {
 
   const profile = data as Profile | null;
 
-  if (profileError || !profile || !profile.is_active || !profile.organisation_id) {
-    throw new Error('Your account is not connected to an active Overflow Partner organisation profile.');
+  if (profileError || !profile || !profile.is_active || !profile.organisation_id || profile.role === 'partner') {
+    // A signed-in external user is not an internal organisation member.
+    // Route to the separately authorized paid-only portal, not the Controller.
+    const {data:external} = await supabase.rpc('portal_my_workspaces');
+    if (Array.isArray(external) && external.length) {
+      redirect('/portal/' + (external.some((m:{portal_kind:string})=>m.portal_kind==='client') ? 'client' : 'partner'));
+    }
+    redirect('/login?error=' + encodeURIComponent('This sign-in does not have access to the operations workspace. Use your secure invitation link.'));
   }
 
   return { supabase, user, profile, organisationId: profile.organisation_id };
