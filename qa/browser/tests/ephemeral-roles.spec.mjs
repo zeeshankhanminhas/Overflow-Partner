@@ -85,6 +85,9 @@ for(const width of [390,1440]){
    await expect(page.getByRole('heading',{name:'Your engineering projects'})).toBeVisible();
    await expect(page.getByText('Synthetic Paid Engineering Project')).toBeVisible();
    await expect(page.getByText('Synthetic Unpaid Engineering Project')).toHaveCount(0);
+   await expect(page.getByRole('heading',{name:'Active projects'})).toBeVisible();
+   await expect(page.getByRole('heading',{name:'Completed and closed projects'})).toBeVisible();
+   await expect(page.getByRole('link',{name:'View closed project'})).toHaveCount(1);
    const link=page.getByRole('link',{name:'Open project'});
    await expect(link).toBeVisible();
    const ratio=await link.evaluate(el=>{
@@ -102,6 +105,15 @@ for(const width of [390,1440]){
    expect(denied?.status()).toBe(404);
    const wrong=await page.goto('/portal/partner/projects/'+paidProject);
    expect(wrong?.status()).toBe(404);
+   await page.goto('/portal/client');
+   await page.getByRole('link',{name:'View closed project'}).click();
+   await expect(page).toHaveURL(/\/portal\/client\/projects\/00000000-0000-4000-8000-000000007112$/);
+   await expect(page.getByText('Project closed — no pending actions')).toBeVisible();
+   await expect(page.getByText('This is a read-only record',{exact:false})).toBeVisible();
+   await expect(page.getByText('Next action',{exact:true})).toHaveCount(0);
+   await expect(page.getByRole('button',{name:/Submit|Report issue|Update progress/i})).toHaveCount(0);
+   await screenshot(page,'client-closed',width);
+   await noOverflow(page,'Client closed project');
    await page.goto('/workspace');
    await expect(page.getByRole('heading',{name:'Your engineering projects'})).toBeVisible();
    await expect(page.locator('.op-sidebar')).toHaveCount(0);
