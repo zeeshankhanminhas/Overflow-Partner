@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <input id="workspace-password" name="password" type="password" required autoComplete="current-password"
               className="min-h-12 border border-[#4a4d53] bg-[#181a1d] text-[#f3f3f4] px-4 text-base font-normal" />
           </label>
-          <button className="op-cta mt-1 w-full" type="submit" style={{ color: "#101113" }}>Enter Secure Workspace →</button>
+          <button className="op-cta mt-1 w-full !text-[#101113] hover:!bg-[#ff8f52]" type="submit">Enter Secure Workspace →</button>
         </form>
         <div className="mt-7 border-t border-[#303238] pt-5 text-sm leading-6 text-[#b6b9bf]">
           <p>New to Overflow Partner? You don’t need an account to discuss a project.</p>
