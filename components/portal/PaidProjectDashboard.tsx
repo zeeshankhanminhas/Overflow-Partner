@@ -15,7 +15,7 @@ export default function PaidProjectDashboard({kind,projects,selected}:{
   <div style={{maxWidth:1060,margin:'0 auto'}}>
    <header style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'center',gap:16,paddingBottom:18,borderBottom:'1px solid '+border}}>
     <div><p style={{color:'#ef6c24',fontSize:12,fontWeight:800,letterSpacing:2,margin:0}}>OVERFLOW PARTNER · WORKSPACE 2.0</p>
-      <h1 style={{fontSize:30,margin:'12px 0 5px'}}>{isClient?'Your engineering projects':'Your engineering work'}</h1>
+      <h1 style={{fontSize:30,fontWeight:700,letterSpacing:'-.03em',lineHeight:1.15,margin:'12px 0 5px'}}>{isClient?'Your engineering projects':'Your engineering work'}</h1>
       <p style={{margin:0,color:muted}}>{account}</p></div>
     <form action={signOut}><button type="submit" className="op-secure-secondary" style={{minHeight:44,padding:'10px 18px',borderRadius:8,border:'1px solid '+border,fontWeight:650}}>Sign out</button></form>
    </header>
@@ -25,7 +25,7 @@ export default function PaidProjectDashboard({kind,projects,selected}:{
    </nav>
    {active?<section style={{padding:24,background:panel,border:'1px solid '+border,borderRadius:12}}>
      <p style={{color:muted,margin:0}}>{active.project_number} · Verified paid project</p>
-     <h2 style={{fontSize:26,margin:'12px 0'}}>{active.project_title}</h2>
+     <h2 style={{fontSize:26,fontWeight:700,lineHeight:1.18,margin:'12px 0'}}>{active.project_title}</h2>
      <dl style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:18,margin:'24px 0'}}>
        <div><dt style={{color:muted}}>Project stage</dt><dd style={{margin:'6px 0',fontWeight:700}}>{titleCase(active.project_stage)}</dd></div>
        <div><dt style={{color:muted}}>Due date</dt><dd style={{margin:'6px 0',fontWeight:700}}>{date(active.due_date)}</dd></div>
