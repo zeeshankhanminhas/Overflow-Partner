@@ -65,7 +65,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
   const finalBalanceHref='/project-final-payment?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   const finalFilesHref='/client-final-files?token='+encodeURIComponent(createClientPortalToken(quote.id,quote.revision));
   // Presentation only: actual scope and payment/document permissions stay enforced server-side.
-  const activeClientAccess = Boolean(project && (paid || released));
+  const activeClientAccess = Boolean(project && paid);
   const status = project ? 'Project opened' : paid ? 'Opening payment confirmed' : released ? 'Commercial release confirmed' : accepted ? 'Quotation accepted' : response === 'declined' ? 'Quotation declined' : response === 'more_time' ? 'More time requested' : 'Awaiting your decision';
   return <main className="op-secure-dark" style={{ minHeight:'100vh', background:'#08090a', padding:'24px 16px', fontFamily:'Arial,sans-serif',color:'#f3f3f4' }}>
     <section style={container}>
@@ -89,7 +89,7 @@ export default async function ClientPortal({searchParams}:{searchParams:Promise<
         <div style={{border:'1px solid #303238',borderRadius:8,padding:16}}><p style={caption}>Quote total</p><strong style={{fontSize:22}}>{displayMoney(Number(quote.total||0),String(quote.currency||'GBP'))}</strong></div>
         <div style={{border:'1px solid #303238',borderRadius:8,padding:16}}><p style={caption}>Commercial status</p><strong>{paid ? 'Payment confirmed' : released ? (releaseResult.data?.release_basis === 'purchase_order' ? 'Purchase order confirmed' : 'No advance due') : accepted ? 'Awaiting agreed release condition' : 'Not yet accepted'}</strong></div>
       </div>
-      {project ? <p id="client-project"><strong>Project reference:</strong> {project.project_number}</p> : null}
+      {activeClientAccess ? <p id="client-project"><strong>Project reference:</strong> {project.project_number}</p> : null}
       {contractResult.data?.release_basis==='purchase_order' ? <p>Agreed release condition: authorised purchase order, subject to OP verification.</p> : null}
       {contractResult.data?.release_basis==='no_advance_payment' ? <p>Agreed release condition: no advance payment due, subject to OP authorisation.</p> : null}
       {canPay ? <p><Link href={paymentHref}>Continue to payment →</Link></p> : null}
