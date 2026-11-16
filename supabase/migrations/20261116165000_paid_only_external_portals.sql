@@ -30,6 +30,12 @@ on public.external_portal_memberships(
 create or replace function public.op_validate_external_portal_membership()
 returns trigger language plpgsql set search_path=public,pg_temp as $$
 begin
+  if exists (
+    select 1 from public.profiles profile
+    where profile.id=new.auth_user_id
+      and profile.organisation_id=new.organisation_id
+      and profile.is_active=true
+  ) then raise exception 'External portal membership cannot use active Controller organisation profile'; end if;
   if new.portal_kind='client' and not exists (
     select 1 from public.companies c
     where c.id=new.company_id and c.organisation_id=new.organisation_id
