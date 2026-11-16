@@ -16,6 +16,8 @@ export type PaidPortalProject={
  * Never query internal project tables from the external user's Supabase session.
  */
 export async function paidPortalProjects(kind:PortalKind){
+ // Fail closed until the paid-only database migration and protected QA pass.
+ if(process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED!=='true')notFound();
  const supabase=await createClient();
  const {data:{user},error:authError}=await supabase.auth.getUser();
  if(authError||!user)redirect('/login');
