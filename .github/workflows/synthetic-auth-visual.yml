@@ -1,0 +1,119 @@
+name: OPOS Synthetic Authenticated Visual QA (disposable)
+
+# PR-safe: uses localhost Supabase, fictional accounts and fictional payments.
+# Never includes real QA or production secrets, browser storage or screenshots.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'qa/browser/ephemeral.config.mjs'
+      - 'qa/browser/tests/ephemeral-roles.spec.mjs'
+      - 'scripts/qa/seed-portal-browser.mjs'
+      - 'supabase/migrations/**'
+      - '.github/workflows/synthetic-auth-visual.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ephemeral-auth:
+    name: Synthetic Controller / paid Client / unpaid & Partner denial
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      OP_ISOLATED_QA_BACKEND: 'true'
+      OP_PAID_EXTERNAL_PORTALS_ENABLED: 'true'
+      OPOS_SYNTHETIC_BASE_URL: 'http://127.0.0.1:3333'
+      OPOS_SYNTHETIC_SCREENSHOT_DIR: 'qa/browser/synthetic-evidence'
+      NEXT_TELEMETRY_DISABLED: '1'
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+      DATABASE_URL: ''
+    steps:
+      - name: Checkout PR code with no credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application and isolated browser runner
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --package-lock=false --ignore-scripts @playwright/test@1.65.0
+          npx playwright install --with-deps chromium
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+      - name: Start disposable localhost Supabase only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test -z "$DATABASE_URL"
+          sed -i '1i project_id = "opos_ephemeral_ci"' supabase/config.toml
+          supabase start -x studio,inbucket,analytics,vector,edge-runtime,realtime,storage,imgproxy
+          supabase status -o env > "$RUNNER_TEMP/opos-local-auth.env"
+          set -a
+          source "$RUNNER_TEMP/opos-local-auth.env"
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          test -n "$ANON_KEY"
+          test -n "$SERVICE_ROLE_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+      - name: Seed fictional authenticated accounts and paid/unpaid projects
+        run: node scripts/qa/seed-portal-browser.mjs
+      - name: Syntax and security policy
+        run: |
+          node --check scripts/qa/seed-portal-browser.mjs
+          node --check qa/browser/ephemeral.config.mjs
+          node --check qa/browser/tests/ephemeral-roles.spec.mjs
+      - name: Start isolated local Next.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- -H 127.0.0.1 -p 3333 > "$RUNNER_TEMP/opos-synthetic-next.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opos-synthetic-next.pid"
+          node --input-type=module <<'NODE'
+          let ready=false;
+          for(let attempt=0;attempt<100;attempt++){
+            try{
+              const response=await fetch('http://127.0.0.1:3333/login',{signal:AbortSignal.timeout(3000)});
+              if(response.ok){ready=true;break;}
+            }catch{}
+            await new Promise(resolve=>setTimeout(resolve,1000));
+          }
+          if(!ready)throw Error('Synthetic Next.js server not ready');
+          NODE
+      - name: Authenticated Chromium desktop/mobile permissions and contrast
+        run: npx playwright test --config=qa/browser/ephemeral.config.mjs
+      - name: Upload fictional-only visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opos-synthetic-auth-visual
+          path: qa/browser/synthetic-evidence/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Display server diagnostics on failed QA
+        if: failure()
+        shell: bash
+        run: tail -120 "$RUNNER_TEMP/opos-synthetic-next.log" || true
+      - name: Destroy disposable database and process
+        if: always()
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/opos-synthetic-next.pid"; then
+            kill "$(cat "$RUNNER_TEMP/opos-synthetic-next.pid")" || true
+          fi
+          supabase stop --no-backup || true
