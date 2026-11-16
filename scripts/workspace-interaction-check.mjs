@@ -257,6 +257,9 @@ expect(portalReader.includes("if(!rows.length)notFound()") &&
        portalReader.includes("supabase.auth.getUser()") &&
        !portalReader.includes("SUPABASE_SERVICE_ROLE_KEY"),
   'External dashboard reads remain server-side and fail closed without paid projects');
+expect(portalReader.includes("process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED!=='true'") &&
+       portalAuth.includes("process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED!=='true'"),
+  'External dashboards remain disabled until the migrated paid-only RPC is approved and QA validated');
 expect(controllerShell.includes("profile.role === 'partner'") &&
        controllerShell.includes("externalMemberships.length"),
   'Controller workspace blocks direct access by external memberships');
