@@ -17,13 +17,14 @@ export const requireUserContext = cache(async function requireUserContext() {
 
   const profile = data as Profile | null;
 
+  // An external membership always takes priority, even if a stale internal
+  // profile accidentally exists: no Controller page, action or internal API may
+  // elevate an external user through organisation-wide profile membership.
+  const {data:external} = await supabase.rpc('portal_my_workspaces');
+  if (Array.isArray(external) && external.length) {
+    redirect('/portal/' + (external.some((m:{portal_kind:string})=>m.portal_kind==='client') ? 'client' : 'partner'));
+  }
   if (profileError || !profile || !profile.is_active || !profile.organisation_id || profile.role === 'partner') {
-    // A signed-in external user is not an internal organisation member.
-    // Route to the separately authorized paid-only portal, not the Controller.
-    const {data:external} = await supabase.rpc('portal_my_workspaces');
-    if (Array.isArray(external) && external.length) {
-      redirect('/portal/' + (external.some((m:{portal_kind:string})=>m.portal_kind==='client') ? 'client' : 'partner'));
-    }
     redirect('/login?error=' + encodeURIComponent('This sign-in does not have access to the operations workspace. Use your secure invitation link.'));
   }
 
