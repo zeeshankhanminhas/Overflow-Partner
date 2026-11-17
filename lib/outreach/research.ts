@@ -19,7 +19,7 @@ export function researchGaps(record:ResearchEvidence, today=new Date()):string[]
  if(record.engineering_evidence.trim().length<12)gaps.push('Evidence of an in-house engineering, design or CAD team');
  if(record.decision_maker_evidence.trim().length<8)gaps.push('Evidence that this is an appropriate decision-maker');
  if(record.workload_pressure_signal.trim().length<8)gaps.push('Describe the workload pressure signal, including uncertainty');
- if(!record.source_url||!/^https:\/\/[^\\s]+$/i.test(record.source_url)){
+ if(!record.source_url||!/^https:\/\/[^\s]+$/i.test(record.source_url)){
    gaps.push('Valid HTTPS source URL');
  }else{
    try{const url=new URL(record.source_url);if(url.username||url.password)gaps.push('Evidence URL must not contain credentials')}
