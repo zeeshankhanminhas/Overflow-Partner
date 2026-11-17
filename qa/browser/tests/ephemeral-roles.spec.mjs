@@ -149,6 +149,20 @@ test('Unpaid Client and unauthorized Partner receive secure-link-only denial',as
   }finally{await context.close()}
  }
 });
+test('Legacy mixed Controller and Partner identity is denied at sign-in',async({browser})=>{
+ const context=await browser.newContext();
+ try{
+  const page=await context.newPage();
+  await login(page,'conflict');
+  await expect(page).toHaveURL(/\/login\?error=/);
+  await expect(page.getByText(/Conflicting account permissions/i)).toBeVisible();
+  await page.goto('/workspace');
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.locator('.workspace.op-shell')).toHaveCount(0);
+  await page.goto('/portal/partner');
+  await expect(page.getByRole('heading',{name:'Your engineering work'})).toHaveCount(0);
+ }finally{await context.close()}
+});
 test('Anonymous requests never receive paid dashboards',async({page})=>{
  for(const path of ['/portal/client','/portal/partner',
    '/portal/client/projects/'+paidProject,'/portal/partner/projects/'+paidProject]){
