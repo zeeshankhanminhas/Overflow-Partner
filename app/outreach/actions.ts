@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireUserContext, assertRole } from '@/lib/auth/context';
+import {isReviewedForManualContact, type OutreachResearch} from '@/lib/outreach/research';
 
 const HOME='/outreach';
 function urlFor(id:string,kind:'error'|'updated',message:string) {
@@ -68,6 +69,15 @@ export async function updateOutreachThreadAction(form:FormData) {
     .select('state').eq('organisation_id',organisationId).eq('id',id).maybeSingle();
   if(readError||!thread)throw new Error('Outreach conversation not found.');
   if(thread.state==='converted')throw new Error('Already transferred to CRM. Open the existing Prospect.');
+  // A first outbound contact must be explicitly approved using fresh evidence.
+  // Existing in-flight conversations are not silently requalified on updates.
+  if(thread.state==='new'&&['waiting','followup'].includes(state)){
+    const {data:research,error:researchError}=await supabase.from('linkedin_outreach_research')
+      .select('outreach_id,evidence_description,engineering_evidence,decision_maker_evidence,workload_pressure_signal,source_url,observed_on,confidence,evidence_state,review_status,approved_at')
+      .eq('organisation_id',organisationId).eq('outreach_id',id).maybeSingle();
+    if(researchError||!isReviewedForManualContact(research as OutreachResearch|null))
+      throw new Error('Research approval with fresh evidence is required before recording first manual contact. This action never sends a message.');
+  }
   if(thread.state==='interested'&&state!=='interested')
     throw new Error('Interest was already confirmed. Convert to CRM or review with the team.');
   const {error}=await supabase.from('linkedin_outreach_threads')
