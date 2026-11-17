@@ -18,6 +18,17 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
   }
 
+  // An older QA identity may carry both active internal and external grants.
+  // Do not fall back into the Controller route when a denied external grant
+  // is hidden by the secure, paid-only membership RPC.
+  if (process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED === 'true') {
+    const {data:conflict,error:conflictError}=await supabase.rpc('portal_identity_conflict');
+    if(conflictError || conflict===true){
+      await supabase.auth.signOut();
+      redirect('/login?error='+encodeURIComponent('Conflicting account permissions. Request a separate authorized workspace account.'));
+    }
+  }
+
   // External users are not Controller profiles. Route only provisioned
   // memberships with verified paid projects; otherwise secure links only.
   const { data: externalMemberships, error: externalError } = await supabase.rpc('portal_my_workspaces');
