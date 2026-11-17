@@ -53,6 +53,9 @@ jobs:
       - name: OPOS integrated lifecycle regression
         run: npm run lifecycle-integrity:check
 
+      - name: Final-file release gates (behavioral, disposable data)
+        run: node scripts/qa/final-handover-route-check.mjs
+
       - name: LinkedIn funnel regression
         run: npm run acquisition-funnel:check
 
