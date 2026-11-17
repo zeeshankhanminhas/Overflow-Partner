@@ -34,7 +34,14 @@ for(const role of [
    await projectLink.click();
    await expect(page).toHaveURL(url=>url.pathname===assignedUrl);
    await expect(page.getByText('Verified paid project',{exact:false})).toBeVisible();
-   await expect(page.getByText('Next action',{exact:true})).toBeVisible();
+   const closed=await page.getByText('Project closed — no pending actions',{exact:true}).count()>0;
+   if(closed){
+    await expect(page.getByText('Next action',{exact:true})).toHaveCount(0);
+    await expect(page.getByText(/read-only/i).first()).toBeVisible();
+    await expect(page.getByRole('button',{name:/submit|report issue|update progress|make payment/i})).toHaveCount(0);
+   }else{
+    await expect(page.getByText('Your next step',{exact:true})).toBeVisible();
+   }
    if(role.kind==='partner')await expect(page.getByText('Work Order acceptance',{exact:true})).toBeVisible();
    // The internal 28-gate evidence and Controller navigation must not render.
    await expect(page.getByText('Lifecycle evidence',{exact:false})).toHaveCount(0);
