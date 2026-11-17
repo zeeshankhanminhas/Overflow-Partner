@@ -1,0 +1,20 @@
+.panel{border:1px solid var(--op-line,#d9d6ce);border-radius:12px;background:var(--op-panel,#fff);padding:clamp(18px,2vw,26px);margin:24px 0;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
+.head h2{margin:5px 0 8px;font-size:22px;letter-spacing:-.03em}
+.head p{max-width:720px;color:var(--op-muted,#565b57);font-size:13px;line-height:1.6;margin:0}
+.state{display:inline-flex;min-height:30px;align-items:center;border:1px solid var(--op-line,#d9d6ce);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700}
+.gaps{margin:20px 0;border-left:3px solid #c87b38;background:var(--op-panel-2,var(--op-surface,#f7f7f3));padding:14px 18px}
+.gaps strong{font-size:13px}
+.gaps ul{margin:10px 0 0;padding-left:20px;display:grid;gap:5px;font-size:13px;line-height:1.5}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:22px}
+.form label{display:grid;align-content:start;gap:7px;font-weight:600;font-size:13px;min-width:0}
+.form label small{font-size:11px;font-weight:400;color:var(--op-muted,#565b57);line-height:1.5}
+.form :is(input,textarea,select){width:100%;min-width:0;max-width:100%;border:1px solid var(--op-line,#bfc2bd);border-radius:8px;padding:12px 13px;min-height:44px;background:var(--op-panel,#fff);color:var(--op-ink,#20221f);font:inherit;font-weight:400;font-size:14px}
+.form textarea{min-height:98px;resize:vertical;line-height:1.5}
+.wide{grid-column:1/-1}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.actions button{border-radius:8px;border:1px solid var(--op-line,#bfc2bd);background:var(--op-panel-2,#efefed);color:var(--op-ink,#20221f);min-height:45px;padding:11px 17px;font-size:13px;font-weight:700;cursor:pointer}
+.actions .approve{background:#ef6c24;color:#101113;border-color:#ef6c24}
+.actions button:focus-visible,.form :is(input,textarea,select):focus-visible{outline:2px solid #ef6c24;outline-offset:3px}
+.foot{grid-column:1/-1;color:var(--op-muted,#565b57);font-size:12px;line-height:1.6}
+@media(max-width:700px){.form{grid-template-columns:1fr}.wide{grid-column:1}.actions button{flex:1 1 150px}}
