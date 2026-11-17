@@ -146,8 +146,17 @@
 /* Manual conversation journal while structured import awaits release. */
 .journalForm{display:grid;gap:12px;margin-top:20px;padding-top:19px;border-top:1px solid var(--op-line,#ddd)}
 .journalForm label{display:grid;gap:9px;font-size:13px;font-weight:620}
-.journalForm textarea{width:100%;padding:14px;resize:vertical;min-height:135px;line-height:1.55;border:1px solid var(--op-line,#ddd);border-radius:9px;background:#fff;color:var(--op-ink,#20221f);font-size:14px}
+.journalForm textarea{width:100%;padding:14px;resize:vertical;min-height:135px;line-height:1.55;border:1px solid var(--op-line,#ddd);border-radius:9px;background:var(--op-panel-2,#181a1d);color:var(--op-text,#f3f3f4);font-size:14px}
 .journalFooter{display:flex;align-items:center;justify-content:space-between;gap:18px}
 .journalFooter span{max-width:370px;font-size:11px;font-weight:400;line-height:1.65;color:var(--op-muted,#696d69)}
 .journalFooter button{width:auto;min-height:42px;white-space:nowrap}
 @media(max-width:650px){.journalFooter{flex-direction:column;align-items:stretch}.journalFooter button{width:100%}}
+
+/* Shared OPOS dark appearance for outreach funnel, list, record and handoff. */
+.flow{color:var(--op-text,#f3f3f4);}
+.flow :where(h1,h2,h3,strong){color:var(--op-text,#f3f3f4);}
+.flow :where(.metrics,.workPanel){background:var(--op-panel,#101113);border-color:var(--op-line,#303236);}
+.flow :where(.prospectRow:hover){background:var(--op-surface,#151619);}
+.flow :where(input,select,textarea){background:#151619;color:#f3f3f4;border-color:#44474b;border-radius:9px;}
+.flow :where(.filters a:hover,.filters .activeFilter){background:#292b2f;color:#f3f3f4;border-color:#55585e;}
+.flow :where(.muted,.count){color:var(--op-muted,#adafb5);}

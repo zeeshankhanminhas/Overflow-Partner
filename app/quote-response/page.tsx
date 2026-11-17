@@ -28,9 +28,9 @@ export default async function QuoteResponsePage({ searchParams }: { searchParams
     }
   }
   const decision = payload ? decisionCopy[payload.response] : null;
-  return <main style={{ minHeight: '100vh', background: '#f3f1ec', padding: '48px 18px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#171717' }}>
-    <section style={{ maxWidth: 620, margin: '0 auto', padding: 32, background: '#fff', border: '1px solid #ded9d0', borderTop: '5px solid #e95d2a' }}>
-      <p style={{ margin: 0, color: '#6f6a61', fontSize: 12, letterSpacing: 2, fontWeight: 700 }}>OVERFLOW PARTNER · CLIENT QUOTE</p>
+  return <main className="op-secure-dark" style={{ minHeight: '100vh', background: '#08090a', padding: '48px 18px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#f3f3f4' }}>
+    <section style={{ maxWidth: 620, margin: '0 auto', padding: 32, background: '#111214', border: '1px solid #303238', borderTop: '5px solid #e95d2a' }}>
+      <p style={{ margin: 0, color: '#b6b9bf', fontSize: 12, letterSpacing: 2, fontWeight: 700 }}>OVERFLOW PARTNER · CLIENT QUOTE</p>
       {result === 'recorded' ? <><h1>Response recorded</h1><p>Thank you. Your response has been added to the quotation record. If you accepted, project setup remains subject to confirmation of the agreed opening payment or purchase order.</p></> : null}
       {result === 'invalid' ? <><h1>Response link expired</h1><p>This link is invalid or has expired. Please reply to the quotation email and the team will help.</p></> : null}
       {result === 'unavailable' ? <><h1>Response could not be recorded</h1><p>Please try again shortly or reply to the quotation email.</p></> : null}
@@ -45,9 +45,9 @@ export default async function QuoteResponsePage({ searchParams }: { searchParams
             <label>Business email of authorised signatory<input name="signatory_email" type="email" required defaultValue={recipient?.email||''} style={{display:'block',width:'100%',padding:10}}/></label>
             <label style={{display:'flex',gap:10,alignItems:'start'}}><input type="checkbox" name="authority_attested" value="yes" required/>I confirm that I am authorised to accept this quotation, its specified scope, price and commercial release terms on behalf of the customer.</label>
           </div> : null}
-          <button type="submit" style={{ border: 0, borderRadius: 8, padding: '14px 20px', background: '#df2925', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>{decision.action}</button>
+          <button type="submit" style={{ border: 0, borderRadius: 8, padding: '14px 20px', background: '#ef6c24', color: '#101113', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>{decision.action}</button>
         </form>
-        <p style={{ color: '#6f6a61', fontSize: 13 }}>No response means the quotation stays awaiting your decision until its validity date.</p>
+        <p style={{ color: '#b6b9bf', fontSize: 13 }}>No response means the quotation stays awaiting your decision until its validity date.</p>
       </> : <><h1>Quotation response unavailable</h1><p>This link is invalid, expired, or no longer refers to an active quotation. Please reply to the quotation email for help.</p></>}
     </section>
   </main>;

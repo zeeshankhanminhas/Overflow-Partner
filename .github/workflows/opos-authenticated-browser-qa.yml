@@ -17,7 +17,8 @@ jobs:
     env:
       CI: 'true'
       OPOS_AUTH_QA_APPROVED: 'true'
-      OPOS_QA_BASE_URL: https://overflow-partner-cp1nauyty-zeeshankhanminhas-projects.vercel.app
+      # Must be explicitly configured and approved in the protected QA environment.
+      OPOS_QA_BASE_URL: ${{ vars.OPOS_QA_BASE_URL }}
     steps:
       - name: Checkout trusted main code
         uses: actions/checkout@v4
@@ -39,7 +40,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Verify QA test policy without credentials
-        run: node --test qa/browser/authenticated-policy.test.mjs && node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs && node --check qa/browser/tests/project-details.spec.mjs
+        run: node --test qa/browser/authenticated-policy.test.mjs && node --check qa/browser/authenticated.config.mjs && node --check qa/browser/tests/authenticated.spec.mjs && node --check qa/browser/tests/project-details.spec.mjs && node --check qa/browser/tests/controller-visual.spec.mjs
 
       - name: Authenticated read-only QA — no traces, screenshots or artifacts
         env:

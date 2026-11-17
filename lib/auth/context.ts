@@ -17,8 +17,24 @@ export const requireUserContext = cache(async function requireUserContext() {
 
   const profile = data as Profile | null;
 
-  if (profileError || !profile || !profile.is_active || !profile.organisation_id) {
-    throw new Error('Your account is not connected to an active Overflow Partner organisation profile.');
+  if (process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED === 'true') {
+    const {data:conflict,error:conflictError}=await supabase.rpc('portal_identity_conflict');
+    if(conflictError || conflict===true) {
+      redirect('/login?error='+encodeURIComponent('Conflicting workspace permissions. Contact Overflow Partner for a separate authorized account.'));
+    }
+  }
+  // Every internal action uses this same context; do not allow a
+  // legacy external grant to fall through to an internal user profile.
+
+  // An external membership always takes priority, even if a stale internal
+  // profile accidentally exists: no Controller page, action or internal API may
+  // elevate an external user through organisation-wide profile membership.
+  const {data:external} = await supabase.rpc('portal_my_workspaces');
+  if (Array.isArray(external) && external.length) {
+    redirect('/portal/' + (external.some((m:{portal_kind:string})=>m.portal_kind==='client') ? 'client' : 'partner'));
+  }
+  if (profileError || !profile || !profile.is_active || !profile.organisation_id || profile.role === 'partner') {
+    redirect('/login?error=' + encodeURIComponent('This sign-in does not have access to the operations workspace. Use your secure invitation link.'));
   }
 
   return { supabase, user, profile, organisationId: profile.organisation_id };

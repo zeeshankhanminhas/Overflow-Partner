@@ -18,6 +18,18 @@ const invariants=read('lib/business/invariants/index.ts');
 const caseDocs=read('lib/cases/documentRequirements.ts');
 const stages=read('lib/projects/stages.ts');
 const notifications=read('lib/notifications/scenarios.ts');
+const finalFiles=read('app/client-final-files/page.tsx');
+check('Final handover checks the latest client review decision before signing URLs',
+ finalFiles.includes("db.from('project_client_reviews').select('outcome')") &&
+ finalFiles.includes(".order('recorded_at',{ascending:false}).limit(1).maybeSingle()") &&
+ finalFiles.includes("['accepted','accepted_with_comments'].includes(String(review.data?.outcome||''))") &&
+ finalFiles.indexOf("if(review.error||") < finalFiles.indexOf("createSignedUrl("));
+check('Final handover additionally requires verified final settlement and specific OPOS owner release',
+ finalFiles.includes("db.from('op_project_final_settlements')") &&
+ finalFiles.includes("db.from('op_project_final_release_approvals')") &&
+ finalFiles.includes("reviewed.id!==approval.data.submission_id") &&
+ finalFiles.indexOf("if(payment.error||approval.error||") < finalFiles.indexOf("createSignedUrl("));
+
 check('Nine authoritative commercial stages', (contract.match(/key: '/g)||[]).length===9);
 check('Governance uses delivery risk, safety and complexity', ['technicalComplexity','deliveryRisk','regulatedOrSafetyCritical'].every(s=>contract.includes(s)));
 check('Formal partner evidence is required before Commercial Review',invariants.includes('partner_review_request_id') && invariants.includes('formalReview.status'));

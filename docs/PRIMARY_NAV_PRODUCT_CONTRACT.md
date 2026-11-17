@@ -22,37 +22,22 @@ Every destination must still have:
 
 Navigation labels, hrefs, placement and contracts are encoded in `lib/presentation/navigationContract.ts`. A new permanent navigation item must be added there first and must justify `placement: 'primary'`.
 
-## Operating hierarchy
+## Current Controller navigation — Phase 1 (15 November 2026)
 
-The permanent desktop rail is intentionally smaller than the route inventory:
+The persistent desktop destinations are **Outreach / Home / Opportunities / Projects / Finance / Documents**.
+On mobile they are **Outreach / Home / Opportunities / Projects / More**.
+The desktop sidebar also offers **My Work** and **More** as supporting access points, not duplicate workflows.
 
-### Home
-- Mission Control
-- Approvals
+- **Outreach** is pre-CRM. Cold LinkedIn conversations stay separate until confirmed interest and an explicit, authorised Convert to CRM action.
+- **Home** is the existing canonical priority summary.
+- **Opportunities** presents existing Enquiries and Case records without creating a new lifecycle or database table.
+- **Projects** retains the governed delivery and closeout records.
+- **Finance** leads to the existing payments register.
+- **Documents** leads to the controlled document register.
+- **More** exposes Companies, Contacts, Partners, Approvals, Tasks, Issues, Commercial Controls, Management and Settings without losing their existing routes.
 
-### Operate
-- Enquiries
-- Cases
-- Projects
-
-### Control
-- Client quotes
-- Payments
-- Commercial control
-- Issues
-- Actions
-
-### Reference
-- Documents
-- Execution Partners
-- Executive view
-- Risk & compliance
-- Knowledge
-
-### System
-- Settings
-
-Search is provided through the workspace command palette. Notification delivery health belongs in the top bar. Contextual Messages and Partner Assessments remain reachable from their owning workflow and quick access, but are not promoted into parallel permanent navigation.
+The earlier Home / Operate / Control / Reference sidebar hierarchy is retired as a UI navigation rule.
+Deep links and record-level navigation remain valid.
 
 ## Context ownership
 

@@ -53,6 +53,9 @@ jobs:
       - name: OPOS integrated lifecycle regression
         run: npm run lifecycle-integrity:check
 
+      - name: Final-file release gates (behavioral, disposable data)
+        run: node scripts/qa/final-handover-route-check.mjs
+
       - name: LinkedIn funnel regression
         run: npm run acquisition-funnel:check
 
@@ -61,6 +64,9 @@ jobs:
 
       - name: Production Stripe release-mode readiness (offline)
         run: npm run stripe-live:check
+
+      - name: Authenticated QA safety and syntax (no credentials)
+        run: node --test qa/browser/authenticated-policy.test.mjs && node --check qa/browser/tests/controller-visual.spec.mjs
 
       - name: Production build
         run: npx next build

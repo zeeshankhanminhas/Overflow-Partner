@@ -18,9 +18,39 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "Unable to sign in.")}`);
   }
 
+  // An older QA identity may carry both active internal and external grants.
+  // Do not fall back into the Controller route when a denied external grant
+  // is hidden by the secure, paid-only membership RPC.
+  if (process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED === 'true') {
+    const {data:conflict,error:conflictError}=await supabase.rpc('portal_identity_conflict');
+    if(conflictError || conflict===true){
+      await supabase.auth.signOut();
+      redirect('/login?error='+encodeURIComponent('Conflicting account permissions. Request a separate authorized workspace account.'));
+    }
+  }
+
+  // External users are not Controller profiles. Route only provisioned
+  // memberships with verified paid projects; otherwise secure links only.
+  const { data: externalMemberships, error: externalError } = await supabase.rpc('portal_my_workspaces');
+  if (!externalError && Array.isArray(externalMemberships) && externalMemberships.length) {
+    if(process.env.OP_PAID_EXTERNAL_PORTALS_ENABLED!=='true') {
+      await supabase.auth.signOut();
+      redirect('/login?error='+encodeURIComponent('Continue through your secure invitation link until the paid project portal is activated.'));
+    }
+    for (const kind of ['client', 'partner'] as const) {
+      if (!externalMemberships.some((row: {portal_kind: string}) => row.portal_kind === kind)) continue;
+      const { data: eligibleProjects, error: projectError } = await supabase.rpc('portal_my_projects', {p_kind: kind});
+      if (!projectError && Array.isArray(eligibleProjects) && eligibleProjects.length > 0) {
+        redirect('/portal/' + kind);
+      }
+    }
+    await supabase.auth.signOut();
+    redirect('/login?error=' + encodeURIComponent('Project dashboard access starts after verified opening payment. Please use your secure invitation links until then.'));
+  }
+
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, organisation_id, is_active")
+    .select("id, organisation_id, is_active, role")
     .eq("id", data.user.id)
     .maybeSingle();
 
@@ -44,6 +74,10 @@ export async function signIn(formData: FormData) {
     );
   }
 
+  if (profile.role === 'partner') {
+    await supabase.auth.signOut();
+    redirect('/login?error=' + encodeURIComponent('Use your assigned secure invitation link.'));
+  }
   redirect("/workspace");
 }
 

@@ -28,9 +28,9 @@ type IntakeState = {
   message?: string;
 };
 
-const fieldClass = 'field_input w-full border-0 border-b border-black/20 bg-transparent px-0 py-3 text-[var(--ink)] outline-none transition placeholder:text-neutral-400 focus:border-black';
+const fieldClass = 'field_input w-full border-0 border-b border-white/20 bg-transparent px-0 py-3 text-[var(--ink)] outline-none transition placeholder:text-neutral-400 focus:border-black';
 const labelClass = 'grid gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]';
-const sectionClass = 'grid gap-7 border-t border-black/10 pt-8';
+const sectionClass = 'grid gap-7 border-t border-white/15 pt-8';
 
 const projectTypes = ['CAD detailing', 'Manufacturing drawings', '3D modelling', 'Design revision', 'Drawing conversion', 'CAM support', 'BOM / documentation', 'Engineering overflow support', 'Other / unsure'];
 const disciplines = ['Mechanical', 'Fabrication', 'Sheet metal', 'Machining', 'Electrical', 'Civil / structural', 'Product design', 'Multi-discipline', 'Other / unsure'];
@@ -99,8 +99,8 @@ export default function TechnicalIntakePage() {
     setState((current) => ({ ...current, session: current.session ? { ...current.session, status: 'submitted' } : undefined }));
   }
 
-  if (loading) return <main className="padding_global min-h-screen bg-[var(--paper)] py-20"><div className="container_large border-t border-black/10 pt-10"><p className="text-sm text-[var(--subtle)]">Loading technical intake…</p></div></main>;
-  if (!state.session) return <main className="padding_global min-h-screen bg-[var(--paper)] py-20"><div className="container_large grid gap-5 border-t border-black/10 pt-10"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Overflow Partner</p><h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.03em] text-[var(--ink)] md:text-6xl">Technical intake unavailable</h1><p className="max-w-xl text-base leading-7 text-[var(--muted)]">{state.message}</p></div></main>;
+  if (loading) return <main className="op-secure-dark padding_global min-h-screen bg-[var(--paper)] py-20"><div className="container_large border-t border-white/15 pt-10"><p className="text-sm text-[var(--subtle)]">Loading technical intake…</p></div></main>;
+  if (!state.session) return <main className="op-secure-dark padding_global min-h-screen bg-[var(--paper)] py-20"><div className="container_large grid gap-5 border-t border-white/15 pt-10"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Overflow Partner</p><h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.03em] text-[var(--ink)] md:text-6xl">Technical intake unavailable</h1><p className="max-w-xl text-base leading-7 text-[var(--muted)]">{state.message}</p></div></main>;
 
   const prospect = state.session.prospect;
   const completed = ['submitted', 'converted'].includes(state.session.status);
@@ -109,18 +109,18 @@ export default function TechnicalIntakePage() {
   const intakeFiles = state.files || [];
 
   return (
-    <main className="padding_global min-h-screen bg-[var(--paper)] py-16 md:py-24">
-      <div className="container_large grid gap-12 border-t border-black/10 pt-10 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16">
+    <main className="op-secure-dark padding_global min-h-screen bg-[var(--paper)] py-16 md:py-24">
+      <div className="container_large grid gap-12 border-t border-white/15 pt-10 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16">
         <aside className="grid content-start gap-8 lg:sticky lg:top-10 lg:self-start">
           <div className="grid gap-5">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Overflow Partner · Step 2</p>
             <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.035em] text-[var(--ink)] md:text-6xl">Technical intake</h1>
             <p className="max-w-xl text-base leading-7 text-[var(--muted)]">Provide the engineering detail and source evidence needed to assess scope, capability, timing and commercial fit.</p>
           </div>
-          <div className="grid gap-6 border-t border-black/10 pt-7">
+          <div className="grid gap-6 border-t border-white/15 pt-7">
             <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Company</p><p className="text-xl font-medium text-[var(--ink)]">{prospect.company_name}</p></div>
             <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Initial requirement</p><p className="text-base leading-7 text-[var(--muted)]">{prospect.requirement_summary || 'No initial requirement summary was supplied.'}</p></div>
-            <div className="grid grid-cols-2 gap-6 border-t border-black/10 pt-6">
+            <div className="grid grid-cols-2 gap-6 border-t border-white/15 pt-6">
               <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Project type</p><p className="text-sm leading-6 text-[var(--ink)]">{prospect.project_type || 'Engineering support'}</p></div>
               <div className="grid gap-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Link expiry</p><p className="text-sm leading-6 text-[var(--ink)]">{expiresAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p></div>
             </div>
@@ -129,9 +129,9 @@ export default function TechnicalIntakePage() {
         </aside>
 
         {completed ? (
-          <section className="grid content-start gap-8 border-t border-black/10 pt-10">
+          <section className="grid content-start gap-8 border-t border-white/15 pt-10">
             <div className="grid gap-6"><p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--subtle)]">Submission received</p><h2 className="text-3xl font-semibold tracking-[-0.025em] text-[var(--ink)]">Technical requirement submitted.</h2><p className="max-w-2xl text-base leading-7 text-[var(--muted)]">Your information and attached source files are now awaiting internal engineering review. Overflow Partner will contact you if clarification is required.</p></div>
-            <div className="border-t border-black/10 pt-8"><TechnicalIntakeFiles token={token} initialFiles={intakeFiles} disabled /></div>
+            <div className="border-t border-white/15 pt-8"><TechnicalIntakeFiles token={token} initialFiles={intakeFiles} disabled /></div>
           </section>
         ) : (
           <form className="grid gap-10" onSubmit={submit}>
@@ -141,7 +141,7 @@ export default function TechnicalIntakePage() {
               <div className="grid gap-4">
                 <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--subtle)]">Required deliverables</p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {deliverableOptions.map((item) => <label key={item} className="flex items-center gap-3 border-b border-black/10 py-3 text-sm text-[var(--ink)]"><input className="h-4 w-4" type="checkbox" name="deliverable_items" value={item} defaultChecked={previousDeliverables.includes(item)} disabled={submitting} />{item}</label>)}
+                  {deliverableOptions.map((item) => <label key={item} className="flex items-center gap-3 border-b border-white/15 py-3 text-sm text-[var(--ink)]"><input className="h-4 w-4" type="checkbox" name="deliverable_items" value={item} defaultChecked={previousDeliverables.includes(item)} disabled={submitting} />{item}</label>)}
                 </div>
               </div>
             </section>
@@ -181,9 +181,9 @@ export default function TechnicalIntakePage() {
               <TechnicalIntakeFiles token={token} initialFiles={intakeFiles} disabled={submitting} />
             </section>
 
-            <section className="grid gap-6 border-t border-black/10 pt-8">
-              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center"><button className="min-h-12 bg-[var(--ink)] px-7 py-3 text-sm font-medium uppercase tracking-[0.08em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-neutral-500" type="submit" disabled={submitting}>{submitting ? 'Submitting' : 'Submit technical intake'}</button><p className="text-sm leading-6 text-[var(--subtle)]">This locks the written requirement and attached source evidence for internal technical review.</p></div>
-              {result ? <p className="border border-black/10 bg-white/50 p-4 text-sm leading-6 text-[var(--muted)]" role="status">{result}</p> : null}
+            <section className="grid gap-6 border-t border-white/15 pt-8">
+              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center"><button className="min-h-12 bg-[#e5e7eb] px-7 py-3 text-sm font-medium uppercase tracking-[0.08em] text-[#101113] transition hover:bg-white disabled:cursor-not-allowed disabled:bg-[#33363a] disabled:text-[#a8abb2]" type="submit" disabled={submitting}>{submitting ? 'Submitting' : 'Submit technical intake'}</button><p className="text-sm leading-6 text-[var(--subtle)]">This locks the written requirement and attached source evidence for internal technical review.</p></div>
+              {result ? <p className="border border-white/15 bg-[#111214] p-4 text-sm leading-6 text-[var(--muted)]" role="status">{result}</p> : null}
             </section>
           </form>
         )}

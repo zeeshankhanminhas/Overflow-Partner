@@ -5,7 +5,7 @@ import { verifyClientPortalToken } from '@/lib/quotes/clientPortalToken';
 export const dynamic='force-dynamic';
 export const metadata={title:'Final engineering files | Overflow Partner',robots:{index:false,follow:false}};
 
-const denied=(message:string)=><main style={{maxWidth:720,margin:'3rem auto',padding:24}}>
+const denied=(message:string)=><main className="op-secure-dark" style={{maxWidth:720,margin:'3rem auto',padding:24}}>
   <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p><h1>Final files not available</h1><p>{message}</p>
 </main>;
 
@@ -32,12 +32,20 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
   const {data:project}=await db.from('projects').select('id,project_number')
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!project)return denied('The project has not been commercially released.');
-  const [payment,approval]=await Promise.all([
+  const [payment,approval,review]=await Promise.all([
     db.from('op_project_final_settlements').select('project_id,verified_at')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
     db.from('op_project_final_release_approvals').select('project_id,approved_at,submission_id')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
+    // A later rejection or correction request revokes release eligibility
+    // even if an older review was previously accepted. Never sign a file
+    // URL from stale review/payment/owner approval evidence.
+    db.from('project_client_reviews').select('outcome')
+      .eq('project_id',project.id).eq('organisation_id',issue.organisation_id)
+      .order('recorded_at',{ascending:false}).limit(1).maybeSingle(),
   ]);
+  if(review.error||!['accepted','accepted_with_comments'].includes(String(review.data?.outcome||'')))
+    return denied('The latest client engineering review must be accepted before the final package can be released.');
   if(payment.error||approval.error||!payment.data||!approval.data)
     return denied('Final cleared payment and the last OPOS owner release approval are both required.');
   const {data:assignment}=await db.from('project_execution_assignments')
@@ -60,7 +68,7 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
     if(signError||!signed?.signedUrl)return denied('A secure file link could not be created. Please try again.');
     links.push({id:file.id,name:file.original_filename,url:signed.signedUrl});
   }
-  return <main style={{maxWidth:740,margin:'3rem auto',padding:24}}>
+  return <main className="op-secure-dark" style={{maxWidth:740,margin:'3rem auto',padding:24}}>
     <p>OVERFLOW PARTNER · SECURE CLIENT PORTAL</p>
     <h1>Final engineering package</h1>
     <p>Project {project.project_number} · Quotation {quote.quote_number}</p>

@@ -117,7 +117,7 @@ export default async function Page({searchParams}:{searchParams?:Promise<Record<
 
   const caseEntry=<Link className="button secondary" href="/workspace/leads">Open Cases</Link>;
 
-  return <section className="vp-page">
+  return <section className="vp-page project-portfolio-page">
     <ProductPageHeader eyebrow="Work · Projects" title="Project portfolio" description="Choose a Project from the portfolio. Inspect the operating position in place, then open Project 360 only when you need to perform record-level work." actions={caseEntry} />
 
     <ProductMetrics label="Project portfolio summary">
