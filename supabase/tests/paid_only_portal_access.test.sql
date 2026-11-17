@@ -2,7 +2,7 @@
 -- Ephemeral CI database ONLY. Fixtures and JWT simulation rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(16);
 
 insert into auth.users(id,email) values
 ('00000000-0000-4000-8000-000000006101','qa-owner-portals@example.invalid'),
@@ -96,6 +96,34 @@ select ok(not has_table_privilege('authenticated','public.external_portal_member
 'External membership table cannot be read directly with authenticated role');
 select ok(has_function_privilege('authenticated','public.portal_my_projects(text)','execute'),
 'Authenticated projects are exposed only through purpose-limited scoped RPC');
+
+
+-- Legacy role collision: new grants must fail and any older overlapping grants
+-- must be invisible to BOTH the landing-page and paid-project RPCs.
+select throws_ok($
+ insert into public.external_portal_memberships
+  (organisation_id,auth_user_id,portal_kind,company_id,is_active)
+ values ('00000000-0000-4000-8000-000000006110',
+         '00000000-0000-4000-8000-000000006101','client',
+         '00000000-0000-4000-8000-000000006121',true)
+$,'P0001','External portal membership cannot use active Controller organisation profile',
+   'New external grant cannot overlap an active internal Controller profile');
+
+-- Reproduce a *legacy* grant that predates the trigger; no persisted changes
+-- because this pgTAP test runs in a rolled-back transaction.
+alter table public.external_portal_memberships disable trigger op_validate_external_portal_membership_trigger;
+insert into public.external_portal_memberships
+ (organisation_id,auth_user_id,portal_kind,company_id,is_active)
+ values ('00000000-0000-4000-8000-000000006110',
+         '00000000-0000-4000-8000-000000006101','client',
+         '00000000-0000-4000-8000-000000006121',true);
+alter table public.external_portal_memberships enable trigger op_validate_external_portal_membership_trigger;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000006101',true);
+select is((select count(*)::int from public.portal_my_workspaces()),0,
+'Legacy grant with active Controller profile cannot reveal external account');
+select is((select count(*)::int from public.portal_my_projects('client')),0,
+'Legacy grant with active Controller profile cannot reveal even a paid project');
 
 select * from finish();
 rollback;
