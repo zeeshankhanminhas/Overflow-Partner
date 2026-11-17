@@ -32,12 +32,20 @@ export default async function ClientFinalFiles({searchParams}:{searchParams:Prom
   const {data:project}=await db.from('projects').select('id,project_number')
     .eq('organisation_id',issue.organisation_id).eq('quote_id',quote.id).maybeSingle();
   if(!project)return denied('The project has not been commercially released.');
-  const [payment,approval]=await Promise.all([
+  const [payment,approval,review]=await Promise.all([
     db.from('op_project_final_settlements').select('project_id,verified_at')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
     db.from('op_project_final_release_approvals').select('project_id,approved_at,submission_id')
       .eq('project_id',project.id).eq('organisation_id',issue.organisation_id).maybeSingle(),
+    // A later rejection or correction request revokes release eligibility
+    // even if an older review was previously accepted. Never sign a file
+    // URL from stale review/payment/owner approval evidence.
+    db.from('project_client_reviews').select('outcome')
+      .eq('project_id',project.id).eq('organisation_id',issue.organisation_id)
+      .order('recorded_at',{ascending:false}).limit(1).maybeSingle(),
   ]);
+  if(review.error||!['accepted','accepted_with_comments'].includes(String(review.data?.outcome||'')))
+    return denied('The latest client engineering review must be accepted before the final package can be released.');
   if(payment.error||approval.error||!payment.data||!approval.data)
     return denied('Final cleared payment and the last OPOS owner release approval are both required.');
   const {data:assignment}=await db.from('project_execution_assignments')
