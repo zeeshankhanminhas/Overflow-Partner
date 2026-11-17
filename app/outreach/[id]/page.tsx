@@ -4,6 +4,8 @@ import { requireUserContext } from '@/lib/auth/context';
 import { promoteOutreachToCrmAction } from '@/app/outreach/actions';
 import OutreachDisposition from '@/components/workspace/OutreachDisposition';
 import OutreachConversationJournal from '@/components/workspace/OutreachConversationJournal';
+import OutreachResearchPanel from '@/components/workspace/OutreachResearchPanel';
+import type {OutreachResearch} from '@/lib/outreach/research';
 import styles from '@/app/workspace/acquisition/LinkedInFlow.module.css';
 
 export default async function OutreachThreadPage({
@@ -15,7 +17,7 @@ export default async function OutreachThreadPage({
  const {id}=await params;
  const query=searchParams?await searchParams:{};
  const {supabase,organisationId,profile}=await requireUserContext();
- const [threadResult,messageResult]=await Promise.all([
+ const [threadResult,messageResult,researchResult]=await Promise.all([
   supabase.from('linkedin_outreach_threads')
     .select('id,company_name,contact_name,job_title,linkedin_url,state,next_follow_up_at,crm_prospect_id')
     .eq('organisation_id',organisationId).eq('id',id).maybeSingle(),
@@ -23,9 +25,11 @@ export default async function OutreachThreadPage({
     .select('id,source,body,created_at')
     .eq('organisation_id',organisationId).eq('outreach_id',id)
     .order('created_at',{ascending:true}).order('id',{ascending:true}).limit(200),
+  supabase.from('linkedin_outreach_research').select('*').eq('organisation_id',organisationId).eq('outreach_id',id).maybeSingle(),
  ]);
  if(threadResult.error||!threadResult.data)notFound();
  if(messageResult.error)throw new Error('Could not read outreach messages.');
+ if(researchResult.error)throw new Error('Outreach research is unavailable. Confirm its database migration.');
  const t=threadResult.data;
  const canWrite=['owner','admin','business_development','operator'].includes(String(profile.role));
  const stage=t.state;
@@ -61,6 +65,7 @@ export default async function OutreachThreadPage({
     <div><strong>Handed over to CRM</strong><p>This conversation remains available here as an independent history.</p></div>
     <Link className="button" href={`/workspace/acquisition/${t.crm_prospect_id}`}>Open Prospect ↗</Link>
    </section>:null}
+  <OutreachResearchPanel id={id} research={(researchResult.data||null) as OutreachResearch|null} canWrite={canWrite} closed={converted||stage==='closed'}/>
   <OutreachConversationJournal outreachId={id} entries={messageResult.data||[]} canWrite={canWrite&&!converted}/>
   {canWrite&&!converted&&stage!=='closed'&&stage!=='interested'?<section className={styles.simpleDecision}>
    <div><p className={styles.eyebrow}>NEXT ACTION</p><h2>What happened next?</h2></div>
