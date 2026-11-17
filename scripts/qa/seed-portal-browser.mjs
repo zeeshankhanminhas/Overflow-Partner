@@ -15,7 +15,8 @@ const identities={
  controller:'controller.qa@example.invalid',
  client:'client.qa@example.invalid',
  unpaid:'unpaid.qa@example.invalid',
- partner:'partner.qa@example.invalid'
+ partner:'partner.qa@example.invalid',
+ conflict:'conflict.qa@example.invalid'
 };
 const users={};
 for(const [role,email] of Object.entries(identities)){
@@ -28,7 +29,7 @@ if(Object.values(users).some(id=>!isUuid(id)))throw Error('Synthetic identity is
 const parts=[
  "begin;",
  "insert into public.organisations(id,name) values ('__ORG__','OPOS isolated visual CI');",
- "insert into public.profiles(id,organisation_id,role,full_name,is_active) values ('__CONTROLLER__','__ORG__','operator','Synthetic Controller',true);",
+ "insert into public.profiles(id,organisation_id,role,full_name,is_active) values ('__CONTROLLER__','__ORG__','operator','Synthetic Controller',true), ('__CONFLICT__','__ORG__','operator','Legacy Conflicted Internal Profile',true);",
  "insert into public.companies(id,organisation_id,name,created_by) values ('__COMPANY_PAID__','__ORG__','QA Browser Paid Client','__CONTROLLER__'), ('__COMPANY_UNPAID__','__ORG__','QA Browser Unpaid Client','__CONTROLLER__');",
  "insert into public.leads(id,organisation_id,created_by,company_name,company_id) values ('__LEAD_PAID__','__ORG__','__CONTROLLER__','QA Browser Paid Client','__COMPANY_PAID__'), ('__LEAD_UNPAID__','__ORG__','__CONTROLLER__','QA Browser Unpaid Client','__COMPANY_UNPAID__'), ('__LEAD_ARCHIVED__','__ORG__','__CONTROLLER__','QA Browser Paid Client','__COMPANY_PAID__');",
  "insert into public.quotes(id,organisation_id,lead_id,created_by,quote_number,total) values ('__QUOTE_PAID__','__ORG__','__LEAD_PAID__','__CONTROLLER__','OP-QA-BROWSER-PAID',720), ('__QUOTE_UNPAID__','__ORG__','__LEAD_UNPAID__','__CONTROLLER__','OP-QA-BROWSER-UNPAID',480), ('__QUOTE_ARCHIVED__','__ORG__','__LEAD_ARCHIVED__','__CONTROLLER__','OP-QA-BROWSER-CLOSED',360);",
@@ -39,6 +40,9 @@ const parts=[
  "insert into public.partners(id,organisation_id,company_name,status) values ('__PARTNER__','__ORG__','QA Browser Execution Partner','approved');",
  "insert into public.external_portal_memberships(organisation_id,auth_user_id,portal_kind,company_id,is_active) values ('__ORG__','__CLIENT__','client','__COMPANY_PAID__',true), ('__ORG__','__UNPAID__','client','__COMPANY_UNPAID__',true);",
  "insert into public.external_portal_memberships(organisation_id,auth_user_id,portal_kind,partner_id,is_active) values ('__ORG__','__PARTNER_USER__','partner','__PARTNER__',true);",
+ "alter table public.external_portal_memberships disable trigger op_validate_external_portal_membership_trigger;",
+ "insert into public.external_portal_memberships(organisation_id,auth_user_id,portal_kind,partner_id,is_active) values ('__ORG__','__CONFLICT__','partner','__PARTNER__',true);",
+ "alter table public.external_portal_memberships enable trigger op_validate_external_portal_membership_trigger;",
  "commit;"
 ];
 const values={
@@ -58,11 +62,12 @@ const values={
  __CONTROLLER__:users.controller,
  __CLIENT__:users.client,
  __UNPAID__:users.unpaid,
- __PARTNER_USER__:users.partner
+ __PARTNER_USER__:users.partner,
+ __CONFLICT__:users.conflict
 };
 let sql=parts.join('\n');
 for(const [name,value] of Object.entries(values))sql=sql.replaceAll(name,value);
 if(/__[A-Z_]+__/.test(sql))throw Error('Unresolved synthetic fixture token');
 const result=spawnSync('docker',['exec','-i','supabase_db_opos_ephemeral_ci','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1'],{input:sql,encoding:'utf8',timeout:90000});
 if(result.status!==0)throw Error('Local fixture SQL failed: '+String(result.stderr).slice(-1300));
-console.log('Isolated Controller, paid Client, unpaid Client and Partner fixtures created.');
+console.log('Isolated Controller, paid Client, unpaid Client, Partner and conflicted legacy identity fixtures created.');
