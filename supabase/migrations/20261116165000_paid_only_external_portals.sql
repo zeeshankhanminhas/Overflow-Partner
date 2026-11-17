@@ -33,7 +33,6 @@ begin
   if exists (
     select 1 from public.profiles profile
     where profile.id=new.auth_user_id
-      and profile.organisation_id=new.organisation_id
       and profile.is_active=true
   ) then raise exception 'External portal membership cannot use active Controller organisation profile'; end if;
   if new.portal_kind='client' and not exists (
@@ -75,6 +74,9 @@ language sql stable security definer set search_path='' as $$
   left join public.companies c on c.id=m.company_id and c.organisation_id=m.organisation_id
   left join public.partners pt on pt.id=m.partner_id and pt.organisation_id=m.organisation_id
   where auth.role()='authenticated' and m.auth_user_id=(select auth.uid()) and m.is_active
+    and not exists (
+      select 1 from public.profiles internal where internal.id=m.auth_user_id and internal.is_active
+    )
   order by m.portal_kind,m.created_at
 $$;
 
@@ -118,6 +120,9 @@ begin
         and payment.confirmed_at is not null
       where m.auth_user_id=(select auth.uid())
         and m.is_active and m.portal_kind='client'
+        and not exists (
+          select 1 from public.profiles internal where internal.id=m.auth_user_id and internal.is_active
+        )
         and pr.status::text <> 'cancelled'
       order by m.id,pr.id;
     return;
@@ -180,6 +185,9 @@ begin
     ) pu on true
     where m.auth_user_id=(select auth.uid())
       and m.is_active and m.portal_kind='partner'
+      and not exists (
+        select 1 from public.profiles internal where internal.id=m.auth_user_id and internal.is_active
+      )
       and pr.status::text <> 'cancelled'
     order by m.id,pr.id
   $partnerquery$;
