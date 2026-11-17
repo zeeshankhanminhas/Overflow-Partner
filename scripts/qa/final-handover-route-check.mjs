@@ -57,7 +57,7 @@ async function exercise({changes={},validToken=true,enabled=true,preview=false,
   }};}}
  };
  const jsx=(type,props)=>({type,props:props||{}});
- const module={exports:{}};
+ const cjsModule={exports:{}};
  const requireMock=id=>{
   if(id==='react/jsx-runtime')return {jsx,jsxs:jsx,Fragment:'fragment'};
   if(id==='@/lib/qa/isolation')return {isKnownIsolatedQaBackend:()=>isolated};
@@ -71,9 +71,9 @@ async function exercise({changes={},validToken=true,enabled=true,preview=false,
   VERCEL_ENV:preview?'preview':'local-qa',
   NEXT_PUBLIC_SUPABASE_URL:'http://127.0.0.1:54321',
   SUPABASE_SERVICE_ROLE_KEY:'disposable-placeholder'};
- vm.runInNewContext(output,{module,exports:module.exports,require:requireMock,
+ vm.runInNewContext(output,{module:cjsModule,exports:cjsModule.exports,require:requireMock,
   process:{env},console}, {filename:'app/client-final-files/page.tsx',timeout:1000});
- const page=await module.exports.default({searchParams:Promise.resolve({token:'synthetic'})});
+ const page=await cjsModule.exports.default({searchParams:Promise.resolve({token:'synthetic'})});
  return {display:readable(page),signed};
 }
 
