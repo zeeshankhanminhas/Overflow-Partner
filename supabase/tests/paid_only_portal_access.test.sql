@@ -100,13 +100,13 @@ select ok(has_function_privilege('authenticated','public.portal_my_projects(text
 
 -- Legacy role collision: new grants must fail and any older overlapping grants
 -- must be invisible to BOTH the landing-page and paid-project RPCs.
-select throws_ok($
+select throws_ok($sql$
  insert into public.external_portal_memberships
   (organisation_id,auth_user_id,portal_kind,company_id,is_active)
  values ('00000000-0000-4000-8000-000000006110',
          '00000000-0000-4000-8000-000000006101','client',
          '00000000-0000-4000-8000-000000006121',true)
-$,'P0001','External portal membership cannot use active Controller organisation profile',
+$sql$,'P0001','External portal membership cannot use active Controller organisation profile',
    'New external grant cannot overlap an active internal Controller profile');
 
 -- Reproduce a *legacy* grant that predates the trigger; no persisted changes
