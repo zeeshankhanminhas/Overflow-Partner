@@ -2,7 +2,7 @@
 -- Ephemeral CI database ONLY. Fixtures and JWT simulation rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 insert into auth.users(id,email) values
 ('00000000-0000-4000-8000-000000006101','qa-owner-portals@example.invalid'),
@@ -124,6 +124,12 @@ select is((select count(*)::int from public.portal_my_workspaces()),0,
 'Legacy grant with active Controller profile cannot reveal external account');
 select is((select count(*)::int from public.portal_my_projects('client')),0,
 'Legacy grant with active Controller profile cannot reveal even a paid project');
+
+select is(public.portal_identity_conflict(),true,
+'Existing active Controller/external membership collision is detected at login');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000006103',true);
+select is(public.portal_identity_conflict(),false,
+'Unpaid but non-overlapping Client identity is not falsely classified as an internal collision');
 
 select * from finish();
 rollback;
