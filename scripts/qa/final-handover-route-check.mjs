@@ -77,11 +77,12 @@ async function exercise({changes={},validToken=true,enabled=true,preview=false,
  return {display:readable(page),signed};
 }
 
-const denied=(name,opts,reason)=>test(name,async()=>{
+const denied=(name,opts,reason,expectedSignerCalls=0)=>test(name,async()=>{
  const result=await exercise(opts);
  assert.match(result.display,/Final files not available/);
  assert.match(result.display,reason);
- assert.equal(result.signed.length,0,'A denied scenario must never sign a storage URL');
+ assert.equal(result.signed.length,expectedSignerCalls,'Unexpected storage signing attempts for this denial');
+ assert.doesNotMatch(result.display,/https:\/\/qa\.invalid\/signed-file/,'Denied result must contain no signed-file URL');
 });
 
 test('Accepted review + final cleared payment + owner-approved current submission produces 5-minute file URL',async()=>{
@@ -117,7 +118,7 @@ denied('Missing controlled file package cancels download',
  /approved final package is temporarily unavailable/);
 denied('A failed storage signature does not expose a signed link',
  {storageFails:true},
- /secure file link could not be created/);
+ /secure file link could not be created/,1);
 denied('Withdrawn quotation acceptance cancels download',
  {changes:{quote_issue_records:{organisation_id:'qa-org',client_response:'declined'}}},
  /quotation acceptance is missing/);
